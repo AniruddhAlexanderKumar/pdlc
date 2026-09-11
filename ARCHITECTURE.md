@@ -875,8 +875,11 @@ table to look in — and a wrong guess is a cross-artifact information leak.
 Traverse is a POST because its request is a structured object (a typed root plus
 node- and edge-type filters), not because it writes anything. It does not.
 
-This layer is read-only. There is no graph UI, no visualization, and no impact
-engine — those are later work, and this is the foundation they will read.
+This layer is read-only. The [Traceability workspace](#traceability-workspace)
+is a structured explorer built directly on these four endpoints — it adds no
+second graph, no visualization canvas, and no traversal logic of its own.
+Change-impact analysis, technical readiness and Decision Sentinel are built on
+the same foundation, each documented in its own section.
 
 ## Verification readiness
 
@@ -2906,12 +2909,164 @@ an owner card, a traceability panel, and audit history via the existing
 `AuditEventDto`/history-list shape every other detail page already
 renders — no new audit viewer was built). The project workspace module
 list gained "Risks" and "Issues" entries between "Changes" and
-"Suppliers", and the dashboard's stale "Traceability and risks are not
-built yet" empty state was corrected now that Risks is real — only a
-dedicated traceability *workspace* remains unbuilt, and the empty state
-says exactly that rather than pretending graph traversal is the same thing.
-No probability field, no impact field, no risk-matrix widget, and no
-comment thread exist anywhere in either module.
+"Suppliers". (The dashboard's "traceability workspace is not built yet"
+empty state, current as of this build, was later replaced outright once
+the [Traceability workspace](#traceability-workspace) shipped — see that
+section.) No probability field, no impact field, no risk-matrix widget,
+and no comment thread exist anywhere in either module.
+
+## Traceability workspace
+
+A real, project-scoped interface for asking "what does this affect, what
+affects it, and why are they connected?" — built entirely on the
+[Cross-domain product graph](#cross-domain-product-graph) above. There is no
+second graph model, no second traversal engine, and no new edge type: every
+relationship the workspace shows comes from the same four endpoints
+`EngineeringGraphService` already served before this capability existed.
+
+### What this deliberately is not
+
+Not a node-link canvas. The specification for this capability was explicit
+that a structured explorer is preferable to a decorative visualization, and
+the existing frontend has no graph-rendering library to build one cleanly
+with. The workspace is rows, panels and a breadcrumb — the same idiom every
+other module in this codebase already uses for a list and a detail view.
+
+Not a write path. Opening an object, changing direction, filtering, and
+traversing are all reads. Nothing here is audited, because nothing here
+mutates — the same rule the graph layer itself already followed.
+
+### The root-object picker
+
+The workspace's one new backend surface: `TraceabilityService.listSelectableRoots`
+(`src/server/services/traceability.service.ts`) and
+`GET /api/projects/:projectId/traceability/objects?type=:nodeType`. It exists
+for exactly one reason — to populate "choose an object to start from" with real
+records — and it is not a general listing API: every branch dispatches straight
+into that module's own existing service (`requirementService.listRequirements`,
+`riskService.listRisks`, `driftDetectionService.listBaselines`, and so on) and
+normalizes the result to `{ id, identifier, label }`. No new Prisma query was
+written for any of the seventeen types it supports.
+
+Seventeen of the registry's twenty-nine node types are offered as roots —
+exactly the ones with a genuine project-wide "list everything of this type"
+capability already sitting in some other service. The remaining twelve are
+not offered, each for a specific, checked reason recorded in
+`TRACEABILITY_UNSELECTABLE_REASONS` (`src/domain/traceability.ts`): most are
+listed only per parent (a decision's alternatives, a baseline's members, a
+compliance item's findings), two have no listing service at all (`EVIDENCE`,
+`APPROVAL`), and `PROJECT` has zero edges registered in
+`GRAPH_EDGE_DEFINITIONS` — nothing currently points at it or from it, so it
+would always resolve to an empty neighborhood. A domain test asserts these two
+lists partition all twenty-nine node types exactly, so a future node type
+added to the registry without being placed in one list or the other fails a
+test rather than silently having no picker entry and no explanation.
+
+Selectability and having a standalone detail page are independent.
+`CERTIFICATION_BASIS`, `CERTIFICATION_REVIEW`, `OPERATIONAL_OBSERVATION` and
+`DRIFT_ASSESSMENT` are all real picker roots with no dynamic route to open —
+`traceabilityDetailRoute` returns `null` for them, and the UI simply omits the
+"Open in module" button rather than fabricating a link.
+
+Being excluded from the flat picker does not mean a type is unreachable.
+`EngineeringGraphService.getNode` resolves all twenty-nine node types
+uniformly, so a `DECISION_ALTERNATIVE` or a `DRIFT_FINDING`, once reached by
+following a relationship from a supported root, is inspected and traversed
+exactly like anything else — the picker only decides where a user can *start*.
+
+### Exploring from an object
+
+Two panels, both reading the unmodified graph API:
+
+- **Direct relationships** — one hop, via the existing
+  `…/graph/node/:type/:id/neighbors` endpoint. `OUTBOUND` / `INBOUND` / `BOTH`,
+  with an optional relationship-type filter built from `edgeTypesFrom` /
+  `edgeTypesInto` (so the filter can never offer a relationship the registry
+  does not permit for this node) and a client-side connected-object-type
+  filter over whatever the response actually contains. Each row shows the
+  connected object's type, identifier and label, the relationship's own
+  meaning (`GRAPH_EDGE_DEFINITIONS[type].meaning`, never invented text), its
+  `linkType` and `note` where the underlying table carries one, and when it
+  was recorded — real provenance, not a summary of it.
+- **Extended neighborhood** — several hops at once, via the existing
+  `POST …/graph/traverse` endpoint, bounded by `GRAPH_LIMITS` exactly as
+  before (depth capped at 5, the same request-rejected-not-clamped rule). Each
+  reached object shows its depth and the *shortest* chain of relationships
+  that reached it — literally `TraversalNode.path`, unmodified — and a
+  truncation banner names which cap stopped it, when one did.
+
+Clicking a connected object's identifier navigates the workspace into it: the
+current object becomes a breadcrumb entry, the new one is resolved and its own
+relationships are fetched. A visible breadcrumb (not just a single "Back"
+button) lets a user jump back to any earlier point in the walk, not only the
+previous one. None of this required a client-side graph cache or a second copy
+of any node — each hop is exactly one more read through the same two
+endpoints.
+
+### Node type and edge type labels
+
+`graphNodeTypeLabel` / `graphEdgeTypeLabel` (`src/domain/traceability.ts`)
+turn a registry constant into a phrase — `ENGINEERING_DECISION` to
+"Engineering decision", `RISK_AFFECTS_REQUIREMENT` to "Risk affects
+requirement" — by splitting and capitalizing the constant itself. Every node
+and edge type in the registry was already named to read correctly this way, so
+there is no separate hand-maintained label table to fall out of sync with
+`GRAPH_NODE_TYPES` / `GRAPH_EDGE_TYPES` as they grow.
+
+### Navigating to a real module
+
+`traceabilityDetailRoute(type, projectId, id)` maps a node type to its real
+dynamic route — `/projects/:id/requirements/:reqId`,
+`/projects/:id/certification/items/:itemId`, and eleven others — or `null`
+when no standalone detail page exists for that type. The map is a literal
+table of the actual routes under `src/app/(workspace)/projects/[projectId]`,
+not a naming convention applied blindly: a type with no matching `page.tsx`
+gets `null`, never a guessed URL.
+
+### API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/projects/:projectId/traceability/objects?type=:nodeType` | Real, project-scoped objects of one selectable type, for the picker |
+
+Everything else the workspace calls — node resolution, one-hop neighbors,
+bounded traversal — is the pre-existing graph API in
+[Cross-domain product graph](#cross-domain-product-graph), completely
+unmodified. No route, request shape, or response shape there changed.
+
+### Frontend
+
+`/projects/[projectId]/traceability`
+(`src/app/(workspace)/projects/[projectId]/traceability/`): an object-type +
+object picker, a current-object card visually distinguished from its
+neighbors (a tinted, bordered card versus plain rows), the two relationship
+panels above, and a breadcrumb. The top-level `/traceability` route — like
+every other top-level module entry — is now a real `ModuleProjectPicker`
+rather than a stub, and the project dashboard's module grid gained a
+"Traceability" entry; the dashboard's former "a dedicated traceability
+workspace is not built yet" empty state is gone because it no longer applies.
+
+### Verification
+
+No new domain model, no new Prisma table, and no schema change of any kind —
+`prisma migrate diff --from-empty` before and after this capability produces
+an identical script. The one new backend module
+(`traceability.service.ts`) has its own unit suite mocking every sibling
+service it dispatches to; the domain module
+(`traceability.ts`) is tested for the partition invariant, the display
+helpers, and the detail-route map; a PostgreSQL integration suite
+(`src/tests/integration/traceability.test.ts`, skipped without a reachable
+database) proves the picker against real service-created data across a
+representative sample of the seventeen types, proves the "no certification
+program yet" case returns an empty list rather than an error, proves
+cross-project isolation, and composes the picker with the real, unmodified
+graph service across a real multi-hop scenario — including a genuine
+two-hop object whose shortest path is asserted edge-by-edge. A Playwright
+spec (`traceability.spec.ts`) drives the real UI: build a slice, open an
+object, inspect both directions, narrow by direction, traverse into a
+connected object and back, run the bounded extended-neighborhood traversal
+and find a real two-hop object, and confirm project isolation through both
+the real API and the real UI's error state.
 
 ## Directory structure
 
@@ -2963,6 +3118,10 @@ src/domain/                 Entities, enums, identifiers, link + input validatio
                               artifacts.ts, unchanged)
   graph.ts                    Node/edge types, THE edge registry, traversal +
                               consistency contracts (Prisma-free)
+  traceability.ts              Selectable-root allow-list + documented
+                              exclusion reasons, node/edge label helpers,
+                              the real-detail-route map (Prisma-free; adds
+                              no graph structure of its own)
 
 src/server/
   errors.ts                   AppError + typed subclasses (400/401/403/404/409)
@@ -3008,7 +3167,11 @@ src/server/
                               list, get, content-update, transition,
                               assign/clear owner, link/unlink — a
                               cross-org owner or a cross-project link target
-                              is re-resolved and rejected, never trusted)
+                              is re-resolved and rejected, never trusted),
+                              traceability.service.ts (the root-object
+                              picker: dispatches to seventeen other
+                              services' own list methods, normalizes the
+                              result — no Prisma query of its own)
   repositories/               Project, Requirement, EngineeringDecision,
                               ChangeRequest, Organization, User, Session, AuditLog
                               + mappers, Prisma error translation
@@ -3141,6 +3304,12 @@ src/app/
   api/projects/[projectId]/issue-link-targets
                               requirements/design items/decisions eligible
                               for an issue link
+  api/projects/[projectId]/traceability/objects
+                              real, project-scoped objects of one
+                              selectable node type, for the Traceability
+                              workspace's own picker only — relationship
+                              reads go through the unmodified graph routes
+                              above
 
 src/components/ui|common/   shadcn/ui-style primitives and shared wrappers
 src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
@@ -3229,8 +3398,10 @@ src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
   with two `ALTER TYPE ... ADD VALUE` statements (`RISK`, `ISSUE`) so the
   Decision Sentinel can record a change to one, exactly the same enum-
   widening shape (an addition, never a removal) used elsewhere in this
-  schema's history. CI re-checks every migration against the schema with a
-  shadow database on every run.
+  schema's history. The Traceability workspace needed no schema change at
+  all — it reads the existing graph API and existing services' own listing
+  methods, and adds no table, column, enum or migration. CI re-checks every
+  migration against the schema with a shadow database on every run.
 - Cross-project integrity on the supplier relationship tables is enforced in the
   services — every parent and link target is re-resolved inside the scoped
   project before a write — and any row that still crossed a project is reported
