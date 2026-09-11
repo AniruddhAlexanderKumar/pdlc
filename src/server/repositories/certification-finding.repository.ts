@@ -1,0 +1,106 @@
+import type {
+  CertificationFinding,
+  CertificationFindingSeverity,
+  CertificationFindingStatus,
+} from "@/domain";
+import { type DbClient, prisma } from "@/lib/db";
+
+export interface CreateCertificationFindingData {
+  complianceItemId: string;
+  identifier: string;
+  title: string;
+  description: string | null;
+  severity: CertificationFindingSeverity;
+}
+
+export async function createFinding(
+  data: CreateCertificationFindingData,
+  client: DbClient = prisma,
+): Promise<CertificationFinding> {
+  return client.certificationFinding.create({ data });
+}
+
+export async function findFindingInItem(
+  complianceItemId: string,
+  id: string,
+  client: DbClient = prisma,
+): Promise<CertificationFinding | null> {
+  return client.certificationFinding.findFirst({ where: { id, complianceItemId } });
+}
+
+export async function listFindingsForItem(
+  complianceItemId: string,
+  client: DbClient = prisma,
+): Promise<CertificationFinding[]> {
+  return client.certificationFinding.findMany({
+    where: { complianceItemId },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+}
+
+export interface UpdateCertificationFindingData {
+  title?: string;
+  description?: string | null;
+  severity?: CertificationFindingSeverity;
+  status?: "OPEN" | "IN_PROGRESS";
+}
+
+export async function updateFinding(
+  id: string,
+  data: UpdateCertificationFindingData,
+  client: DbClient = prisma,
+): Promise<CertificationFinding> {
+  return client.certificationFinding.update({ where: { id }, data });
+}
+
+export async function dispositionFinding(
+  id: string,
+  status: "RESOLVED" | "ACCEPTED",
+  note: string,
+  evidenceId: string | null,
+  resolvedById: string | null,
+  client: DbClient = prisma,
+): Promise<CertificationFinding> {
+  return client.certificationFinding.update({
+    where: { id },
+    data: {
+      status,
+      resolutionNote: note,
+      evidenceId,
+      resolvedById,
+      resolvedAt: new Date(),
+    },
+  });
+}
+
+/** Open (OPEN/IN_PROGRESS) findings across a set of compliance items, one query for all of them. */
+export async function listOpenFindingsForItems(
+  complianceItemIds: readonly string[],
+  client: DbClient = prisma,
+): Promise<CertificationFinding[]> {
+  if (complianceItemIds.length === 0) return [];
+  return client.certificationFinding.findMany({
+    where: {
+      complianceItemId: { in: [...complianceItemIds] },
+      status: { in: ["OPEN", "IN_PROGRESS"] },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+}
+
+/** Dispositioned (RESOLVED/ACCEPTED) findings, batched the same way, for review-basis context. */
+export async function listDispositionedFindingsForItems(
+  complianceItemIds: readonly string[],
+  client: DbClient = prisma,
+): Promise<CertificationFinding[]> {
+  if (complianceItemIds.length === 0) return [];
+  return client.certificationFinding.findMany({
+    where: {
+      complianceItemId: { in: [...complianceItemIds] },
+      status: { in: ["RESOLVED", "ACCEPTED"] },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+}
+
+export type { CertificationFindingStatus };

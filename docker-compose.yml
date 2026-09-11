@@ -1,0 +1,42 @@
+# Local PostgreSQL for development and for running the database-dependent
+# tests the same way CI does.
+#
+# Docker is the supported path for reproducing the real database, but it is
+# not required to edit or typecheck the code: typecheck, lint and the unit
+# test suite all run without a database. Only migrations, the seed, the
+# integration tests and the end-to-end suite need this running.
+#
+#   docker compose up -d          start PostgreSQL
+#   docker compose down           stop it (data is kept)
+#   docker compose down -v        stop it and delete the data volume
+#
+# The credentials here are local-development only and deliberately obvious.
+# They are never used outside a developer machine — production supplies
+# DATABASE_URL from the environment, and nothing in this file is read by the
+# application.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: pdlc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pdlc_dev
+    ports:
+      # Host port is configurable so it does not collide with an existing
+      # local PostgreSQL: PDLC_DB_PORT=5433 docker compose up -d
+      - "${PDLC_DB_PORT:-5432}:5432"
+    volumes:
+      - pdlc-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # `npm run db:migrate` fails confusingly against a server that is
+      # accepting connections but not ready, so wait for a real readiness check.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pdlc_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pdlc-postgres-data:

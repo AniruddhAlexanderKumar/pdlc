@@ -1,0 +1,376 @@
+import {
+  type VerificationActivity,
+  allowedVerificationTransitions,
+  assignVerificationOwnerRequestSchema,
+  canTransitionVerification,
+  createVerificationActivityRequestSchema,
+  entityIdSchema,
+  isTerminalVerificationStatus,
+  isVerificationEditable,
+  transitionVerificationRequestSchema,
+  updateVerificationActivityRequestSchema,
+  verificationStatusSchema,
+} from "@/domain";
+import type {
+  VerificationReadinessScope,
+  VerificationReadinessStatus,
+  VerificationStatus,
+} from "@/domain";
+import { prisma } from "@/lib/db";
+import type { OrganizationContext } from "@/server/context/organization-context";
+import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import * as auditLogRepository from "@/server/repositories/audit-log.repository";
+import type { AuditEventSummary } from "@/server/repositories/audit-log.repository";
+import type { OwnerSummary } from "@/server/repositories/design-item.repository";
+import type { LinkedRequirementSummary } from "@/server/repositories/stakeholder-need.repository";
+import * as userRepository from "@/server/repositories/user.repository";
+import * as verificationRepository from "@/server/repositories/verification-activity.repository";
+import type {
+  LinkedEvidenceSummary,
+  VerificationActivityWithOwner,
+} from "@/server/repositories/verification-activity.repository";
+import * as readinessRepository from "@/server/repositories/verification-readiness.repository";
+import { parseOrThrow } from "@/server/validation";
+import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+
+/**
+ * Verification activity application service.
+ *
+ * Records what verification is planned and how it turned out. The lifecycle
+ * is the substantive rule here: an outcome is a statement about one
+ * execution, so PASSED, FAILED and WAIVED are terminal and the transition
+ * that reaches one stamps `completedDate`. Re-verifying means a new activity,
+ * not editing an old verdict.
+ */
+
+export const VERIFICATION_ENTITY_TYPE = "VerificationActivity";
+
+export const VERIFICATION_AUDIT_ACTIONS = {
+  created: "verification_activity.created",
+  updated: "verification_activity.updated",
+  transitioned: "verification_activity.status_transitioned",
+  ownerAssigned: "verification_activity.owner_assigned",
+  ownerCleared: "verification_activity.owner_cleared",
+} as const;
+
+export interface VerificationActivityDetail extends VerificationActivity {
+  owner: OwnerSummary | null;
+  requirements: LinkedRequirementSummary[];
+  /** Evidence already attached. Read-only; there is no evidence module yet. */
+  evidence: LinkedEvidenceSummary[];
+  availableTransitions: readonly VerificationStatus[];
+  editable: boolean;
+  history: AuditEventSummary[];
+}
+
+async function requireActivity(
+  projectId: string,
+  activityId: unknown,
+  client?: Parameters<typeof verificationRepository.findVerificationActivityInProject>[2],
+): Promise<VerificationActivity> {
+  const id = parseOrThrow(entityIdSchema, activityId, "Invalid verification activity id");
+  const activity = await verificationRepository.findVerificationActivityInProject(
+    projectId,
+    id,
+    client,
+  );
+
+  if (!activity) {
+    throw new NotFoundError(`Verification activity ${id} was not found.`);
+  }
+  return activity;
+}
+
+async function requireOrganizationMember(
+  context: OrganizationContext,
+  ownerId: string,
+): Promise<void> {
+  if (!(await userRepository.isMemberOfOrganization(ownerId, context.organizationId))) {
+    throw new ValidationError("That user is not a member of this organization.");
+  }
+}
+
+export async function createVerificationActivity(
+  context: OrganizationContext,
+  projectId: unknown,
+  input: unknown,
+): Promise<VerificationActivity> {
+  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const data = parseOrThrow(
+    createVerificationActivityRequestSchema,
+    input,
+    "Invalid verification activity",
+  );
+
+  if (data.ownerId) {
+    await requireOrganizationMember(context, data.ownerId);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const activity = await verificationRepository.createVerificationActivity(
+      {
+        projectId: scopedProjectId,
+        identifier: data.identifier,
+        title: data.title,
+        description: data.description ?? null,
+        method: data.method,
+        plannedDate: data.plannedDate ?? null,
+        ownerId: data.ownerId ?? null,
+        // Status is not accepted from callers: an activity always starts PLANNED.
+      },
+      tx,
+    );
+
+    await auditLogRepository.recordAuditEvent(
+      artifactAuditEvent(
+        context,
+        VERIFICATION_AUDIT_ACTIONS.created,
+        VERIFICATION_ENTITY_TYPE,
+        activity.id,
+        { identifier: activity.identifier, method: activity.method, projectId: scopedProjectId },
+      ),
+      tx,
+    );
+
+    return activity;
+  });
+}
+
+/**
+ * One row of the verification list.
+ *
+ * `lastReadiness` is the most recent assessment *as it was recorded*, and
+ * deliberately carries no freshness verdict. Deciding whether an assessment
+ * still holds means re-resolving that activity's engineering basis, which is
+ * per-row work this list must not do — so the interface presents these as
+ * "last recorded" and the activity's own page is where currency is established.
+ * Null means nobody has ever evaluated it, which is not the same as a verdict.
+ */
+export interface VerificationActivityListItem extends VerificationActivityWithOwner {
+  lastReadiness: {
+    id: string;
+    status: VerificationReadinessStatus;
+    scope: VerificationReadinessScope;
+    readinessVersion: string;
+    evaluatedAt: Date;
+    blockingCount: number;
+  } | null;
+}
+
+export async function listVerificationActivities(
+  context: OrganizationContext,
+  projectId: unknown,
+  filter: { status?: unknown } = {},
+): Promise<VerificationActivityListItem[]> {
+  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+
+  const status =
+    filter.status === undefined || filter.status === null || filter.status === ""
+      ? undefined
+      : parseOrThrow(verificationStatusSchema, filter.status, "Invalid status filter");
+
+  const activities = await verificationRepository.listVerificationActivitiesInProject(
+    scopedProjectId,
+    status ? { status } : {},
+  );
+
+  // One batched read for the whole page rather than one per row.
+  const latest = await readinessRepository.findLatestForActivities(
+    scopedProjectId,
+    activities.map((activity) => activity.id),
+  );
+
+  return activities.map((activity) => {
+    const assessment = latest.get(activity.id);
+    return {
+      ...activity,
+      lastReadiness: assessment
+        ? {
+            id: assessment.id,
+            status: assessment.status,
+            scope: assessment.scope,
+            readinessVersion: assessment.readinessVersion,
+            evaluatedAt: assessment.evaluatedAt,
+            blockingCount: assessment.summary.blocking,
+          }
+        : null,
+    };
+  });
+}
+
+export async function getVerificationActivity(
+  context: OrganizationContext,
+  projectId: unknown,
+  activityId: unknown,
+): Promise<VerificationActivityDetail> {
+  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const activity = await requireActivity(scopedProjectId, activityId);
+
+  const [owner, requirements, evidence, history] = await Promise.all([
+    activity.ownerId
+      ? verificationRepository.findVerificationActivityOwner(activity.ownerId)
+      : null,
+    verificationRepository.listRequirementsForVerification(scopedProjectId, activity.id),
+    verificationRepository.listEvidenceForVerification(activity.id),
+    auditLogRepository.listAuditEventsForEntity({
+      organizationId: context.organizationId,
+      entityType: VERIFICATION_ENTITY_TYPE,
+      entityId: activity.id,
+    }),
+  ]);
+
+  return {
+    ...activity,
+    owner,
+    requirements,
+    evidence,
+    availableTransitions: allowedVerificationTransitions(activity.status),
+    editable: isVerificationEditable(activity.status),
+    history,
+  };
+}
+
+/** Content update. Refused once the activity has concluded. */
+export async function updateVerificationActivity(
+  context: OrganizationContext,
+  projectId: unknown,
+  activityId: unknown,
+  input: unknown,
+): Promise<VerificationActivity> {
+  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const data = parseOrThrow(
+    updateVerificationActivityRequestSchema,
+    input,
+    "Invalid verification activity update",
+  );
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await requireActivity(scopedProjectId, activityId, tx);
+
+    if (!isVerificationEditable(existing.status)) {
+      throw new ConflictError(
+        `This activity is ${existing.status} and can no longer be edited. Plan a new activity to re-verify.`,
+      );
+    }
+
+    const activity = await verificationRepository.updateVerificationActivity(
+      existing.id,
+      data,
+      tx,
+    );
+
+    await auditLogRepository.recordAuditEvent(
+      artifactAuditEvent(
+        context,
+        VERIFICATION_AUDIT_ACTIONS.updated,
+        VERIFICATION_ENTITY_TYPE,
+        activity.id,
+        { changedFields: Object.keys(data) },
+      ),
+      tx,
+    );
+
+    return activity;
+  });
+}
+
+/**
+ * The only path that changes status.
+ *
+ * Reaching a terminal outcome stamps `completedDate` from the server clock, so
+ * the completion time and the status can never contradict each other.
+ */
+export async function transitionVerificationStatus(
+  context: OrganizationContext,
+  projectId: unknown,
+  activityId: unknown,
+  input: unknown,
+): Promise<VerificationActivity> {
+  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const { to, rationale } = parseOrThrow(
+    transitionVerificationRequestSchema,
+    input,
+    "Invalid transition",
+  );
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await requireActivity(scopedProjectId, activityId, tx);
+
+    if (existing.status === to) {
+      throw new ConflictError(`This activity is already ${to}.`);
+    }
+
+    if (!canTransitionVerification(existing.status, to)) {
+      const legal = allowedVerificationTransitions(existing.status);
+      throw new ConflictError(
+        legal.length === 0
+          ? `This activity is ${existing.status}, which is a final outcome. Plan a new activity to re-verify.`
+          : `An activity in ${existing.status} cannot move to ${to}. Allowed: ${legal.join(", ")}.`,
+      );
+    }
+
+    const activity = await verificationRepository.updateVerificationActivity(
+      existing.id,
+      {
+        status: to,
+        ...(isTerminalVerificationStatus(to) ? { completedDate: new Date() } : {}),
+      },
+      tx,
+    );
+
+    await auditLogRepository.recordAuditEvent(
+      artifactAuditEvent(
+        context,
+        VERIFICATION_AUDIT_ACTIONS.transitioned,
+        VERIFICATION_ENTITY_TYPE,
+        activity.id,
+        { from: existing.status, to, ...(rationale ? { rationale } : {}) },
+      ),
+      tx,
+    );
+
+    return activity;
+  });
+}
+
+export async function assignVerificationOwner(
+  context: OrganizationContext,
+  projectId: unknown,
+  activityId: unknown,
+  input: unknown,
+): Promise<VerificationActivity> {
+  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const { ownerId } = parseOrThrow(
+    assignVerificationOwnerRequestSchema,
+    input,
+    "Invalid owner assignment",
+  );
+
+  if (ownerId) {
+    await requireOrganizationMember(context, ownerId);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await requireActivity(scopedProjectId, activityId, tx);
+    const activity = await verificationRepository.updateVerificationActivity(
+      existing.id,
+      { ownerId },
+      tx,
+    );
+
+    await auditLogRepository.recordAuditEvent(
+      artifactAuditEvent(
+        context,
+        ownerId
+          ? VERIFICATION_AUDIT_ACTIONS.ownerAssigned
+          : VERIFICATION_AUDIT_ACTIONS.ownerCleared,
+        VERIFICATION_ENTITY_TYPE,
+        activity.id,
+        { previousOwnerId: existing.ownerId, ownerId },
+      ),
+      tx,
+    );
+
+    return activity;
+  });
+}
