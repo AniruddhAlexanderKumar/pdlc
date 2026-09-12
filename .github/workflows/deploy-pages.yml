@@ -1,0 +1,46 @@
+name: Deploy Pitch & Demo to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare GitHub Pages Payload
+        run: |
+          mkdir -p _site
+          # Copy pitch presentation and assets
+          cp -r Pitch/* _site/
+          # Ensure slides.html is accessible as the landing page or pitch root
+          cp Pitch/slides.html _site/index.html
+          echo "GitHub Pages site prepared with index.html and assets."
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
