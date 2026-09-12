@@ -111,3 +111,24 @@ export const assignVerificationOwnerRequestSchema = z.strictObject({
 });
 
 export type AssignVerificationOwnerRequest = z.infer<typeof assignVerificationOwnerRequestSchema>;
+
+/**
+ * Attaches an *existing* evidence record recording this activity's execution
+ * or result — not gated by {@link isVerificationEditable}, deliberately: the
+ * plan is frozen once concluded, but the result evidence is exactly what a
+ * concluding transition needs to be able to carry.
+ */
+export const verificationEvidenceLinkRequestSchema = z.strictObject({
+  evidenceId: entityIdSchema,
+  note: z.string().trim().max(2000).nullish(),
+});
+
+export type VerificationEvidenceLinkRequest = z.infer<typeof verificationEvidenceLinkRequestSchema>;
+
+export const verificationEvidenceUnlinkRequestSchema = z.strictObject({
+  evidenceId: entityIdSchema,
+});
+
+export type VerificationEvidenceUnlinkRequest = z.infer<
+  typeof verificationEvidenceUnlinkRequestSchema
+>;

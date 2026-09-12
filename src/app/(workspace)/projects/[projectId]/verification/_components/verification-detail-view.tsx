@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
 import { formatIsoDate } from "@/lib/utils";
+import { VerificationEvidencePanel } from "./verification-evidence-panel";
 import { VerificationFormDialog } from "./verification-form-dialog";
 import { VerificationReadinessPanel } from "./verification-readiness-panel";
 
@@ -241,30 +242,12 @@ export function VerificationDetailView({
 
       <VerificationReadinessPanel projectId={projectId} activityId={activity.id} />
 
-      {activity.evidence.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Evidence</CardTitle>
-            <CardDescription>
-              Evidence already attached to this activity. Evidence records what a verification
-              produced, so its absence is not a readiness deficiency. The evidence module is not
-              built yet, so these are read-only.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="flex flex-col divide-y divide-border">
-              {activity.evidence.map((item) => (
-                <li key={item.id} className="py-2.5 text-sm text-foreground">
-                  {item.title}{" "}
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {item.sourceReference}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+      <VerificationEvidencePanel
+        projectId={projectId}
+        activityId={activity.id}
+        evidence={activity.evidence}
+        onChanged={reload}
+      />
 
       <ArtifactHistory events={activity.history} />
 

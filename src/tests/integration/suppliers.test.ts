@@ -271,6 +271,7 @@ describe.skipIf(!databaseAvailable)(`supplier engineering against PostgreSQL (${
       const evidence = await integrationPrisma!.evidence.create({
         data: {
           projectId: tenant.projectId,
+          identifier: uniqueSuffix("ev"),
           title: "Mill certificate",
           evidenceType: "DOCUMENT",
           sourceReference: "MC-2026-001",
@@ -414,6 +415,7 @@ describe.skipIf(!databaseAvailable)(`supplier engineering against PostgreSQL (${
       const evidence = await integrationPrisma!.evidence.create({
         data: {
           projectId: tenant.projectId,
+          identifier: uniqueSuffix("ev"),
           title: "Mill certificate",
           evidenceType: "DOCUMENT",
           sourceReference: uniqueSuffix("mc"),
@@ -442,6 +444,7 @@ describe.skipIf(!databaseAvailable)(`supplier engineering against PostgreSQL (${
       const evidence = await integrationPrisma!.evidence.create({
         data: {
           projectId: tenant.projectId,
+          identifier: uniqueSuffix("ev"),
           title: "Audit report",
           evidenceType: "DOCUMENT",
           sourceReference: uniqueSuffix("ar"),
@@ -473,6 +476,7 @@ describe.skipIf(!databaseAvailable)(`supplier engineering against PostgreSQL (${
       const evidence = await integrationPrisma!.evidence.create({
         data: {
           projectId: tenant.projectId,
+          identifier: uniqueSuffix("ev"),
           title: "Two subjects",
           evidenceType: "DOCUMENT",
           sourceReference: uniqueSuffix("ts"),
@@ -494,6 +498,7 @@ describe.skipIf(!databaseAvailable)(`supplier engineering against PostgreSQL (${
       const evidence = await integrationPrisma!.evidence.create({
         data: {
           projectId: tenant.projectId,
+          identifier: uniqueSuffix("ev"),
           title: "No subject",
           evidenceType: "DOCUMENT",
           sourceReference: uniqueSuffix("ns"),
@@ -750,6 +755,7 @@ describe.skipIf(!databaseAvailable)(`supplier engineering against PostgreSQL (${
       const evidence = await integrationPrisma!.evidence.create({
         data: {
           projectId: tenant.projectId,
+          identifier: uniqueSuffix("ev"),
           title: "Certificate",
           evidenceType: "DOCUMENT",
           sourceReference: uniqueSuffix("ce"),

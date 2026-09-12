@@ -12,6 +12,7 @@ import {
   Eye,
   Factory,
   FileCheck,
+  FileText,
   GitBranch,
   Layers,
   ListChecks,
@@ -64,6 +65,12 @@ const IMPLEMENTED_MODULES = [
     href: "/verification",
     icon: ShieldCheck,
     description: "How requirements are shown to be met.",
+  },
+  {
+    label: "Evidence",
+    href: "/evidence",
+    icon: FileText,
+    description: "Controlled engineering evidence: what it is, where it came from, and what depends on it.",
   },
   {
     label: "Decisions",
@@ -255,7 +262,7 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         <CardHeader>
           <CardTitle>Engineering workspace</CardTitle>
           <CardDescription>
-            Requirements, needs, design, verification, decisions, changes, risks, issues,
+            Requirements, needs, design, verification, evidence, decisions, changes, risks, issues,
             suppliers, baselines, observations, drift, certification, surveillance and
             traceability for this project.
           </CardDescription>

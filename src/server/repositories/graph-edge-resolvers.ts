@@ -3426,6 +3426,78 @@ const complianceItemHasFinding: EdgeResolver = {
   },
 };
 
+/**
+ * The one edge this capability added: `CertificationFinding.evidenceId` is a
+ * real, plain foreign key — evidence named as a finding's supporting record
+ * on resolution or acceptance — that existed in the schema but was absent
+ * from the graph before now. Not a join table, so there is at most one row
+ * per finding; `relationshipId` is the finding's own id.
+ */
+const certificationFindingHasEvidence: EdgeResolver = {
+  type: "CERTIFICATION_FINDING_HAS_EVIDENCE",
+  async outgoing(projectId, refs, client) {
+    const ids = idsOfType(refs, "CERTIFICATION_FINDING");
+    if (ids.length === 0) return [];
+    const rows = await client.certificationFinding.findMany({
+      where: {
+        id: { in: ids },
+        evidenceId: { not: null },
+        complianceItem: { certificationBasis: { certificationProgram: { projectId } } },
+      },
+      select: { id: true, createdAt: true, evidenceId: true },
+      orderBy: ORDER,
+    });
+    return rows.map((row) =>
+      structuralEdge(
+        "CERTIFICATION_FINDING_HAS_EVIDENCE",
+        row.id,
+        row.createdAt,
+        ref("CERTIFICATION_FINDING", row.id),
+        ref("EVIDENCE", row.evidenceId as string),
+      ),
+    );
+  },
+  async incoming(projectId, refs, client) {
+    const ids = idsOfType(refs, "EVIDENCE");
+    if (ids.length === 0) return [];
+    const rows = await client.certificationFinding.findMany({
+      where: {
+        evidenceId: { in: ids },
+        complianceItem: { certificationBasis: { certificationProgram: { projectId } } },
+      },
+      select: { id: true, createdAt: true, evidenceId: true },
+      orderBy: ORDER,
+    });
+    return rows.map((row) =>
+      structuralEdge(
+        "CERTIFICATION_FINDING_HAS_EVIDENCE",
+        row.id,
+        row.createdAt,
+        ref("CERTIFICATION_FINDING", row.id),
+        ref("EVIDENCE", row.evidenceId as string),
+      ),
+    );
+  },
+  async audit(projectId, client) {
+    const rows = await client.certificationFinding.findMany({
+      where: {
+        evidenceId: { not: null },
+        complianceItem: { certificationBasis: { certificationProgram: { projectId } } },
+      },
+      select: { id: true, evidenceId: true, evidence: { select: { projectId: true } } },
+      orderBy: ORDER,
+    });
+    return rows.map((row) => ({
+      type: "CERTIFICATION_FINDING_HAS_EVIDENCE" as const,
+      relationshipId: row.id,
+      source: ref("CERTIFICATION_FINDING", row.id),
+      target: ref("EVIDENCE", row.evidenceId as string),
+      targetProjectId: row.evidence?.projectId ?? null,
+      linkType: null,
+    }));
+  },
+};
+
 const certificationReviewHasFinding: EdgeResolver = {
   type: "CERTIFICATION_REVIEW_HAS_FINDING",
   async outgoing(projectId, refs, client) {
@@ -3840,6 +3912,7 @@ export const EDGE_RESOLVERS: Readonly<Record<GraphEdgeType, EdgeResolver>> = {
   CERTIFICATION_BASIS_HAS_COMPLIANCE_ITEM: certificationBasisHasComplianceItem,
   COMPLIANCE_ITEM_LINKED_TO_OBJECT: complianceItemLinkedToObject,
   COMPLIANCE_ITEM_HAS_FINDING: complianceItemHasFinding,
+  CERTIFICATION_FINDING_HAS_EVIDENCE: certificationFindingHasEvidence,
   CERTIFICATION_REVIEW_HAS_FINDING: certificationReviewHasFinding,
   CERTIFICATION_REVIEW_FINDING_CONCERNS_OBJECT: certificationReviewFindingConcernsObject,
 };

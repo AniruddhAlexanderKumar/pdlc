@@ -17,6 +17,7 @@ export * from "./decision-memory";
 export * from "./design-item";
 export * from "./drift";
 export * from "./engineering-decision";
+export * from "./evidence";
 export * from "./graph";
 export * from "./impact-analysis";
 export * from "./issue";

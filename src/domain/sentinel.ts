@@ -65,6 +65,7 @@ export const SURVEILLANCE_SOURCE_TYPES = [
   "CERTIFICATION_BASIS",
   "RISK",
   "ISSUE",
+  "EVIDENCE",
 ] as const;
 export type SurveillanceSourceType = (typeof SURVEILLANCE_SOURCE_TYPES)[number];
 export const surveillanceSourceTypeSchema = z.enum(SURVEILLANCE_SOURCE_TYPES);
@@ -108,10 +109,12 @@ const EVENT_TYPE_BY_SOURCE: Readonly<Record<SurveillanceSourceType, Surveillance
   OPERATIONAL_OBSERVATION: "OBSERVATION_RECORDED",
   CHANGE_REQUEST: "CHANGE_REQUEST_CHANGED",
   CERTIFICATION_BASIS: "CERTIFICATION_BASIS_CHANGED",
-  // A risk or issue changing is a content change to an engineering record,
-  // the same shape as a requirement or design item — no new event type.
+  // A risk, issue or evidence changing is a content change to an engineering
+  // record, the same shape as a requirement or design item — no new event
+  // type.
   RISK: "ENGINEERING_OBJECT_CHANGED",
   ISSUE: "ENGINEERING_OBJECT_CHANGED",
+  EVIDENCE: "ENGINEERING_OBJECT_CHANGED",
 };
 
 export function eventTypeForSource(sourceType: SurveillanceSourceType): SurveillanceEventType {
@@ -502,6 +505,36 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
     reason: "The issue changed after a technical readiness gate assessment counted it in its scope.",
   },
   // Deliberately no ISSUE -> CERTIFICATION_REVIEW row, for the same reason.
+  // --- Evidence ---
+  //
+  // Unlike Risk/Issue, evidence genuinely does reach a certification review's
+  // basis and fingerprint — verified by reading CertificationReviewService's
+  // own basis construction before adding this row, not assumed from the
+  // Risk/Issue precedent: `resolveBasis` builds a real `evidenceObjects` list
+  // from the item/basis-scoped `EvidenceLink` rows and stamps each with its
+  // own revision via `revisionOf("EVIDENCE", id)`, which folds into the
+  // review's fingerprint the same way every other basis object does.
+  {
+    sourceType: "EVIDENCE",
+    targetType: "IMPACT_ANALYSIS",
+    reason:
+      "Evidence content or lifecycle status changed; the project fingerprint impact analysis freshness is derived from includes every evidence row's own revision.",
+  },
+  {
+    sourceType: "EVIDENCE",
+    targetType: "TECHNICAL_READINESS",
+    reason: "The evidence changed after a technical readiness gate assessment counted it in its scope (the release gate's evidence-per-activity check).",
+  },
+  {
+    sourceType: "EVIDENCE",
+    targetType: "VERIFICATION_READINESS",
+    reason: "The evidence changed after a verification readiness assessment included it in its basis.",
+  },
+  {
+    sourceType: "EVIDENCE",
+    targetType: "CERTIFICATION_REVIEW",
+    reason: "The evidence changed after a certification review's basis included it as linked supporting evidence for a compliance item.",
+  },
 ] as const;
 
 const DEPENDENCY_INDEX: ReadonlyMap<SurveillanceSourceType, readonly SurveillanceDependencyRule[]> = (() => {

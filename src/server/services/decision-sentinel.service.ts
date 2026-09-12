@@ -324,7 +324,7 @@ export class DecisionSentinelService {
   // --- Detection: content-change candidates ----------------------------------
 
   private async loadContentChangeCandidates(projectId: string): Promise<CandidateEvent[]> {
-    const [requirements, designItems, decisions, assumptions, activities, suppliers, suppliedItems, qualifications, changes, bases, risks, issues] =
+    const [requirements, designItems, decisions, assumptions, activities, suppliers, suppliedItems, qualifications, changes, bases, risks, issues, evidence] =
       await Promise.all([
         prisma.requirement.findMany({
           where: { projectId },
@@ -374,6 +374,10 @@ export class DecisionSentinelService {
           where: { projectId },
           select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
         }),
+        prisma.evidence.findMany({
+          where: { projectId },
+          select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
+        }),
       ]);
 
     const changed = <T extends { id: string; createdAt: Date; updatedAt: Date }>(
@@ -406,6 +410,7 @@ export class DecisionSentinelService {
       ...changed(bases, "CERTIFICATION_BASIS", (r) => r.identifier, (r) => r.title),
       ...changed(risks, "RISK", (r) => r.identifier, (r) => r.title),
       ...changed(issues, "ISSUE", (r) => r.identifier, (r) => r.title),
+      ...changed(evidence, "EVIDENCE", (r) => r.identifier, (r) => r.title),
     ];
   }
 

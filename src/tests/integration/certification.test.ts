@@ -146,6 +146,7 @@ describe.skipIf(!databaseAvailable)(`certification workspace against PostgreSQL 
     return integrationPrisma!.evidence.create({
       data: {
         projectId,
+        identifier: identifierFor("ev"),
         title: "Cabin altitude analysis report",
         evidenceType: "ANALYSIS",
         sourceReference: "RPT-2026-114",

@@ -104,6 +104,8 @@ model User {
   createdIssueDesignLinks         IssueDesignLink[]             @relation("IssueDesignLinkCreator")
   createdChangeRequestImpacts     ChangeRequestImpact[]         @relation("ChangeRequestImpactCreator")
   createdEvidenceLinks            EvidenceLink[]                @relation("EvidenceLinkCreator")
+  recordedEvidence                Evidence[]                    @relation("EvidenceRecorder")
+  validatedEvidence               Evidence[]                    @relation("EvidenceValidator")
 
   createdSuppliedItemDesignLinks      SuppliedItemDesignLink[]       @relation("SuppliedItemDesignLinkCreator")
   createdSuppliedItemRequirementLinks SuppliedItemRequirementLink[]  @relation("SuppliedItemRequirementLinkCreator")
@@ -783,19 +785,55 @@ enum EvidenceType {
   OTHER
 }
 
+/// DRAFT -> VALIDATED -> SUPERSEDED. No REJECTED/INVALID state: nothing in
+/// the domain distinguishes wrong evidence from evidence nobody validated,
+/// and mistaken evidence is superseded by a corrected record rather than
+/// un-asserted, the same way a mistaken risk or issue is closed rather than
+/// reopened into nonexistence.
+enum EvidenceStatus {
+  DRAFT
+  VALIDATED
+  SUPERSEDED
+}
+
 /// Supporting engineering evidence. File storage is out of scope —
 /// `sourceReference` is an external locator (document number, URL, test report id).
+/// This record establishes *record* integrity (who recorded/validated it,
+/// when, and its own audit trail) and, at most, *source/reference* integrity
+/// (an external locator). It never establishes binary/file integrity: there
+/// is no file content here to hash or verify.
 model Evidence {
-  id              String       @id @default(cuid())
+  id              String         @id @default(cuid())
+  identifier      String
   title           String
   description     String?
   evidenceType    EvidenceType
   sourceReference String
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  status          EvidenceStatus @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// Who recorded this evidence. Set once, at creation, and never reassigned
+  /// — this is provenance, not an accountable owner to hand off.
+  recordedById String?
+  recordedBy   User?   @relation("EvidenceRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  /// Set on the DRAFT -> VALIDATED transition. Null until then.
+  validatedById String?
+  validatedBy   User?     @relation("EvidenceValidator", fields: [validatedById], references: [id], onDelete: SetNull)
+  validatedAt   DateTime?
+
+  supersededAt DateTime?
+
+  /// The evidence record that replaced this one. Self-relation, so the
+  /// succession is traversable — the same pattern EngineeringBaseline and
+  /// CertificationBasis already use for their own supersession.
+  supersededById String?
+  supersededBy   Evidence?  @relation("EvidenceSupersession", fields: [supersededById], references: [id], onDelete: SetNull)
+  superseded     Evidence[] @relation("EvidenceSupersession")
 
   links EvidenceLink[]
 
@@ -804,6 +842,8 @@ model Evidence {
   /// finding names at most one piece of primary supporting evidence.
   certificationFindings CertificationFinding[]
 
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
   @@index([projectId, evidenceType])
   @@map("evidence")
 }
@@ -3031,6 +3071,7 @@ enum SurveillanceSourceType {
   CERTIFICATION_BASIS
   RISK
   ISSUE
+  EVIDENCE
 }
 
 enum SurveillanceEventType {

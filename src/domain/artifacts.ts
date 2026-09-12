@@ -2,6 +2,7 @@ import type {
   ApprovalDecision,
   DesignItemStatus,
   DesignItemType,
+  EvidenceStatus,
   EvidenceType,
   InterfaceStatus,
   InterfaceType,
@@ -12,7 +13,7 @@ import type {
   VerificationMethod,
   VerificationStatus,
 } from "./shared/enums";
-import type { ApprovalSubject, EvidenceSubject } from "./links";
+import type { ApprovalSubject } from "./links";
 
 /**
  * Domain representations of the artifacts that do not yet have an application
@@ -107,14 +108,34 @@ export interface Issue {
   updatedAt: Date;
 }
 
-/** Supporting engineering evidence. `sourceReference` is an external locator. */
+/**
+ * Supporting engineering evidence.
+ *
+ * `sourceReference` is an external locator (a document number, a URL, a test
+ * report id) — this system records that evidence exists and what it claims,
+ * never the file itself. There is no file/blob storage anywhere in this
+ * schema, so nothing here establishes binary integrity; see
+ * `src/server/services/evidence.service.ts` for what "integrity" means for a
+ * record like this one. `identifier` and lifecycle fields graduated in
+ * alongside `evidence.service.ts` — see `evidence.ts` for the lifecycle,
+ * editability and link contracts built on this type.
+ */
 export interface Evidence {
   id: string;
   projectId: string;
+  identifier: string;
   title: string;
   description: string | null;
   evidenceType: EvidenceType;
   sourceReference: string;
+  status: EvidenceStatus;
+  /** Who recorded this evidence. Set once, at creation — never reassigned. */
+  recordedById: string | null;
+  validatedById: string | null;
+  validatedAt: Date | null;
+  /** The evidence record that replaced this one, where one has. */
+  supersededById: string | null;
+  supersededAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -136,12 +157,3 @@ export interface Approval {
   createdAt: Date;
 }
 
-/** Evidence attached to exactly one supported artifact. */
-export interface EvidenceAttachment {
-  id: string;
-  evidenceId: string;
-  subject: EvidenceSubject;
-  note: string | null;
-  createdById: string | null;
-  createdAt: Date;
-}

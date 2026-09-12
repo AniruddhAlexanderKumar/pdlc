@@ -142,6 +142,7 @@ export const GRAPH_EDGE_TYPES = [
   "CERTIFICATION_BASIS_HAS_COMPLIANCE_ITEM",
   "COMPLIANCE_ITEM_LINKED_TO_OBJECT",
   "COMPLIANCE_ITEM_HAS_FINDING",
+  "CERTIFICATION_FINDING_HAS_EVIDENCE",
   "CERTIFICATION_REVIEW_HAS_FINDING",
   "CERTIFICATION_REVIEW_FINDING_CONCERNS_OBJECT",
 ] as const;
@@ -657,6 +658,16 @@ export const GRAPH_EDGE_DEFINITIONS: Readonly<Record<GraphEdgeType, GraphEdgeDef
     hasLinkType: false,
     uniquePerPair: false,
     meaning: "The certification finding was raised against this compliance item.",
+  },
+  CERTIFICATION_FINDING_HAS_EVIDENCE: {
+    type: "CERTIFICATION_FINDING_HAS_EVIDENCE",
+    source: "CERTIFICATION_FINDING",
+    targets: ["EVIDENCE"],
+    hasNote: false,
+    hasLinkType: false,
+    uniquePerPair: true,
+    meaning:
+      "The evidence was named as this finding's supporting record on resolution or acceptance.",
   },
   CERTIFICATION_REVIEW_HAS_FINDING: {
     type: "CERTIFICATION_REVIEW_HAS_FINDING",

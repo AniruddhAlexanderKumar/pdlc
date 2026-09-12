@@ -121,6 +121,7 @@ export const REQUIREMENT_RELATIONS = [
   "DESIGN_ITEM",
   "VERIFICATION_ACTIVITY",
   "ENGINEERING_DECISION",
+  "EVIDENCE",
 ] as const;
 export type RequirementRelation = (typeof REQUIREMENT_RELATIONS)[number];
 export const requirementRelationSchema = z.enum(REQUIREMENT_RELATIONS);
@@ -152,6 +153,11 @@ export const requirementLinkRequestSchema = z.discriminatedUnion("relation", [
     relation: z.literal("ENGINEERING_DECISION"),
     targetId: entityIdSchema,
     linkType: requirementDecisionLinkTypeSchema,
+    note: linkNote,
+  }),
+  z.strictObject({
+    relation: z.literal("EVIDENCE"),
+    targetId: entityIdSchema,
     note: linkNote,
   }),
 ]);
@@ -224,12 +230,16 @@ export const changeRequestImpactInputSchema = z.object({
 export type ChangeRequestImpactInput = z.infer<typeof changeRequestImpactInputSchema>;
 
 /**
- * What a piece of evidence may be attached to.
+ * What a piece of evidence may be attached to — read from the real
+ * `EvidenceLink` row's six nullable subject columns, one enum entry each.
  *
- * The two supplier entries reuse the existing Evidence model rather than
- * introducing a second document store: a qualification's supporting record and a
- * requirement's supporting record are the same kind of thing, and splitting them
- * would mean two places to look for the same artifact.
+ * The supplier and certification entries reuse the existing Evidence model
+ * rather than introducing a second document store: a qualification's
+ * supporting record, a compliance item's supporting record, and a
+ * requirement's supporting record are the same kind of thing, and splitting
+ * them would mean two places to look for the same artifact. See
+ * `evidence.ts` for the actual link request contract built on this list —
+ * this file only names what the schema itself permits.
  */
 export const EVIDENCE_SUBJECT_TYPES = [
   "REQUIREMENT",
@@ -237,25 +247,9 @@ export const EVIDENCE_SUBJECT_TYPES = [
   "VERIFICATION_ACTIVITY",
   "SUPPLIED_ITEM",
   "SUPPLIER_QUALIFICATION",
+  "COMPLIANCE_ITEM",
 ] as const;
 export type EvidenceSubjectType = (typeof EVIDENCE_SUBJECT_TYPES)[number];
-
-export const evidenceSubjectSchema = z.object({
-  type: z.enum(EVIDENCE_SUBJECT_TYPES),
-  id: entityIdSchema,
-});
-
-export type EvidenceSubject = z.infer<typeof evidenceSubjectSchema>;
-
-/** Evidence → the artifact it supports. */
-export const evidenceLinkInputSchema = z.object({
-  evidenceId: entityIdSchema,
-  subject: evidenceSubjectSchema,
-  note: z.string().trim().max(2000).nullish(),
-  createdById: entityIdSchema.nullish(),
-});
-
-export type EvidenceLinkInput = z.infer<typeof evidenceLinkInputSchema>;
 
 export const APPROVAL_SUBJECT_TYPES = [
   "REQUIREMENT",

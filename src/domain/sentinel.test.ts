@@ -36,9 +36,9 @@ describe("the sentinel version", () => {
 });
 
 describe("surveillance source types", () => {
-  it("lists thirteen distinct source types", () => {
-    expect(SURVEILLANCE_SOURCE_TYPES).toHaveLength(13);
-    expect(new Set(SURVEILLANCE_SOURCE_TYPES).size).toBe(13);
+  it("lists fourteen distinct source types", () => {
+    expect(SURVEILLANCE_SOURCE_TYPES).toHaveLength(14);
+    expect(new Set(SURVEILLANCE_SOURCE_TYPES).size).toBe(14);
   });
 
   it("is every source type a real graph node type", () => {

@@ -572,6 +572,13 @@ export const IMPACT_PROPAGATION: Readonly<Record<GraphEdgeType, ImpactPropagatio
     rationale:
       "A certification finding is evidence of a compliance gap, not an engineering cause — the same reasoning that keeps a drift finding inert.",
   },
+  CERTIFICATION_FINDING_HAS_EVIDENCE: {
+    type: "CERTIFICATION_FINDING_HAS_EVIDENCE",
+    propagates: false,
+    context: false,
+    rationale:
+      "Naming evidence as a finding's supporting record is downstream bookkeeping, not an engineering cause — the same reasoning that keeps every other certification-structural edge inert.",
+  },
   CERTIFICATION_REVIEW_HAS_FINDING: {
     type: "CERTIFICATION_REVIEW_HAS_FINDING",
     propagates: false,

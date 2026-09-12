@@ -239,6 +239,34 @@ describe("risk and issue routing", () => {
   });
 });
 
+describe("certification finding / evidence routing", () => {
+  it("queries only the table a certification finding can have an outgoing edge in", async () => {
+    const { client, delegates } = recordingClient();
+    const repository = new EngineeringGraphRepository(client);
+
+    // Before this capability, a certification finding had no outgoing edge at
+    // all — CERTIFICATION_FINDING_HAS_EVIDENCE is the first, reading the
+    // finding's own plain `evidenceId` foreign key rather than a join table.
+    await repository.getOutgoingEdges(PROJECT, [{ type: "CERTIFICATION_FINDING", id: "finding1" }]);
+
+    expect(new Set(delegates)).toEqual(new Set(["certificationFinding"]));
+  });
+
+  it("queries every table that can point *at* evidence, including the new certification finding relation", async () => {
+    const { client, delegates } = recordingClient();
+    const repository = new EngineeringGraphRepository(client);
+
+    await repository.getIncomingEdges(PROJECT, [{ type: "EVIDENCE", id: "ev1" }]);
+
+    // Six pre-existing edge types (Requirement/Decision/Verification/
+    // SuppliedItem/SupplierQualification-has-evidence, and Compliance-item's
+    // own link) all share the one `evidenceLink` table; the new
+    // CERTIFICATION_FINDING_HAS_EVIDENCE edge is the only one reading
+    // `certificationFinding` directly.
+    expect(new Set(delegates)).toEqual(new Set(["evidenceLink", "certificationFinding"]));
+  });
+});
+
 describe("the consistency scan", () => {
   it("audits exactly the edge types it was given", async () => {
     const { client, delegates } = recordingClient();

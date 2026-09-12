@@ -258,9 +258,11 @@ export interface VerificationActivityDetailDto extends VerificationActivityDto {
   requirements: LinkedRequirementDto[];
   evidence: Array<{
     id: string;
+    identifier: string;
     title: string;
     evidenceType: string;
     sourceReference: string;
+    status: string;
   }>;
   availableTransitions: VerificationStatus[];
   editable: boolean;
@@ -339,6 +341,34 @@ export async function assignVerificationOwner(
     "verificationActivity",
     { method: "POST", body: JSON.stringify({ ownerId }) },
   );
+}
+
+function verificationEvidenceBase(projectId: string, activityId: string): string {
+  return `${verificationBase(projectId)}/${activityId}/evidence`;
+}
+
+/** Attaches an *existing* evidence record — never uploads or creates one. */
+export async function linkVerificationEvidence(
+  projectId: string,
+  activityId: string,
+  evidenceId: string,
+  note?: string | null,
+): Promise<VerificationActivityDetailDto["evidence"]> {
+  return requestJson(verificationEvidenceBase(projectId, activityId), "evidence", {
+    method: "POST",
+    body: JSON.stringify({ evidenceId, note: note ?? null }),
+  });
+}
+
+export async function unlinkVerificationEvidence(
+  projectId: string,
+  activityId: string,
+  evidenceId: string,
+): Promise<VerificationActivityDetailDto["evidence"]> {
+  return requestJson(verificationEvidenceBase(projectId, activityId), "evidence", {
+    method: "DELETE",
+    body: JSON.stringify({ evidenceId }),
+  });
 }
 
 export function useVerificationActivities(projectId: string) {

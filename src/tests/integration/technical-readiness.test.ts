@@ -150,6 +150,7 @@ describe.skipIf(!databaseAvailable)(
       const evidence = await prisma.evidence.create({
         data: {
           projectId,
+          identifier: "EV-001",
           title: "Proof test report",
           evidenceType: "TEST_RESULT",
           sourceReference: "TR-2026-014",

@@ -213,6 +213,7 @@ describe("link target selectors", () => {
         { id: "ver1aaaaaaaaaaaaaaaaaaa", identifier: "VER-001", title: "Hot fire" },
       ],
       ENGINEERING_DECISION: [],
+      EVIDENCE: [],
     });
 
     const targets = await requirementService.listLinkTargets(CONTEXT, PROJECT.id);
@@ -221,8 +222,8 @@ describe("link target selectors", () => {
     expect(targets.STAKEHOLDER_NEED).toHaveLength(1);
     expect(targets.DESIGN_ITEM).toHaveLength(1);
     expect(targets.VERIFICATION_ACTIVITY).toHaveLength(1);
-    // Decisions have no module yet, so that selector is legitimately empty.
     expect(targets.ENGINEERING_DECISION).toEqual([]);
+    expect(targets.EVIDENCE).toEqual([]);
   });
 
   it("refuses to enumerate targets for a project outside the organization", async () => {

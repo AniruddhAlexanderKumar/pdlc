@@ -25,6 +25,7 @@ const RELATION_LABELS: Record<RequirementRelation, string> = {
   DESIGN_ITEM: "Design items",
   VERIFICATION_ACTIVITY: "Verification activities",
   ENGINEERING_DECISION: "Engineering decisions",
+  EVIDENCE: "Evidence",
 };
 
 const RELATIONS = Object.keys(RELATION_LABELS) as RequirementRelation[];

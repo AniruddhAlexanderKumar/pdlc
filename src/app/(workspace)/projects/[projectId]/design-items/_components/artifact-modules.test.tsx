@@ -142,6 +142,12 @@ function routeGets(
     if (url.includes("/stakeholder-needs")) {
       return ok({ stakeholderNeeds: overrides.needs ?? [] });
     }
+    // The verification detail page's evidence panel lists the project's
+    // evidence to populate its "attach" picker — real records, none of which
+    // this suite's fixtures happen to have created.
+    if (url.match(/\/evidence(\?|$)/) && !url.includes("/verification-activities")) {
+      return ok({ evidence: [] });
+    }
     if (url.includes("/api/projects/")) return ok({ project: PROJECT });
     return ok({});
   });
@@ -484,5 +490,62 @@ describe("VerificationDetailView", () => {
         .some((notice) => /a recorded outcome is final/i.test(notice.textContent ?? "")),
     ).toBe(true);
     expect(screen.getByText(/no further transitions are possible/i)).toBeInTheDocument();
+  });
+
+  it("attaches a real, existing evidence record — never uploads one", async () => {
+    const attachedEvidence = [
+      {
+        id: "ev1aaaaaaaaaaaaaaaaaaaaa",
+        identifier: "EV-001",
+        title: "Hot fire test report",
+        evidenceType: "TEST_RESULT",
+        sourceReference: "TR-2026-014",
+        status: "DRAFT",
+      },
+    ];
+    let attached = false;
+
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/organization/members")) return ok({ members: MEMBERS });
+      if (url.endsWith("/readiness/latest")) {
+        return ok({
+          latest: {
+            status: "NOT_EVALUATED",
+            verificationActivityId: ACTIVITY_ID,
+            readinessVersion: "1",
+          },
+        });
+      }
+      if (url.endsWith("/readiness")) return ok({ assessments: [] });
+      if (url.endsWith(`/verification-activities/${ACTIVITY_ID}/evidence`) && init?.method === "POST") {
+        attached = true;
+        return ok({ evidence: attachedEvidence });
+      }
+      if (url.endsWith(`/verification-activities/${ACTIVITY_ID}`)) {
+        return ok({ verificationActivity: activityDetail({ evidence: attached ? attachedEvidence : [] }) });
+      }
+      if (url.match(/\/evidence(\?|$)/) && !url.includes("/verification-activities")) {
+        return ok({ evidence: attachedEvidence });
+      }
+      return ok({ project: PROJECT });
+    });
+    const user = userEvent.setup();
+
+    render(<VerificationDetailView projectId={PROJECT_ID} activityId={ACTIVITY_ID} />);
+    await screen.findByRole("heading", { name: /VER-001/ });
+
+    await user.selectOptions(await screen.findByLabelText("Evidence"), "ev1aaaaaaaaaaaaaaaaaaaaa");
+    await user.click(screen.getByRole("button", { name: /^attach$/i }));
+
+    expect(await screen.findByRole("link", { name: "EV-001" })).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          String(url).endsWith(`/verification-activities/${ACTIVITY_ID}/evidence`) &&
+          init?.method === "POST",
+      ),
+    ).toBe(true);
+    // No file input exists anywhere on this page — evidence is attached, never uploaded.
+    expect(document.querySelector('input[type="file"]')).toBeNull();
   });
 });

@@ -142,6 +142,22 @@ export const EVIDENCE_TYPES = [
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
 export const evidenceTypeSchema = z.enum(EVIDENCE_TYPES);
 
+/**
+ * DRAFT: recorded, not yet asserted as sound — fully editable.
+ * VALIDATED: asserted as sound by a recorded actor — content frozen from here on.
+ * SUPERSEDED: replaced by a newer evidence record — terminal, read-only.
+ *
+ * No REJECTED/INVALID state: nothing in the current domain distinguishes
+ * "wrong" evidence from evidence nobody chose to validate, and inventing one
+ * without a real caller would be exactly the kind of speculative state this
+ * schema otherwise avoids. Evidence that turns out wrong is superseded by a
+ * corrected record, the same way a mistaken risk or issue is closed rather
+ * than un-asserted.
+ */
+export const EVIDENCE_STATUSES = ["DRAFT", "VALIDATED", "SUPERSEDED"] as const;
+export type EvidenceStatus = (typeof EVIDENCE_STATUSES)[number];
+export const evidenceStatusSchema = z.enum(EVIDENCE_STATUSES);
+
 export const APPROVAL_DECISIONS = ["APPROVED", "REJECTED"] as const;
 export type ApprovalDecision = (typeof APPROVAL_DECISIONS)[number];
 export const approvalDecisionSchema = z.enum(APPROVAL_DECISIONS);

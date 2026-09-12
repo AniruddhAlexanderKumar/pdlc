@@ -66,6 +66,7 @@ vi.mock("@/lib/db", () => ({
     operationalObservation: { findMany: vi.fn() },
     risk: { findMany: vi.fn() },
     issue: { findMany: vi.fn() },
+    evidence: { findMany: vi.fn() },
     auditLog: { findMany: vi.fn(), findFirst: vi.fn() },
     impactAnalysisRoot: { count: vi.fn() },
     impactFinding: { count: vi.fn() },
@@ -249,6 +250,7 @@ beforeEach(() => {
   vi.mocked(prisma.operationalObservation.findMany).mockResolvedValue([]);
   vi.mocked(prisma.risk.findMany).mockResolvedValue([]);
   vi.mocked(prisma.issue.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.evidence.findMany).mockResolvedValue([]);
   vi.mocked(prisma.auditLog.findMany).mockResolvedValue([]);
   vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
   vi.mocked(prisma.impactAnalysisRoot.count).mockResolvedValue(0);

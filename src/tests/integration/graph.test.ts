@@ -191,6 +191,7 @@ describe.skipIf(!databaseAvailable)(`the engineering graph against PostgreSQL ($
     const evidence = await prisma.evidence.create({
       data: {
         projectId,
+        identifier: "EV-001",
         title: "Hot fire test report",
         evidenceType: "TEST_RESULT",
         sourceReference: "TR-2026-014",

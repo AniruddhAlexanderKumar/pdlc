@@ -6,6 +6,7 @@ import type {
   DecisionExpectation as PrismaDecisionExpectation,
   DesignItem as PrismaDesignItem,
   EngineeringDecision as PrismaEngineeringDecision,
+  Evidence as PrismaEvidence,
   Issue as PrismaIssue,
   Project as PrismaProject,
   Requirement as PrismaRequirement,
@@ -21,6 +22,7 @@ import type {
   DecisionExpectation,
   DesignItem,
   EngineeringDecision,
+  Evidence,
   Issue,
   Project,
   Requirement,
@@ -78,6 +80,26 @@ export function toIssue(row: PrismaIssue): Issue {
     severity: row.severity,
     status: row.status,
     ownerId: row.ownerId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export function toEvidence(row: PrismaEvidence): Evidence {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    identifier: row.identifier,
+    title: row.title,
+    description: row.description,
+    evidenceType: row.evidenceType,
+    sourceReference: row.sourceReference,
+    status: row.status,
+    recordedById: row.recordedById,
+    validatedById: row.validatedById,
+    validatedAt: row.validatedAt,
+    supersededById: row.supersededById,
+    supersededAt: row.supersededAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

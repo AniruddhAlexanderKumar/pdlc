@@ -119,17 +119,14 @@ export async function listRequirementsForVerification(
 
 export interface LinkedEvidenceSummary {
   id: string;
+  identifier: string;
   title: string;
   evidenceType: string;
   sourceReference: string;
+  status: string;
 }
 
-/**
- * Evidence already attached to this activity.
- *
- * Read-only: there is no evidence module yet, so this reports whatever edges
- * exist in the database and nothing more — an activity with none shows none.
- */
+/** Evidence already attached to this activity, most recently linked last. */
 export async function listEvidenceForVerification(
   verificationActivityId: string,
   client: DbClient = prisma,
@@ -138,10 +135,64 @@ export async function listEvidenceForVerification(
     where: { verificationActivityId },
     select: {
       evidence: {
-        select: { id: true, title: true, evidenceType: true, sourceReference: true },
+        select: {
+          id: true,
+          identifier: true,
+          title: true,
+          evidenceType: true,
+          sourceReference: true,
+          status: true,
+        },
       },
     },
     orderBy: { createdAt: "asc" },
   });
   return links.map((link) => link.evidence);
+}
+
+/**
+ * Attaches an *existing* evidence record — this is not a document store and
+ * uploads nothing, exactly like the supplier-qualification evidence link it
+ * mirrors.
+ */
+export async function linkVerificationEvidence(
+  verificationActivityId: string,
+  evidenceId: string,
+  note: string | null,
+  createdById: string | null,
+  client: DbClient = prisma,
+): Promise<string> {
+  try {
+    const row = await client.evidenceLink.create({
+      data: { verificationActivityId, evidenceId, note, createdById },
+      select: { id: true },
+    });
+    return row.id;
+  } catch (error) {
+    rethrowAsConflict(error, "That evidence is already attached to this verification activity.");
+  }
+}
+
+export async function unlinkVerificationEvidence(
+  verificationActivityId: string,
+  evidenceId: string,
+  client: DbClient = prisma,
+): Promise<boolean> {
+  const { count } = await client.evidenceLink.deleteMany({
+    where: { verificationActivityId, evidenceId },
+  });
+  return count > 0;
+}
+
+export async function evidenceExistsInProject(
+  evidenceId: string,
+  projectId: string,
+  client: DbClient = prisma,
+): Promise<boolean> {
+  return (
+    (await client.evidence.findFirst({
+      where: { id: evidenceId, projectId },
+      select: { id: true },
+    })) !== null
+  );
 }

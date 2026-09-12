@@ -266,6 +266,8 @@ export async function linkTargetExistsInProject(
       return (
         (await client.engineeringDecision.findFirst({ where, select: { id: true } })) !== null
       );
+    case "EVIDENCE":
+      return (await client.evidence.findFirst({ where, select: { id: true } })) !== null;
   }
 }
 
@@ -354,6 +356,18 @@ export async function createRequirementLink(
       });
       return;
     }
+
+    case "EVIDENCE":
+      // Reuses the shared evidence table, exactly as the decision and
+      // supplied-item link dispatches already do — no second evidence store.
+      await client.evidenceLink.upsert({
+        where: {
+          evidenceId_requirementId: { evidenceId: targetId, requirementId },
+        },
+        create: { evidenceId: targetId, requirementId, note: note ?? null, createdById },
+        update: { note: note ?? null },
+      });
+      return;
   }
 }
 
@@ -403,6 +417,12 @@ export async function deleteRequirementLink(
       });
       return count;
     }
+    case "EVIDENCE": {
+      const { count } = await client.evidenceLink.deleteMany({
+        where: { requirementId, evidenceId: targetId },
+      });
+      return count;
+    }
   }
 }
 
@@ -417,7 +437,7 @@ export async function listRequirementLinks(
   requirementId: string,
   client: DbClient = prisma,
 ): Promise<RequirementLinkSummary[]> {
-  const [needs, designItems, verifications, decisions] = await Promise.all([
+  const [needs, designItems, verifications, decisions, evidence] = await Promise.all([
     client.needRequirementLink.findMany({
       where: { requirementId },
       select: {
@@ -449,6 +469,14 @@ export async function listRequirementLinks(
         linkType: true,
         note: true,
         engineeringDecision: { select: { id: true, identifier: true, title: true } },
+      },
+    }),
+    client.evidenceLink.findMany({
+      where: { requirementId },
+      select: {
+        createdAt: true,
+        note: true,
+        evidence: { select: { id: true, identifier: true, title: true } },
       },
     }),
   ]);
@@ -487,6 +515,15 @@ export async function listRequirementLinks(
       identifier: link.engineeringDecision.identifier,
       title: link.engineeringDecision.title,
       linkType: link.linkType,
+      note: link.note,
+      createdAt: link.createdAt,
+    })),
+    ...evidence.map((link) => ({
+      relation: "EVIDENCE" as const,
+      targetId: link.evidence.id,
+      identifier: link.evidence.identifier,
+      title: link.evidence.title,
+      linkType: null,
       note: link.note,
       createdAt: link.createdAt,
     })),

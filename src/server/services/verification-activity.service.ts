@@ -9,6 +9,8 @@ import {
   isVerificationEditable,
   transitionVerificationRequestSchema,
   updateVerificationActivityRequestSchema,
+  verificationEvidenceLinkRequestSchema,
+  verificationEvidenceUnlinkRequestSchema,
   verificationStatusSchema,
 } from "@/domain";
 import type {
@@ -51,12 +53,14 @@ export const VERIFICATION_AUDIT_ACTIONS = {
   transitioned: "verification_activity.status_transitioned",
   ownerAssigned: "verification_activity.owner_assigned",
   ownerCleared: "verification_activity.owner_cleared",
+  evidenceLinked: "verification_activity.evidence_linked",
+  evidenceUnlinked: "verification_activity.evidence_unlinked",
 } as const;
 
 export interface VerificationActivityDetail extends VerificationActivity {
   owner: OwnerSummary | null;
   requirements: LinkedRequirementSummary[];
-  /** Evidence already attached. Read-only; there is no evidence module yet. */
+  /** Evidence already attached — a real evidence record per row, real records now that the evidence module exists. */
   evidence: LinkedEvidenceSummary[];
   availableTransitions: readonly VerificationStatus[];
   editable: boolean;
@@ -331,6 +335,108 @@ export async function transitionVerificationStatus(
 
     return activity;
   });
+}
+
+// --- Evidence -----------------------------------------------------------------
+
+/**
+ * Attaches an existing evidence record to this activity, recording its
+ * execution or result. Real evidence, never uploaded here — this project's
+ * evidence module records it; this endpoint only links it.
+ *
+ * Deliberately available regardless of `isVerificationEditable`: attaching
+ * the result is exactly what happens as an activity concludes.
+ */
+export async function linkVerificationEvidence(
+  context: OrganizationContext,
+  projectId: unknown,
+  activityId: unknown,
+  input: unknown,
+): Promise<LinkedEvidenceSummary[]> {
+  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const request = parseOrThrow(
+    verificationEvidenceLinkRequestSchema,
+    input,
+    "Invalid evidence link",
+  );
+
+  const activity = await prisma.$transaction(async (tx) => {
+    const existing = await requireActivity(scopedProjectId, activityId, tx);
+
+    const evidenceExists = await verificationRepository.evidenceExistsInProject(
+      request.evidenceId,
+      scopedProjectId,
+      tx,
+    );
+    if (!evidenceExists) {
+      throw new ValidationError("That evidence does not exist in this project.");
+    }
+
+    await verificationRepository.linkVerificationEvidence(
+      existing.id,
+      request.evidenceId,
+      request.note ?? null,
+      context.actorId,
+      tx,
+    );
+
+    await auditLogRepository.recordAuditEvent(
+      artifactAuditEvent(
+        context,
+        VERIFICATION_AUDIT_ACTIONS.evidenceLinked,
+        VERIFICATION_ENTITY_TYPE,
+        existing.id,
+        { evidenceId: request.evidenceId },
+      ),
+      tx,
+    );
+
+    return existing;
+  });
+
+  return verificationRepository.listEvidenceForVerification(activity.id);
+}
+
+export async function unlinkVerificationEvidence(
+  context: OrganizationContext,
+  projectId: unknown,
+  activityId: unknown,
+  input: unknown,
+): Promise<LinkedEvidenceSummary[]> {
+  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const request = parseOrThrow(
+    verificationEvidenceUnlinkRequestSchema,
+    input,
+    "Invalid evidence unlink",
+  );
+
+  const activity = await prisma.$transaction(async (tx) => {
+    const existing = await requireActivity(scopedProjectId, activityId, tx);
+
+    const removed = await verificationRepository.unlinkVerificationEvidence(
+      existing.id,
+      request.evidenceId,
+      tx,
+    );
+    if (!removed) {
+      throw new NotFoundError("That evidence is not attached to this verification activity.");
+    }
+
+    await auditLogRepository.recordAuditEvent(
+      artifactAuditEvent(
+        context,
+        VERIFICATION_AUDIT_ACTIONS.evidenceUnlinked,
+        VERIFICATION_ENTITY_TYPE,
+        existing.id,
+        { evidenceId: request.evidenceId },
+      ),
+      tx,
+    );
+
+    return existing;
+  });
+
+  return verificationRepository.listEvidenceForVerification(activity.id);
 }
 
 export async function assignVerificationOwner(

@@ -3,6 +3,7 @@ import type {
   ChangeImpactTargetType,
   ComplianceLinkType,
   DecisionRelation,
+  EvidenceRelation,
   IssueRelation,
   RequirementRelation,
   RiskRelation,
@@ -97,12 +98,10 @@ async function listSuppliedItems(projectId: string, client: DbClient) {
 async function listEvidence(projectId: string, client: DbClient) {
   const rows = await client.evidence.findMany({
     where: { projectId },
-    select: { id: true, title: true, sourceReference: true },
-    orderBy: [{ title: "asc" }, { id: "asc" }],
+    select: { id: true, identifier: true, title: true },
+    orderBy: [{ identifier: "asc" }, { id: "asc" }],
   });
-  // Evidence has no project-scoped identifier; its source reference is what an
-  // engineer would actually cite.
-  return rows.map((row) => ({ id: row.id, identifier: row.sourceReference, title: row.title }));
+  return rows;
 }
 
 export type LinkTargetOptions = Record<RequirementRelation, LinkTargetOption[]>;
@@ -112,9 +111,7 @@ export type DecisionLinkTargetOptions = Record<DecisionRelation, LinkTargetOptio
 /**
  * Everything in the project a decision may be linked to.
  *
- * Evidence has no management module yet, so that list will normally be
- * empty — which the selector shows honestly rather than inventing rows to
- * fill. Risks and issues are real, project-scoped rows once created.
+ * Risks, issues and evidence are real, project-scoped rows once created.
  */
 export async function listDecisionLinkTargets(
   projectId: string,
@@ -384,17 +381,61 @@ export async function listIssueLinkTargets(
   };
 }
 
+export type EvidenceLinkTargetOptions = Record<EvidenceRelation, LinkTargetOption[]>;
+
+/** Everything in the project a piece of evidence may be linked to. */
+export async function listEvidenceLinkTargets(
+  projectId: string,
+  client: DbClient = prisma,
+): Promise<EvidenceLinkTargetOptions> {
+  const [requirements, engineeringDecisions, verificationActivities, suppliedItems, qualifications, complianceItems] =
+    await Promise.all([
+      client.requirement.findMany({
+        where: { projectId },
+        select: { id: true, identifier: true, title: true },
+        orderBy: [{ identifier: "asc" }, { id: "asc" }],
+      }),
+      listEngineeringDecisions(projectId, client),
+      listVerificationActivities(projectId, client),
+      listSuppliedItems(projectId, client),
+      client.supplierQualification.findMany({
+        where: { projectId },
+        select: { id: true, title: true, supplier: { select: { identifier: true } } },
+        orderBy: [{ title: "asc" }, { id: "asc" }],
+      }),
+      client.complianceItem.findMany({
+        where: { certificationBasis: { certificationProgram: { projectId } } },
+        select: { id: true, identifier: true, title: true },
+        orderBy: [{ identifier: "asc" }, { id: "asc" }],
+      }),
+    ]);
+
+  return {
+    REQUIREMENT: requirements,
+    ENGINEERING_DECISION: engineeringDecisions,
+    VERIFICATION_ACTIVITY: verificationActivities,
+    SUPPLIED_ITEM: suppliedItems,
+    SUPPLIER_QUALIFICATION: qualifications.map((row) => ({
+      id: row.id,
+      identifier: row.supplier.identifier,
+      title: row.title,
+    })),
+    COMPLIANCE_ITEM: complianceItems,
+  };
+}
+
 /** Everything in the project that a requirement may be linked to. */
 export async function listLinkTargets(
   projectId: string,
   client: DbClient = prisma,
 ): Promise<LinkTargetOptions> {
-  const [stakeholderNeeds, designItems, verificationActivities, engineeringDecisions] =
+  const [stakeholderNeeds, designItems, verificationActivities, engineeringDecisions, evidence] =
     await Promise.all([
       listStakeholderNeeds(projectId, client),
       listDesignItems(projectId, client),
       listVerificationActivities(projectId, client),
       listEngineeringDecisions(projectId, client),
+      listEvidence(projectId, client),
     ]);
 
   return {
@@ -402,5 +443,6 @@ export async function listLinkTargets(
     DESIGN_ITEM: designItems,
     VERIFICATION_ACTIVITY: verificationActivities,
     ENGINEERING_DECISION: engineeringDecisions,
+    EVIDENCE: evidence,
   };
 }

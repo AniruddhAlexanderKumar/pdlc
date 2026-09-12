@@ -3068,6 +3068,291 @@ connected object and back, run the bounded extended-neighborhood traversal
 and find a real two-hop object, and confirm project isolation through both
 the real API and the real UI's error state.
 
+## Evidence
+
+Engineering evidence as a real, controlled record — not merely a link or a
+piece of metadata. The `Evidence` model and its shared `EvidenceLink` table
+already existed and were already read by five other modules; what did not
+exist was a way to actually create, read, update or move evidence through a
+lifecycle. This capability builds that missing application layer without
+duplicating the model, the link table, or any of the six pre-existing
+consumers.
+
+### What this deliberately is not
+
+Not a file store. There is no upload anywhere in this module and never will
+be — `sourceReference` is a plain external locator (a document number, a URL,
+a test report id), exactly as the schema's own original doc comment already
+said. Nothing here claims to hash, verify, or otherwise establish the
+integrity of a file's contents, because no file content exists in this
+system to hash.
+
+Not a second evidence store for certification. `CertificationFinding`'s own
+`evidenceId` — a plain foreign key set only through
+`resolveFinding`/`acceptFinding` — is untouched; this capability exposes it
+to the graph (see below) but does not let evidence's own link/unlink panel
+write to it.
+
+### What "integrity" means here, precisely
+
+Three distinct claims, and this module only makes the first two:
+
+- **Record integrity — real.** Every mutation is attributed to an actor,
+  timestamped, and audited in the same transaction it happens in
+  (`evidence.created` / `.updated` / `.validated` / `.superseded` /
+  `.link_added` / `.link_removed`). Once `VALIDATED`, content is frozen; a
+  supersession never rewrites the record it replaces.
+- **Source/reference integrity — as far as it goes.** `sourceReference`
+  names an external locator. Nothing in this system re-fetches, re-checks, or
+  otherwise verifies that the named thing still exists or still says what it
+  said when recorded — there is no live-link-checking capability, and none
+  was added.
+- **Binary/file integrity — not provided, and never claimed.** No file
+  storage exists anywhere in this schema. There is no hash, checksum, or
+  fingerprint of file *contents* anywhere on this record — only
+  `updatedAt`-based revision stamps, the same mechanism every other artifact
+  in this system already uses for "has this changed?", which says nothing
+  about a file because there is no file.
+
+Consequently every piece of evidence this system can represent is category
+B from the specification's own A/B/C framing — represented only by
+metadata/reference. There is no category A (locally controlled/stored) path
+in this architecture, and no automated category C ("source can no longer be
+verified") detection: that would require this system to fetch external URLs
+or documents, which it does not and should not do.
+
+### Lifecycle
+
+`DRAFT → VALIDATED → SUPERSEDED`, introduced fresh because none existed.
+`DRAFT` may move to `VALIDATED` (asserted sound) or directly to `SUPERSEDED`
+(withdrawn or replaced before anyone validated it); `VALIDATED` may only move
+to `SUPERSEDED`, because once an assertion of soundness is made, the record
+describing it is frozen — a validated fact that turns out wrong is
+superseded by a corrected record, never edited in place. `SUPERSEDED` is
+terminal, matching every other terminal state in this domain (a closed risk,
+a closed issue): no un-superseding.
+
+No `INVALID`/`REJECTED` state was added. Nothing in the existing domain
+distinguishes "wrong" evidence from evidence nobody chose to validate, and
+inventing a state with no real caller would be exactly the kind of
+speculative addition this schema otherwise avoids.
+
+Editability is **two separate gates**, not one, and deliberately so:
+
+- **Content** (title, description, type, source reference) is editable only
+  while `DRAFT` — narrower than Risk/Issue's own "anything but terminal"
+  gate, because evidence's whole purpose is to record a fact as observed;
+  once validated, the words describing it must not keep moving.
+- **Traceability links** remain editable through `VALIDATED`, frozen only at
+  `SUPERSEDED` — broader than content on purpose, the same "broader than
+  content" shape `Requirement.isOwnerAssignable` already uses for its own
+  narrower field: a validated fact may still be cited by a new requirement or
+  decision after the fact.
+
+There is no owner field. `recordedById` is set once, at creation, from the
+authenticated actor, and is never reassigned — provenance, not an
+accountable work item to hand off. `validatedById`/`validatedAt` are set only
+by the `VALIDATED` transition.
+
+### Supersession semantics
+
+Superseding sets three fields on the *old* record — `status: SUPERSEDED`,
+`supersededById`, `supersededAt` — and touches **nothing else**. No
+`EvidenceLink` row is moved, copied, or deleted. A requirement that cited the
+original evidence keeps citing exactly that version; if someone wants the
+replacement cited too, they add a new, separate link — an explicit act, not
+an automatic one. The superseded record remains fully readable (its own
+detail page, its own history) and is never deleted, matching the platform's
+"no destructive deletion of a record already referenced" rule.
+
+Supersession requires the *replacement* to already exist as its own real
+evidence record in the same project — it never creates evidence on the
+caller's behalf, and it rejects a replacement that is itself already
+`SUPERSEDED` (no chaining through a dead link) and rejects evidence
+superseding itself.
+
+### Traceability
+
+Six relations — `REQUIREMENT`, `ENGINEERING_DECISION`, `VERIFICATION_ACTIVITY`,
+`SUPPLIED_ITEM`, `SUPPLIER_QUALIFICATION`, `COMPLIANCE_ITEM` — all writing
+into the one existing `EvidenceLink` table's six nullable subject columns.
+`EVIDENCE_SUBJECT_TYPES` (`src/domain/links.ts`) already named five of these
+from an earlier, never-wired-up design; it gained a sixth (`COMPLIANCE_ITEM`)
+and now backs the real, used link contract in `evidence.ts` — the
+never-consumed `evidenceSubjectSchema`/`evidenceLinkInputSchema` scaffolding
+it carried is retired in favor of the same strict, HTTP-layer contract
+Risk/Issue's own link endpoints use.
+
+Two modules gained real evidence support they lacked entirely:
+
+- **Requirement** — `EVIDENCE` is now a fifth entry in `REQUIREMENT_RELATIONS`,
+  handled by the exact same generic `linkRequirement`/`unlinkRequirement`
+  path every other relation already uses. No new route: the existing
+  `/requirements/[id]/links` endpoint already accepted a discriminated union,
+  so adding a variant was enough.
+- **Verification Activity** — previously **read-only** ("there is no evidence
+  module yet"), it gained its own dedicated link/unlink pair
+  (`linkVerificationEvidence`/`unlinkVerificationEvidence`), mirroring
+  Supplier Qualification's own single-relation evidence attach/detach exactly.
+  Deliberately **not** gated by `isVerificationEditable`: that gate freezes
+  the activity's *plan* once concluded, but attaching the result evidence is
+  exactly what happens *as* an activity concludes.
+
+Engineering Decision, Supplied Item, Supplier Qualification and Compliance
+Item already had real evidence linking from their own side before this
+capability; nothing about their logic changed — evidence's own new
+traceability panel writes into the identical `EvidenceLink` rows, so both
+directions are always consistent by construction.
+
+### Graph integration
+
+Evidence already had a graph node type and five outgoing-into-it edges
+(`REQUIREMENT_HAS_EVIDENCE`, `DECISION_HAS_EVIDENCE`, `VERIFICATION_HAS_EVIDENCE`,
+`SUPPLIED_ITEM_HAS_EVIDENCE`, `SUPPLIER_QUALIFICATION_HAS_EVIDENCE`) plus
+being one of `COMPLIANCE_ITEM_LINKED_TO_OBJECT`'s eight possible targets —
+all built and already tested in prior sessions, verified again here rather
+than re-built.
+
+One genuine gap was found by inspection, not assumed: `CertificationFinding.
+evidenceId` is a real, plain foreign key — set on `resolveFinding`/
+`acceptFinding` — that existed in the schema but was **absent from the
+graph**. Per the standing instruction to add only the minimum canonical
+definition required, one new edge type was added:
+`CERTIFICATION_FINDING_HAS_EVIDENCE` (source `CERTIFICATION_FINDING`, target
+`EVIDENCE`), with a resolver reading the finding's own column directly — not
+a join table, so `relationshipId` is the finding's own id. This is the first
+outgoing edge `CERTIFICATION_FINDING` has ever had; before it, the type was
+only ever a target. A routing test in `graph-repository.test.ts` proves the
+new edge queries only `certificationFinding`, and that `EVIDENCE`'s incoming
+routing now includes it alongside the pre-existing `evidenceLink` table.
+
+### Change Impact integration
+
+Deliberately unchanged, and verified rather than assumed unchanged:
+`impact-analysis.ts` already treats every `X_HAS_EVIDENCE` edge as
+*propagating* — reached forward from the object that changed, with its own
+dedicated `EVIDENCE_IN_PATH` classification distinct from a full impacted
+object — and evidence itself is not, and was not made, a change-impact
+*target* (`CHANGE_IMPACT_TARGET_TYPES` still excludes it). Evidence is
+reached as a consequence of something else changing; it does not itself
+propagate change forward. Nothing in this file was edited.
+
+### Technical Readiness / Verification Readiness integration
+
+Both engines already read evidence through the graph (`VERIFICATION_HAS_EVIDENCE`)
+and already stamp every basis object — including evidence — with its real
+`updatedAt` revision via `EngineeringGraphService.getNodeRevisions`. Neither
+engine's own rule logic changed. What changed is that evidence can now be a
+*real, service-created* record instead of only a raw-inserted test fixture —
+proven in the PostgreSQL integration suite by attaching real evidence to a
+real verification activity and confirming both engines' own basis snapshots
+include it.
+
+### Certification integration
+
+Unchanged: the same evidence linking mechanism `ComplianceItem` already had
+is reused, and `CertificationReviewService`'s basis construction already
+folds every linked evidence object's own revision into its fingerprint (see
+`evidenceObjects` / `revisionOf("EVIDENCE", …)`). This is the one respect in
+which Evidence's Sentinel story differs from Risk/Issue's: where a
+compliance link to a Risk or Issue is explicitly excluded from the
+certification basis and fingerprint, a compliance link to Evidence is not —
+confirmed by reading `resolveBasis` directly before wiring the dependency
+below, not by analogy to the Risk/Issue case.
+
+### Sentinel integration
+
+`EVIDENCE` joins `SURVEILLANCE_SOURCE_TYPES` (14 now), mapped to the existing
+`ENGINEERING_OBJECT_CHANGED` event type — no new event type needed, the same
+shape a requirement or design item's own content change already uses.
+`loadContentChangeCandidates` gained an `evidence.findMany` scan alongside
+its existing ones.
+
+Four dependency rows, each verified reachable by reading the consuming
+engine's real basis-construction code before it was added — not assumed:
+
+- `EVIDENCE → IMPACT_ANALYSIS` — `computeProjectFingerprint` already
+  aggregates `evidence.updatedAt` and `evidenceLink.createdAt` into the
+  whole-project hash impact analysis freshness is derived from.
+- `EVIDENCE → TECHNICAL_READINESS` — the release gate's evidence-per-activity
+  check stamps every counted evidence row's own revision into its scope.
+- `EVIDENCE → VERIFICATION_READINESS` — the same stamping, in that engine's
+  own basis.
+- `EVIDENCE → CERTIFICATION_REVIEW` — genuinely reachable, unlike Risk/Issue
+  (see above).
+
+No `EVIDENCE → CHANGE_IMPACTS_OBJECT`-style "evidence is a declarable
+target" rule exists, matching the Change Impact section above.
+
+### API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET, POST | `/api/projects/[projectId]/evidence` | List (`?status=`, `?evidenceType=`), create (always `DRAFT`) |
+| GET, PATCH | `.../evidence/[evidenceId]` | Full detail; content-only update while `DRAFT` |
+| POST | `.../evidence/[evidenceId]/validate` | `DRAFT → VALIDATED` |
+| POST | `.../evidence/[evidenceId]/supersede` | `DRAFT`\|`VALIDATED → SUPERSEDED`; body names the real replacement |
+| GET, POST | `.../evidence/[evidenceId]/links` | List / add a typed link (six relations) |
+| DELETE | `.../evidence/[evidenceId]/links/[linkId]` | Remove by composite `"RELATION:rowId"` key |
+| GET | `/api/projects/[projectId]/evidence-link-targets` | Project-scoped picker options, all six relations |
+| POST, DELETE | `/api/projects/[projectId]/verification-activities/[activityId]/evidence` | Attach/detach an *existing* evidence record — the read was already there; this endpoint is new |
+
+Every mutating route validates through a `z.strictObject` schema; create
+accepts no `status`, no `recordedById`, no `organizationId`, no `actorId`, no
+timestamps. Validate and supersede are two separate endpoints rather than
+one generic transition, because their inputs are genuinely different shapes
+— supersede needs a target reference, validate does not — the same reasoning
+that keeps Risk's owner assignment on its own endpoint rather than folded
+into a generic update.
+
+### Frontend
+
+`/projects/[projectId]/evidence` (list: identifier/title/type/status,
+filterable by both) and `/projects/[projectId]/evidence/[evidenceId]` (full
+detail, lifecycle controls limited to what the server allows, a supersede
+dialog that only offers *real, existing* non-superseded evidence as a
+replacement, the six-relation traceability panel, a read-only list of
+certification findings that cite this evidence, and history via the
+existing audit infrastructure). No upload control exists anywhere in this
+module. The Verification Activity detail page's evidence section, previously
+a static read-only list, is now a real attach/detach panel
+(`verification-evidence-panel.tsx`) reusing the project's own evidence list
+to populate its picker. The project dashboard's module grid gained an
+"Evidence" entry.
+
+### Verification
+
+One schema change: `Evidence` gained `identifier`, `status`
+(`EvidenceStatus`: `DRAFT`/`VALIDATED`/`SUPERSEDED`), `recordedById`,
+`validatedById`/`validatedAt`, and a self-referential `supersededById`/
+`supersededAt` (mirroring `EngineeringBaseline`'s own supersession
+self-relation exactly) — additive only, cross-checked against a fresh
+`prisma migrate diff --from-empty`. The same migration widens
+`SurveillanceSourceType` with `EVIDENCE`. No table was created and no
+existing column, index or constraint was altered.
+
+Unit suites: `evidence.test.ts` (domain — lifecycle, editability, request
+schemas, link contract), `evidence.service.test.ts` (32 tests against faked
+repositories — CRUD, both lifecycle transitions with every illegal-state
+refusal, supersession's own link-preservation guarantee, six-relation
+traceability), `evidence.route.test.ts` (routing/auth/error-mapping), a new
+UI suite (`evidence-ui.test.tsx`), a new `graph-repository.test.ts` routing
+block, and a new test in `artifact-modules.test.tsx` proving Verification's
+attach flow never renders a file input. A PostgreSQL integration suite
+(`evidence.test.ts` under `src/tests/integration`, skipped without a
+reachable database) proves the full lifecycle and supersession's
+link-preservation guarantee against real data, the new graph edge in both
+directions, and real composition with Technical Readiness, Verification
+Readiness, Certification Review and Decision Sentinel — including the two
+negative-assertion tests (no probability/score anywhere in a technical
+readiness report; a certification-linked risk change still never opens
+`CERTIFICATION_REVIEW`, from the earlier Risk/Issue work, re-verified
+unchanged). A Playwright spec (`evidence.spec.ts`) drives the real UI end to
+end: record, link, validate, supersede, confirm the original remains visible
+and the requirement's link still names it rather than the replacement, and
+confirm project isolation through both the real API and the real UI's error
+state.
+
 ## Directory structure
 
 ```
@@ -3105,7 +3390,7 @@ src/domain/                 Entities, enums, identifiers, link + input validatio
                               explicit-never-derived applicability/method/
                               status/disposition contract, review fingerprint
                               + freshness
-  sentinel.ts                  THE surveillance dependency registry (41
+  sentinel.ts                  THE surveillance dependency registry (45
                               rows), event/target types + status transitions,
                               detection-vs-membership distinction (Prisma-free,
                               no AI, no autonomous decisions)
@@ -3116,6 +3401,14 @@ src/domain/                 Entities, enums, identifiers, link + input validatio
                               editability, owner contract, three-relation
                               link contract (Issue itself is typed in
                               artifacts.ts, unchanged)
+  evidence.ts                  Lifecycle (DRAFT/VALIDATED/SUPERSEDED),
+                              content-vs-links editability (two separate
+                              gates, not one), supersession contract,
+                              six-relation link contract reusing
+                              links.ts's EVIDENCE_SUBJECT_TYPES (Evidence
+                              itself is typed in artifacts.ts; identifier/
+                              status/actor/supersession fields graduated
+                              in there alongside this file)
   graph.ts                    Node/edge types, THE edge registry, traversal +
                               consistency contracts (Prisma-free)
   traceability.ts              Selectable-root allow-list + documented
@@ -3171,7 +3464,13 @@ src/server/
                               traceability.service.ts (the root-object
                               picker: dispatches to seventeen other
                               services' own list methods, normalizes the
-                              result — no Prisma query of its own)
+                              result — no Prisma query of its own),
+                              evidence.service.ts (create, list, get,
+                              content-update while DRAFT, validate,
+                              supersede — never touches an existing link —
+                              six-relation link/unlink; verification-
+                              activity.service.ts gained its own
+                              link/unlink pair, previously read-only)
   repositories/               Project, Requirement, EngineeringDecision,
                               ChangeRequest, Organization, User, Session, AuditLog
                               + mappers, Prisma error translation
@@ -3221,6 +3520,10 @@ src/server/
                                     dispatch (create/exists/delete/list),
                                     each target re-resolved inside the
                                     scoped project
+    evidence.repository.ts           CRUD, validate/supersede (never touches
+                                    EvidenceLink), six-relation link dispatch
+                                    into the one shared EvidenceLink table,
+                                    read-only listFindingsCitingEvidence
 src/middleware.ts             Edge: CSRF origin check + cookie-less redirect
 
 src/app/
@@ -3237,6 +3540,10 @@ src/app/
   api/projects/[projectId]/impact-analyses/[analysisId]  one analysis in full
   api/projects/[projectId]/verification-activities/[activityId]/readiness
                               evaluate (POST), history (GET), latest (GET)
+  api/projects/[projectId]/verification-activities/[activityId]/evidence
+                              attach (POST), detach (DELETE) — an existing
+                              evidence record; the read was already there,
+                              this pair is new
   api/projects/[projectId]/verification-readiness/[assessmentId]
                               one readiness assessment in full, with its basis
   api/projects/[projectId]/technical-readiness
@@ -3310,6 +3617,17 @@ src/app/
                               workspace's own picker only — relationship
                               reads go through the unmodified graph routes
                               above
+  api/projects/[projectId]/evidence
+                              list/create (?status=, ?evidenceType=),
+                              read/update, [evidenceId]/validate (POST),
+                              [evidenceId]/supersede (POST),
+                              [evidenceId]/links (list/add),
+                              [evidenceId]/links/[linkId] (DELETE)
+  api/projects/[projectId]/evidence-link-targets
+                              requirements/decisions/verification
+                              activities/supplied items/supplier
+                              qualifications/compliance items eligible for
+                              an evidence link
 
 src/components/ui|common/   shadcn/ui-style primitives and shared wrappers
 src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
@@ -3400,8 +3718,26 @@ src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
   widening shape (an addition, never a removal) used elsewhere in this
   schema's history. The Traceability workspace needed no schema change at
   all — it reads the existing graph API and existing services' own listing
-  methods, and adds no table, column, enum or migration. CI re-checks every
-  migration against the schema with a shadow database on every run.
+  methods, and adds no table, column, enum or migration. The Evidence
+  capability's migration (`20260912000000_add_evidence_lifecycle`) is
+  additive to an *existing* table rather than creating a new one: one new
+  enum (`EvidenceStatus`) and seven new columns on `evidence`
+  (`identifier`, `status`, `recordedById`, `validatedById`, `validatedAt`,
+  `supersededAt`, `supersededById`) plus three new foreign keys — two into
+  `users`, one self-referential into `evidence` itself, the same
+  self-relation shape `EngineeringBaseline`'s own supersession already
+  uses — a new unique index on `(projectId, identifier)` and a new index on
+  `(projectId, status)`. `identifier` and `status` are added `NOT NULL`
+  (`status` with a `DEFAULT 'DRAFT'`, `identifier` with none, matching every
+  other artifact's own project-scoped identifier column) rather than
+  nullable-then-backfilled, because no PostgreSQL instance has ever been
+  deployed with this schema — there is no existing `evidence` row this could
+  ever conflict with. The same migration widens `SurveillanceSourceType`
+  with `EVIDENCE`, identical in shape to the Risk/Issue widening before it.
+  No existing table, column, index, constraint or enum is altered or
+  dropped. Every statement was cross-checked against a fresh
+  `prisma migrate diff --from-empty` output. CI re-checks every migration
+  against the schema with a shadow database on every run.
 - Cross-project integrity on the supplier relationship tables is enforced in the
   services — every parent and link target is re-resolved inside the scoped
   project before a write — and any row that still crossed a project is reported

@@ -345,6 +345,7 @@ describe.skipIf(!databaseAvailable)(`decision memory against PostgreSQL (${SKIP_
       const evidence = await integrationPrisma!.evidence.create({
         data: {
           projectId: tenant.projectId,
+          identifier: "EV-400",
           title: "Hot fire report",
           evidenceType: "TEST_RESULT",
           sourceReference: "TR-2026-014",

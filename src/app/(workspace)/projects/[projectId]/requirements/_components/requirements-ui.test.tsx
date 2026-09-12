@@ -310,8 +310,8 @@ describe("RequirementDetailView", () => {
     expect(await screen.findByText(/DI-001/)).toBeInTheDocument();
     // The section heading, not the relation option of the same name in the picker.
     expect(screen.getByRole("heading", { name: "Design items" })).toBeInTheDocument();
-    // The other three relations are shown as genuinely empty.
-    expect(screen.getAllByText("None linked.")).toHaveLength(3);
+    // The other four relations are shown as genuinely empty.
+    expect(screen.getAllByText("None linked.")).toHaveLength(4);
   });
 
   it("adds a traceability link scoped to this project's artifacts", async () => {
