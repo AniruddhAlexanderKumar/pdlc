@@ -317,6 +317,36 @@ export async function findLatestAnalysis(
   return row ? toAnalysis(row) : null;
 }
 
+/**
+ * The most recent run for each of several changes, batched.
+ *
+ * The same "fetch every matching row newest-first, keep the first one seen
+ * per key" shape `findLatestForActivities` (verification readiness),
+ * `findLatestPerGate` (technical readiness) and `findLatestForAssumptions`
+ * (assumption monitoring) already use — added here for the Engineering
+ * Command Center, which needs a project's active changes' latest analyses
+ * without one query per change.
+ */
+export async function findLatestForChanges(
+  projectId: string,
+  changeRequestIds: readonly string[],
+  client: DbClient = prisma,
+): Promise<Map<string, ImpactAnalysis>> {
+  if (changeRequestIds.length === 0) return new Map();
+
+  const rows = await client.impactAnalysis.findMany({
+    where: { projectId, changeRequestId: { in: [...changeRequestIds] } },
+    orderBy: [{ startedAt: "desc" }, { id: "desc" }],
+    select: ANALYSIS_SELECT,
+  });
+
+  const latest = new Map<string, ImpactAnalysis>();
+  for (const row of rows) {
+    if (!latest.has(row.changeRequestId)) latest.set(row.changeRequestId, toAnalysis(row));
+  }
+  return latest;
+}
+
 /** Every run for a change, newest first. History is never overwritten. */
 export async function listAnalyses(
   projectId: string,

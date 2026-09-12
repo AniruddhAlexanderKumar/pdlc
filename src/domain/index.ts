@@ -13,6 +13,7 @@ export * from "./assumption-monitoring";
 export * from "./auth";
 export * from "./certification";
 export * from "./change-request";
+export * from "./command-center";
 export * from "./decision-memory";
 export * from "./design-item";
 export * from "./drift";

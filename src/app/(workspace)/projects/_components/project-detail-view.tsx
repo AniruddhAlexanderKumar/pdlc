@@ -15,6 +15,7 @@ import {
   FileText,
   GitBranch,
   Layers,
+  LayoutDashboard,
   ListChecks,
   Pencil,
   Radar,
@@ -42,6 +43,12 @@ import { TechnicalReadinessPanel } from "./technical-readiness-panel";
  * user cannot open — unbuilt modules are named in the empty state instead.
  */
 const IMPLEMENTED_MODULES = [
+  {
+    label: "Command Center",
+    href: "/command-center",
+    icon: LayoutDashboard,
+    description: "One view of what needs attention and the current readiness/traceability state.",
+  },
   {
     label: "Requirements",
     href: "/requirements",
@@ -187,6 +194,12 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         description={project.description ?? "No description."}
         actions={
           <>
+            <Button asChild>
+              <Link href={`/projects/${project.id}/command-center`}>
+                <LayoutDashboard aria-hidden="true" />
+                Command Center
+              </Link>
+            </Button>
             <Button
               variant="outline"
               onClick={() => setIsEditOpen(true)}

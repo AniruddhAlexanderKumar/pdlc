@@ -3353,6 +3353,199 @@ and the requirement's link still names it rather than the replacement, and
 confirm project isolation through both the real API and the real UI's error
 state.
 
+## Engineering Command Center
+
+A project-level answer to "what currently requires engineering attention, and
+what is the current readiness and traceability state of this product?" —
+built entirely by composing the outputs every other engine in this system
+already computes and stores. There is no new engine here: no readiness
+recalculation, no change-propagation logic, no certification semantics, no
+drift comparison, no assumption evaluation, no Sentinel dependency logic, and
+no scoring of any kind. It is a read model over records that already exist,
+in the same sense the Traceability workspace above is a read model over the
+graph.
+
+### What this deliberately is not
+
+Not a new authority. The Command Center produces no verdict of its own —
+"is this product ready" is still answered exclusively by Technical
+Readiness, Verification Readiness, and Certification Review, each shown
+here with its own real, unmodified status. Nothing on this page overrides,
+recomputes, or synthesizes a different answer than the engine that owns the
+question.
+
+Not a score. There is no risk score, no probability, no heatmap, no
+"overall health" number, no composite readiness percentage, and no weighted
+average anywhere in the response or the page — a rule strict enough to be a
+standing negative assertion in every test layer this capability has (unit,
+route, UI, and integration), each checking the full serialized output
+against a shared forbidden-pattern regex.
+
+Not a write path. Every read this capability performs is a plain repository
+or service *read* method — nothing here evaluates an assumption, runs a
+readiness gate, triggers Sentinel detection, or otherwise creates a new
+assessment row as a side effect of opening the page. The integration suite
+proves this directly: calling `getCommandCenter` twice in a row leaves
+`surveillance_targets`'s row count for the project unchanged.
+
+### Composition, not calculation
+
+`ProjectCommandCenterService.getCommandCenter` (`src/server/services/
+project-command-center.service.ts`) is the one new module, and every value
+it returns traces back to a real, already-existing call:
+
+- **Technical readiness** — `technicalReadinessService.getLatestTechnicalReadiness`
+  once per gate (`TECHNICAL_READINESS_GATES` is a fixed five-element list,
+  so this is a bounded, constant number of calls, not one per project
+  object) — the real service, so its own graph-based freshness re-derivation
+  runs unmodified.
+- **Verification readiness** — deliberately *not* the per-activity service
+  method, because that would be one graph-walking call per activity and
+  scale with project size. Instead this reads only the already-batched
+  `verificationReadinessRepository.findLatestForActivities` — the same
+  "fetch every matching row, keep the first (latest) per key" batch function
+  the engine's own detail views already use elsewhere. The trade-off is
+  explicit and documented in code: the Command Center does not show a
+  per-activity freshness verdict, only the latest stored status, activity
+  status, and finding counts.
+- **Certification** — `certificationProgramService.getProgram` first
+  (returns `null` gracefully); only if a program exists does it proceed to
+  `certificationReviewService.getLatestCertificationReview`,
+  `certificationBasisService.listBases` (filtered to `ACTIVE`), and the
+  batched `certificationFindingRepository.listOpenFindingsForItems` across
+  every compliance item in that basis. Calling the review service without
+  first checking for a program would throw, the same gotcha the
+  Traceability workspace's picker already had to account for.
+- **Change impact** — one shared `computeProjectFingerprint` call, reused
+  across every active change (`ACTIVE_CHANGE_REQUEST_STATUSES`, the same
+  pre-existing constant `change-request.ts` already exported), paired with
+  the batched `impactAnalysisRepository.findLatestForChanges` — a new
+  repository function, but not a new policy: it mirrors the exact
+  fetch-all-order-by-newest-keep-first shape the three other engines'
+  batch functions already use. Freshness itself is derived by calling
+  `freshnessOf`, the standalone pure comparison function
+  `change-impact-analysis.service.ts` already exported — not recomputed.
+- **Assumptions** — read directly at the repository layer
+  (`monitoringRepository.listProjectAssumptions` +
+  `findLatestForAssumptions`), bypassing the service layer entirely,
+  because the service's own `evaluateProjectAssumptions` *writes* a new
+  monitoring record for every assumption — exactly the kind of
+  read-triggers-a-write behavior a read model must not have.
+- **Drift, Risks, Issues, Suppliers, Evidence, Sentinel** — each read
+  through its own existing list/count method
+  (`driftDetectionService`, `riskService`, `issueService`,
+  `supplierService`/`suppliedItemService`/`supplierQualificationService`,
+  `evidenceService`, `decisionSentinelService.listOpenSurveillance` +
+  `getSurveillanceCounts`), with every status filter (`OPEN`, `HIGH`/
+  `CRITICAL`, `UNDER_REVIEW`, `EXPIRED`/`WITHDRAWN`, `DRAFT`, and so on)
+  applied over the engine's own literal enum values — never translated
+  into a numeric weight.
+
+One new repository function was added to support this without an N+1 read:
+`impactAnalysisRepository.findLatestForChanges(projectId, changeRequestIds)`,
+the fourth "latest per key" batch function in this codebase, alongside the
+three that already existed for verification readiness, technical readiness
+and assumption monitoring.
+
+### Attention rules
+
+`buildAttentionItems` derives one deterministic list from the sections
+above — no rule beyond what the specification named, and no rule that
+isn't a direct read of an existing status:
+
+- A technical readiness gate whose status is `NOT_READY` or `UNKNOWN`.
+- Any verification activity already flagged in the batched read as failed,
+  not-ready, or unknown.
+- A certification review whose status is `NOT_READY`/`UNKNOWN`, and every
+  open or in-progress certification finding in the active basis.
+- An active change whose latest impact analysis is `STALE` (via
+  `freshnessOf`, not a new comparison).
+- Every assumption whose monitoring status is `REVIEW_REQUIRED` or
+  `BASIS_CHANGED`.
+- A drift assessment whose status is `DRIFT_DETECTED` or `UNKNOWN`.
+- Every open risk; every `HIGH`/`CRITICAL` open or in-progress issue.
+- Every supplier/supplied item under review, and every qualification that
+  is `EXPIRED` or `WITHDRAWN`.
+- Every currently open Sentinel surveillance target, with its `reason`
+  field passed through verbatim from the engine's own stored text — never
+  regenerated.
+
+Deliberately excluded, on the same "no invented rule" discipline: `DRAFT`
+evidence is *not* an attention item — it is evidence's own normal starting
+state, not an urgency signal, and is shown only as a count in the Evidence
+section. Each item is deduplicated by a
+`sourceModule:sourceType:sourceId` key (also the item's own `key` field, so
+the same source object can never appear twice) and the final list is
+sorted by source module then by identifier — an alphabetical, not a
+severity-ranked, order, so nothing here reads as an invented priority
+scale.
+
+### Navigation
+
+Wherever a source object maps to a real `GraphNodeType` with its own detail
+page, the Command Center reuses `traceabilityDetailRoute` from the
+Traceability workspace above rather than building a second routing table —
+Risk, Issue, Supplier, Supplied Item, Supplier Qualification, Evidence,
+Change Request, Verification Activity, Engineering Decision (for
+assumptions) and Compliance Item (for certification findings) all resolve
+this way. Sentinel targets use their own small `sentinelTargetHref` switch,
+because a target's id means something different per `targetType`
+(`SurveillanceTargetId`'s own documented semantics in `sentinel.ts` — an
+activity id, a gate name, a program id, and so on) and none of those map
+cleanly onto a graph node type. Technical readiness gates and Drift, which
+have no per-item URL, link to their existing workspace pages
+(`/projects/:id` and `/projects/:id/drift`).
+
+### API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/projects/[projectId]/command-center` | The full composed view: project, attentionItems, readiness (technical/verification/certification/changeImpact/assumptions/drift), risks, issues, suppliers, evidence, sentinel, traceabilityHref |
+
+The route is read-only by construction — it exports only `GET`, verified
+by a test asserting `POST`/`PATCH`/`DELETE` are all `undefined` on the
+route module.
+
+### Frontend
+
+`/projects/[projectId]/command-center`
+(`src/app/(workspace)/projects/[projectId]/command-center/`): a project
+header, an "Attention required" panel with a source-module filter and a
+real empty state, then readiness broken out into four separate cards
+(Technical / Verification / Certification / Change impact) plus Assumptions
+and Drift, followed by Risks & Issues, Suppliers, Evidence, and Decision
+Sentinel — each card showing the engine's own literal status as a badge,
+never a percentage or a decorative chart. A "Command Center" entry was
+added as the first item in the project dashboard's module grid, and a
+matching primary action was added to the project detail page's header, so
+it reads as the project's front door rather than one more module among
+many.
+
+### Verification
+
+No schema change of any kind — this capability reads only. Unit suites:
+`project-command-center.service.test.ts` (16 tests against faked sibling
+services — aggregation correctness per section, the no-N+1 guarantee for
+verification readiness and certification findings, deduplication, and the
+shared negative-assertion regex), `command-center.route.test.ts` (routing/
+auth/error-mapping, plus the no-mutating-method and no-forbidden-field
+checks), and a UI suite (`command-center-ui.test.tsx`). A PostgreSQL
+integration suite (`src/tests/integration/command-center.test.ts`, skipped
+without a reachable database) builds a real populated project — a
+requirement, a decision with an assumption, a failed verification activity,
+an open risk, a critical issue, a supplier chain under review, a piece of
+evidence, a full certification program/basis/review, a submitted change
+with a completed impact analysis, and a real Sentinel detection — and
+proves the aggregated view reflects every one of them correctly, that every
+attention item's navigation href stays inside the project's own path, and
+that reading the command center twice never changes the Sentinel table's
+row count. A Playwright spec (`command-center.spec.ts`) drives the real UI:
+build a small populated project, open the Command Center, confirm real
+project information and both real attention items, follow one into its
+real source page, confirm an empty project's honest empty state, and
+confirm project isolation through both the real API and the real UI's
+error state.
+
 ## Directory structure
 
 ```
@@ -3415,6 +3608,10 @@ src/domain/                 Entities, enums, identifiers, link + input validatio
                               exclusion reasons, node/edge label helpers,
                               the real-detail-route map (Prisma-free; adds
                               no graph structure of its own)
+  command-center.ts            Response-shape types only (CommandCenter*
+                              prefix to avoid colliding with each engine's
+                              own same-named finding-tally types); no rule,
+                              no score field, no new status vocabulary
 
 src/server/
   errors.ts                   AppError + typed subclasses (400/401/403/404/409)
@@ -3471,12 +3668,20 @@ src/server/
                               six-relation link/unlink; verification-
                               activity.service.ts gained its own
                               link/unlink pair, previously read-only)
+                              project-command-center.service.ts (the
+                              aggregation-only composition layer: calls
+                              fourteen sibling services/repositories,
+                              recalculates none of them, derives the
+                              attention list and nothing else)
   repositories/               Project, Requirement, EngineeringDecision,
                               ChangeRequest, Organization, User, Session, AuditLog
                               + mappers, Prisma error translation
     graph-edge-resolvers.ts     One explicit resolver per edge type
     graph-repository.ts         Node loaders, batched edge reads, audit scan
-    impact-analysis.repository.ts   Immutable analyses, roots, bulk findings
+    impact-analysis.repository.ts   Immutable analyses, roots, bulk findings;
+                                    findLatestForChanges is the fourth
+                                    "latest per key" batch read, for the
+                                    Command Center
     verification-readiness.repository.ts        Immutable assessments + findings
     verification-readiness-basis.repository.ts  Batched state reads the rules
                                     need, plus the change-impact context
@@ -3628,6 +3833,11 @@ src/app/
                               activities/supplied items/supplier
                               qualifications/compliance items eligible for
                               an evidence link
+  api/projects/[projectId]/command-center
+                              GET only — the full composed, project-scoped
+                              read model; every other route above remains
+                              the real mutation/detail path for its own
+                              object
 
 src/components/ui|common/   shadcn/ui-style primitives and shared wrappers
 src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
@@ -3737,7 +3947,12 @@ src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
   No existing table, column, index, constraint or enum is altered or
   dropped. Every statement was cross-checked against a fresh
   `prisma migrate diff --from-empty` output. CI re-checks every migration
-  against the schema with a shadow database on every run.
+  against the schema with a shadow database on every run. The Engineering
+  Command Center needed no schema change at all — like the Traceability
+  workspace before it, it is pure read-composition over data every other
+  capability already persists; `prisma migrate diff --from-empty` is
+  unchanged by this capability, and no new Prisma model, column, or enum
+  value was added anywhere for it.
 - Cross-project integrity on the supplier relationship tables is enforced in the
   services — every parent and link target is re-resolved inside the scoped
   project before a write — and any row that still crossed a project is reported
