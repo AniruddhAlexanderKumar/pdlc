@@ -267,4 +267,6 @@ export interface CommandCenterView {
   sentinel: CommandCenterSentinelOverview;
   /** A single, existing route — never a second traversal implementation. */
   traceabilityHref: string;
+  /** The project's Engineering History workspace — a navigation entry point only. */
+  historyHref: string;
 }

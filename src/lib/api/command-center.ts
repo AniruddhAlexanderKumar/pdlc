@@ -200,6 +200,7 @@ export interface CommandCenterDto {
   evidence: EvidenceOverviewDto;
   sentinel: SentinelOverviewDto;
   traceabilityHref: string;
+  historyHref: string;
 }
 
 export async function fetchCommandCenter(

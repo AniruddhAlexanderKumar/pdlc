@@ -13,6 +13,7 @@ import * as designItemService from "./design-item.service";
 import { complianceItemService } from "./compliance-item.service";
 import { driftDetectionService } from "./drift-detection.service";
 import * as engineeringDecisionService from "./engineering-decision.service";
+import * as evidenceService from "./evidence.service";
 import * as issueService from "./issue.service";
 import { requireProjectInOrganization } from "./project-scope";
 import * as requirementService from "./requirement.service";
@@ -155,6 +156,10 @@ async function loadRoots(
       return perBasis
         .flat()
         .map((row) => ({ id: row.id, identifier: row.identifier, label: row.title }));
+    }
+    case "EVIDENCE": {
+      const rows = await evidenceService.listEvidence(context, projectId, {});
+      return rows.map((row) => ({ id: row.id, identifier: row.identifier, label: row.title }));
     }
     case "CERTIFICATION_REVIEW": {
       const program = await certificationProgramService.getProgram(context, projectId);

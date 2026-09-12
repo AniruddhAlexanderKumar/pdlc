@@ -249,6 +249,25 @@ export async function listAssessments(
 }
 
 /**
+ * Every assessment in the project, across every activity — for the
+ * Engineering History workspace only. Bounded: this feeds a history stream,
+ * not an unbounded export.
+ */
+export async function listAllForProject(
+  projectId: string,
+  limit = 200,
+  client: DbClient = prisma,
+): Promise<VerificationReadinessAssessment[]> {
+  const rows = await client.verificationReadinessAssessment.findMany({
+    where: { projectId },
+    orderBy: NEWEST_FIRST,
+    take: limit,
+    select: ASSESSMENT_SELECT,
+  });
+  return rows.map(toAssessment);
+}
+
+/**
  * One assessment by id, scoped by project.
  *
  * An id from another project — or another organization, since the project has

@@ -50,7 +50,6 @@ describe("traceabilityNodeTypeSchema", () => {
   });
 
   it("rejects a real graph node type that is not selectable as a root", () => {
-    expect(() => traceabilityNodeTypeSchema.parse("EVIDENCE")).toThrow();
     expect(() => traceabilityNodeTypeSchema.parse("PROJECT")).toThrow();
     expect(() => traceabilityNodeTypeSchema.parse("DECISION_ALTERNATIVE")).toThrow();
   });
@@ -101,6 +100,12 @@ describe("traceabilityDetailRoute", () => {
     expect(traceabilityDetailRoute("COMPLIANCE_ITEM", projectId, id)).toBe(
       `/projects/${projectId}/certification/items/${id}`,
     );
+    // Evidence gained a real detail page and a real project-wide listing in
+    // the Evidence Management capability, after this map was first built —
+    // this was a stale gap, closed here rather than carried forward.
+    expect(traceabilityDetailRoute("EVIDENCE", projectId, id)).toBe(
+      `/projects/${projectId}/evidence/${id}`,
+    );
   });
 
   it("returns null for a selectable root that has no standalone detail page", () => {
@@ -113,7 +118,6 @@ describe("traceabilityDetailRoute", () => {
   });
 
   it("returns null for an unselectable, unreachable-as-root type", () => {
-    expect(traceabilityDetailRoute("EVIDENCE", projectId, id)).toBeNull();
     expect(traceabilityDetailRoute("DECISION_ALTERNATIVE", projectId, id)).toBeNull();
     expect(traceabilityDetailRoute("DRIFT_FINDING", projectId, id)).toBeNull();
     expect(traceabilityDetailRoute("PROJECT", projectId, id)).toBeNull();
@@ -134,6 +138,7 @@ describe("traceabilityDetailRoute", () => {
       "SUPPLIER_QUALIFICATION",
       "ENGINEERING_BASELINE",
       "COMPLIANCE_ITEM",
+      "EVIDENCE",
     ];
     for (const type of GRAPH_NODE_TYPES) {
       const route = traceabilityDetailRoute(type, projectId, id);

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Lock, Pencil } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History, Lock, Pencil } from "lucide-react";
 import type { AssumptionStatus, ComparisonOperator, DecisionStatus, ExpectationStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import {
@@ -135,6 +135,12 @@ export function DecisionDetailView({
             >
               <Pencil aria-hidden="true" />
               Edit
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/history/ENGINEERING_DECISION/${decision.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
             </Button>
           </>
         }

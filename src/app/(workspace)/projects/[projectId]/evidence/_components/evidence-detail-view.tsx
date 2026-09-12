@@ -121,6 +121,12 @@ export function EvidenceDetailView({ projectId, evidenceId }: { projectId: strin
               <Pencil aria-hidden="true" />
               Edit
             </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/history/EVIDENCE/${evidence.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
+            </Button>
           </>
         }
       />

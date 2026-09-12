@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  History,
   Lock,
   Pencil,
   Plus,
@@ -103,6 +104,12 @@ export function BaselineDetailView({
               <Link href={`/projects/${projectId}/baselines`}>
                 <ArrowLeft aria-hidden="true" />
                 All baselines
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/projects/${projectId}/history/ENGINEERING_BASELINE/${baseline.id}`}>
+                <History aria-hidden="true" />
+                History
               </Link>
             </Button>
             {isDraft && (

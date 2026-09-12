@@ -73,6 +73,7 @@ function baseView(overrides: Record<string, unknown> = {}) {
     evidence: { draftCount: 0, validatedCount: 0, supersededCount: 0, draftItems: [] },
     sentinel: { openCount: 0, acknowledgedCount: 0, targets: [] },
     traceabilityHref: `/projects/${PROJECT_ID}/traceability`,
+    historyHref: `/projects/${PROJECT_ID}/history`,
     ...overrides,
   };
 }
@@ -104,6 +105,22 @@ describe("CommandCenterView", () => {
 
     expect(await screen.findByText("Nothing requires attention right now")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Upper Stage Propulsion" })).toBeInTheDocument();
+  });
+
+  it("offers real entry points into Engineering History and Traceability", async () => {
+    routeGets(baseView());
+
+    render(<CommandCenterView projectId={PROJECT_ID} />);
+
+    await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
+    expect(screen.getByRole("link", { name: /engineering history/i })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT_ID}/history`,
+    );
+    expect(screen.getByRole("link", { name: /open traceability/i })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT_ID}/traceability`,
+    );
   });
 
   it("renders an attention item with its real reason and a working navigation link", async () => {

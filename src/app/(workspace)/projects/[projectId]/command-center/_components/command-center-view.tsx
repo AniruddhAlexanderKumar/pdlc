@@ -8,6 +8,7 @@ import {
   Factory,
   FileText,
   GitBranch,
+  History,
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
@@ -72,12 +73,20 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
         title="Engineering Command Center"
         description={`${data.project.name} — real, current state composed from every engine this product already runs. Nothing here is a new verdict.`}
         actions={
-          <Button asChild variant="outline">
-            <Link href={data.traceabilityHref}>
-              <Waypoints aria-hidden="true" />
-              Open Traceability
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href={data.historyHref}>
+                <History aria-hidden="true" />
+                Engineering History
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={data.traceabilityHref}>
+                <Waypoints aria-hidden="true" />
+                Open Traceability
+              </Link>
+            </Button>
+          </div>
         }
       />
 

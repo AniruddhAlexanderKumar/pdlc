@@ -501,10 +501,16 @@ export async function getCommandCenter(
     evidence,
     sentinel,
     traceabilityHref: `/projects/${scopedProjectId}/traceability`,
+    historyHref: `/projects/${scopedProjectId}/history`,
   };
 }
 
-function sentinelTargetHref(
+/**
+ * Exported so `EngineeringHistoryService` builds Sentinel navigation hrefs
+ * the same way this workspace already does — one canonical mapping, not a
+ * second one.
+ */
+export function sentinelTargetHref(
   projectId: string,
   targetType: string,
   targetId: string,

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Lock, Pencil } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History, Lock, Pencil } from "lucide-react";
 import type { VerificationStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import {
@@ -123,6 +123,12 @@ export function VerificationDetailView({
             >
               <Pencil aria-hidden="true" />
               Edit
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/history/VERIFICATION_ACTIVITY/${activity.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
             </Button>
           </>
         }

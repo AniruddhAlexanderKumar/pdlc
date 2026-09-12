@@ -68,6 +68,7 @@ const VIEW = {
   evidence: { draftCount: 0, validatedCount: 0, supersededCount: 0, draftItems: [] },
   sentinel: { openCount: 0, acknowledgedCount: 0, targets: [] },
   traceabilityHref: `/projects/${PROJECT_ID}/traceability`,
+  historyHref: `/projects/${PROJECT_ID}/history`,
 };
 
 beforeEach(() => {

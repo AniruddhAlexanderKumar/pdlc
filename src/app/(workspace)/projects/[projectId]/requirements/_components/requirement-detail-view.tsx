@@ -142,6 +142,12 @@ export function RequirementDetailView({
               <Pencil aria-hidden="true" />
               Edit
             </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/history/REQUIREMENT/${requirement.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
+            </Button>
           </>
         }
       />

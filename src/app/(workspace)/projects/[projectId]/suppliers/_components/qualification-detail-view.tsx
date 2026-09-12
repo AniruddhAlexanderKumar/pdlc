@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, FileCheck2, Pencil, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileCheck2, History, Pencil, RefreshCw } from "lucide-react";
 import { describeApiError } from "@/lib/api/client";
 import { linkQualificationEvidence, useQualification } from "@/lib/api/suppliers";
 import { useDecisionLinkTargets } from "@/lib/api/decisions";
@@ -78,6 +78,12 @@ export function QualificationDetailView({
             <Button variant="outline" onClick={() => setIsEditOpen(true)}>
               <Pencil aria-hidden="true" />
               Edit
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/projects/${projectId}/history/SUPPLIER_QUALIFICATION/${qualification.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
             </Button>
           </div>
         }

@@ -361,6 +361,25 @@ export async function listAnalyses(
   return rows.map(toAnalysis);
 }
 
+/**
+ * Every analysis in the project, across every change request — for the
+ * Engineering History workspace only. Bounded: this feeds a history stream,
+ * not an unbounded export.
+ */
+export async function listAllForProject(
+  projectId: string,
+  limit = 200,
+  client: DbClient = prisma,
+): Promise<ImpactAnalysis[]> {
+  const rows = await client.impactAnalysis.findMany({
+    where: { projectId },
+    orderBy: [{ startedAt: "desc" }, { id: "desc" }],
+    take: limit,
+    select: ANALYSIS_SELECT,
+  });
+  return rows.map(toAnalysis);
+}
+
 /** One analysis, scoped by project so an id from elsewhere is simply absent. */
 export async function findAnalysisInProject(
   projectId: string,

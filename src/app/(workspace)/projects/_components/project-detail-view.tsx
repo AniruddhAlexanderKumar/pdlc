@@ -14,6 +14,7 @@ import {
   FileCheck,
   FileText,
   GitBranch,
+  History,
   Layers,
   LayoutDashboard,
   ListChecks,
@@ -144,6 +145,12 @@ const IMPLEMENTED_MODULES = [
     href: "/traceability",
     icon: Waypoints,
     description: "Trace real relationships across the engineering graph, hop by hop.",
+  },
+  {
+    label: "Engineering History",
+    href: "/history",
+    icon: History,
+    description: "The chronological record of what happened, and when, across this project.",
   },
 ] as const;
 

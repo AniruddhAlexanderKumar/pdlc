@@ -121,6 +121,12 @@ export function RiskDetailView({ projectId, riskId }: { projectId: string; riskI
               <Pencil aria-hidden="true" />
               Edit
             </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/history/RISK/${risk.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
+            </Button>
           </>
         }
       />

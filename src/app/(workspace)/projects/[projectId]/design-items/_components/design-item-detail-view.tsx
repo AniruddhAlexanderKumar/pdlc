@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Network, Pencil } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History, Network, Pencil } from "lucide-react";
 import { describeApiError } from "@/lib/api/client";
 import { assignDesignItemOwner, useDesignItem } from "@/lib/api/artifacts";
 import { useOrganizationMembers } from "@/lib/api/requirements";
@@ -91,6 +91,12 @@ export function DesignItemDetailView({
             <Button variant="outline" onClick={() => setIsEditOpen(true)}>
               <Pencil aria-hidden="true" />
               Edit
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/history/DESIGN_ITEM/${item.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
             </Button>
           </>
         }

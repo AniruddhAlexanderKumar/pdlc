@@ -2946,16 +2946,19 @@ records — and it is not a general listing API: every branch dispatches straigh
 into that module's own existing service (`requirementService.listRequirements`,
 `riskService.listRisks`, `driftDetectionService.listBaselines`, and so on) and
 normalizes the result to `{ id, identifier, label }`. No new Prisma query was
-written for any of the seventeen types it supports.
+written for any of the eighteen types it supports.
 
-Seventeen of the registry's twenty-nine node types are offered as roots —
+Eighteen of the registry's twenty-nine node types are offered as roots —
 exactly the ones with a genuine project-wide "list everything of this type"
-capability already sitting in some other service. The remaining twelve are
-not offered, each for a specific, checked reason recorded in
+capability already sitting in some other service (`EVIDENCE` joined this
+list once Engineering History's own inspection found `evidenceService
+.listEvidence` and a real detail page already existed and simply were
+never wired into this picker — see Engineering History). The remaining
+eleven are not offered, each for a specific, checked reason recorded in
 `TRACEABILITY_UNSELECTABLE_REASONS` (`src/domain/traceability.ts`): most are
 listed only per parent (a decision's alternatives, a baseline's members, a
-compliance item's findings), two have no listing service at all (`EVIDENCE`,
-`APPROVAL`), and `PROJECT` has zero edges registered in
+compliance item's findings), one has no listing service at all (`APPROVAL`),
+and `PROJECT` has zero edges registered in
 `GRAPH_EDGE_DEFINITIONS` — nothing currently points at it or from it, so it
 would always resolve to an empty neighborhood. A domain test asserts these two
 lists partition all twenty-nine node types exactly, so a future node type
@@ -3057,7 +3060,7 @@ service it dispatches to; the domain module
 helpers, and the detail-route map; a PostgreSQL integration suite
 (`src/tests/integration/traceability.test.ts`, skipped without a reachable
 database) proves the picker against real service-created data across a
-representative sample of the seventeen types, proves the "no certification
+representative sample of the eighteen types, proves the "no certification
 program yet" case returns an empty list rather than an error, proves
 cross-project isolation, and composes the picker with the real, unmodified
 graph service across a real multi-hop scenario — including a genuine
@@ -3500,7 +3503,7 @@ have no per-item URL, link to their existing workspace pages
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/projects/[projectId]/command-center` | The full composed view: project, attentionItems, readiness (technical/verification/certification/changeImpact/assumptions/drift), risks, issues, suppliers, evidence, sentinel, traceabilityHref |
+| GET | `/api/projects/[projectId]/command-center` | The full composed view: project, attentionItems, readiness (technical/verification/certification/changeImpact/assumptions/drift), risks, issues, suppliers, evidence, sentinel, traceabilityHref, historyHref |
 
 The route is read-only by construction — it exports only `GET`, verified
 by a test asserting `POST`/`PATCH`/`DELETE` are all `undefined` on the
@@ -3772,6 +3775,335 @@ activated and the earlier one's frozen snapshot is confirmed to still
 read as it did at activation, and project isolation is confirmed through
 both the real API and the real UI's error state.
 
+## Engineering History
+
+A project's engineers can inspect an object's *current* state (every detail
+page) and, for twelve of them, its own `AuditLog` trail (`ArtifactHistory`
+and each module's own inline history panel). What did not exist was a
+single place to ask the temporal questions directly — *"what happened to
+this object over time?"*, *"when was this decided?"*, *"what changed, and
+who changed it?"* — across the whole record, or a chronological stream for
+the project as a whole. Engineering History answers exactly that, and
+nothing more: a read-only composition over facts every other capability in
+this system already persisted.
+
+### AuditLog vs. Engineering History — the distinction this capability exists to keep
+
+**`AuditLog` is the one authoritative mutation record.** Every write this
+system performs that is worth remembering already appends a row there —
+`recordAuditEvent`, called from inside the same transaction as the mutation
+it describes, exactly as it has since the very first artifact module. This
+capability adds not one new call to `recordAuditEvent` anywhere, and not one
+new column to `audit_logs`.
+
+**`EngineeringHistoryService` is a read-only aggregation and presentation
+layer**, in the same sense the Command Center is a read model over
+readiness/impact/drift/certification and Traceability is a read model over
+the graph. It reads `AuditLog` rows (batched, never duplicated — see below),
+and it reads the native, already-timestamped tables six other engines
+already own (`DriftAssessment`, `TechnicalReadinessAssessment`,
+`VerificationReadinessAssessment`, `CertificationReview`, `ImpactAnalysis`,
+`SentinelEvent`, `SurveillanceTarget`). It writes nothing, ever:
+`getProjectHistory` and `getObjectHistory` are both pure reads, proved by an
+integration test asserting `audit_logs`'s own row count for the
+organization is identical before and after a call.
+
+### The strict distinction this capability enforces: what happened vs. what is true now
+
+A `HistoryEvent` exists only when the fact it names was actually persisted
+— a transition that really was recorded, an assessment that really ran, a
+target that really opened. Concretely:
+
+- **"Requirement REQ-12 changed from IN_REVIEW to APPROVED on date X"** is
+  valid, because `requirement.status_transitioned` audit rows carry exactly
+  that `{from, to}` pair in their metadata (`detailFromMetadata`, reused
+  from the same field-recognition logic `ArtifactHistory` already uses).
+- **"Requirement REQ-12 had description Y before it was approved"** is
+  never produced. This system's audit rows record *that* content changed
+  (`requirement.updated`, with a `changedFields` list) and, for a status
+  change, the two status values — never a diff of the prose itself, because
+  no prior version of the text is ever stored anywhere. `toArtifactEvent`
+  can only ever attach the object's *current* identifier and label to an
+  event (`ProjectArtifactRef` is read fresh, from the live table, every
+  time); it is never presented as what the object was called *then*, and
+  the domain module's own doc comment states this limitation as the
+  capability's central rule, not an afterthought.
+- Sentinel events are labeled exactly `DETECTED` / `ACKNOWLEDGED` /
+  `RESOLVED` (`sentinel.target_detected` / `.target_acknowledged` /
+  `.target_resolved`, one event per real, populated timestamp on the same
+  `SurveillanceTarget` row) and never promoted into an engineering decision
+  — a detection event says the monitoring system noticed a condition; it
+  is not evidence of why the condition occurred, and nothing here implies
+  it is.
+- A baseline comparison finding is never presented as proof of *when* the
+  underlying object changed — only the object's own recorded transition
+  (its `AuditLog` row, or its own `updatedAt`-backed content-change event)
+  ever carries a timestamp for that. `DriftAssessment`/`compareBaseline`
+  results appear as their own `ASSESSMENT`-category events, timestamped by
+  when the comparison itself ran, not backdated to imply anything about the
+  member's own history.
+- Nothing here infers causality from proximity: a change request's impact
+  analysis, a Sentinel detection, and the object's own transition each
+  appear as their own distinct event, at their own real timestamp. Two
+  events that happened close together are shown close together in the
+  timeline — nothing more is claimed about them.
+
+### Event sources, and why nothing is duplicated
+
+`src/server/repositories/engineering-history.repository.ts` owns exactly
+two reads:
+
+- `listProjectArtifacts(projectId)` — every object of the sixteen
+  `AuditLog`-backed artifact types *in this project*
+  (`Requirement`, `DesignItem`, `EngineeringDecision`, `Risk`, `Issue`,
+  `Evidence`, `ChangeRequest`, `EngineeringBaseline`, `Supplier`,
+  `SuppliedItem`, `SupplierQualification`, `VerificationActivity`,
+  `StakeholderNeed`, `CertificationBasis`, `ComplianceItem`,
+  `CertificationFinding`, `OperationalObservation`), with just enough
+  identity to label an event — mirroring the exact same project-wide
+  enumeration `DecisionSentinelService.loadContentChangeCandidates`
+  already performs for its own detection sweep, reused for a different
+  purpose rather than duplicated.
+- `listAuditEventsForProjectArtifacts(organizationId, entityIdsByType)` —
+  **one** batched query (`OR` of per-type `entityId IN (...)` clauses),
+  scoped by organization exactly as the pre-existing
+  `listAuditEventsForEntity` scopes a single-entity read. This is the
+  entire `AuditLog` surface Engineering History touches.
+
+Everything else is read from the native table each engine already owns —
+`assessmentRepository.listAssessments` (drift, already project-wide),
+`technicalReadinessRepository.listAssessments(projectId, undefined)`
+(already accepts an optional gate, so omitting it already returns every
+gate's history — no new function needed), `certificationReviewRepository
+.listReviews(programId)` (only once a program exists — checked first,
+exactly like every other capability that reads certification state),
+`sentinelEventRepository.listEventsForProject` /
+`surveillanceTargetRepository.listTargetsForProject` (both already
+project-scoped and already bounded). Two new, minimal repository functions
+were added — `impactAnalysisRepository.listAllForProject` and
+`verificationReadinessRepository.listAllForProject` — each the exact same
+`SELECT` its existing per-change/per-activity sibling already uses, with
+the second `WHERE` clause simply dropped, because both tables already
+carry `projectId` as a real column.
+
+**"Do not duplicate an AuditLog entry as a second event merely because
+another service references it"** is enforced structurally: Technical
+Readiness and Verification Readiness *do* write `AuditLog` rows against
+their own assessment ids (`TECHNICAL_READINESS_ENTITY_TYPE` /
+`VERIFICATION_READINESS_ENTITY_TYPE`), but Engineering History never reads
+those two entity types from `AuditLog` — the native assessment row is
+already the authoritative, complete fact (status, gate/activity, real
+`evaluatedAt`), and reading both would present the same underlying event
+twice under two different shapes.
+
+### Ordering, deduplication and pagination
+
+`compareHistoryEvents` (`src/domain/engineering-history.ts`) is the single
+deterministic order: timestamp descending, ties broken by each event's own
+stable `key` — never database return order, and provably so, since the
+merge draws from a dozen independently-ordered sources. `key` doubles as
+the deduplication identity (`dedupeHistoryEvents`), so a source that could
+theoretically be read twice never produces two rows.
+
+Pagination is a bounded, stable **offset**, not a database cursor: every
+source this composes is itself already bounded (a batched query capped at
+1,000 rows, a project-scoped native-table read capped at 200), so the
+in-memory merge this reads from is never "an unbounded audit log", and
+`paginateHistoryEvents` sorts once and slices — `clampHistoryLimit` caps
+any caller-supplied `limit` at 200 regardless of what is requested, the
+same "never trust a caller-supplied bound" discipline the rest of this
+codebase's list endpoints hold to. A cursor across a heterogeneous,
+in-memory-merged union of `AuditLog` and six native tables would need a
+comparable key across all of them; the deterministic sort key already
+provides that ordering, so a stable offset over it is the honest
+pagination this shape of data supports — not "the existing architecture's
+cursor pattern", because no list endpoint in this codebase paginates by
+cursor today.
+
+### Object-level vs. project-level
+
+Two entry points, one shared composition:
+
+- `getObjectHistory(context, projectId, objectType, objectId)` — one
+  object's own `AuditLog` trail, plus, for exactly the three object types
+  where a *different* engine's own per-object history is genuinely part of
+  that object's story, the real history from that engine's own existing
+  per-object list function — never a second traversal:
+  - a **change request** — `impactAnalysisRepository.listAnalyses(projectId, changeRequestId)`
+    (already existed);
+  - an **engineering baseline** — `assessmentRepository.listAssessments(projectId, baselineId)`
+    (already existed);
+  - a **verification activity** — `verificationReadinessRepository.listAssessments(projectId, activityId)`
+    (already existed).
+- `getProjectHistory(context, projectId, filter, pagination)` — the full
+  merged, filtered, paginated stream for the whole project.
+
+`objectType` is validated against `HISTORY_OBJECT_TYPES` — a fixed,
+`z.enum`-backed list, never an arbitrary table or Prisma model name
+accepted from the client. It is exactly the set of graph node types that
+already have a real detail route in `traceabilityDetailRoute` — reused,
+not re-decided — so "does this type get its own history page" is answered
+by the same map that already answers "does this type have a detail page",
+never a second opinion. A certification basis, a compliance finding, or an
+operational observation — real `AuditLog`-backed types with no standalone
+detail page — still appear in the *project*-level stream; they simply have
+no page of their own to link back to, the identical "selectable ≠ has a
+detail page" distinction Traceability already draws for the same reason.
+
+### A real gap found by inspection, and closed: Evidence in Traceability
+
+Building `HISTORY_OBJECT_TYPES` off `traceabilityDetailRoute` required
+first confirming that map was itself current — it was not. Evidence
+gained a real detail page and a real project-wide listing service in the
+Evidence Management capability, built in this same session but *after*
+the Traceability workspace's own selectable-root list and detail-route map
+were written; nobody had gone back to add it. `EVIDENCE` was still
+recorded as unselectable ("no project-wide listing service exists, and
+evidence has no standalone detail page") — both halves of that reason had
+already stopped being true. Fixed directly: `EVIDENCE` moved from
+`TRACEABILITY_UNSELECTABLE_REASONS` into `TRACEABILITY_SELECTABLE_NODE_TYPES`,
+`traceability.service.ts` gained an `EVIDENCE` dispatch to the real
+`evidenceService.listEvidence`, and `DETAIL_ROUTE_BUILDERS` gained the real
+route. This was necessary for Engineering History's own detail-route reuse
+to be honest, and it also means Evidence is now, correctly, a full
+Traceability picker root.
+
+### Sentinel, certification, baseline and change-request context
+
+- **Sentinel** — `SentinelEvent` rows become `SENTINEL` module events
+  (`"Change detected: <object>"`, module `SENTINEL`, never the changed
+  object's own module — conflating the two would blur "the object changed"
+  with "the monitoring system noticed"). `SurveillanceTarget` rows become
+  up to three events each, one per real, populated timestamp
+  (`detectedAt` always; `acknowledgedAt` / `resolvedAt` only when actually
+  set) — never a status implied from a field that was never written.
+- **Certification** — compliance item, certification basis, and finding
+  lifecycle events come from their own real `AuditLog` actions
+  (`compliance_item.*`, `certification_basis.*`,
+  `certification_finding.*` — all pre-existing, just not previously
+  surfaced anywhere outside their own module); review creation/evaluation
+  comes from the real, already-persisted `CertificationReview` row. No
+  certification semantics changed; this capability reads, it does not
+  reinterpret.
+- **Baseline** — creation, member add/remove, activation and supersession
+  are the baseline's own `AuditLog` trail (unchanged from the Design/
+  operations drift and Configuration Baseline Integrity capabilities); a
+  comparison/evaluation appears as its own `DRIFT` `ASSESSMENT`-category
+  event, timestamped by when it ran — never implying the member changed at
+  that moment (see the historical-truth discussion above).
+- **Change request** — remains the sole authoritative change record.
+  Submission, review, approval/rejection and implementation are the
+  change's own transitions; a declared impact add/remove is its own
+  relationship-change event; a real, completed impact analysis appears as
+  its own started/completed pair of `ASSESSMENT` events (an analysis still
+  `RUNNING` never gets a fabricated "completed" event). Nothing here
+  infers that a change *caused* a nearby event — only the change's own
+  declared, explicit relationships (reused from `ChangeRequestImpact`, the
+  same table Drift's own `DR-CTX-001` context rule already reads) connect
+  a change to another object's history.
+- **Engineering decisions** — creation, alternative/assumption/expectation
+  changes, review, approval, rejection and supersession are all already
+  one object's own `AuditLog` trail (`DECISION_AUDIT_ACTIONS`), because
+  every one of those sub-record mutations was already recorded against the
+  decision's own entity id, not a separate one — Engineering History reads
+  that trail unmodified rather than reconstructing anything.
+
+### Command Center and Traceability integration
+
+The Command Center gained one new field, `historyHref` — a plain
+navigation entry point (`/projects/:id/history`), and a matching
+"Engineering History" button in its header — never folded into the
+existing attention logic, and never a second, smaller dashboard metric
+system: no "recent events" summary was added to the Command Center
+response, a deliberate choice to avoid doubling its own already-broad
+per-request read fan-out (see [Engineering Command
+Center](#engineering-command-center) above) for a convenience the
+dedicated workspace already provides one click away.
+
+Traceability integration is a plain link (`Open Traceability`, on both the
+project-level and every object-level history page) to the existing
+workspace entry point — the same, already-established pattern the Command
+Center's own "Open Traceability" button uses, not a deep link into a
+specific object. `TraceabilityView` keeps no query-param pre-selection
+today, and adding one was judged out of scope for this capability: it
+would mean changing a working, tested component for a convenience, not a
+requirement.
+
+### Frontend
+
+One reusable presentation component, `EngineeringHistoryTimeline`
+(`src/components/common/engineering-history-timeline.tsx`) — used by both
+the project-level workspace and every object-level history page, so a
+reader sees one shape either way, not a sixth bespoke history rendering.
+`historyEventLabel`/`historySourceModuleLabel` (`src/domain/engineering
+-history.ts`) are the one label table this capability reads — a
+consolidation of the same idea four existing detail pages
+(`requirement-detail-view.tsx`, `risk-detail-view.tsx`,
+`issue-detail-view.tsx`, `evidence-detail-view.tsx`) already keep as their
+own smaller, local maps, and `ArtifactHistory`'s own
+`historyLabel`/`historyDetail` in `artifact-panels.tsx`. Those four
+existing, working, tested inline history panels were deliberately left
+unmodified — retrofitting them onto the new shared table is a real
+follow-on simplification, not something this capability needed to touch
+to do its own job honestly.
+
+- `/projects/:id/history` — the project-level workspace: filters (module,
+  object type, actor, date range — all narrowing an already-composed
+  stream, never a second query engine), the shared timeline, and a plain
+  "load more" using the server's own bounded pagination.
+- `/projects/:id/history/:objectType/:objectId` — one object's own
+  history, its real identity, a link back to its real detail page, and a
+  link into Traceability.
+- Fourteen object detail pages (every `HISTORY_OBJECT_TYPES` entry) gained
+  a "History" button in their header: Requirement, Stakeholder Need,
+  Design Item, Verification Activity, Engineering Decision, Change
+  Request, Risk, Issue, Supplier, Supplied Item, Supplier Qualification,
+  Engineering Baseline, Compliance Item, Evidence.
+
+### API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/projects/:projectId/history` | The project's merged, filtered, paginated history stream |
+| GET | `/api/projects/:projectId/history/:objectType/:objectId` | One object's own real history |
+
+Both routes export only `GET` — a test asserts `POST`/`PATCH`/`DELETE` are
+`undefined` on each route module. Query filters (`module`, `objectType`,
+`actorId`, `from`, `to`, `offset`, `limit`) narrow an already-composed
+read; none of them is a table or model name, and an unsupported
+`objectType` path segment is a 400 (`ValidationError`), never a 500 or a
+leaked implementation detail.
+
+### Verification
+
+No schema change of any kind — `prisma format`/`validate` before and
+after this capability produced an identical `schema.prisma`; every source
+this capability reads already existed. Unit suites:
+`engineering-history.test.ts` (the deterministic comparator, dedup,
+pagination boundaries, and the action-label table, all pure), 27 cases in
+`engineering-history.service.test.ts` (project isolation, artifact-event
+composition including the actor-never-invented and
+detail-never-fabricated rules, every native-table source, Sentinel's
+three-events-from-one-row rule, ordering, filtering, pagination, the
+three compound object-history merges, and the negative-assertion sweep),
+11 cases in the route test, and a UI suite covering both pages including a
+module filter and an error state. A PostgreSQL integration suite
+(`src/tests/integration/engineering-history.test.ts`, skipped without a
+reachable database) performs real lifecycle transitions through the real
+services — a requirement, a risk, an issue, evidence validation, a change
+request, a baseline activation, a real certification review, a real
+Sentinel detection — and proves the composed stream contains exactly
+those real events, in deterministic order, with no duplicate keys, every
+href staying inside the project's own path, and a second read never
+changing `audit_logs`'s own row count. A Playwright spec
+(`engineering-history.spec.ts`) drives the real UI: build a requirement
+and a risk and transition each through a real lifecycle change, open the
+project's Engineering History and confirm both events appear newest
+first, filter by module, open the requirement's own object history and
+follow it back to the requirement, follow it into Traceability, and
+confirm project isolation through both the real API and the real UI's
+error state.
+
 ## Directory structure
 
 ```
@@ -3849,6 +4181,13 @@ src/domain/                 Entities, enums, identifiers, link + input validatio
                               EngineeringBaseline/EngineeringBaselineMember
                               from drift.ts, adds no baseline model of its
                               own
+  engineering-history.ts       HistoryEvent shape, the fourteen
+                              HISTORY_OBJECT_TYPES (reused from
+                              traceabilityDetailRoute's own map), the
+                              deterministic ordering/dedup/pagination
+                              functions, and the one consolidated
+                              action-label table (Prisma-free; no audit
+                              mechanism of its own)
 
 src/server/
   errors.ts                   AppError + typed subclasses (400/401/403/404/409)
@@ -3899,7 +4238,7 @@ src/server/
                               cross-org owner or a cross-project link target
                               is re-resolved and rejected, never trusted),
                               traceability.service.ts (the root-object
-                              picker: dispatches to seventeen other
+                              picker: dispatches to eighteen other
                               services' own list methods, normalizes the
                               result — no Prisma query of its own),
                               evidence.service.ts (create, list, get,
@@ -3913,6 +4252,10 @@ src/server/
                               fourteen sibling services/repositories,
                               recalculates none of them, derives the
                               attention list and nothing else)
+                              engineering-history.service.ts (getProjectHistory
+                              / getObjectHistory — composes AuditLog and six
+                              native assessment/event tables into one
+                              deterministic, paginated stream; writes nothing)
   repositories/               Project, Requirement, EngineeringDecision,
                               ChangeRequest, Organization, User, Session, AuditLog
                               + mappers, Prisma error translation
@@ -3921,8 +4264,13 @@ src/server/
     impact-analysis.repository.ts   Immutable analyses, roots, bulk findings;
                                     findLatestForChanges is the fourth
                                     "latest per key" batch read, for the
-                                    Command Center
-    verification-readiness.repository.ts        Immutable assessments + findings
+                                    Command Center; listAllForProject is the
+                                    same SELECT with the changeRequestId
+                                    filter dropped, for Engineering History
+    verification-readiness.repository.ts        Immutable assessments + findings;
+                                    listAllForProject mirrors listAssessments
+                                    with the activityId filter dropped, for
+                                    Engineering History
     verification-readiness-basis.repository.ts  Batched state reads the rules
                                     need, plus the change-impact context
     technical-readiness.repository.ts       Immutable gate assessments +
@@ -3969,6 +4317,11 @@ src/server/
                                     EvidenceLink), six-relation link dispatch
                                     into the one shared EvidenceLink table,
                                     read-only listFindingsCitingEvidence
+    engineering-history.repository.ts  listProjectArtifacts (one query per
+                                    of sixteen AuditLog-backed types, project-
+                                    scoped) + listAuditEventsForProjectArtifacts
+                                    (one batched OR query over AuditLog);
+                                    read-only, writes nothing
 src/middleware.ts             Edge: CSRF origin check + cookie-less redirect
 
 src/app/
@@ -4064,7 +4417,10 @@ src/app/
                               selectable node type, for the Traceability
                               workspace's own picker only — relationship
                               reads go through the unmodified graph routes
-                              above
+                              above; EVIDENCE was added as an eighteenth
+                              selectable type once Engineering History's own
+                              inspection found it eligible but never wired
+                              up (see Engineering History below)
   api/projects/[projectId]/evidence
                               list/create (?status=, ?evidenceType=),
                               read/update, [evidenceId]/validate (POST),
@@ -4080,7 +4436,15 @@ src/app/
                               GET only — the full composed, project-scoped
                               read model; every other route above remains
                               the real mutation/detail path for its own
-                              object
+                              object; gained a historyHref field pointing at
+                              the Engineering History workspace below
+  api/projects/[projectId]/history
+                              GET only — the project's merged, filtered,
+                              paginated Engineering History stream
+  api/projects/[projectId]/history/[objectType]/[objectId]
+                              GET only — one object's own real history;
+                              objectType is validated against a fixed enum,
+                              never an arbitrary table name
 
 src/components/ui|common/   shadcn/ui-style primitives and shared wrappers
 src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
@@ -4205,7 +4569,14 @@ src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
   the `REQUIREMENT`/`ENGINEERING_DECISION`/`VERIFICATION_ACTIVITY` →
   `DRIFT_ASSESSMENT` gap) are a plain TypeScript constant, not a database
   migration — `SurveillanceTargetType` already included `DRIFT_ASSESSMENT`
-  and no enum was touched.
+  and no enum was touched. Engineering History needed no schema change
+  either — it reads `AuditLog` and six other engines' own tables exactly as
+  they already existed; a fresh `prisma format`/`prisma validate` after
+  this capability produced no diff. The one non-code change it did make —
+  moving `EVIDENCE` from `TRACEABILITY_UNSELECTABLE_REASONS` into
+  `TRACEABILITY_SELECTABLE_NODE_TYPES` — is likewise a plain TypeScript
+  constant, not a migration; `evidence_links`/`evidence` themselves are
+  untouched.
 - Cross-project integrity on the supplier relationship tables is enforced in the
   services — every parent and link target is re-resolved inside the scoped
   project before a write — and any row that still crossed a project is reported

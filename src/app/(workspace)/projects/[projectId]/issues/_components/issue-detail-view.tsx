@@ -129,6 +129,12 @@ export function IssueDetailView({ projectId, issueId }: { projectId: string; iss
               <Pencil aria-hidden="true" />
               Edit
             </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/history/ISSUE/${issue.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
+            </Button>
           </>
         }
       />

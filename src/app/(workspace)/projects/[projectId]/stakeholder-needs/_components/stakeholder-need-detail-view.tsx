@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Pencil } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History, Pencil } from "lucide-react";
 import { describeApiError } from "@/lib/api/client";
 import { useStakeholderNeed } from "@/lib/api/artifacts";
 import { StakeholderNeedStatusBadge } from "@/components/common/artifact-badges";
@@ -67,6 +67,12 @@ export function StakeholderNeedDetailView({
             <Button variant="outline" onClick={() => setIsEditOpen(true)}>
               <Pencil aria-hidden="true" />
               Edit
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/history/STAKEHOLDER_NEED/${need.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
             </Button>
           </>
         }

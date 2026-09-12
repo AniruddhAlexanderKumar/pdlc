@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Lock, Pencil } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History, Lock, Pencil } from "lucide-react";
 import type { ChangeRequestStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import {
@@ -126,6 +126,12 @@ export function ChangeDetailView({
             >
               <Pencil aria-hidden="true" />
               Edit
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/history/CHANGE_REQUEST/${change.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
             </Button>
           </>
         }

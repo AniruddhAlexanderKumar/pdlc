@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, History } from "lucide-react";
 import { describeApiError } from "@/lib/api/client";
 import { useItem } from "@/lib/api/certification";
 import {
@@ -36,6 +37,16 @@ export function ItemDetailView({ projectId, itemId }: { projectId: string; itemI
       <PageHeader
         title={item.state.phase === "ready" ? item.state.data.title : "Compliance item"}
         description={item.state.phase === "ready" ? item.state.data.description ?? undefined : undefined}
+        actions={
+          item.state.phase === "ready" ? (
+            <Button variant="outline" asChild>
+              <Link href={`/projects/${projectId}/history/COMPLIANCE_ITEM/${item.state.data.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
 
       {item.state.phase === "loading" && <LoadingState label="Loading compliance item…" />}

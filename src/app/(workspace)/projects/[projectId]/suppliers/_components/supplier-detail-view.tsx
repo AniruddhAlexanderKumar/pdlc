@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Package, Pencil, Plus, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History, Package, Pencil, Plus, RefreshCw } from "lucide-react";
 import { describeApiError } from "@/lib/api/client";
 import { useSupplier } from "@/lib/api/suppliers";
 import { ArtifactHistory, DetailField } from "@/components/common/artifact-panels";
@@ -83,6 +83,12 @@ export function SupplierDetailView({
             <Button variant="outline" onClick={() => setIsEditOpen(true)}>
               <Pencil aria-hidden="true" />
               Edit
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/projects/${projectId}/history/SUPPLIER/${supplier.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
             </Button>
           </div>
         }

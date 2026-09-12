@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Link2, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History, Link2, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import {
   SUPPLIED_ITEM_RELATIONS,
   type SuppliedItemRelation,
@@ -86,6 +86,12 @@ export function SuppliedItemDetailView({
             <Button variant="outline" onClick={() => setIsEditOpen(true)}>
               <Pencil aria-hidden="true" />
               Edit
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/projects/${projectId}/history/SUPPLIED_ITEM/${item.id}`}>
+                <History aria-hidden="true" />
+                History
+              </Link>
             </Button>
           </div>
         }

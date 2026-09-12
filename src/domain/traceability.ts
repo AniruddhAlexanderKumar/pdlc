@@ -47,6 +47,7 @@ export const TRACEABILITY_SELECTABLE_NODE_TYPES = [
   "CERTIFICATION_BASIS",
   "COMPLIANCE_ITEM",
   "CERTIFICATION_REVIEW",
+  "EVIDENCE",
 ] as const satisfies readonly GraphNodeType[];
 
 export type TraceabilitySelectableNodeType = (typeof TRACEABILITY_SELECTABLE_NODE_TYPES)[number];
@@ -83,10 +84,6 @@ export const TRACEABILITY_UNSELECTABLE_REASONS: Readonly<Partial<Record<GraphNod
   INTERFACE_DEFINITION:
     "No project-wide listing exists; interfaces are managed inline on the Design Item that " +
     "connects to them. Reachable as an outbound neighbor of that Design Item.",
-  EVIDENCE:
-    "No project-wide listing service exists, and evidence has no standalone detail page. " +
-    "Reachable as a neighbor of the requirement, decision, verification activity or supplied " +
-    "item it supports.",
   APPROVAL:
     "No listing service exists; approvals are shown as history on the object they were recorded " +
     "against, not as a project-wide list. Reachable as an inbound neighbor of that object.",
@@ -164,6 +161,7 @@ const DETAIL_ROUTE_BUILDERS: Partial<Record<GraphNodeType, (projectId: string, i
   SUPPLIER_QUALIFICATION: (projectId, id) => `/projects/${projectId}/supplier-qualifications/${id}`,
   ENGINEERING_BASELINE: (projectId, id) => `/projects/${projectId}/baselines/${id}`,
   COMPLIANCE_ITEM: (projectId, id) => `/projects/${projectId}/certification/items/${id}`,
+  EVIDENCE: (projectId, id) => `/projects/${projectId}/evidence/${id}`,
 };
 
 /**

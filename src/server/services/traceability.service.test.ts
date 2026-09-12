@@ -46,6 +46,7 @@ vi.mock("./compliance-item.service", () => ({
 vi.mock("./certification-review.service", () => ({
   certificationReviewService: { listCertificationReviewHistory: vi.fn() },
 }));
+vi.mock("./evidence.service", () => ({ listEvidence: vi.fn() }));
 
 const projectRepository = await import("@/server/repositories/project.repository");
 const requirementService = await import("./requirement.service");
@@ -64,6 +65,7 @@ const { certificationProgramService } = await import("./certification-program.se
 const { certificationBasisService } = await import("./certification-basis.service");
 const { complianceItemService } = await import("./compliance-item.service");
 const { certificationReviewService } = await import("./certification-review.service");
+const evidenceService = await import("./evidence.service");
 const service = await import("./traceability.service");
 
 const CONTEXT: OrganizationContext = {
@@ -89,9 +91,6 @@ describe("listSelectableRoots", () => {
   });
 
   it("rejects an unsupported or garbage node type", async () => {
-    await expect(service.listSelectableRoots(CONTEXT, PROJECT_ID, "EVIDENCE")).rejects.toThrow(
-      ValidationError,
-    );
     await expect(service.listSelectableRoots(CONTEXT, PROJECT_ID, "PROJECT")).rejects.toThrow(
       ValidationError,
     );
@@ -117,6 +116,15 @@ describe("listSelectableRoots", () => {
     ]);
     const result = await service.listSelectableRoots(CONTEXT, PROJECT_ID, "STAKEHOLDER_NEED");
     expect(result).toEqual([{ id: "n1", identifier: "SN-001", label: "Reduce fuel burn" }]);
+  });
+
+  it("dispatches EVIDENCE — a real listing and detail route added after this workspace was first built", async () => {
+    vi.mocked(evidenceService.listEvidence).mockResolvedValue([
+      { id: "ev1", identifier: "EV-001", title: "Hot fire test report" } as never,
+    ]);
+    const result = await service.listSelectableRoots(CONTEXT, PROJECT_ID, "EVIDENCE");
+    expect(evidenceService.listEvidence).toHaveBeenCalledWith(CONTEXT, PROJECT_ID, {});
+    expect(result).toEqual([{ id: "ev1", identifier: "EV-001", label: "Hot fire test report" }]);
   });
 
   it("maps DESIGN_ITEM's `name` field to `label`", async () => {
