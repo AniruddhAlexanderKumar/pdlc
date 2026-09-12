@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Issue, Project } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 
 /**
  * Issue service behavior against fake repositories: no database, no Prisma.
@@ -36,7 +36,10 @@ vi.mock("@/server/repositories/issue.repository", () => ({
 
 vi.mock("@/server/repositories/user.repository", () => ({
   isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
 }));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
@@ -50,6 +53,7 @@ vi.mock("@/server/repositories/project-artifacts.repository", () => ({
 const projectRepository = await import("@/server/repositories/project.repository");
 const issueRepository = await import("@/server/repositories/issue.repository");
 const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 const service = await import("./issue.service");
 
@@ -98,6 +102,18 @@ beforeEach(() => {
   vi.mocked(issueRepository.issueLinkTargetExistsInProject).mockResolvedValue(true);
   vi.mocked(issueRepository.issueLinkExists).mockResolvedValue(false);
   vi.mocked(issueRepository.listIssueLinks).mockResolvedValue([]);
+  // CONTEXT's actor is a MANAGER on PROJECT by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior
+  // do not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 });
 
 describe("createIssue", () => {
@@ -509,5 +525,65 @@ describe("tenancy", () => {
 
     await expect(service.listIssues(CONTEXT, "elsewhere")).rejects.toBeInstanceOf(NotFoundError);
     expect(issueRepository.listIssuesInProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT.id,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating an issue", async () => {
+    asRole("VIEWER");
+    await expect(service.createIssue(CONTEXT, PROJECT.id, VALID_CREATE)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(issueRepository.createIssue).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER creating an issue — read/review authority is not write authority", async () => {
+    asRole("REVIEWER");
+    await expect(service.createIssue(CONTEXT, PROJECT.id, VALID_CREATE)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+  });
+
+  it("allows an ENGINEER to create and transition an issue — issue disposition is ordinary engineering work", async () => {
+    asRole("ENGINEER");
+    vi.mocked(issueRepository.createIssue).mockResolvedValue(issue());
+    await expect(
+      service.createIssue(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).resolves.toMatchObject({ identifier: "ISS-001" });
+
+    vi.mocked(issueRepository.findIssueInProject).mockResolvedValue(issue());
+    vi.mocked(issueRepository.updateIssue).mockResolvedValue(issue({ status: "IN_PROGRESS" }));
+    await expect(
+      service.transitionIssue(CONTEXT, PROJECT.id, "issue1", { to: "IN_PROGRESS" }),
+    ).resolves.toMatchObject({ status: "IN_PROGRESS" });
+  });
+
+  it("refuses a VIEWER assigning an issue owner", async () => {
+    asRole("VIEWER");
+    vi.mocked(issueRepository.findIssueInProject).mockResolvedValue(issue());
+
+    await expect(
+      service.assignIssueOwner(CONTEXT, PROJECT.id, "issue1", { ownerId: "user2aaaaaaaaaaaaaaaaaaa" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(issueRepository.updateIssue).not.toHaveBeenCalled();
+  });
+
+  it("allows a MANAGER to create an issue", async () => {
+    asRole("MANAGER");
+    vi.mocked(issueRepository.createIssue).mockResolvedValue(issue());
+    await expect(
+      service.createIssue(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).resolves.toMatchObject({ identifier: "ISS-001" });
   });
 });

@@ -31,7 +31,7 @@ import * as sentinelEventRepository from "@/server/repositories/sentinel-event.r
 import * as surveillanceTargetRepository from "@/server/repositories/surveillance-target.repository";
 import { parseOrThrow } from "@/server/validation";
 import { sentinelTargetHref } from "./project-command-center.service";
-import { requireProjectInOrganization } from "./project-scope";
+import { requireProjectReadAccess } from "./project-scope";
 
 /**
  * The Engineering History workspace.
@@ -526,7 +526,7 @@ export async function getProjectHistory(
   filter: ProjectHistoryFilter = {},
   pagination: HistoryPagination = {},
 ): Promise<ProjectHistoryResult> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
 
   const moduleFilter = optionalString(filter.module);
   const objectTypeFilter = optionalString(filter.objectType);
@@ -569,7 +569,7 @@ export async function getObjectHistory(
   objectId: unknown,
   pagination: HistoryPagination = {},
 ): Promise<ObjectHistoryResult> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const type = parseOrThrow(historyObjectTypeSchema, objectType, "Unsupported or unknown history object type");
   const id = parseOrThrow(entityIdSchema, objectId, "Invalid object id");
 

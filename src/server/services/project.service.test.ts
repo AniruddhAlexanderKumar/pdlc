@@ -33,9 +33,20 @@ vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/project-membership.repository", () => ({
+  findMembership: vi.fn(),
+  createMembership: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/user.repository", () => ({
+  getOrganizationRole: vi.fn(),
+}));
+
 const projectRepository = await import("@/server/repositories/project.repository");
 const organizationRepository = await import("@/server/repositories/organization.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
+const userRepository = await import("@/server/repositories/user.repository");
 const projectService = await import("@/server/services/project.service");
 
 const CONTEXT: OrganizationContext = {
@@ -63,6 +74,26 @@ const ARCHIVED_PROJECT: Project = { ...PROJECT, status: "ARCHIVED" };
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(organizationRepository.organizationExists).mockResolvedValue(true);
+  // The default fixture: CONTEXT's actor is an explicit MANAGER on PROJECT.
+  // Individual tests override this (or `getOrganizationRole`) when the
+  // access decision itself is what they are testing.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+  vi.mocked(membershipRepository.createMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
 });
 
 describe("createProject", () => {
@@ -76,6 +107,17 @@ describe("createProject", () => {
     expect(project).toEqual(PROJECT);
     expect(projectRepository.createProject).toHaveBeenCalledWith(
       { organizationId: CONTEXT.organizationId, name: "Upper Stage Propulsion", description: null },
+      TX,
+    );
+  });
+
+  it("grants the creator an explicit MANAGER membership, in the same transaction", async () => {
+    vi.mocked(projectRepository.createProject).mockResolvedValue(PROJECT);
+
+    await projectService.createProject(CONTEXT, { name: "Upper Stage Propulsion" });
+
+    expect(membershipRepository.createMembership).toHaveBeenCalledWith(
+      { projectId: PROJECT.id, userId: CONTEXT.actorId, role: "MANAGER" },
       TX,
     );
   });
@@ -171,6 +213,24 @@ describe("getProject", () => {
       PROJECT.id,
       undefined,
     );
+  });
+
+  it("404s for a same-organization caller with no project membership and no owner role", async () => {
+    vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    await expect(projectService.getProject(CONTEXT, PROJECT.id)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it("succeeds for a same-organization caller with no project membership who is the organization owner", async () => {
+    vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
+
+    await expect(projectService.getProject(CONTEXT, PROJECT.id)).resolves.toEqual(PROJECT);
   });
 
   it("rejects a malformed project id before querying", async () => {

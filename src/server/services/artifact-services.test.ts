@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DesignItem, Project, StakeholderNeed, VerificationActivity } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 
 /**
  * Service behavior for the three foundational artifact modules, against fake
@@ -49,7 +49,10 @@ vi.mock("@/server/repositories/verification-activity.repository", () => ({
 
 vi.mock("@/server/repositories/user.repository", () => ({
   isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
 }));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
@@ -63,6 +66,7 @@ const verificationRepository = await import(
   "@/server/repositories/verification-activity.repository"
 );
 const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 
 const needService = await import("./stakeholder-need.service");
@@ -137,6 +141,18 @@ beforeEach(() => {
   vi.mocked(designRepository.listDecisionsForDesignItem).mockResolvedValue([]);
   vi.mocked(verificationRepository.listRequirementsForVerification).mockResolvedValue([]);
   vi.mocked(verificationRepository.listEvidenceForVerification).mockResolvedValue([]);
+  // CONTEXT's actor is a MANAGER on PROJECT by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior
+  // do not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 });
 
 // --- Stakeholder needs ------------------------------------------------------
@@ -526,5 +542,116 @@ describe("VerificationActivityService", () => {
 
     expect(detail.availableTransitions).toEqual([]);
     expect(detail.editable).toBe(false);
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT.id,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating a design item", async () => {
+    asRole("VIEWER");
+    await expect(
+      designService.createDesignItem(CONTEXT, PROJECT.id, {
+        identifier: "DI-001",
+        name: "Combustion chamber",
+        itemType: "COMPONENT",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(designRepository.createDesignItem).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER creating a design item", async () => {
+    asRole("REVIEWER");
+    await expect(
+      designService.createDesignItem(CONTEXT, PROJECT.id, {
+        identifier: "DI-001",
+        name: "Combustion chamber",
+        itemType: "COMPONENT",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows an ENGINEER to create a design item", async () => {
+    asRole("ENGINEER");
+    vi.mocked(designRepository.createDesignItem).mockResolvedValue(DESIGN_ITEM);
+
+    await expect(
+      designService.createDesignItem(CONTEXT, PROJECT.id, {
+        identifier: "DI-001",
+        name: "Combustion chamber",
+        itemType: "COMPONENT",
+      }),
+    ).resolves.toMatchObject({ identifier: "DI-001" });
+  });
+
+  it("refuses a VIEWER creating a verification activity", async () => {
+    asRole("VIEWER");
+    await expect(
+      verificationService.createVerificationActivity(CONTEXT, PROJECT.id, {
+        identifier: "VER-001",
+        title: "Hot fire test",
+        method: "TEST",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(verificationRepository.createVerificationActivity).not.toHaveBeenCalled();
+  });
+
+  it("allows an ENGINEER to create and transition a verification activity — recording an outcome is ordinary engineering work", async () => {
+    asRole("ENGINEER");
+    vi.mocked(verificationRepository.createVerificationActivity).mockResolvedValue(activity());
+    await expect(
+      verificationService.createVerificationActivity(CONTEXT, PROJECT.id, {
+        identifier: "VER-001",
+        title: "Hot fire test",
+        method: "TEST",
+      }),
+    ).resolves.toMatchObject({ identifier: "VER-001" });
+
+    vi.mocked(verificationRepository.findVerificationActivityInProject).mockResolvedValue(
+      activity({ status: "PLANNED" }),
+    );
+    vi.mocked(verificationRepository.updateVerificationActivity).mockResolvedValue(
+      activity({ status: "IN_PROGRESS" }),
+    );
+    await expect(
+      verificationService.transitionVerificationStatus(CONTEXT, PROJECT.id, "ver1", {
+        to: "IN_PROGRESS",
+      }),
+    ).resolves.toMatchObject({ status: "IN_PROGRESS" });
+  });
+
+  it("refuses a VIEWER assigning a verification activity owner", async () => {
+    asRole("VIEWER");
+    vi.mocked(verificationRepository.findVerificationActivityInProject).mockResolvedValue(
+      activity(),
+    );
+
+    await expect(
+      verificationService.assignVerificationOwner(CONTEXT, PROJECT.id, "ver1", {
+        ownerId: "user2aaaaaaaaaaaaaaaaaaa",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(verificationRepository.updateVerificationActivity).not.toHaveBeenCalled();
+  });
+
+  it("allows a MANAGER to do all of the above", async () => {
+    asRole("MANAGER");
+    vi.mocked(designRepository.createDesignItem).mockResolvedValue(DESIGN_ITEM);
+    await expect(
+      designService.createDesignItem(CONTEXT, PROJECT.id, {
+        identifier: "DI-001",
+        name: "Combustion chamber",
+        itemType: "COMPONENT",
+      }),
+    ).resolves.toMatchObject({ identifier: "DI-001" });
   });
 });

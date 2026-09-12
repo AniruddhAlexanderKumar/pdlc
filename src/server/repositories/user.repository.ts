@@ -13,6 +13,7 @@ export interface AuthRecord {
   name: string;
   email: string;
   role: string;
+  organizationRole: string;
   organization: { id: string; name: string };
   credential: { passwordHash: string } | null;
 }
@@ -29,6 +30,7 @@ export async function findAuthRecordByEmail(
       name: true,
       email: true,
       role: true,
+      organizationRole: true,
       organization: { select: { id: true, name: true } },
       credential: { select: { passwordHash: true } },
     },
@@ -45,20 +47,22 @@ export interface CreateUserInput {
   name: string;
   organizationId: string;
   role?: "ADMIN" | "ENGINEER" | "VIEWER";
+  organizationRole?: "OWNER" | "MEMBER";
 }
 
 export async function createUser(
   input: CreateUserInput,
   client: DbClient = prisma,
-): Promise<{ id: string; name: string; email: string; role: string }> {
+): Promise<{ id: string; name: string; email: string; role: string; organizationRole: string }> {
   return client.user.create({
     data: {
       email: input.email,
       name: input.name,
       organizationId: input.organizationId,
       role: input.role ?? "ENGINEER",
+      organizationRole: input.organizationRole ?? "MEMBER",
     },
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, role: true, organizationRole: true },
   });
 }
 
@@ -103,4 +107,23 @@ export async function isMemberOfOrganization(
     select: { id: true },
   });
   return user !== null;
+}
+
+/**
+ * A user's real, current organization role — read fresh, never trusted from
+ * a request context. Scoped by `organizationId` as well as `userId`, so a
+ * user id from a different organization (which should never reach here
+ * given `OrganizationContext`'s own guarantees) resolves to `null` rather
+ * than another tenant's role.
+ */
+export async function getOrganizationRole(
+  userId: string,
+  organizationId: string,
+  client: DbClient = prisma,
+): Promise<string | null> {
+  const user = await client.user.findFirst({
+    where: { id: userId, organizationId },
+    select: { organizationRole: true },
+  });
+  return user?.organizationRole ?? null;
 }

@@ -82,8 +82,11 @@ export async function register(input: unknown): Promise<AuthResult> {
           email: data.email,
           name: data.name,
           organizationId: organization.id,
-          // The person who creates the organization administers it.
+          // The person who creates the organization administers it, in both
+          // the pre-existing (unenforced) sense and the real one:
+          // `organizationRole: OWNER` is what real authorization now checks.
           role: "ADMIN",
+          organizationRole: "OWNER",
         },
         tx,
       );
@@ -94,7 +97,13 @@ export async function register(input: unknown): Promise<AuthResult> {
 
       return {
         identity: {
-          user: { id: user.id, name: user.name, email: user.email, role: user.role },
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            organizationRole: user.organizationRole,
+          },
           organization: { id: organization.id, name: organization.name },
         },
         session: { token: session.token, expiresAt: session.expiresAt },
@@ -155,7 +164,13 @@ export async function signIn(input: unknown): Promise<AuthResult> {
 
   return {
     identity: {
-      user: { id: account.id, name: account.name, email: account.email, role: account.role },
+      user: {
+        id: account.id,
+        name: account.name,
+        email: account.email,
+        role: account.role,
+        organizationRole: account.organizationRole,
+      },
       organization: { id: account.organization.id, name: account.organization.name },
     },
     session: { token: session.token, expiresAt: session.expiresAt },

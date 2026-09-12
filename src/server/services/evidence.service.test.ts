@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Evidence } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 
 /**
  * Evidence service behavior against fake repositories: no database, no
@@ -45,9 +45,18 @@ vi.mock("@/server/repositories/project-artifacts.repository", () => ({
   listEvidenceLinkTargets: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 const projectRepository = await import("@/server/repositories/project.repository");
 const evidenceRepository = await import("@/server/repositories/evidence.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const service = await import("./evidence.service");
 
 const CONTEXT: OrganizationContext = {
@@ -85,6 +94,18 @@ beforeEach(() => {
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue({
     id: PROJECT_ID,
   } as never);
+  // CONTEXT's actor is a MANAGER on the project by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior do
+  // not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT_ID,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 });
 
 describe("createEvidence", () => {
@@ -499,5 +520,106 @@ describe("traceability", () => {
       service.linkEvidence(CONTEXT, PROJECT_ID, EVIDENCE_ID, { relation: "REQUIREMENT", targetId: "req1" }),
     ).rejects.toThrow(NotFoundError);
     expect(evidenceRepository.createEvidenceLink).not.toHaveBeenCalled();
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT_ID,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating evidence", async () => {
+    asRole("VIEWER");
+    await expect(
+      service.createEvidence(CONTEXT, PROJECT_ID, {
+        identifier: "EV-001",
+        title: "Hot fire test report",
+        evidenceType: "TEST_RESULT",
+        sourceReference: "TR-2026-014",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(evidenceRepository.createEvidence).not.toHaveBeenCalled();
+  });
+
+  it("allows an ENGINEER to create evidence but refuses them validating it — write authority is not approval authority", async () => {
+    asRole("ENGINEER");
+    vi.mocked(evidenceRepository.createEvidence).mockResolvedValue(evidence());
+    await expect(
+      service.createEvidence(CONTEXT, PROJECT_ID, {
+        identifier: "EV-001",
+        title: "Hot fire test report",
+        evidenceType: "TEST_RESULT",
+        sourceReference: "TR-2026-014",
+      }),
+    ).resolves.toMatchObject({ identifier: "EV-001" });
+
+    vi.mocked(evidenceRepository.findEvidenceInProject).mockResolvedValue(evidence());
+    await expect(
+      service.validateEvidence(CONTEXT, PROJECT_ID, EVIDENCE_ID, {}),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(evidenceRepository.validateEvidence).not.toHaveBeenCalled();
+  });
+
+  it("refuses an ENGINEER superseding evidence", async () => {
+    asRole("ENGINEER");
+    vi.mocked(evidenceRepository.findEvidenceInProject).mockResolvedValue(evidence());
+
+    await expect(
+      service.supersedeEvidence(CONTEXT, PROJECT_ID, EVIDENCE_ID, {
+        newEvidenceId: OTHER_EVIDENCE_ID,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("refuses a REVIEWER creating evidence — review authority is not write authority", async () => {
+    asRole("REVIEWER");
+    await expect(
+      service.createEvidence(CONTEXT, PROJECT_ID, {
+        identifier: "EV-001",
+        title: "Hot fire test report",
+        evidenceType: "TEST_RESULT",
+        sourceReference: "TR-2026-014",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a REVIEWER to validate evidence", async () => {
+    asRole("REVIEWER");
+    vi.mocked(evidenceRepository.findEvidenceInProject).mockResolvedValue(evidence());
+    vi.mocked(evidenceRepository.validateEvidence).mockResolvedValue(
+      evidence({ status: "VALIDATED" }),
+    );
+
+    await expect(
+      service.validateEvidence(CONTEXT, PROJECT_ID, EVIDENCE_ID, {}),
+    ).resolves.toMatchObject({ status: "VALIDATED" });
+  });
+
+  it("allows a MANAGER to create and validate evidence", async () => {
+    asRole("MANAGER");
+    vi.mocked(evidenceRepository.createEvidence).mockResolvedValue(evidence());
+    await expect(
+      service.createEvidence(CONTEXT, PROJECT_ID, {
+        identifier: "EV-001",
+        title: "Hot fire test report",
+        evidenceType: "TEST_RESULT",
+        sourceReference: "TR-2026-014",
+      }),
+    ).resolves.toMatchObject({ identifier: "EV-001" });
+
+    vi.mocked(evidenceRepository.findEvidenceInProject).mockResolvedValue(evidence());
+    vi.mocked(evidenceRepository.validateEvidence).mockResolvedValue(
+      evidence({ status: "VALIDATED" }),
+    );
+    await expect(
+      service.validateEvidence(CONTEXT, PROJECT_ID, EVIDENCE_ID, {}),
+    ).resolves.toMatchObject({ status: "VALIDATED" });
   });
 });

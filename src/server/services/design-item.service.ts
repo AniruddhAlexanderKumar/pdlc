@@ -8,7 +8,7 @@ import {
 } from "@/domain";
 import { prisma } from "@/lib/db";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { NotFoundError, ValidationError } from "@/server/errors";
+import { NotFoundError } from "@/server/errors";
 import * as auditLogRepository from "@/server/repositories/audit-log.repository";
 import type { AuditEventSummary } from "@/server/repositories/audit-log.repository";
 import * as designItemRepository from "@/server/repositories/design-item.repository";
@@ -18,9 +18,13 @@ import type {
   OwnerSummary,
 } from "@/server/repositories/design-item.repository";
 import type { LinkedRequirementSummary } from "@/server/repositories/stakeholder-need.repository";
-import * as userRepository from "@/server/repositories/user.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import { requireAssignableOwner } from "./authorization.service";
+import {
+  artifactAuditEvent,
+  requireProjectInOrganization,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * Design item application service.
@@ -62,26 +66,16 @@ async function requireDesignItem(
   return item;
 }
 
-/** Owners must be members of the caller's organization — never an arbitrary id. */
-async function requireOrganizationMember(
-  context: OrganizationContext,
-  ownerId: string,
-): Promise<void> {
-  if (!(await userRepository.isMemberOfOrganization(ownerId, context.organizationId))) {
-    throw new ValidationError("That user is not a member of this organization.");
-  }
-}
-
 export async function createDesignItem(
   context: OrganizationContext,
   projectId: unknown,
   input: unknown,
 ): Promise<DesignItem> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createDesignItemRequestSchema, input, "Invalid design item");
 
   if (data.ownerId) {
-    await requireOrganizationMember(context, data.ownerId);
+    await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -159,7 +153,7 @@ export async function updateDesignItem(
   designItemId: unknown,
   input: unknown,
 ): Promise<DesignItem> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(updateDesignItemRequestSchema, input, "Invalid design item update");
 
   return prisma.$transaction(async (tx) => {
@@ -189,7 +183,7 @@ export async function assignDesignItemOwner(
   designItemId: unknown,
   input: unknown,
 ): Promise<DesignItem> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const { ownerId } = parseOrThrow(
     assignDesignItemOwnerRequestSchema,
     input,
@@ -197,7 +191,7 @@ export async function assignDesignItemOwner(
   );
 
   if (ownerId) {
-    await requireOrganizationMember(context, ownerId);
+    await requireAssignableOwner(context, scopedProjectId, ownerId);
   }
 
   return prisma.$transaction(async (tx) => {

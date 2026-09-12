@@ -15,7 +15,13 @@ const CONTEXT = {
   organizationId: "org1aaaaaaaaaaaaaaaaaaaa",
   actorId: "user1aaaaaaaaaaaaaaaaaaa",
   sessionId: "sess1aaaaaaaaaaaaaaaaaa",
-  user: { id: "user1aaaaaaaaaaaaaaaaaaa", name: "Ada", email: "ada@example.test", role: "ADMIN" },
+  user: {
+    id: "user1aaaaaaaaaaaaaaaaaaa",
+    name: "Ada",
+    email: "ada@example.test",
+    role: "ADMIN",
+    organizationRole: "OWNER",
+  },
   organization: { id: "org1aaaaaaaaaaaaaaaaaaaa", name: "Example Aerospace" },
 };
 
@@ -62,7 +68,10 @@ vi.mock("@/server/repositories/verification-activity.repository", () => ({
 vi.mock("@/server/repositories/user.repository", () => ({
   isMemberOfOrganization: vi.fn(),
   listOrganizationMembers: vi.fn(),
+  getOrganizationRole: vi.fn(),
 }));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
@@ -77,6 +86,7 @@ const verificationRepository = await import(
   "@/server/repositories/verification-activity.repository"
 );
 const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 
 const needsCollection = await import("@/app/api/projects/[projectId]/stakeholder-needs/route");
 const needsItem = await import("@/app/api/projects/[projectId]/stakeholder-needs/[needId]/route");
@@ -193,6 +203,10 @@ beforeEach(() => {
   vi.mocked(designRepository.listDecisionsForDesignItem).mockResolvedValue([]);
   vi.mocked(verificationRepository.listRequirementsForVerification).mockResolvedValue([]);
   vi.mocked(verificationRepository.listEvidenceForVerification).mockResolvedValue([]);
+  // CONTEXT's user is an organization OWNER (see CONTEXT above) — full
+  // implicit project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
 });
 
 describe("authentication", () => {

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { dependencyRulesFor } from "@/domain";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 import type { SurveillanceTargetWithSource } from "@/server/repositories/surveillance-target.repository";
 
 /**
@@ -76,6 +76,13 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/server/repositories/project.repository", () => ({
   findProjectInOrganization: vi.fn(),
 }));
+
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
@@ -160,6 +167,8 @@ vi.mock("./verification-readiness.service", () => ({
 
 const { prisma } = await import("@/lib/db");
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 const baselineRepository = await import("@/server/repositories/engineering-baseline.repository");
 const baselineMemberRepository = await import("@/server/repositories/baseline-member.repository");
@@ -234,6 +243,18 @@ beforeEach(() => {
     id: PROJECT_ID,
   } as never);
   vi.mocked(auditLogRepository.recordAuditEvent).mockResolvedValue(undefined as never);
+  // CONTEXT's actor is a MANAGER on the project by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior do
+  // not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT_ID,
+    role: "MANAGER",
+    createdAt: T0,
+    updatedAt: T0,
+    user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  } as never);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 
   // Content-change sources: nothing exists by default, so nothing has changed.
   vi.mocked(prisma.requirement.findMany).mockResolvedValue([]);
@@ -1273,5 +1294,82 @@ describe("reevaluation dispatch", () => {
       ConflictError,
     );
     expect(driftDetectionService.evaluateDrift).not.toHaveBeenCalled();
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT_ID,
+      role,
+      createdAt: T0,
+      updatedAt: T0,
+      user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER acknowledging a surveillance target", async () => {
+    asRole("VIEWER");
+    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(target({ status: "OPEN" }));
+
+    await expect(
+      service.acknowledgeSurveillance(CONTEXT, PROJECT_ID, TARGET_ID, { note: "seen it" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(surveillanceTargetRepository.acknowledgeTarget).not.toHaveBeenCalled();
+  });
+
+  it("allows an ENGINEER to acknowledge a target but refuses them resolving it — acknowledgement is not resolution authority", async () => {
+    asRole("ENGINEER");
+    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(target({ status: "OPEN" }));
+    vi.mocked(surveillanceTargetRepository.acknowledgeTarget).mockResolvedValue(
+      target({ status: "ACKNOWLEDGED" }),
+    );
+
+    await expect(
+      service.acknowledgeSurveillance(CONTEXT, PROJECT_ID, TARGET_ID, { note: "seen it" }),
+    ).resolves.toMatchObject({ status: "ACKNOWLEDGED" });
+
+    await expect(
+      service.resolveSurveillance(CONTEXT, PROJECT_ID, TARGET_ID, { note: "fixed" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(surveillanceTargetRepository.resolveTarget).not.toHaveBeenCalled();
+  });
+
+  it("allows a REVIEWER to resolve a target", async () => {
+    asRole("REVIEWER");
+    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
+      target({ status: "ACKNOWLEDGED" }),
+    );
+    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(
+      target({ status: "RESOLVED" }),
+    );
+
+    await expect(
+      service.resolveSurveillance(CONTEXT, PROJECT_ID, TARGET_ID, { note: "fixed" }),
+    ).resolves.toMatchObject({ status: "RESOLVED" });
+  });
+
+  it("allows an ENGINEER to trigger a re-evaluation — the automatic resolution it performs is objective-evidence-driven, not an approval judgement", async () => {
+    asRole("ENGINEER");
+    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
+      target({ status: "OPEN", targetType: "IMPACT_ANALYSIS", targetId: CR_ID }),
+    );
+    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(
+      target({ status: "RESOLVED" }),
+    );
+
+    await expect(
+      service.reEvaluateTarget(CONTEXT, PROJECT_ID, TARGET_ID),
+    ).resolves.toMatchObject({ status: "RESOLVED" });
+    expect(surveillanceTargetRepository.resolveTarget).toHaveBeenCalled();
+  });
+
+  it("refuses a VIEWER running detection", async () => {
+    asRole("VIEWER");
+
+    await expect(
+      service.detectProjectChanges(CONTEXT, PROJECT_ID),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

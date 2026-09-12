@@ -8,7 +8,7 @@ import type {
   Project,
 } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 
 /**
  * Decision memory service behavior against fake repositories: no database, no
@@ -59,7 +59,12 @@ vi.mock("@/server/repositories/decision-expectation.repository", () => ({
   deleteExpectation: vi.fn(),
 }));
 
-vi.mock("@/server/repositories/user.repository", () => ({ isMemberOfOrganization: vi.fn() }));
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
@@ -76,6 +81,7 @@ const alternativeRepository = await import("@/server/repositories/decision-alter
 const assumptionRepository = await import("@/server/repositories/decision-assumption.repository");
 const expectationRepository = await import("@/server/repositories/decision-expectation.repository");
 const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 const service = await import("./engineering-decision.service");
 
@@ -168,6 +174,18 @@ beforeEach(() => {
   vi.mocked(assumptionRepository.listAssumptions).mockResolvedValue([]);
   vi.mocked(expectationRepository.findExpectation).mockResolvedValue(null);
   vi.mocked(auditLogRepository.listAuditEventsForEntity).mockResolvedValue([]);
+  // CONTEXT's actor is a MANAGER on PROJECT by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior
+  // do not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 });
 
 describe("createDecision", () => {
@@ -800,5 +818,116 @@ describe("listDecisions", () => {
     await expect(
       service.listDecisions(CONTEXT, PROJECT.id, { status: "NOT_A_STATUS" }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT.id,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating a decision", async () => {
+    asRole("VIEWER");
+    await expect(
+      service.createDecision(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(decisionRepository.createDecision).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER creating a decision — review authority is not write authority", async () => {
+    asRole("REVIEWER");
+    await expect(
+      service.createDecision(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows an ENGINEER to create a decision", async () => {
+    asRole("ENGINEER");
+    vi.mocked(decisionRepository.createDecision).mockResolvedValue(decision());
+
+    await expect(
+      service.createDecision(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).resolves.toMatchObject({ identifier: "ED-001" });
+  });
+
+  it("refuses an ENGINEER approving a decision — write authority is not approval authority", async () => {
+    asRole("ENGINEER");
+    vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
+      decision({ status: "UNDER_REVIEW" }),
+    );
+
+    await expect(
+      service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "APPROVED" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(decisionRepository.updateDecision).not.toHaveBeenCalled();
+  });
+
+  it("allows an ENGINEER to move a decision through a non-approval transition", async () => {
+    asRole("ENGINEER");
+    vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
+      decision({ status: "PROPOSED" }),
+    );
+    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(
+      decision({ status: "UNDER_REVIEW" }),
+    );
+
+    await expect(
+      service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "UNDER_REVIEW" }),
+    ).resolves.toMatchObject({ status: "UNDER_REVIEW" });
+  });
+
+  it("allows a REVIEWER to approve a decision", async () => {
+    asRole("REVIEWER");
+    vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
+      decision({ status: "UNDER_REVIEW" }),
+    );
+    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(decision({ status: "APPROVED" }));
+
+    await expect(
+      service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "APPROVED" }),
+    ).resolves.toMatchObject({ status: "APPROVED" });
+  });
+
+  it("refuses a REVIEWER moving a decision through a non-approval transition", async () => {
+    asRole("REVIEWER");
+    vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
+      decision({ status: "PROPOSED" }),
+    );
+
+    await expect(
+      service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "UNDER_REVIEW" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a MANAGER to do both ordinary writes and approvals", async () => {
+    asRole("MANAGER");
+    vi.mocked(decisionRepository.createDecision).mockResolvedValue(decision());
+    await expect(
+      service.createDecision(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).resolves.toMatchObject({ identifier: "ED-001" });
+
+    vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
+      decision({ status: "UNDER_REVIEW" }),
+    );
+    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(decision({ status: "APPROVED" }));
+    await expect(
+      service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "APPROVED" }),
+    ).resolves.toMatchObject({ status: "APPROVED" });
+  });
+
+  it("refuses a VIEWER adding an alternative", async () => {
+    asRole("VIEWER");
+    vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(decision());
+
+    await expect(
+      service.addAlternative(CONTEXT, PROJECT.id, "dec1", { title: "Ablative liner" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

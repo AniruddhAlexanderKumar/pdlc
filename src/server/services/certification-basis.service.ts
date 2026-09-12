@@ -15,7 +15,12 @@ import * as auditLogRepository from "@/server/repositories/audit-log.repository"
 import * as basisRepository from "@/server/repositories/certification-basis.repository";
 import * as programRepository from "@/server/repositories/certification-program.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectInOrganization,
+  requireProjectApproveAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * The tracked certification standard/basis lifecycle: DRAFT (editable) ->
@@ -41,7 +46,7 @@ export class CertificationBasisService {
     projectId: unknown,
     input: unknown,
   ): Promise<CertificationBasis> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const program = await this.requireProgram(scopedProjectId);
     const data = parseOrThrow(createCertificationBasisRequestSchema, input, "Invalid certification basis");
 
@@ -96,7 +101,7 @@ export class CertificationBasisService {
     basisId: unknown,
     input: unknown,
   ): Promise<CertificationBasis> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const program = await this.requireProgram(scopedProjectId);
     const data = parseOrThrow(
       updateCertificationBasisRequestSchema,
@@ -142,7 +147,7 @@ export class CertificationBasisService {
     basisId: unknown,
     input: unknown = {},
   ): Promise<CertificationBasis> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectApproveAccess(context, projectId);
     const program = await this.requireProgram(scopedProjectId);
     const request = parseOrThrow(
       activateCertificationBasisRequestSchema,
@@ -202,7 +207,7 @@ export class CertificationBasisService {
     basisId: unknown,
     input: unknown,
   ): Promise<CertificationBasis> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectApproveAccess(context, projectId);
     const program = await this.requireProgram(scopedProjectId);
     const request = parseOrThrow(
       supersedeCertificationBasisRequestSchema,

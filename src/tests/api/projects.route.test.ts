@@ -21,6 +21,7 @@ const CONTEXT = {
     name: "Ada Lovelace",
     email: "ada@example.test",
     role: "ADMIN",
+    organizationRole: "OWNER",
   },
   organization: { id: "org1aaaaaaaaaaaaaaaaaaaa", name: "Example Aerospace" },
 };
@@ -48,10 +49,21 @@ vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/project-membership.repository", () => ({
+  findMembership: vi.fn(),
+  createMembership: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/user.repository", () => ({
+  getOrganizationRole: vi.fn(),
+}));
+
 const authContext = await import("@/server/auth/context");
 const projectRepository = await import("@/server/repositories/project.repository");
 const organizationRepository = await import("@/server/repositories/organization.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
+const userRepository = await import("@/server/repositories/user.repository");
 const collectionRoute = await import("@/app/api/projects/route");
 const itemRoute = await import("@/app/api/projects/[projectId]/route");
 const archiveRoute = await import("@/app/api/projects/[projectId]/archive/route");
@@ -87,6 +99,18 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(organizationRepository.organizationExists).mockResolvedValue(true);
   vi.mocked(authContext.requireAuthenticatedContext).mockResolvedValue(CONTEXT);
+  // CONTEXT's caller is the organization owner: full project access with no
+  // explicit ProjectMembership row required.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
+  vi.mocked(membershipRepository.createMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "OWNER" },
+  });
 });
 
 describe("authentication is required", () => {
@@ -270,6 +294,16 @@ describe("GET /api/projects/[projectId]", () => {
 
     expect(response.status).toBe(400);
     expect(projectRepository.findProjectInOrganization).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for a same-organization caller with no project membership and no owner role", async () => {
+    vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    const response = await itemRoute.GET(getRequest(), routeContext(PROJECT.id));
+
+    expect(response.status).toBe(404);
   });
 });
 

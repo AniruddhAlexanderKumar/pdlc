@@ -26,7 +26,15 @@ import type {
 import * as projectArtifactsRepository from "@/server/repositories/project-artifacts.repository";
 import type { ChangeImpactTargetOptions } from "@/server/repositories/project-artifacts.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectInOrganization,
+  requireProjectApproveAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
+
+/** APPROVED and REJECTED are the change's disposition — the decision a reviewer, not any author, makes. */
+const APPROVAL_TRANSITIONS = new Set<ChangeRequestStatus>(["APPROVED", "REJECTED"]);
 
 /**
  * Change request application service.
@@ -113,7 +121,7 @@ export async function createChangeRequest(
   projectId: unknown,
   input: unknown,
 ): Promise<ChangeRequest> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createChangeRequestRequestSchema, input, "Invalid change request");
 
   // The schema restricts deletion of a requester for a reason: a change must
@@ -209,7 +217,7 @@ export async function updateChangeRequest(
   changeId: unknown,
   input: unknown,
 ): Promise<ChangeRequest> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(
     updateChangeRequestRequestSchema,
     input,
@@ -246,12 +254,14 @@ export async function transitionChangeRequest(
   changeId: unknown,
   input: unknown,
 ): Promise<ChangeRequest> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
   const { to, rationale } = parseOrThrow(
     transitionChangeRequestRequestSchema,
     input,
     "Invalid transition",
   );
+  const scopedProjectId = APPROVAL_TRANSITIONS.has(to)
+    ? await requireProjectApproveAccess(context, projectId)
+    : await requireProjectWriteAccess(context, projectId);
 
   return prisma.$transaction(async (tx) => {
     const existing = await requireChangeRequest(scopedProjectId, changeId, tx);
@@ -312,7 +322,7 @@ export async function addDeclaredImpact(
   changeId: unknown,
   input: unknown,
 ): Promise<DeclaredImpact[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(declareImpactRequestSchema, input, "Invalid declared impact");
 
   return prisma.$transaction(async (tx) => {
@@ -373,7 +383,7 @@ export async function removeDeclaredImpact(
   changeId: unknown,
   impactId: unknown,
 ): Promise<DeclaredImpact[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const id = parseOrThrow(entityIdSchema, impactId, "Invalid declared impact id");
 
   return prisma.$transaction(async (tx) => {

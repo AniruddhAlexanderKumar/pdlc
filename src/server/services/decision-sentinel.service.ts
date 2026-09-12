@@ -45,7 +45,12 @@ import { driftDetectionService } from "./drift-detection.service";
 import { technicalReadinessService } from "./technical-readiness.service";
 import { verificationReadinessService } from "./verification-readiness.service";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectInOrganization,
+  requireProjectApproveAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * The Decision Sentinel.
@@ -145,7 +150,7 @@ export class DecisionSentinelService {
     projectId: unknown,
     input: unknown = {},
   ): Promise<DetectionSummary> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     parseOrThrow(detectSurveillanceRequestSchema, input ?? {}, "Invalid detection request");
 
     const candidates = [
@@ -234,7 +239,7 @@ export class DecisionSentinelService {
     id: unknown,
     input: unknown,
   ): Promise<SurveillanceTarget> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(acknowledgeSurveillanceRequestSchema, input ?? {}, "Invalid acknowledgement");
 
     return prisma.$transaction(async (tx) => {
@@ -271,16 +276,31 @@ export class DecisionSentinelService {
     id: unknown,
     input: unknown,
   ): Promise<SurveillanceTarget> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectApproveAccess(context, projectId);
     const data = parseOrThrow(resolveSurveillanceRequestSchema, input, "Invalid resolution");
+    return this.completeResolution(context, scopedProjectId, id, data.note);
+  }
 
+  /**
+   * The resolve-and-audit core, shared by the human-facing
+   * {@link resolveSurveillance} and by {@link reEvaluateTarget}'s automatic
+   * resolution. Both callers have already established project access before
+   * reaching here, so this performs no access check of its own — it is not
+   * itself a route entry point.
+   */
+  private async completeResolution(
+    context: OrganizationContext,
+    scopedProjectId: string,
+    id: unknown,
+    note: string,
+  ): Promise<SurveillanceTarget> {
     return prisma.$transaction(async (tx) => {
       const existing = await this.requireTarget(scopedProjectId, id, tx);
       if (!canTransitionSurveillanceTarget(existing.status, "RESOLVED")) {
         throw new ConflictError(`This surveillance target is already ${existing.status}.`);
       }
 
-      const target = await surveillanceTargetRepository.resolveTarget(existing.id, context.actorId, data.note, tx);
+      const target = await surveillanceTargetRepository.resolveTarget(existing.id, context.actorId, note, tx);
 
       await auditLogRepository.recordAuditEvent(
         artifactAuditEvent(context, SENTINEL_AUDIT_ACTIONS.targetResolved, SURVEILLANCE_TARGET_ENTITY_TYPE, target.id, {
@@ -300,6 +320,11 @@ export class DecisionSentinelService {
    * fresh evaluation is exactly the "new current assessment" the resolution
    * policy accepts as objective evidence; on failure the target stays open
    * with the failure recorded as its reason, never silently dropped.
+   *
+   * Automatic resolution here is objective-evidence-driven, not an approval
+   * judgement, so triggering a re-evaluation only needs the same write-tier
+   * access as any other ordinary engineering action — not the approve-tier
+   * access a human resolving a target by hand requires.
    */
   async reEvaluateTarget(
     context: OrganizationContext,
@@ -307,7 +332,7 @@ export class DecisionSentinelService {
     id: unknown,
     input: unknown = {},
   ): Promise<SurveillanceTarget> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     parseOrThrow(reEvaluateSurveillanceRequestSchema, input ?? {}, "Invalid reevaluation request");
     const existing = await this.requireTarget(scopedProjectId, id);
     if (!isSurveillanceTargetOpen(existing.status)) {
@@ -316,9 +341,12 @@ export class DecisionSentinelService {
 
     await this.dispatchReevaluation(context, scopedProjectId, existing.targetType, existing.targetId);
 
-    return this.resolveSurveillance(context, scopedProjectId, existing.id, {
-      note: `Resolved automatically: a new ${existing.targetType.toLowerCase().replaceAll("_", " ")} evaluation was run and reflects the current engineering state.`,
-    });
+    return this.completeResolution(
+      context,
+      scopedProjectId,
+      existing.id,
+      `Resolved automatically: a new ${existing.targetType.toLowerCase().replaceAll("_", " ")} evaluation was run and reflects the current engineering state.`,
+    );
   }
 
   // --- Detection: content-change candidates ----------------------------------

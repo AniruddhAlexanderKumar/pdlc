@@ -25,7 +25,6 @@ import * as auditLogRepository from "@/server/repositories/audit-log.repository"
 import type { AuditEventSummary } from "@/server/repositories/audit-log.repository";
 import type { OwnerSummary } from "@/server/repositories/design-item.repository";
 import type { LinkedRequirementSummary } from "@/server/repositories/stakeholder-need.repository";
-import * as userRepository from "@/server/repositories/user.repository";
 import * as verificationRepository from "@/server/repositories/verification-activity.repository";
 import type {
   LinkedEvidenceSummary,
@@ -33,7 +32,12 @@ import type {
 } from "@/server/repositories/verification-activity.repository";
 import * as readinessRepository from "@/server/repositories/verification-readiness.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import { requireAssignableOwner } from "./authorization.service";
+import {
+  artifactAuditEvent,
+  requireProjectInOrganization,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * Verification activity application service.
@@ -85,21 +89,12 @@ async function requireActivity(
   return activity;
 }
 
-async function requireOrganizationMember(
-  context: OrganizationContext,
-  ownerId: string,
-): Promise<void> {
-  if (!(await userRepository.isMemberOfOrganization(ownerId, context.organizationId))) {
-    throw new ValidationError("That user is not a member of this organization.");
-  }
-}
-
 export async function createVerificationActivity(
   context: OrganizationContext,
   projectId: unknown,
   input: unknown,
 ): Promise<VerificationActivity> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(
     createVerificationActivityRequestSchema,
     input,
@@ -107,7 +102,7 @@ export async function createVerificationActivity(
   );
 
   if (data.ownerId) {
-    await requireOrganizationMember(context, data.ownerId);
+    await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -241,7 +236,7 @@ export async function updateVerificationActivity(
   activityId: unknown,
   input: unknown,
 ): Promise<VerificationActivity> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(
     updateVerificationActivityRequestSchema,
     input,
@@ -290,7 +285,7 @@ export async function transitionVerificationStatus(
   activityId: unknown,
   input: unknown,
 ): Promise<VerificationActivity> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const { to, rationale } = parseOrThrow(
     transitionVerificationRequestSchema,
     input,
@@ -353,7 +348,7 @@ export async function linkVerificationEvidence(
   activityId: unknown,
   input: unknown,
 ): Promise<LinkedEvidenceSummary[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(
     verificationEvidenceLinkRequestSchema,
     input,
@@ -403,7 +398,7 @@ export async function unlinkVerificationEvidence(
   activityId: unknown,
   input: unknown,
 ): Promise<LinkedEvidenceSummary[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(
     verificationEvidenceUnlinkRequestSchema,
     input,
@@ -445,7 +440,7 @@ export async function assignVerificationOwner(
   activityId: unknown,
   input: unknown,
 ): Promise<VerificationActivity> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const { ownerId } = parseOrThrow(
     assignVerificationOwnerRequestSchema,
     input,
@@ -453,7 +448,7 @@ export async function assignVerificationOwner(
   );
 
   if (ownerId) {
-    await requireOrganizationMember(context, ownerId);
+    await requireAssignableOwner(context, scopedProjectId, ownerId);
   }
 
   return prisma.$transaction(async (tx) => {

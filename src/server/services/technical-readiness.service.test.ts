@@ -60,6 +60,13 @@ vi.mock("@/server/repositories/project.repository", () => ({
   findProjectInOrganization: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 vi.mock("@/server/repositories/technical-readiness-scope.repository", () => ({
   loadRequirements: vi.fn(),
   loadDesignItems: vi.fn(),
@@ -196,6 +203,8 @@ vi.mock("@/server/repositories/technical-readiness.repository", () => {
 });
 
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const scopeRepository = await import(
   "@/server/repositories/technical-readiness-scope.repository"
 );
@@ -429,6 +438,10 @@ function buildScenario(scenario: Scenario = {}): void {
     async (organizationId: string, id: string) =>
       organizationId === CONTEXT.organizationId && id === PROJECT_ID ? PROJECT : null,
   );
+  // CONTEXT's actor is treated as the organization owner — full implicit
+  // project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
 
   vi.mocked(scopeRepository.loadRequirements).mockResolvedValue(
     requirements.map((requirement) => ({

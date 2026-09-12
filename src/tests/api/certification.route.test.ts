@@ -150,6 +150,13 @@ vi.mock("@/server/repositories/audit-log.repository", () => ({
   listAuditEventsForEntity: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 const authContext = await import("@/server/auth/context");
 const projectRepository = await import("@/server/repositories/project.repository");
 const programRepository = await import("@/server/repositories/certification-program.repository");
@@ -158,6 +165,8 @@ const itemRepository = await import("@/server/repositories/compliance-item.repos
 const linkRepository = await import("@/server/repositories/compliance-link.repository");
 const findingRepository = await import("@/server/repositories/certification-finding.repository");
 const reviewRepository = await import("@/server/repositories/certification-review.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 
 const programRoute = await import("@/app/api/projects/[projectId]/certification/program/route");
 const basesRoute = await import("@/app/api/projects/[projectId]/certification/bases/route");
@@ -293,6 +302,11 @@ beforeEach(async () => {
     "@/server/repositories/certification-review-basis.repository"
   );
   vi.mocked(assumptionBasisRepository.loadAssumptionContext).mockResolvedValue([]);
+
+  // CONTEXT's actor is treated as the organization owner — full implicit
+  // project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
 });
 
 describe("authentication", () => {

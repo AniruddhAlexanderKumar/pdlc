@@ -15,7 +15,13 @@ const CONTEXT = {
   organizationId: "org1aaaaaaaaaaaaaaaaaaaa",
   actorId: "user1aaaaaaaaaaaaaaaaaaa",
   sessionId: "sess1aaaaaaaaaaaaaaaaaa",
-  user: { id: "user1aaaaaaaaaaaaaaaaaaa", name: "Ada", email: "ada@example.test", role: "ADMIN" },
+  user: {
+    id: "user1aaaaaaaaaaaaaaaaaaa",
+    name: "Ada",
+    email: "ada@example.test",
+    role: "ADMIN",
+    organizationRole: "OWNER",
+  },
   organization: { id: "org1aaaaaaaaaaaaaaaaaaaa", name: "Example Aerospace" },
 };
 
@@ -46,7 +52,10 @@ vi.mock("@/server/repositories/requirement.repository", () => ({
 vi.mock("@/server/repositories/user.repository", () => ({
   isMemberOfOrganization: vi.fn(),
   listOrganizationMembers: vi.fn(),
+  getOrganizationRole: vi.fn(),
 }));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
@@ -61,6 +70,7 @@ const authContext = await import("@/server/auth/context");
 const projectRepository = await import("@/server/repositories/project.repository");
 const requirementRepository = await import("@/server/repositories/requirement.repository");
 const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 
 const collectionRoute = await import("@/app/api/projects/[projectId]/requirements/route");
@@ -133,6 +143,10 @@ beforeEach(() => {
   vi.mocked(requirementRepository.linkTargetExistsInProject).mockResolvedValue(true);
   vi.mocked(requirementRepository.listRequirementLinks).mockResolvedValue([]);
   vi.mocked(auditLogRepository.listAuditEventsForEntity).mockResolvedValue([]);
+  // CONTEXT's user is an organization OWNER (see CONTEXT above) — full
+  // implicit project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
 });
 
 describe("authentication", () => {

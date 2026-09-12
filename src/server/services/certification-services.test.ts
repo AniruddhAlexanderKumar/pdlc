@@ -8,7 +8,7 @@ import type {
   Project,
 } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 
 /**
  * Certification workspace service behaviour, against fake repositories: no
@@ -93,6 +93,13 @@ vi.mock("@/server/repositories/audit-log.repository", () => ({
   listAuditEventsForEntity: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 const projectRepository = await import("@/server/repositories/project.repository");
 const programRepository = await import("@/server/repositories/certification-program.repository");
 const basisRepository = await import("@/server/repositories/certification-basis.repository");
@@ -103,6 +110,8 @@ const supplierQualificationRepository = await import(
   "@/server/repositories/supplier-qualification.repository"
 );
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 
 const { certificationProgramService } = await import("./certification-program.service");
 const { certificationBasisService } = await import("./certification-basis.service");
@@ -190,6 +199,18 @@ beforeEach(() => {
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
   vi.mocked(auditLogRepository.recordAuditEvent).mockResolvedValue(undefined as never);
   vi.mocked(auditLogRepository.listAuditEventsForEntity).mockResolvedValue([]);
+  // CONTEXT's actor is a MANAGER on PROJECT by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior
+  // do not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 });
 
 // --- CertificationProgramService ---------------------------------------------
@@ -676,5 +697,118 @@ describe("CertificationFindingService.resolveFinding / acceptFinding", () => {
 
   it("never exposes a delete — there is no such method on the service", () => {
     expect((certificationFindingService as unknown as Record<string, unknown>)["deleteFinding"]).toBeUndefined();
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT.id,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating a certification basis", async () => {
+    asRole("VIEWER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(PROGRAM);
+
+    await expect(
+      certificationBasisService.createBasis(CONTEXT, PROJECT.id, {
+        identifier: "CB-001",
+        title: "Part 25 Amdt 25-141",
+        revision: "Amdt 25-141",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(basisRepository.createBasis).not.toHaveBeenCalled();
+  });
+
+  it("refuses an ENGINEER activating a certification basis — write authority is not approval authority", async () => {
+    asRole("ENGINEER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(PROGRAM);
+    vi.mocked(basisRepository.findBasisInProgram).mockResolvedValue(BASIS);
+    vi.mocked(basisRepository.findActiveBasis).mockResolvedValue(null);
+
+    await expect(
+      certificationBasisService.activateBasis(CONTEXT, PROJECT.id, BASIS.id, {}),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(basisRepository.activateBasis).not.toHaveBeenCalled();
+  });
+
+  it("allows a REVIEWER to activate a certification basis", async () => {
+    asRole("REVIEWER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(PROGRAM);
+    vi.mocked(basisRepository.findBasisInProgram).mockResolvedValue(BASIS);
+    vi.mocked(basisRepository.findActiveBasis).mockResolvedValue(null);
+    vi.mocked(basisRepository.activateBasis).mockResolvedValue({ ...BASIS, status: "ACTIVE" });
+
+    const activated = await certificationBasisService.activateBasis(CONTEXT, PROJECT.id, BASIS.id, {});
+    expect(activated.status).toBe("ACTIVE");
+  });
+
+  it("refuses a VIEWER creating a compliance item", async () => {
+    asRole("VIEWER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(PROGRAM);
+    vi.mocked(basisRepository.findActiveBasis).mockResolvedValue(ACTIVE_BASIS);
+
+    await expect(
+      complianceItemService.createItem(CONTEXT, PROJECT.id, undefined, {
+        identifier: "CI-001",
+        title: "Structural analysis submitted",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(itemRepository.createItem).not.toHaveBeenCalled();
+  });
+
+  it("refuses an ENGINEER resolving a certification finding — write authority is not approval authority", async () => {
+    asRole("ENGINEER");
+    vi.mocked(itemRepository.findItemInProject).mockResolvedValue(ITEM);
+    vi.mocked(findingRepository.findFindingInItem).mockResolvedValue(FINDING);
+
+    await expect(
+      certificationFindingService.resolveFinding(CONTEXT, PROJECT.id, ITEM.id, FINDING.id, {
+        note: "Analysis report filed.",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(findingRepository.dispositionFinding).not.toHaveBeenCalled();
+  });
+
+  it("allows a REVIEWER to resolve a certification finding", async () => {
+    asRole("REVIEWER");
+    vi.mocked(itemRepository.findItemInProject).mockResolvedValue(ITEM);
+    vi.mocked(findingRepository.findFindingInItem).mockResolvedValue(FINDING);
+    vi.mocked(findingRepository.dispositionFinding).mockResolvedValue({
+      ...FINDING,
+      status: "RESOLVED",
+      resolutionNote: "Analysis report filed.",
+      resolvedById: CONTEXT.actorId,
+      resolvedAt: new Date(),
+    });
+
+    const resolved = await certificationFindingService.resolveFinding(
+      CONTEXT,
+      PROJECT.id,
+      ITEM.id,
+      FINDING.id,
+      { note: "Analysis report filed." },
+    );
+    expect(resolved.status).toBe("RESOLVED");
+  });
+
+  it("allows an ENGINEER to create a compliance item", async () => {
+    asRole("ENGINEER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(PROGRAM);
+    vi.mocked(basisRepository.findActiveBasis).mockResolvedValue(ACTIVE_BASIS);
+    vi.mocked(itemRepository.createItem).mockResolvedValue(ITEM);
+
+    await expect(
+      complianceItemService.createItem(CONTEXT, PROJECT.id, undefined, {
+        identifier: "CI-001",
+        title: "Structural analysis submitted",
+      }),
+    ).resolves.toEqual(ITEM);
   });
 });

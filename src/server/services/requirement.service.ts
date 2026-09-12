@@ -22,13 +22,17 @@ import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
 import * as auditLogRepository from "@/server/repositories/audit-log.repository";
 import type { AuditEventSummary } from "@/server/repositories/audit-log.repository";
 import * as projectArtifactsRepository from "@/server/repositories/project-artifacts.repository";
-import { requireProjectInOrganization } from "./project-scope";
+import { requireAssignableOwner } from "./authorization.service";
+import {
+  requireProjectApproveAccess,
+  requireProjectInOrganization,
+  requireProjectWriteAccess,
+} from "./project-scope";
 import * as requirementRepository from "@/server/repositories/requirement.repository";
 import type {
   RequirementListItem,
   RequirementOwnerSummary,
 } from "@/server/repositories/requirement.repository";
-import * as userRepository from "@/server/repositories/user.repository";
 import { parseOrThrow } from "@/server/validation";
 
 /**
@@ -78,6 +82,15 @@ export interface RequirementDetail extends Requirement {
  */
 const requireProject = requireProjectInOrganization;
 
+/**
+ * Which transitions are the domain's own "approval" moment — APPROVED and
+ * BASELINED both put a requirement under configuration control, the exact
+ * kind of action `ProjectRole`'s REVIEWER authority exists for. Every other
+ * transition (submitting for review, marking obsolete) is ordinary
+ * engineering work, gated the same as create/update.
+ */
+const APPROVAL_TRANSITIONS = new Set<RequirementStatus>(["APPROVED", "BASELINED"]);
+
 async function requireRequirement(
   projectId: string,
   requirementId: unknown,
@@ -90,16 +103,6 @@ async function requireRequirement(
     throw new NotFoundError(`Requirement ${id} was not found.`);
   }
   return requirement;
-}
-
-/** Owners must be real members of the caller's organization — never an arbitrary id. */
-async function requireOrganizationMember(
-  context: OrganizationContext,
-  ownerId: string,
-): Promise<void> {
-  if (!(await userRepository.isMemberOfOrganization(ownerId, context.organizationId))) {
-    throw new ValidationError("That user is not a member of this organization.");
-  }
 }
 
 function auditEvent(
@@ -123,11 +126,11 @@ export async function createRequirement(
   projectId: unknown,
   input: unknown,
 ): Promise<Requirement> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createRequirementRequestSchema, input, "Invalid requirement");
 
   if (data.ownerId) {
-    await requireOrganizationMember(context, data.ownerId);
+    await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -223,7 +226,7 @@ export async function updateRequirement(
   requirementId: unknown,
   input: unknown,
 ): Promise<Requirement> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(updateRequirementRequestSchema, input, "Invalid requirement update");
 
   return prisma.$transaction(async (tx) => {
@@ -271,12 +274,17 @@ export async function transitionRequirementStatus(
   requirementId: unknown,
   input: unknown,
 ): Promise<Requirement> {
-  const scopedProjectId = await requireProject(context, projectId);
   const { to, rationale } = parseOrThrow(
     transitionRequirementRequestSchema,
     input,
     "Invalid transition",
   );
+  // Approving/baselining is the domain's own review authority (REVIEWER or
+  // MANAGER); every other transition is ordinary engineering work (ENGINEER
+  // or MANAGER) — never "any project member may transition anything".
+  const scopedProjectId = APPROVAL_TRANSITIONS.has(to)
+    ? await requireProjectApproveAccess(context, projectId)
+    : await requireProjectWriteAccess(context, projectId);
 
   return prisma.$transaction(async (tx) => {
     const existing = await requireRequirement(scopedProjectId, requirementId, tx);
@@ -320,7 +328,7 @@ export async function assignRequirementOwner(
   requirementId: unknown,
   input: unknown,
 ): Promise<Requirement> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const { ownerId } = parseOrThrow(
     assignRequirementOwnerRequestSchema,
     input,
@@ -328,7 +336,7 @@ export async function assignRequirementOwner(
   );
 
   if (ownerId) {
-    await requireOrganizationMember(context, ownerId);
+    await requireAssignableOwner(context, scopedProjectId, ownerId);
   }
 
   return prisma.$transaction(async (tx) => {

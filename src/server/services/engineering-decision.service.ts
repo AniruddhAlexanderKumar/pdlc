@@ -40,9 +40,17 @@ import type {
   DecisionOwnerSummary,
 } from "@/server/repositories/engineering-decision.repository";
 import * as projectArtifactsRepository from "@/server/repositories/project-artifacts.repository";
-import * as userRepository from "@/server/repositories/user.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import { requireAssignableOwner } from "./authorization.service";
+import {
+  artifactAuditEvent,
+  requireProjectInOrganization,
+  requireProjectApproveAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
+
+/** Only APPROVED represents the decision passing under review authority; every other transition is ordinary content work. */
+const APPROVAL_TRANSITIONS = new Set<DecisionStatus>(["APPROVED"]);
 
 /**
  * Engineering decision application service — the decision memory core.
@@ -125,16 +133,6 @@ async function requireDecision(
   return decision;
 }
 
-/** Owners must be real members of the caller's organization — never an arbitrary id. */
-async function requireOrganizationMember(
-  context: OrganizationContext,
-  ownerId: string,
-): Promise<void> {
-  if (!(await userRepository.isMemberOfOrganization(ownerId, context.organizationId))) {
-    throw new ValidationError("That user is not a member of this organization.");
-  }
-}
-
 function audit(
   context: OrganizationContext,
   action: string,
@@ -151,11 +149,11 @@ export async function createDecision(
   projectId: unknown,
   input: unknown,
 ): Promise<EngineeringDecision> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createDecisionRequestSchema, input, "Invalid decision");
 
   if (data.ownerId) {
-    await requireOrganizationMember(context, data.ownerId);
+    await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -258,7 +256,7 @@ export async function updateDecision(
   decisionId: unknown,
   input: unknown,
 ): Promise<EngineeringDecision> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(updateDecisionRequestSchema, input, "Invalid decision update");
 
   return prisma.$transaction(async (tx) => {
@@ -290,12 +288,14 @@ export async function transitionDecisionStatus(
   decisionId: unknown,
   input: unknown,
 ): Promise<EngineeringDecision> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
   const { to, rationale } = parseOrThrow(
     transitionDecisionRequestSchema,
     input,
     "Invalid transition",
   );
+  const scopedProjectId = APPROVAL_TRANSITIONS.has(to)
+    ? await requireProjectApproveAccess(context, projectId)
+    : await requireProjectWriteAccess(context, projectId);
 
   return prisma.$transaction(async (tx) => {
     const existing = await requireDecision(scopedProjectId, decisionId, tx);
@@ -343,7 +343,7 @@ export async function assignDecisionOwner(
   decisionId: unknown,
   input: unknown,
 ): Promise<EngineeringDecision> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const { ownerId } = parseOrThrow(
     assignDecisionOwnerRequestSchema,
     input,
@@ -351,7 +351,7 @@ export async function assignDecisionOwner(
   );
 
   if (ownerId) {
-    await requireOrganizationMember(context, ownerId);
+    await requireAssignableOwner(context, scopedProjectId, ownerId);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -404,7 +404,7 @@ export async function addAlternative(
   decisionId: unknown,
   input: unknown,
 ): Promise<DecisionAlternative> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createAlternativeRequestSchema, input, "Invalid alternative");
 
   return prisma.$transaction(async (tx) => {
@@ -449,7 +449,7 @@ export async function updateAlternative(
   alternativeId: unknown,
   input: unknown,
 ): Promise<DecisionAlternative> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const id = parseOrThrow(entityIdSchema, alternativeId, "Invalid alternative id");
   const data = parseOrThrow(updateAlternativeRequestSchema, input, "Invalid alternative update");
 
@@ -482,7 +482,7 @@ export async function removeAlternative(
   decisionId: unknown,
   alternativeId: unknown,
 ): Promise<void> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const id = parseOrThrow(entityIdSchema, alternativeId, "Invalid alternative id");
 
   await prisma.$transaction(async (tx) => {
@@ -533,7 +533,7 @@ export async function addAssumption(
   decisionId: unknown,
   input: unknown,
 ): Promise<DecisionAssumption> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createAssumptionRequestSchema, input, "Invalid assumption");
 
   return prisma.$transaction(async (tx) => {
@@ -580,7 +580,7 @@ export async function updateAssumption(
   assumptionId: unknown,
   input: unknown,
 ): Promise<DecisionAssumption> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const id = parseOrThrow(entityIdSchema, assumptionId, "Invalid assumption id");
   const data = parseOrThrow(updateAssumptionRequestSchema, input, "Invalid assumption update");
 
@@ -614,7 +614,7 @@ export async function removeAssumption(
   decisionId: unknown,
   assumptionId: unknown,
 ): Promise<void> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const id = parseOrThrow(entityIdSchema, assumptionId, "Invalid assumption id");
 
   await prisma.$transaction(async (tx) => {
@@ -646,7 +646,7 @@ export async function setExpectation(
   decisionId: unknown,
   input: unknown,
 ): Promise<DecisionExpectation> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(setExpectationRequestSchema, input, "Invalid expectation");
 
   return prisma.$transaction(async (tx) => {
@@ -701,7 +701,7 @@ export async function clearExpectation(
   projectId: unknown,
   decisionId: unknown,
 ): Promise<void> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
 
   await prisma.$transaction(async (tx) => {
     const decision = await requireDecision(scopedProjectId, decisionId, tx);
@@ -750,7 +750,7 @@ export async function linkDecision(
   decisionId: unknown,
   input: unknown,
 ): Promise<DecisionLinkSummary[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(decisionLinkRequestSchema, input, "Invalid traceability link");
 
   return prisma.$transaction(async (tx) => {
@@ -805,7 +805,7 @@ export async function unlinkDecision(
   decisionId: unknown,
   input: unknown,
 ): Promise<DecisionLinkSummary[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(decisionUnlinkRequestSchema, input, "Invalid unlink request");
 
   return prisma.$transaction(async (tx) => {

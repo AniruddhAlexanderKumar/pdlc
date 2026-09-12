@@ -22,6 +22,7 @@ export interface SessionWithPrincipal {
     name: string;
     email: string;
     role: string;
+    organizationRole: string;
     organization: { id: string; name: string };
   };
 }
@@ -60,6 +61,7 @@ export async function findSessionByTokenHash(
           name: true,
           email: true,
           role: true,
+          organizationRole: true,
           organization: { select: { id: true, name: true } },
         },
       },

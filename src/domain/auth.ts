@@ -70,6 +70,8 @@ export interface AuthenticatedIdentity {
     name: string;
     email: string;
     role: string;
+    /** Organization-level access role (OWNER/MEMBER) — see `src/domain/access-control.ts`. */
+    organizationRole: string;
   };
   organization: {
     id: string;
@@ -83,6 +85,7 @@ export const authenticatedIdentitySchema = z.object({
     name: z.string(),
     email: z.string(),
     role: z.string(),
+    organizationRole: z.string(),
   }),
   organization: z.object({
     id: entityIdSchema,

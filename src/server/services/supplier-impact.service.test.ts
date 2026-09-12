@@ -41,6 +41,13 @@ vi.mock("@/server/repositories/project.repository", () => ({
   findProjectInOrganization: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 vi.mock("@/server/repositories/change-request.repository", () => ({
   findChangeRequestInProject: vi.fn(),
   listDeclaredImpacts: vi.fn(),
@@ -206,6 +213,8 @@ vi.mock("@/server/repositories/impact-analysis.repository", () => {
 });
 
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const changeRepository = await import("@/server/repositories/change-request.repository");
 const revisionRepository = await import("@/server/repositories/project-revision.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
@@ -372,6 +381,10 @@ beforeEach(() => {
   analysisRepository.__reset();
 
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
+  // CONTEXT's actor is treated as the organization owner — full implicit
+  // project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
   vi.mocked(changeRepository.findChangeRequestInProject).mockResolvedValue(CHANGE);
   vi.mocked(changeRepository.listDeclaredImpacts).mockResolvedValue([
     declaredImpact("SUPPLIED_ITEM", suppliedItem.id, "imp1"),

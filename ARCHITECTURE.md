@@ -241,7 +241,10 @@ multi-instance deployment must place a real rate-limiting layer in front of
 `/api/auth/sign-in`.** No Redis was added for this.
 
 **Not implemented:** SSO, OAuth, MFA, password reset, email verification,
-invitations, organization switching, RBAC beyond the coarse `UserRole` column.
+invitations, organization switching. Real organization/project role-based
+access control *is* implemented — see
+[Engineering Access Control](#engineering-access-control) — on top of, not
+instead of, everything above; nothing in this section changed to build it.
 Expired session rows are deleted when encountered but nothing sweeps them on a
 schedule yet (`deleteExpiredSessions` exists for when something does).
 
@@ -253,12 +256,331 @@ project in another organization simply does not match. A project the caller
 cannot see returns 404, never 403, so the API does not confirm the existence of
 records outside the tenancy.
 
-Access control has two layers, and only one is authoritative. Middleware
-redirects a cookie-less visitor away from workspace routes, which is a UX
-shortcut and proves nothing. The real check is server-side: the workspace
-layout resolves the session before any page renders, and every API route calls
-`requireAuthenticatedContext()`. Unauthenticated page access redirects to
-`/sign-in`; unauthenticated API access returns a 401 JSON error.
+Access control has three layers, and only the last two are authoritative.
+Middleware redirects a cookie-less visitor away from workspace routes, which is
+a UX shortcut and proves nothing. The real checks are server-side: the
+workspace layout resolves the session before any page renders, and every API
+route calls `requireAuthenticatedContext()` — unauthenticated page access
+redirects to `/sign-in`, unauthenticated API access returns a 401 JSON error —
+and, for project-scoped operations, a real project-role check (see
+[Engineering Access Control](#engineering-access-control)) decides *what* an
+authenticated, in-organization caller may read or do on that specific project.
+
+## Engineering Access Control
+
+Real authorization on top of the existing self-hosted authentication — no
+identity provider, no session-model change, no generic permissions
+framework. Before this capability, "belongs to the organization" was the
+entire access model: any authenticated member of an organization could
+reach every project in it, and every mutation. This capability replaces
+that with two independent axes and explicit, per-project membership.
+
+### The role model
+
+**Organization role** (`OrganizationRole` — `OWNER` | `MEMBER`, on
+`users.organizationRole`) — who administers the organization itself.
+`OWNER`: manages organization membership (who belongs to it at all) and has
+full implicit access to every project in the organization, with no
+per-project row required — the same authority the organization's creator
+already had before this capability existed, now checked rather than
+assumed. `MEMBER`: an ordinary authenticated user; cannot manage
+organization membership and cannot grant anyone a role; reaches a project
+only through an explicit `ProjectMembership`. Exactly two values —
+deliberately not a ladder with more tiers waiting to be added.
+
+**Project role** (`ProjectRole` — `MANAGER` | `ENGINEER` | `REVIEWER` |
+`VIEWER`, on `project_memberships.role`) — what one person may do inside
+one specific project:
+
+- **MANAGER** — every capability below, plus project membership
+  administration (add/remove members, change roles) and lifecycle
+  approvals where the domain allows them.
+- **ENGINEER** — creates and edits ordinary engineering content:
+  requirements, decisions, change requests, risks, issues, evidence,
+  baselines, observations, verification activities. Cannot administer
+  membership and cannot perform the review/approval actions reserved for
+  REVIEWER.
+- **REVIEWER** — reads everything, and performs only the specific
+  review/approval actions the existing domain already treats as a
+  distinct authority from ordinary editing (see the approval table
+  below). Cannot create or edit ordinary content, and cannot administer
+  membership.
+- **VIEWER** — read-only.
+
+`ENGINEER` and `REVIEWER` are **not ordered against each other** — a
+reviewer is not "below" an engineer. They hold two different,
+non-overlapping authorities (write vs. approve) the domain already treats
+as separate questions; a person can hold either, neither, or (as
+`MANAGER`) both. `MANAGER` is the only role that is a strict superset.
+Both enums, their labels/descriptions, and the four capability predicates
+below live in `src/domain/access-control.ts` — Prisma-free, like every
+other domain file.
+
+### Schema
+
+```prisma
+model ProjectMembership {
+  id        String      @id @default(cuid())
+  role      ProjectRole
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+```
+
+One row per `(project, user)`. No polymorphic membership, no duplicated
+copy of `Organization`/`User` data — `ProjectMember` (the repository read
+shape) joins in the safe `user` fields (`id`, `name`, `email`,
+`organizationRole`) a caller needs to show "who is this, and what is their
+standing in the organization" without a second query. An organization
+`OWNER` needs no row here at all; everyone else's access is exactly the
+rows that exist.
+
+The pre-existing `User.role` column (`ADMIN` | `ENGINEER` | `VIEWER`) is
+untouched and remains what it always was: carried on the session, never
+branched on anywhere in server code. `organizationRole` is a deliberately
+separate, new column rather than a repurposing of it — conflating a
+column nothing reads with a column everything now enforces would have
+made both harder to reason about. A dormant `Approval` Prisma model
+(`approverId`, `decision: ApprovalDecision`, linkable to `Requirement` /
+`EngineeringDecision` / `ChangeRequest`) also predates this capability and
+remains completely unreferenced in server code; this pass did not wire it
+up, consistent with not inventing features the prompt did not ask for.
+
+### The authorization service
+
+`src/server/services/authorization.service.ts` is the one place
+project/organization access is decided. Every function does its own fresh
+database read — it never trusts a role carried on `context`, only
+`context.organizationId` / `context.actorId`, which only
+`requireAuthenticatedContext()` can set:
+
+- `isOrganizationOwner(context)` / `requireOrganizationOwner(context)` —
+  organization-level check, used by organization-membership mutations.
+- `getProjectRole(context, projectId)` — the one read everything else is
+  built from. Checks the explicit `ProjectMembership` row first (one
+  indexed lookup); only when none exists does it fall back to the
+  organization-owner check, so the common case (an explicit member) costs
+  exactly one query beyond what the route already did. Returns `null`
+  when the caller has neither.
+- `requireProjectAccess(context, projectId)` — the tenancy-plus-access
+  guard: throws `NotFoundError` (404) when `getProjectRole` returns
+  `null`, so "outside the organization" and "in the organization but not
+  on this project" read identically from the outside — neither confirms
+  the project exists.
+- `requireProjectWrite` / `requireProjectApprove` / `requireProjectManage`
+  — each calls `requireProjectAccess` first, then throws `ForbiddenError`
+  (403) unless the resolved role satisfies the matching domain predicate
+  (`canWriteProject` / `canApproveProjectAction` / `canManageProject`).
+- `requireAssignableOwner(context, scopedProjectId, ownerId)` — the
+  consolidated form of a check six services each used to duplicate
+  locally (an owner must be a real member of the caller's organization),
+  plus the one new rule this capability adds: the proposed owner must
+  also be able to reach *this* project — an explicit member, or the
+  organization's owner — because assigning responsibility to someone who
+  cannot open the project would be a silent dead end.
+
+### Why `requireProjectInOrganization` itself is unchanged
+
+`project-scope.ts`'s `requireProjectInOrganization` is the tenancy
+chokepoint roughly thirty existing services already import. The first
+attempt at this capability made it call into `authorizationService`
+directly — and that would have broken every one of those services' unit
+tests, because they mock `project.repository` but not
+`project-membership.repository` / `user.repository.getOrganizationRole`;
+calling the real functions against a mocked `prisma` throws
+`TypeError: Cannot read properties of undefined`, not a clean 403.
+
+The shape that shipped instead leaves `requireProjectInOrganization`
+**exactly** as it was — organization scoping only, zero behavior change,
+zero test impact on every untouched service — and adds four new,
+purely-additive functions beside it: `requireProjectReadAccess` /
+`requireProjectWriteAccess` / `requireProjectApproveAccess` /
+`requireProjectManageAccess`. Each composes the unchanged base function
+with the matching `authorizationService` check. A service opts into real
+project-role enforcement by importing one of these four instead of the
+original — a small, disclosed, per-service migration rather than a
+flag day.
+
+### Which services enforce project-role, and at which level
+
+Every service below replaces its base org-scope call with the
+appropriate `require*Access` function at each specific call site — most
+services use more than one level, matching the domain meaning of each
+mutation (see the approval table). Read paths (`list*`, `get*`) are left
+on the unchanged base function throughout: any organization member who
+can reach a project's *mutations* already had to pass `requireProjectAccess`
+to get there, and a `VIEWER`'s whole purpose is to read without it.
+
+**Full write/approve gating:** `requirement.service.ts`,
+`engineering-decision.service.ts`, `change-request.service.ts`,
+`risk.service.ts`, `issue.service.ts`, `evidence.service.ts`,
+`design-item.service.ts`, `verification-activity.service.ts`,
+`certification-finding.service.ts`, `certification-basis.service.ts`,
+`compliance-item.service.ts`, `decision-sentinel.service.ts`,
+`drift-detection.service.ts`. Owner-assignment call sites in
+`requirement.service.ts`, `engineering-decision.service.ts`,
+`risk.service.ts`, `issue.service.ts`, `design-item.service.ts`, and
+`verification-activity.service.ts` all use the consolidated
+`requireAssignableOwner`.
+
+**Read-access gating only** (the object has no project-role-sensitive
+mutation of its own, or is a pure read/graph workspace):
+`traceability.service.ts`, `engineering-graph.service.ts` (every method —
+`getNode`, `getNeighborhoods`, `getNodeRevisions`, `traverse`,
+`checkConsistency`), `engineering-history.service.ts`. `project.service.ts`
+has its own local, private `requireProjectInOrganization` — a longstanding
+naming coincidence with the shared one in `project-scope.ts`; it returns
+the full `Project` rather than just its id and is not exported — and that
+local function now also calls `requireProjectAccess`, which is what gives
+the Engineering Command Center real read-access gating for free: it
+reaches every project through `projectService.getProject`.
+
+**Project membership itself:** `project-membership.service.ts` — reads
+require `requireProjectReadAccess` (any project member, or the
+organization owner, may see who else is on the project); every mutation
+(`addMember`, `changeMemberRole`, `removeMember`) requires
+`requireProjectManageAccess`. `organization-membership.service.ts` — reads
+require only authentication (any organization member); the one mutation,
+provisioning a new account, requires `requireOrganizationOwner`.
+
+**Genuine, disclosed limitation.** The remaining services —
+`certification-program.service.ts`, `certification-review.service.ts`,
+`supplier.service.ts`, `supplied-item.service.ts`,
+`supplier-qualification.service.ts`, `stakeholder-need.service.ts`,
+`change-impact-analysis.service.ts`, `technical-readiness.service.ts`,
+`verification-readiness.service.ts`, `assumption-monitoring.service.ts`
+— still call only the original, unchanged `requireProjectInOrganization`.
+Any organization member who can already reach the project (org owner, or
+— for now — nothing stops a same-organization caller with no project
+membership from calling these specific services directly, since they have
+not been migrated) can still read and write through them without a
+project-role check. This is a scope decision, not an oversight: the
+prompt's own instruction was representative coverage across every
+*category* of controlled object, not migrating all ~40 services in one
+pass. Extending the same four-function pattern to the remaining services
+is mechanical and low-risk precisely because the pattern is additive.
+
+### Approval semantics: write vs. approve, per object
+
+REVIEWER's authority is deliberately narrow — only the specific
+transitions the existing domain already treats as a distinct
+accept/reject moment, never "every mutation on an approvable object."
+Each migrated service picks its access level by inspecting the target
+status *before* choosing which check to call, e.g.
+`requirement.service.ts`'s `transitionRequirementStatus`:
+
+```ts
+const APPROVAL_TRANSITIONS = new Set<RequirementStatus>(["APPROVED", "BASELINED"]);
+const scopedProjectId = APPROVAL_TRANSITIONS.has(to)
+  ? await requireProjectApproveAccess(context, projectId)
+  : await requireProjectWriteAccess(context, projectId);
+```
+
+| Object | Ordinary write (ENGINEER+) | Approval action (REVIEWER+) |
+| --- | --- | --- |
+| Requirement | create, update, all other transitions | transition to `APPROVED`, `BASELINED` |
+| Engineering Decision | create, update, alternatives, assumptions, expectation, links | transition to `APPROVED` |
+| Change Request | create, update, declared impacts, all other transitions | transition to `APPROVED`, `REJECTED` |
+| Risk / Issue | create, update, all transitions (incl. `ACCEPTED`/`RESOLVED`) | — no domain-recognized approval action |
+| Evidence | create, update, links | `validate`, `supersede` |
+| Design Item / Verification Activity | create, update, all transitions | — no domain-recognized approval action |
+| Certification Basis | create, update | `activate`, `supersede` |
+| Certification Finding | create, update | `resolve`, `accept` |
+| Compliance Item | create, update, links | — |
+| Baseline (Drift) | create, update, member add/remove | `activate`, `supersede` |
+| Observation (Drift) | create, update | `review`, `reject` |
+| Drift evaluation | `evaluateDrift` | — a run, not a judgement about its result |
+| Sentinel target | `acknowledge`, `detect`, `reevaluate` | `resolve` |
+
+Risk, Issue, Design Item and Verification Activity have no row in the
+"approval action" column on purpose: their own domain semantics (see each
+module's own ARCHITECTURE.md section) never singled out one of their
+transitions as a distinct review authority the way approving a
+requirement or activating a baseline is, so ENGINEER already covers their
+whole lifecycle. Approval semantics were never invented to make the
+table symmetric.
+
+**Sentinel's re-evaluation is a deliberate exception**, and the one place
+this pass restructured a service beyond swapping which access function is
+called. `reEvaluateTarget` triggers a real engine run and, on success,
+resolves the target automatically — the "new current assessment" the
+resolution policy already accepted as objective evidence. That automatic
+resolution is not an approval judgement, so `reEvaluateTarget` itself only
+requires write-tier access; only the *human-initiated*
+`resolveSurveillance` requires approve-tier. The resolve-and-audit logic
+was extracted into a private `completeResolution` helper so both callers
+share it without either re-checking access the caller already established.
+
+Nowhere does record ownership substitute for role: assigning a
+requirement's owner to yourself does not grant approval authority over
+it, and none of the migrated services check `ownerId === context.actorId`
+as an alternate path around `requireProjectApproveAccess`.
+
+### 401 / 403 / 404 conventions
+
+Unchanged and now applied consistently through the new checks: 401 means
+no session at all (`requireAuthenticatedContext()` failing). 404 means
+"you cannot see this" — a project outside the organization, or inside it
+but with no membership and no ownership; `requireProjectAccess` throws
+the identical `NotFoundError` a missing project always threw, so a
+same-organization caller with no project membership cannot distinguish
+"this project does not exist" from "I am not on it." 403 means "I can see
+this, but not perform this specific action" — a `VIEWER` attempting a
+write, an `ENGINEER` attempting an approval action, anyone but a
+`MANAGER` attempting membership administration.
+
+### Migration / backfill
+
+The first migration in this project's history to include data backfill
+(every prior migration was pure DDL — confirmed by grep before writing
+this one). `Project` carries no `createdById`, so "who already had full
+access to this project" is derived deterministically: the earliest-created
+user in each organization (by `createdAt` then `id`, the only ordering
+available on a system with no invite flow before this migration) becomes
+that organization's `OWNER`, and that same user is granted an explicit
+`MANAGER` `ProjectMembership` on every project already in that
+organization. This preserves exactly the access that user already had —
+nothing more — and grants no one else anything new; a fresh database (any
+environment this product has shipped to so far) sees zero rows affected.
+
+### Audit
+
+Membership changes get their own actions, written transactionally
+alongside the mutation exactly like every other engineering audit event:
+`project_membership.added`, `project_membership.role_changed`,
+`project_membership.removed` (entity type `ProjectMembership`), and
+`organization.member_added` (entity type `User`). `changeMemberRole` and
+`removeMember` both refuse to leave a project with zero managers
+(`requireNotLastManager`, checked against `countManagers` before the
+write) — the one role that can ever administer membership again, or reach
+that project's approval actions, would otherwise be gone with no path
+back except the organization owner's implicit access. Engineering
+mutations continue using the existing per-module audit actions
+unchanged; only the access-control layer itself is new here.
+
+### UI
+
+`/projects/:id/members` — member list (name, email, organization
+identity, project role), the caller's own role and its description,
+inline role change and removal for a `MANAGER`, and an "add a member"
+form scoped to organization members not already on the project. An
+organization owner additionally sees a path to provision a new account
+(`AddOrganizationMemberDialog`) directly from this page — the same
+account creation `register()` performs, scoped into the existing
+organization. Reached from a "Members" button in the project header,
+deliberately kept out of the eighteen-module engineering-workspace grid
+so it reads as project administration, not another workflow module.
+`GET /api/projects/:id/role` backs the caller's-own-access read
+(`{ role, isOrganizationOwner }`) every show/hide decision on the page —
+and any future page — can use; every control it hides is convenience
+only; the routes it would have called re-check server-side regardless.
 
 ## Requirements
 

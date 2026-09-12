@@ -26,7 +26,7 @@ import {
   type GraphReader,
 } from "@/server/repositories/graph-repository";
 import { parseOrThrow } from "@/server/validation";
-import { requireProjectInOrganization } from "./project-scope";
+import { requireProjectReadAccess } from "./project-scope";
 
 /**
  * Read-only traversal over the engineering graph.
@@ -68,7 +68,7 @@ export class EngineeringGraphService {
     projectId: unknown,
     ref: unknown,
   ): Promise<GraphNode> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const parsed = parseOrThrow(graphNodeRefSchema, ref, "Invalid graph node reference");
 
     const node = await this.repository.getNode(scopedProjectId, parsed);
@@ -130,7 +130,7 @@ export class EngineeringGraphService {
     direction: GraphDirection = "BOTH",
     edgeTypes?: readonly GraphEdgeType[],
   ): Promise<Map<string, GraphConnection[]>> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const result = new Map<string, GraphConnection[]>();
     if (refs.length === 0) return result;
 
@@ -175,7 +175,7 @@ export class EngineeringGraphService {
     projectId: unknown,
     refs: readonly GraphNodeRef[],
   ): Promise<Map<string, Date>> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     if (refs.length === 0) return new Map();
 
     return this.repository.getNodeRevisions(scopedProjectId, refs);
@@ -209,7 +209,7 @@ export class EngineeringGraphService {
     projectId: unknown,
     request: unknown,
   ): Promise<TraversalResult> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const parsed = parseOrThrow(graphTraversalRequestSchema, request, "Invalid traversal request");
 
     const root = await this.repository.getNode(scopedProjectId, parsed.root);
@@ -382,7 +382,7 @@ export class EngineeringGraphService {
     projectId: unknown,
     edgeTypes?: readonly GraphEdgeType[],
   ): Promise<GraphConsistencyReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const checkedEdgeTypes = edgeTypes ? [...edgeTypes] : [...GRAPH_EDGE_TYPES];
 
     const audited = await this.repository.auditEdges(scopedProjectId, checkedEdgeTypes);

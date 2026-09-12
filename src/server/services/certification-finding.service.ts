@@ -15,7 +15,12 @@ import * as findingRepository from "@/server/repositories/certification-finding.
 import { evidenceExistsInProject } from "@/server/repositories/supplier-qualification.repository";
 import { complianceItemService } from "./compliance-item.service";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectInOrganization,
+  requireProjectApproveAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * Certification/compliance findings.
@@ -41,7 +46,7 @@ export class CertificationFindingService {
     itemId: unknown,
     input: unknown,
   ): Promise<CertificationFinding> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(
       createCertificationFindingRequestSchema,
       input,
@@ -94,7 +99,7 @@ export class CertificationFindingService {
     findingId: unknown,
     input: unknown,
   ): Promise<CertificationFinding> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(
       updateCertificationFindingRequestSchema,
       input,
@@ -155,7 +160,7 @@ export class CertificationFindingService {
     input: unknown,
     status: "RESOLVED" | "ACCEPTED",
   ): Promise<CertificationFinding> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectApproveAccess(context, projectId);
     const schema =
       status === "RESOLVED"
         ? resolveCertificationFindingRequestSchema

@@ -53,6 +53,13 @@ vi.mock("@/server/repositories/project.repository", () => ({
   findProjectInOrganization: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 vi.mock("@/server/repositories/verification-activity.repository", () => ({
   findVerificationActivityInProject: vi.fn(),
 }));
@@ -195,6 +202,8 @@ vi.mock("@/server/repositories/verification-readiness.repository", () => {
 });
 
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const verificationRepository = await import(
   "@/server/repositories/verification-activity.repository"
 );
@@ -416,6 +425,10 @@ function buildScenario(scenario: Scenario = {}): VerificationActivity {
     async (organizationId: string, id: string) =>
       organizationId === CONTEXT.organizationId && id === PROJECT_ID ? PROJECT : null,
   );
+  // CONTEXT's actor is treated as the organization owner — full implicit
+  // project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
   vi.mocked(verificationRepository.findVerificationActivityInProject).mockResolvedValue(activity);
 
   vi.mocked(basisRepository.loadRequirementStates).mockResolvedValue(

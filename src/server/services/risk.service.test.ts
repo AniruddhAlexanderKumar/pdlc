@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Risk } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 
 /**
  * Risk service behavior against fake repositories: no database, no Prisma.
@@ -36,7 +36,10 @@ vi.mock("@/server/repositories/risk.repository", () => ({
 
 vi.mock("@/server/repositories/user.repository", () => ({
   isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
 }));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
@@ -50,6 +53,7 @@ vi.mock("@/server/repositories/project-artifacts.repository", () => ({
 const projectRepository = await import("@/server/repositories/project.repository");
 const riskRepository = await import("@/server/repositories/risk.repository");
 const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 const service = await import("./risk.service");
 
@@ -98,6 +102,18 @@ beforeEach(() => {
   vi.mocked(riskRepository.riskLinkTargetExistsInProject).mockResolvedValue(true);
   vi.mocked(riskRepository.riskLinkExists).mockResolvedValue(false);
   vi.mocked(riskRepository.listRiskLinks).mockResolvedValue([]);
+  // CONTEXT's actor is a MANAGER on PROJECT by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior
+  // do not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 });
 
 describe("createRisk", () => {
@@ -477,5 +493,65 @@ describe("tenancy", () => {
 
     await expect(service.listRisks(CONTEXT, "elsewhere")).rejects.toBeInstanceOf(NotFoundError);
     expect(riskRepository.listRisksInProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT.id,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating a risk", async () => {
+    asRole("VIEWER");
+    await expect(service.createRisk(CONTEXT, PROJECT.id, VALID_CREATE)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(riskRepository.createRisk).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER creating a risk — read/review authority is not write authority", async () => {
+    asRole("REVIEWER");
+    await expect(service.createRisk(CONTEXT, PROJECT.id, VALID_CREATE)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+  });
+
+  it("allows an ENGINEER to create and transition a risk — risk disposition is ordinary engineering work", async () => {
+    asRole("ENGINEER");
+    vi.mocked(riskRepository.createRisk).mockResolvedValue(risk());
+    await expect(
+      service.createRisk(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).resolves.toMatchObject({ identifier: "RSK-001" });
+
+    vi.mocked(riskRepository.findRiskInProject).mockResolvedValue(risk());
+    vi.mocked(riskRepository.updateRisk).mockResolvedValue(risk({ status: "ACCEPTED" }));
+    await expect(
+      service.transitionRisk(CONTEXT, PROJECT.id, "risk1", { to: "ACCEPTED" }),
+    ).resolves.toMatchObject({ status: "ACCEPTED" });
+  });
+
+  it("refuses a VIEWER assigning a risk owner", async () => {
+    asRole("VIEWER");
+    vi.mocked(riskRepository.findRiskInProject).mockResolvedValue(risk());
+
+    await expect(
+      service.assignRiskOwner(CONTEXT, PROJECT.id, "risk1", { ownerId: "user2aaaaaaaaaaaaaaaaaaa" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(riskRepository.updateRisk).not.toHaveBeenCalled();
+  });
+
+  it("allows a MANAGER to do all of the above", async () => {
+    asRole("MANAGER");
+    vi.mocked(riskRepository.createRisk).mockResolvedValue(risk());
+    await expect(
+      service.createRisk(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).resolves.toMatchObject({ identifier: "RSK-001" });
   });
 });

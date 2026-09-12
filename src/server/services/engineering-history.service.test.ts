@@ -19,6 +19,7 @@ const PROJECT_ID = "proj1aaaaaaaaaaaaaaaaaa";
 
 vi.mock("./project-scope", () => ({
   requireProjectInOrganization: vi.fn(),
+  requireProjectReadAccess: vi.fn(),
 }));
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   listAuditEventsForEntity: vi.fn(),
@@ -57,7 +58,7 @@ vi.mock("./project-command-center.service", () => ({
   ),
 }));
 
-const { requireProjectInOrganization } = await import("./project-scope");
+const { requireProjectReadAccess } = await import("./project-scope");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 const historyRepository = await import("@/server/repositories/engineering-history.repository");
 const driftRepository = await import("@/server/repositories/drift-assessment.repository");
@@ -85,7 +86,7 @@ function emptyArtifacts(): Map<string, ArtifactRef[]> {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(requireProjectInOrganization).mockResolvedValue(PROJECT_ID);
+  vi.mocked(requireProjectReadAccess).mockResolvedValue(PROJECT_ID);
   vi.mocked(historyRepository.listProjectArtifacts).mockResolvedValue(emptyArtifacts());
   vi.mocked(historyRepository.listAuditEventsForProjectArtifacts).mockResolvedValue([]);
   vi.mocked(auditLogRepository.listAuditEventsForEntity).mockResolvedValue([]);
@@ -104,12 +105,12 @@ beforeEach(() => {
 
 describe("project isolation", () => {
   it("404s getProjectHistory for a project outside the caller's organization", async () => {
-    vi.mocked(requireProjectInOrganization).mockRejectedValue(new NotFoundError("Project not found."));
+    vi.mocked(requireProjectReadAccess).mockRejectedValue(new NotFoundError("Project not found."));
     await expect(service.getProjectHistory(CONTEXT, "other-project")).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("404s getObjectHistory for a project outside the caller's organization", async () => {
-    vi.mocked(requireProjectInOrganization).mockRejectedValue(new NotFoundError("Project not found."));
+    vi.mocked(requireProjectReadAccess).mockRejectedValue(new NotFoundError("Project not found."));
     await expect(
       service.getObjectHistory(CONTEXT, "other-project", "REQUIREMENT", "r1"),
     ).rejects.toBeInstanceOf(NotFoundError);

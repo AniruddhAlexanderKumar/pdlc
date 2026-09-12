@@ -27,7 +27,16 @@ vi.mock("@/server/repositories/project.repository", () => ({
   findProjectInOrganization: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 
 const PROJECT = FIXTURE_PROJECT;
 
@@ -48,6 +57,12 @@ beforeEach(() => {
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue({
     id: PROJECT,
   } as never);
+  // CONTEXT's actor is treated as the organization owner — full implicit
+  // project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockReset();
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockReset();
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
 
   const built = buildTraceabilityFixture();
   fixture = built.fixture;

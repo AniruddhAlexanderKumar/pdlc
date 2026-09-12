@@ -25,8 +25,11 @@ import type { AuditEventSummary } from "@/server/repositories/audit-log.reposito
 import * as issueRepository from "@/server/repositories/issue.repository";
 import type { IssueListItem, IssueOwnerSummary } from "@/server/repositories/issue.repository";
 import * as projectArtifactsRepository from "@/server/repositories/project-artifacts.repository";
-import { requireProjectInOrganization } from "./project-scope";
-import * as userRepository from "@/server/repositories/user.repository";
+import { requireAssignableOwner } from "./authorization.service";
+import {
+  requireProjectInOrganization,
+  requireProjectWriteAccess,
+} from "./project-scope";
 import { parseOrThrow } from "@/server/validation";
 
 /**
@@ -86,13 +89,6 @@ async function requireIssue(
   return issue;
 }
 
-/** Owners must be real members of the caller's organization — never an arbitrary id. */
-async function requireOrganizationMember(context: OrganizationContext, ownerId: string): Promise<void> {
-  if (!(await userRepository.isMemberOfOrganization(ownerId, context.organizationId))) {
-    throw new ValidationError("That user is not a member of this organization.");
-  }
-}
-
 function auditEvent(context: OrganizationContext, action: string, issueId: string, metadata: Record<string, unknown>) {
   return {
     organizationId: context.organizationId,
@@ -105,11 +101,11 @@ function auditEvent(context: OrganizationContext, action: string, issueId: strin
 }
 
 export async function createIssue(context: OrganizationContext, projectId: unknown, input: unknown): Promise<Issue> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createIssueRequestSchema, input, "Invalid issue");
 
   if (data.ownerId) {
-    await requireOrganizationMember(context, data.ownerId);
+    await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -201,7 +197,7 @@ export async function updateIssue(
   issueId: unknown,
   input: unknown,
 ): Promise<Issue> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(updateIssueRequestSchema, input, "Invalid issue update");
 
   return prisma.$transaction(async (tx) => {
@@ -235,7 +231,7 @@ export async function transitionIssue(
   issueId: unknown,
   input: unknown,
 ): Promise<Issue> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const { to, rationale } = parseOrThrow(transitionIssueRequestSchema, input, "Invalid transition");
 
   return prisma.$transaction(async (tx) => {
@@ -276,11 +272,11 @@ export async function assignIssueOwner(
   issueId: unknown,
   input: unknown,
 ): Promise<Issue> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const { ownerId } = parseOrThrow(assignIssueOwnerRequestSchema, input, "Invalid owner assignment");
 
   if (ownerId) {
-    await requireOrganizationMember(context, ownerId);
+    await requireAssignableOwner(context, scopedProjectId, ownerId);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -328,7 +324,7 @@ export async function linkIssue(
   issueId: unknown,
   input: unknown,
 ): Promise<IssueLinkSummary> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(issueLinkRequestSchema, input, "Invalid traceability link");
 
   return prisma.$transaction(async (tx) => {
@@ -378,7 +374,7 @@ export async function unlinkIssue(
   issueId: unknown,
   linkId: unknown,
 ): Promise<void> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const key = typeof linkId === "string" ? parseIssueLinkKey(linkId) : null;
   if (!key) {
     throw new ValidationError("Invalid issue link id.");

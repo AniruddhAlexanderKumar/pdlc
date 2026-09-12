@@ -44,19 +44,40 @@ model Organization {
 
 /// Role a user holds within their organization. Deliberately coarse —
 /// fine-grained, resource-level permissions are a future domain concern.
+///
+/// Pre-dates real authorization: carried on every session but never checked
+/// anywhere in application code. Left exactly as it was — not the mechanism
+/// `organizationRole` below introduces, and not removed, because nothing in
+/// this system depends on removing it and a user's stated engineering
+/// discipline is still a real, if currently unenforced, fact worth keeping.
 enum UserRole {
   ADMIN
   ENGINEER
   VIEWER
 }
 
+/// The organization-level access role real authorization is built on.
+/// Deliberately two values, not a hierarchy of admin tiers: an organization
+/// either administers itself (OWNER) or does not (MEMBER). Project-level
+/// authority is a separate axis — see `ProjectRole` — because an
+/// organization owner and a project's day-to-day engineers are not the same
+/// question.
+enum OrganizationRole {
+  OWNER
+  MEMBER
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  role      UserRole @default(ENGINEER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String           @id @default(cuid())
+  email            String           @unique
+  name             String
+  role             UserRole         @default(ENGINEER)
+  /// Defaults to MEMBER; the user who registers a new organization is set to
+  /// OWNER in the same transaction. See `OrganizationRole` for what each
+  /// value actually grants.
+  organizationRole OrganizationRole @default(MEMBER)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -67,6 +88,8 @@ model User {
   // never loaded alongside ordinary user reads.
   credential UserCredential?
   sessions   Session[]
+
+  projectMemberships ProjectMembership[]
 
   // Artifact ownership (optional on the artifact; cleared if the user is removed).
   ownedRequirements           Requirement[]          @relation("RequirementOwner")
@@ -262,9 +285,50 @@ model Project {
   sentinelEvents      SentinelEvent[]
   surveillanceTargets SurveillanceTarget[]
 
+  memberships ProjectMembership[]
+
   @@unique([organizationId, name])
   @@index([organizationId, status])
   @@map("projects")
+}
+
+/// The project-level authority a member holds. Not a hierarchy: MANAGER is
+/// the only role that combines every capability (write, approve, and
+/// administer membership); ENGINEER and REVIEWER instead each grant a
+/// distinct authority — write access without approval authority, and
+/// approval authority without ordinary write access — because in this
+/// system's own domain "who may edit engineering content" and "who may
+/// approve it" are genuinely different questions, not two points on the
+/// same scale. See `ProjectRole` in `src/domain/access-control.ts` for the
+/// exact capability each grants and why.
+enum ProjectRole {
+  MANAGER
+  ENGINEER
+  REVIEWER
+  VIEWER
+}
+
+/// Explicit project-scoped access. A user gains no access to a project by
+/// organization membership alone — only by holding a real row here, or by
+/// being their organization's OWNER (who administers every project in it
+/// without needing one). One row per (project, user): re-adding a member
+/// changes their existing role rather than creating a second grant.
+model ProjectMembership {
+  id        String      @id @default(cuid())
+  role      ProjectRole
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_memberships")
 }
 
 // ---------------------------------------------------------------------------

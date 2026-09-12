@@ -22,10 +22,13 @@ import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
 import * as auditLogRepository from "@/server/repositories/audit-log.repository";
 import type { AuditEventSummary } from "@/server/repositories/audit-log.repository";
 import * as projectArtifactsRepository from "@/server/repositories/project-artifacts.repository";
-import { requireProjectInOrganization } from "./project-scope";
+import { requireAssignableOwner } from "./authorization.service";
+import {
+  requireProjectInOrganization,
+  requireProjectWriteAccess,
+} from "./project-scope";
 import * as riskRepository from "@/server/repositories/risk.repository";
 import type { RiskListItem, RiskOwnerSummary } from "@/server/repositories/risk.repository";
-import * as userRepository from "@/server/repositories/user.repository";
 import { parseOrThrow } from "@/server/validation";
 
 /**
@@ -85,13 +88,6 @@ async function requireRisk(
   return risk;
 }
 
-/** Owners must be real members of the caller's organization — never an arbitrary id. */
-async function requireOrganizationMember(context: OrganizationContext, ownerId: string): Promise<void> {
-  if (!(await userRepository.isMemberOfOrganization(ownerId, context.organizationId))) {
-    throw new ValidationError("That user is not a member of this organization.");
-  }
-}
-
 function auditEvent(context: OrganizationContext, action: string, riskId: string, metadata: Record<string, unknown>) {
   return {
     organizationId: context.organizationId,
@@ -104,11 +100,11 @@ function auditEvent(context: OrganizationContext, action: string, riskId: string
 }
 
 export async function createRisk(context: OrganizationContext, projectId: unknown, input: unknown): Promise<Risk> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createRiskRequestSchema, input, "Invalid risk");
 
   if (data.ownerId) {
-    await requireOrganizationMember(context, data.ownerId);
+    await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -194,7 +190,7 @@ export async function updateRisk(
   riskId: unknown,
   input: unknown,
 ): Promise<Risk> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(updateRiskRequestSchema, input, "Invalid risk update");
 
   return prisma.$transaction(async (tx) => {
@@ -231,7 +227,7 @@ export async function transitionRisk(
   riskId: unknown,
   input: unknown,
 ): Promise<Risk> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const { to, rationale } = parseOrThrow(transitionRiskRequestSchema, input, "Invalid transition");
 
   return prisma.$transaction(async (tx) => {
@@ -272,11 +268,11 @@ export async function assignRiskOwner(
   riskId: unknown,
   input: unknown,
 ): Promise<Risk> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const { ownerId } = parseOrThrow(assignRiskOwnerRequestSchema, input, "Invalid owner assignment");
 
   if (ownerId) {
-    await requireOrganizationMember(context, ownerId);
+    await requireAssignableOwner(context, scopedProjectId, ownerId);
   }
 
   return prisma.$transaction(async (tx) => {
@@ -324,7 +320,7 @@ export async function linkRisk(
   riskId: unknown,
   input: unknown,
 ): Promise<RiskLinkSummary> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(riskLinkRequestSchema, input, "Invalid traceability link");
 
   return prisma.$transaction(async (tx) => {
@@ -374,7 +370,7 @@ export async function unlinkRisk(
   riskId: unknown,
   linkId: unknown,
 ): Promise<void> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const key = typeof linkId === "string" ? parseRiskLinkKey(linkId) : null;
   if (!key) {
     throw new ValidationError("Invalid risk link id.");

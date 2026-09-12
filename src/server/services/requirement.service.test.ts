@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Requirement } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 
 /**
  * Service behavior against fake repositories: no database, no Prisma. The
@@ -33,6 +33,11 @@ vi.mock("@/server/repositories/requirement.repository", () => ({
 
 vi.mock("@/server/repositories/user.repository", () => ({
   isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({
+  findMembership: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
@@ -47,6 +52,7 @@ vi.mock("@/server/repositories/project-artifacts.repository", () => ({
 const projectRepository = await import("@/server/repositories/project.repository");
 const requirementRepository = await import("@/server/repositories/requirement.repository");
 const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 const service = await import("./requirement.service");
 
@@ -95,6 +101,18 @@ beforeEach(() => {
   vi.mocked(userRepository.isMemberOfOrganization).mockResolvedValue(true);
   vi.mocked(requirementRepository.linkTargetExistsInProject).mockResolvedValue(true);
   vi.mocked(requirementRepository.listRequirementLinks).mockResolvedValue([]);
+  // CONTEXT's actor is a MANAGER on PROJECT by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior
+  // do not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 });
 
 describe("createRequirement", () => {
@@ -550,6 +568,126 @@ describe("listRequirements", () => {
   it("rejects an unrecognized status filter", async () => {
     await expect(
       service.listRequirements(CONTEXT, PROJECT.id, { status: "NOT_A_STATUS" }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT.id,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating a requirement", async () => {
+    asRole("VIEWER");
+    await expect(
+      service.createRequirement(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(requirementRepository.createRequirement).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER creating a requirement — read/approve authority is not write authority", async () => {
+    asRole("REVIEWER");
+    await expect(
+      service.createRequirement(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows an ENGINEER to create a requirement", async () => {
+    asRole("ENGINEER");
+    vi.mocked(requirementRepository.createRequirement).mockResolvedValue(requirement());
+
+    await expect(
+      service.createRequirement(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).resolves.toMatchObject({ identifier: "REQ-001" });
+  });
+
+  it("refuses an ENGINEER approving a requirement — write authority is not approval authority", async () => {
+    asRole("ENGINEER");
+    vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(
+      requirement({ status: "IN_REVIEW" }),
+    );
+
+    await expect(
+      service.transitionRequirementStatus(CONTEXT, PROJECT.id, "req1", { to: "APPROVED" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(requirementRepository.updateRequirement).not.toHaveBeenCalled();
+  });
+
+  it("allows a REVIEWER to approve a requirement", async () => {
+    asRole("REVIEWER");
+    vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(
+      requirement({ status: "IN_REVIEW" }),
+    );
+    vi.mocked(requirementRepository.updateRequirement).mockResolvedValue(
+      requirement({ status: "APPROVED" }),
+    );
+
+    await expect(
+      service.transitionRequirementStatus(CONTEXT, PROJECT.id, "req1", { to: "APPROVED" }),
+    ).resolves.toMatchObject({ status: "APPROVED" });
+  });
+
+  it("allows a REVIEWER to move DRAFT → IN_REVIEW — not itself an approval transition, but reviewers also read/submit", async () => {
+    // REVIEWER does not have write authority, so this is refused: only the
+    // domain's own approval-shaped transitions (APPROVED, BASELINED) are
+    // within review authority.
+    asRole("REVIEWER");
+    vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(
+      requirement({ status: "DRAFT" }),
+    );
+
+    await expect(
+      service.transitionRequirementStatus(CONTEXT, PROJECT.id, "req1", { to: "IN_REVIEW" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a MANAGER to do both ordinary writes and approvals", async () => {
+    asRole("MANAGER");
+    vi.mocked(requirementRepository.createRequirement).mockResolvedValue(requirement());
+    await expect(
+      service.createRequirement(CONTEXT, PROJECT.id, VALID_CREATE),
+    ).resolves.toMatchObject({ identifier: "REQ-001" });
+
+    vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(
+      requirement({ status: "IN_REVIEW" }),
+    );
+    vi.mocked(requirementRepository.updateRequirement).mockResolvedValue(
+      requirement({ status: "APPROVED" }),
+    );
+    await expect(
+      service.transitionRequirementStatus(CONTEXT, PROJECT.id, "req1", { to: "APPROVED" }),
+    ).resolves.toMatchObject({ status: "APPROVED" });
+  });
+
+  it("refuses assigning an owner who cannot reach the project themselves", async () => {
+    asRole("MANAGER");
+    vi.mocked(userRepository.isMemberOfOrganization).mockResolvedValue(true);
+    // The proposed owner is a real organization member, but not a project one.
+    vi.mocked(membershipRepository.findMembership).mockImplementation(async (_projectId, userId) => {
+      if (userId === CONTEXT.actorId) {
+        return {
+          id: "mem1",
+          projectId: PROJECT.id,
+          role: "MANAGER",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+        } as never;
+      }
+      return null;
+    });
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+    vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(requirement());
+
+    await expect(
+      service.assignRequirementOwner(CONTEXT, PROJECT.id, "req1", { ownerId: "user2aaaaaaaaaaaaaaaaaaa" }),
     ).rejects.toBeInstanceOf(ValidationError);
   });
 });

@@ -26,7 +26,11 @@ import * as evidenceRepository from "@/server/repositories/evidence.repository";
 import type { EvidenceActorSummary, EvidenceListItem } from "@/server/repositories/evidence.repository";
 import * as projectArtifactsRepository from "@/server/repositories/project-artifacts.repository";
 import { parseOrThrow } from "@/server/validation";
-import { requireProjectInOrganization } from "./project-scope";
+import {
+  requireProjectInOrganization,
+  requireProjectApproveAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * Evidence application service.
@@ -110,7 +114,7 @@ export async function createEvidence(
   projectId: unknown,
   input: unknown,
 ): Promise<Evidence> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createEvidenceRequestSchema, input, "Invalid evidence");
 
   return prisma.$transaction(async (tx) => {
@@ -204,7 +208,7 @@ export async function updateEvidence(
   evidenceId: unknown,
   input: unknown,
 ): Promise<Evidence> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(updateEvidenceRequestSchema, input, "Invalid evidence update");
 
   return prisma.$transaction(async (tx) => {
@@ -245,7 +249,7 @@ export async function validateEvidence(
   evidenceId: unknown,
   input: unknown,
 ): Promise<Evidence> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectApproveAccess(context, projectId);
   const { rationale } = parseOrThrow(validateEvidenceRequestSchema, input ?? {}, "Invalid validation request");
 
   // Validating asserts a fact is sound; that assertion must be attributable
@@ -293,7 +297,7 @@ export async function supersedeEvidence(
   evidenceId: unknown,
   input: unknown,
 ): Promise<Evidence> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectApproveAccess(context, projectId);
   const { newEvidenceId, rationale } = parseOrThrow(
     supersedeEvidenceRequestSchema,
     input,
@@ -356,7 +360,7 @@ export async function linkEvidence(
   evidenceId: unknown,
   input: unknown,
 ): Promise<EvidenceLinkSummary> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(evidenceLinkRequestSchema, input, "Invalid traceability link");
 
   return prisma.$transaction(async (tx) => {
@@ -426,7 +430,7 @@ export async function unlinkEvidence(
   evidenceId: unknown,
   linkId: unknown,
 ): Promise<void> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const key = typeof linkId === "string" ? parseEvidenceLinkKey(linkId) : null;
   if (!key) {
     throw new ValidationError("Invalid evidence link id.");

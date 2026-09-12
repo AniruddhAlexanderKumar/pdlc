@@ -23,6 +23,7 @@ import {
   Scale,
   ShieldAlert,
   ShieldCheck,
+  UserCog,
   Users,
   Waypoints,
 } from "lucide-react";
@@ -205,6 +206,12 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
               <Link href={`/projects/${project.id}/command-center`}>
                 <LayoutDashboard aria-hidden="true" />
                 Command Center
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${project.id}/members`}>
+                <UserCog aria-hidden="true" />
+                Members
               </Link>
             </Button>
             <Button

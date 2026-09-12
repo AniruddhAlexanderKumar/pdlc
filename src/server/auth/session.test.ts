@@ -30,6 +30,7 @@ function principal(overrides: { expiresAt: Date; lastSeenAt?: Date }) {
       name: "Ada Lovelace",
       email: "ada@example.test",
       role: "ADMIN",
+      organizationRole: "OWNER",
       organization: { id: "org1aaaaaaaaaaaaaaaaaaaa", name: "Example Aerospace" },
     },
   };

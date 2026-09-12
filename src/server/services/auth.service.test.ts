@@ -46,6 +46,7 @@ const USER = {
   name: "Ada Lovelace",
   email: "ada@example.test",
   role: "ADMIN",
+  organizationRole: "OWNER",
 };
 const SESSION = {
   token: "raw-session-token",

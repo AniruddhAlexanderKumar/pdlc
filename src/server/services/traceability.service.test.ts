@@ -16,6 +16,13 @@ vi.mock("@/server/repositories/project.repository", () => ({
   findProjectInOrganization: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 vi.mock("./requirement.service", () => ({ listRequirements: vi.fn() }));
 vi.mock("./stakeholder-need.service", () => ({ listStakeholderNeeds: vi.fn() }));
 vi.mock("./design-item.service", () => ({ listDesignItems: vi.fn() }));
@@ -49,6 +56,8 @@ vi.mock("./certification-review.service", () => ({
 vi.mock("./evidence.service", () => ({ listEvidence: vi.fn() }));
 
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const requirementService = await import("./requirement.service");
 const stakeholderNeedService = await import("./stakeholder-need.service");
 const designItemService = await import("./design-item.service");
@@ -79,6 +88,10 @@ const PROJECT = { id: PROJECT_ID, organizationId: CONTEXT.organizationId } as Pr
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
+  // CONTEXT's actor is treated as the organization owner — full implicit
+  // project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
 });
 
 describe("listSelectableRoots", () => {

@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
 const { UserMenu } = await import("./user-menu");
 
 const IDENTITY = {
-  user: { id: "user1", name: "Ada Lovelace", email: "ada@example.test", role: "ADMIN" },
+  user: { id: "user1", name: "Ada Lovelace", email: "ada@example.test", role: "ADMIN", organizationRole: "OWNER" },
   organization: { id: "org1aaaaaaaaaaaaaaaaaaaa", name: "Example Aerospace" },
 };
 

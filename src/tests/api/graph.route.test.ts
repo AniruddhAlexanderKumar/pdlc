@@ -38,6 +38,13 @@ vi.mock("@/server/repositories/project.repository", () => ({
   findProjectInOrganization: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 // The route imports the service singleton, which reads through this repository.
 vi.mock("@/server/repositories/graph-repository", () => ({
   get engineeringGraphRepository() {
@@ -47,6 +54,8 @@ vi.mock("@/server/repositories/graph-repository", () => ({
 
 const authContext = await import("@/server/auth/context");
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 
 const nodeRoute = await import(
   "@/app/api/projects/[projectId]/graph/node/[nodeType]/[nodeId]/route"
@@ -83,6 +92,12 @@ beforeEach(() => {
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue({
     id: PROJECT,
   } as never);
+  // CONTEXT's actor is treated as the organization owner — full implicit
+  // project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockReset();
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockReset();
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
 });
 
 describe("GET /graph/node/[nodeType]/[nodeId]", () => {

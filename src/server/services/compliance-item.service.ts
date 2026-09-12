@@ -20,7 +20,11 @@ import * as itemRepository from "@/server/repositories/compliance-item.repositor
 import * as programRepository from "@/server/repositories/certification-program.repository";
 import * as projectArtifactsRepository from "@/server/repositories/project-artifacts.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectInOrganization,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * The central certification obligation, and the typed relationships that
@@ -49,7 +53,7 @@ export class ComplianceItemService {
     basisId: unknown,
     input: unknown,
   ): Promise<ComplianceItem> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const basis = await this.requireBasisInProject(scopedProjectId, basisId ?? null);
     const data = parseOrThrow(createComplianceItemRequestSchema, input, "Invalid compliance item");
 
@@ -96,7 +100,7 @@ export class ComplianceItemService {
     itemId: unknown,
     input: unknown,
   ): Promise<ComplianceItem> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(updateComplianceItemRequestSchema, input, "Invalid compliance item update");
 
     return prisma.$transaction(async (tx) => {
@@ -163,7 +167,7 @@ export class ComplianceItemService {
     itemId: unknown,
     input: unknown,
   ): Promise<ComplianceLink> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const request = parseOrThrow(createComplianceLinkRequestSchema, input, "Invalid compliance link");
 
     return prisma.$transaction(async (tx) => {
@@ -233,7 +237,7 @@ export class ComplianceItemService {
     itemId: unknown,
     linkId: unknown,
   ): Promise<void> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const key = typeof linkId === "string" ? parseComplianceLinkKey(linkId) : null;
     if (!key) {
       throw new ValidationError("Invalid compliance link id.");

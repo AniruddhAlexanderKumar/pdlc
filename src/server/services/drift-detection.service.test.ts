@@ -8,7 +8,7 @@ import type {
   Project,
 } from "@/domain";
 import { driftSignature } from "@/domain";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 import type { BaselineableObject } from "@/server/repositories/baseline-member.repository";
 
 /**
@@ -39,6 +39,13 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/server/repositories/project.repository", () => ({
   findProjectInOrganization: vi.fn(),
 }));
+
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
 
 vi.mock("@/server/repositories/engineering-baseline.repository", () => ({
   createBaseline: vi.fn(),
@@ -187,6 +194,8 @@ vi.mock("@/server/repositories/drift-assessment.repository", () => {
 });
 
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const baselineRepository = await import("@/server/repositories/engineering-baseline.repository");
 const memberRepository = await import("@/server/repositories/baseline-member.repository");
 const observationRepository = await import(
@@ -327,6 +336,18 @@ beforeEach(() => {
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
   vi.mocked(auditLogRepository.recordAuditEvent).mockResolvedValue(undefined as never);
   vi.mocked(auditLogRepository.listAuditEventsForEntity).mockResolvedValue([]);
+  // CONTEXT's actor is a MANAGER on the project by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior do
+  // not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT_ID,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  } as never);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 });
 
 // --- Baseline lifecycle -----------------------------------------------------
@@ -1380,5 +1401,91 @@ describe("what the engine never produces", () => {
     for (const finding of report.findings) {
       expect(driftRule(finding.ruleId), `${finding.ruleId} must be registered`).not.toBeNull();
     }
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT_ID,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating a baseline", async () => {
+    asRole("VIEWER");
+    await expect(
+      service.createBaseline(CONTEXT, PROJECT_ID, { identifier: "BL-001", name: "Design baseline" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(baselineRepository.createBaseline).not.toHaveBeenCalled();
+  });
+
+  it("refuses an ENGINEER activating a baseline — write authority is not approval authority", async () => {
+    asRole("ENGINEER");
+    vi.mocked(baselineRepository.findBaselineInProject).mockResolvedValue(baseline({ status: "DRAFT" }));
+    vi.mocked(memberRepository.listMembers).mockResolvedValue([member()]);
+    vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue(null);
+
+    await expect(
+      service.activateBaseline(CONTEXT, PROJECT_ID, BASELINE_ID, {}),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(baselineRepository.activateBaseline).not.toHaveBeenCalled();
+  });
+
+  it("allows a REVIEWER to activate a baseline", async () => {
+    asRole("REVIEWER");
+    vi.mocked(baselineRepository.findBaselineInProject).mockResolvedValue(baseline({ status: "DRAFT" }));
+    vi.mocked(memberRepository.listMembers).mockResolvedValue([member()]);
+    vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue(null);
+    vi.mocked(baselineRepository.activateBaseline).mockResolvedValue(baseline());
+
+    await expect(
+      service.activateBaseline(CONTEXT, PROJECT_ID, BASELINE_ID, {}),
+    ).resolves.toBeDefined();
+  });
+
+  it("allows an ENGINEER to record an observation but refuses them reviewing it — write authority is not approval authority", async () => {
+    asRole("ENGINEER");
+    vi.mocked(observationRepository.createObservation).mockResolvedValue(observation());
+    await expect(
+      service.recordObservation(CONTEXT, PROJECT_ID, {
+        identifier: "OBS-001",
+        title: "Peak wall temperature",
+        description: "Measured on flight 14.",
+        observationType: "MEASUREMENT",
+        observedAt: "2026-05-01T00:00:00.000Z",
+      }),
+    ).resolves.toBeDefined();
+
+    vi.mocked(observationRepository.findObservationInProject).mockResolvedValue(
+      observation({ status: "RECORDED" }),
+    );
+    await expect(
+      service.reviewObservation(CONTEXT, PROJECT_ID, "obs1", {}),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(observationRepository.transitionObservation).not.toHaveBeenCalled();
+  });
+
+  it("allows a REVIEWER to review an observation", async () => {
+    asRole("REVIEWER");
+    vi.mocked(observationRepository.findObservationInProject).mockResolvedValue(
+      observation({ status: "RECORDED" }),
+    );
+    vi.mocked(observationRepository.transitionObservation).mockResolvedValue(observation());
+
+    await expect(
+      service.reviewObservation(CONTEXT, PROJECT_ID, "obs1", {}),
+    ).resolves.toBeDefined();
+  });
+
+  it("refuses a VIEWER running a drift evaluation", async () => {
+    asRole("VIEWER");
+    await expect(
+      service.evaluateDrift(CONTEXT, PROJECT_ID, { baselineId: BASELINE_ID }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

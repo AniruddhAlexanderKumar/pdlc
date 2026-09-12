@@ -10,9 +10,11 @@ import { prisma } from "@/lib/db";
 import type { OrganizationContext } from "@/server/context/organization-context";
 import { ConflictError, NotFoundError } from "@/server/errors";
 import * as auditLogRepository from "@/server/repositories/audit-log.repository";
+import * as membershipRepository from "@/server/repositories/project-membership.repository";
 import * as organizationRepository from "@/server/repositories/organization.repository";
 import * as projectRepository from "@/server/repositories/project.repository";
 import { parseOrThrow } from "@/server/validation";
+import { requireProjectAccess } from "./authorization.service";
 
 /**
  * Project application service.
@@ -79,6 +81,13 @@ async function requireProjectInOrganization(
   if (!project) {
     throw new NotFoundError(`Project ${projectId} was not found.`);
   }
+
+  // Real project-membership check, on top of the organization scoping
+  // above: a project in the caller's own organization that they are not an
+  // explicit member of (and are not the organization's owner) reads
+  // identically to one in a different organization — not found, never
+  // forbidden, so the API confirms nothing about what it will not show.
+  await requireProjectAccess(context, project.id);
   return project;
 }
 
@@ -98,6 +107,19 @@ export async function createProject(
       },
       tx,
     );
+
+    // The creator gets an explicit MANAGER membership in the same
+    // transaction as the project itself — otherwise a non-owner member
+    // would create a project they could not immediately reach. Granted
+    // even to an organization owner (who would have full access anyway):
+    // an explicit row here means the project's member list is never
+    // missing its own creator.
+    if (context.actorId) {
+      await membershipRepository.createMembership(
+        { projectId: project.id, userId: context.actorId, role: "MANAGER" },
+        tx,
+      );
+    }
 
     await auditLogRepository.recordAuditEvent(
       {

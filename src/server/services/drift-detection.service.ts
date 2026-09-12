@@ -56,7 +56,12 @@ import * as observationRepository from "@/server/repositories/operational-observ
 import * as projectArtifactsRepository from "@/server/repositories/project-artifacts.repository";
 import type { BaselineMemberTargetOptions } from "@/server/repositories/project-artifacts.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectInOrganization,
+  requireProjectApproveAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * The design / operations drift engine.
@@ -161,7 +166,7 @@ export class DriftDetectionService {
     projectId: unknown,
     input: unknown,
   ): Promise<EngineeringBaseline> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(createBaselineRequestSchema, input, "Invalid baseline");
 
     return prisma.$transaction(async (tx) => {
@@ -300,7 +305,7 @@ export class DriftDetectionService {
     baselineId: unknown,
     input: unknown,
   ): Promise<EngineeringBaseline> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(updateBaselineRequestSchema, input, "Invalid baseline update");
 
     return prisma.$transaction(async (tx) => {
@@ -365,7 +370,7 @@ export class DriftDetectionService {
     baselineId: unknown,
     input: unknown,
   ): Promise<EngineeringBaselineMember> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const request = parseOrThrow(addBaselineMemberRequestSchema, input, "Invalid baseline member");
 
     return prisma.$transaction(async (tx) => {
@@ -427,7 +432,7 @@ export class DriftDetectionService {
     baselineId: unknown,
     memberId: unknown,
   ): Promise<void> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const id = parseOrThrow(entityIdSchema, memberId, "Invalid member id");
 
     await prisma.$transaction(async (tx) => {
@@ -471,7 +476,7 @@ export class DriftDetectionService {
     baselineId: unknown,
     input: unknown,
   ): Promise<EngineeringBaseline> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectApproveAccess(context, projectId);
     const { supersedeActive } = parseOrThrow(
       activateBaselineRequestSchema,
       input ?? {},
@@ -545,7 +550,7 @@ export class DriftDetectionService {
     projectId: unknown,
     baselineId: unknown,
   ): Promise<EngineeringBaseline> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectApproveAccess(context, projectId);
 
     return prisma.$transaction(async (tx) => {
       const baseline = await this.requireBaseline(scopedProjectId, baselineId, tx);
@@ -580,7 +585,7 @@ export class DriftDetectionService {
     projectId: unknown,
     input: unknown,
   ): Promise<OperationalObservation> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(createObservationRequestSchema, input, "Invalid observation");
 
     return prisma.$transaction(async (tx) => {
@@ -682,7 +687,7 @@ export class DriftDetectionService {
     observationId: unknown,
     input: unknown,
   ): Promise<OperationalObservation> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(updateObservationRequestSchema, input, "Invalid observation update");
 
     return prisma.$transaction(async (tx) => {
@@ -754,7 +759,7 @@ export class DriftDetectionService {
     to: "REVIEWED" | "REJECTED",
     input: unknown,
   ): Promise<OperationalObservation> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectApproveAccess(context, projectId);
     const { note } = parseOrThrow(
       reviewObservationRequestSchema,
       input ?? {},
@@ -809,7 +814,7 @@ export class DriftDetectionService {
     projectId: unknown,
     request: unknown,
   ): Promise<DriftReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const { baselineId } = parseOrThrow(
       evaluateDriftRequestSchema,
       request ?? {},

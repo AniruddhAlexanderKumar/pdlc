@@ -75,6 +75,14 @@ export async function createTestTenant(label: string): Promise<TestTenant> {
       name: "Integration Test User",
       role: "ADMIN",
       organizationId: organization.id,
+      // This tenant's one user is that organization's sole member — the
+      // same "the earliest (only) user is the de facto owner" reasoning
+      // Engineering Access Control's own migration backfill uses. Without
+      // this, every migrated service's write/approve-tier check would 404
+      // this user out of the very project this function just created for
+      // them, since they would hold neither OWNER nor any explicit
+      // ProjectMembership.
+      organizationRole: "OWNER",
     },
   });
 

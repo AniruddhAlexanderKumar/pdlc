@@ -15,7 +15,7 @@ import { driftDetectionService } from "./drift-detection.service";
 import * as engineeringDecisionService from "./engineering-decision.service";
 import * as evidenceService from "./evidence.service";
 import * as issueService from "./issue.service";
-import { requireProjectInOrganization } from "./project-scope";
+import { requireProjectReadAccess } from "./project-scope";
 import * as requirementService from "./requirement.service";
 import * as riskService from "./risk.service";
 import * as stakeholderNeedService from "./stakeholder-need.service";
@@ -43,7 +43,7 @@ export async function listSelectableRoots(
   projectId: unknown,
   nodeType: unknown,
 ): Promise<TraceabilityRootOption[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const type = parseOrThrow(
     traceabilityNodeTypeSchema,
     nodeType,

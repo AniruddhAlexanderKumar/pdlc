@@ -21,7 +21,13 @@ const CONTEXT = {
   organizationId: "org1aaaaaaaaaaaaaaaaaaaa",
   actorId: "user1aaaaaaaaaaaaaaaaaaa",
   sessionId: "sess1aaaaaaaaaaaaaaaaaa",
-  user: { id: "user1aaaaaaaaaaaaaaaaaaa", name: "Ada", email: "ada@example.test", role: "ADMIN" },
+  user: {
+    id: "user1aaaaaaaaaaaaaaaaaaa",
+    name: "Ada",
+    email: "ada@example.test",
+    role: "ADMIN",
+    organizationRole: "OWNER",
+  },
   organization: { id: "org1aaaaaaaaaaaaaaaaaaaa", name: "Example Aerospace" },
 };
 
@@ -71,7 +77,12 @@ vi.mock("@/server/repositories/decision-expectation.repository", () => ({
   deleteExpectation: vi.fn(),
 }));
 
-vi.mock("@/server/repositories/user.repository", () => ({ isMemberOfOrganization: vi.fn() }));
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
@@ -89,6 +100,7 @@ const alternativeRepository = await import("@/server/repositories/decision-alter
 const assumptionRepository = await import("@/server/repositories/decision-assumption.repository");
 const expectationRepository = await import("@/server/repositories/decision-expectation.repository");
 const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 
 const collection = await import("@/app/api/projects/[projectId]/decisions/route");
@@ -225,6 +237,10 @@ beforeEach(() => {
   vi.mocked(assumptionRepository.listAssumptions).mockResolvedValue([]);
   vi.mocked(expectationRepository.findExpectation).mockResolvedValue(null);
   vi.mocked(auditLogRepository.listAuditEventsForEntity).mockResolvedValue([]);
+  // CONTEXT's user is an organization OWNER (see CONTEXT above) — full
+  // implicit project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
 });
 
 describe("authentication", () => {

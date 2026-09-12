@@ -41,6 +41,7 @@ export async function getAuthenticatedContext(): Promise<AuthenticatedContext | 
       name: user.name,
       email: user.email,
       role: user.role,
+      organizationRole: user.organizationRole,
     },
     organization: {
       id: user.organization.id,
