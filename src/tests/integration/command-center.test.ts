@@ -46,6 +46,8 @@ const modules = databaseAvailable
         .certificationReviewService,
       decisionSentinelService: (await import("@/server/services/decision-sentinel.service"))
         .decisionSentinelService,
+      driftDetectionService: (await import("@/server/services/drift-detection.service"))
+        .driftDetectionService,
     }
   : null;
 
@@ -100,6 +102,18 @@ describe.skipIf(!databaseAvailable)(`Engineering Command Center against PostgreS
         expect(view.sentinel.openCount).toBe(0);
         expect(view.readiness.technical).toHaveLength(5);
         expect(view.readiness.technical.every((gate) => gate.status === "NOT_EVALUATED")).toBe(true);
+        expect(view.configuration).toEqual({
+          hasActiveBaseline: false,
+          baselineId: null,
+          baselineIdentifier: null,
+          baselineName: null,
+          status: null,
+          memberCount: null,
+          changedCount: null,
+          missingCount: null,
+          comparisonStatus: null,
+          href: `/projects/${solo.projectId}/baselines`,
+        });
       } finally {
         await destroyTestTenant(solo);
       }
@@ -216,6 +230,22 @@ describe.skipIf(!databaseAvailable)(`Engineering Command Center against PostgreS
         gate: "RELEASE_READY",
       });
 
+      // --- Configuration baseline: the requirement as a member, then a real edit ---
+      const configBaseline = await modules!.driftDetectionService.createBaseline(
+        ctx,
+        tenant.projectId,
+        { identifier: identifierFor("bl"), name: "Preliminary design baseline" },
+      );
+      await modules!.driftDetectionService.addBaselineMember(ctx, tenant.projectId, configBaseline.id, {
+        nodeType: "REQUIREMENT",
+        nodeId: requirement.id,
+      });
+      await modules!.driftDetectionService.activateBaseline(ctx, tenant.projectId, configBaseline.id, {});
+      // A real product workflow, not a raw update.
+      await modules!.requirementService.updateRequirement(ctx, tenant.projectId, requirement.id, {
+        title: "Maximum chamber pressure (revised)",
+      });
+
       // --- A real Sentinel detection over everything above -------------------------
       await modules!.decisionSentinelService.detectProjectChanges(ctx, tenant.projectId);
 
@@ -252,6 +282,34 @@ describe.skipIf(!databaseAvailable)(`Engineering Command Center against PostgreS
       expect(activeChange).toBeDefined();
       expect(activeChange!.latestAnalysis.status).toBe("COMPLETED");
       expect(activeChange!.latestAnalysis.freshness).toBe("CURRENT");
+
+      // --- Configuration baseline: a real, live comparison, and a real Sentinel signal ---
+      expect(view.configuration).toEqual({
+        hasActiveBaseline: true,
+        baselineId: configBaseline.id,
+        baselineIdentifier: configBaseline.identifier,
+        baselineName: "Preliminary design baseline",
+        status: "ACTIVE",
+        memberCount: 1,
+        changedCount: 1,
+        missingCount: 0,
+        comparisonStatus: "CURRENT",
+        href: `/projects/${tenant.projectId}/baselines/${configBaseline.id}`,
+      });
+      // The Sentinel dependency added for this capability (REQUIREMENT ->
+      // DRIFT_ASSESSMENT) actually fired, from the real detection run above.
+      expect(
+        view.sentinel.targets.some(
+          (t) => t.targetType === "DRIFT_ASSESSMENT" && t.targetIdentifier === configBaseline.identifier,
+        ),
+      ).toBe(true);
+      // Not folded into "Attention Required" — configuration divergence has
+      // its own section, independent of the Sentinel/drift attention rules.
+      expect(
+        view.attentionItems.some(
+          (item) => item.sourceType === "CONFIGURATION_BASELINE" && item.sourceId === configBaseline.id,
+        ),
+      ).toBe(false);
 
       // --- Attention items reflect the same real, authoritative states -----------
       const keys = view.attentionItems.map((item) => item.key);

@@ -48,7 +48,7 @@ vi.mock("./compliance-item.service", () => ({
 }));
 vi.mock("./change-request.service", () => ({ listChangeRequests: vi.fn() }));
 vi.mock("./drift-detection.service", () => ({
-  driftDetectionService: { getLatestDriftAssessment: vi.fn() },
+  driftDetectionService: { getLatestDriftAssessment: vi.fn(), compareBaseline: vi.fn() },
 }));
 vi.mock("./risk.service", () => ({ listRisks: vi.fn() }));
 vi.mock("./issue.service", () => ({ listIssues: vi.fn() }));
@@ -74,6 +74,9 @@ vi.mock("@/server/repositories/project-revision.repository", () => ({
 }));
 vi.mock("@/server/repositories/certification-finding.repository", () => ({
   listOpenFindingsForItems: vi.fn(),
+}));
+vi.mock("@/server/repositories/engineering-baseline.repository", () => ({
+  listBaselinesInProject: vi.fn(),
 }));
 
 const projectService = await import("./project.service");
@@ -101,6 +104,7 @@ const projectRevisionRepository = await import("@/server/repositories/project-re
 const certificationFindingRepository = await import(
   "@/server/repositories/certification-finding.repository"
 );
+const baselineRepository = await import("@/server/repositories/engineering-baseline.repository");
 const service = await import("./project-command-center.service");
 
 function emptyDefaults() {
@@ -136,6 +140,7 @@ function emptyDefaults() {
   vi.mocked(impactAnalysisRepository.findLatestForChanges).mockResolvedValue(new Map());
   vi.mocked(projectRevisionRepository.computeProjectFingerprint).mockResolvedValue("fp-current");
   vi.mocked(certificationFindingRepository.listOpenFindingsForItems).mockResolvedValue([]);
+  vi.mocked(baselineRepository.listBaselinesInProject).mockResolvedValue([]);
 }
 
 beforeEach(() => {
@@ -364,6 +369,81 @@ describe("mixed-state project", () => {
 
     expect(view.readiness.drift.status).toBe("DRIFT_DETECTED");
     expect(view.attentionItems.some((item) => item.sourceType === "DRIFT_ASSESSMENT")).toBe(true);
+  });
+
+  it("surfaces the active baseline's real member count and a live changed/missing comparison", async () => {
+    vi.mocked(baselineRepository.listBaselinesInProject).mockResolvedValue([
+      {
+        id: "bl1",
+        identifier: "BL-001",
+        name: "Preliminary design baseline",
+        status: "ACTIVE",
+        memberCount: 3,
+        assessmentCount: 0,
+      },
+    ] as never);
+    vi.mocked(driftDetectionService.compareBaseline).mockResolvedValue({
+      baselineId: "bl1",
+      summary: { total: 3, unchanged: 1, changed: 1, missing: 1, unknown: 0 },
+      members: [],
+    } as never);
+
+    const view = await service.getCommandCenter(CONTEXT, PROJECT_ID);
+
+    expect(view.configuration).toEqual({
+      hasActiveBaseline: true,
+      baselineId: "bl1",
+      baselineIdentifier: "BL-001",
+      baselineName: "Preliminary design baseline",
+      status: "ACTIVE",
+      memberCount: 3,
+      changedCount: 1,
+      missingCount: 1,
+      comparisonStatus: "CURRENT",
+      href: `/projects/${PROJECT_ID}/baselines/bl1`,
+    });
+    // A literal stored aggregate, not a re-derived count from fetching every member.
+    expect(baselineRepository.listBaselinesInProject).toHaveBeenCalledWith(PROJECT_ID, {
+      status: "ACTIVE",
+    });
+    // Not folded into "Attention Required" — configuration divergence is its
+    // own section, independent of the persisted-drift-assessment attention rule.
+    expect(view.attentionItems.some((item) => item.sourceModule === "DRIFT")).toBe(false);
+  });
+
+  it("reports comparisonStatus UNKNOWN when a member's comparison itself came back unknown", async () => {
+    vi.mocked(baselineRepository.listBaselinesInProject).mockResolvedValue([
+      { id: "bl1", identifier: "BL-001", name: "X", status: "ACTIVE", memberCount: 1, assessmentCount: 0 },
+    ] as never);
+    vi.mocked(driftDetectionService.compareBaseline).mockResolvedValue({
+      baselineId: "bl1",
+      summary: { total: 1, unchanged: 0, changed: 0, missing: 0, unknown: 1 },
+      members: [],
+    } as never);
+
+    const view = await service.getCommandCenter(CONTEXT, PROJECT_ID);
+
+    expect(view.configuration.comparisonStatus).toBe("UNKNOWN");
+  });
+
+  it("reports an honest no-active-baseline state rather than a zeroed comparison", async () => {
+    vi.mocked(baselineRepository.listBaselinesInProject).mockResolvedValue([]);
+
+    const view = await service.getCommandCenter(CONTEXT, PROJECT_ID);
+
+    expect(view.configuration).toEqual({
+      hasActiveBaseline: false,
+      baselineId: null,
+      baselineIdentifier: null,
+      baselineName: null,
+      status: null,
+      memberCount: null,
+      changedCount: null,
+      missingCount: null,
+      comparisonStatus: null,
+      href: `/projects/${PROJECT_ID}/baselines`,
+    });
+    expect(driftDetectionService.compareBaseline).not.toHaveBeenCalled();
   });
 
   it("shows open risks and high/critical issues, and only high/critical issues as attention", async () => {

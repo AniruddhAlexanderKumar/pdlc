@@ -3,6 +3,7 @@
 import * as React from "react";
 import type {
   AddBaselineMemberRequest,
+  BaselineComparisonStatus,
   BaselineMemberType,
   BaselineStatus,
   CreateBaselineRequest,
@@ -211,6 +212,54 @@ export function useBaselineMemberTargets(projectId: string) {
   return useResource<BaselineMemberTargetsDto>(
     React.useCallback((signal) => fetchBaselineMemberTargets(projectId, signal), [projectId]),
     `baselineTargets:${projectId}`,
+  );
+}
+
+// --- Baseline comparison -----------------------------------------------------
+
+export interface BaselineComparisonMemberDto {
+  memberId: string;
+  nodeType: BaselineMemberType;
+  nodeId: string;
+  identifier: string | null;
+  label: string;
+  baselinedState: string | null;
+  currentState: string | null;
+  baselinedFingerprint: string;
+  currentFingerprint: string | null;
+  status: BaselineComparisonStatus;
+  declaredChanges: Array<{ changeRequestId: string; identifier: string; status: string }>;
+}
+
+export interface BaselineComparisonDto {
+  baselineId: string;
+  baselineIdentifier: string;
+  baselineName: string;
+  baselineStatus: BaselineStatus;
+  comparedAt: string;
+  members: BaselineComparisonMemberDto[];
+  summary: { total: number; unchanged: number; changed: number; missing: number; unknown: number };
+}
+
+export async function fetchBaselineComparison(
+  projectId: string,
+  baselineId: string,
+  signal?: AbortSignal,
+): Promise<BaselineComparisonDto> {
+  return requestJson<BaselineComparisonDto>(
+    `${baselinesBase(projectId)}/${baselineId}/compare`,
+    "comparison",
+    { signal },
+  );
+}
+
+export function useBaselineComparison(projectId: string, baselineId: string) {
+  return useResource<BaselineComparisonDto>(
+    React.useCallback(
+      (signal) => fetchBaselineComparison(projectId, baselineId, signal),
+      [projectId, baselineId],
+    ),
+    `baselineComparison:${projectId}:${baselineId}`,
   );
 }
 

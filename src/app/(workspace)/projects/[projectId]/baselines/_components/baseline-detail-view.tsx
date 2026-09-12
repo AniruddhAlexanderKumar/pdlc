@@ -15,12 +15,14 @@ import {
 import { BASELINE_MEMBER_TYPES, type BaselineMemberType } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import {
+  type BaselineComparisonMemberDto,
   type BaselineMemberWithCurrentDto,
   activateBaseline,
   addBaselineMember,
   removeBaselineMember,
   supersedeBaseline,
   useBaseline,
+  useBaselineComparison,
   useBaselineMemberTargets,
 } from "@/lib/api/drift";
 import { ArtifactHistory, DetailField } from "@/components/common/artifact-panels";
@@ -192,6 +194,8 @@ export function BaselineDetailView({
         </CardContent>
       </Card>
 
+      <BaselineComparisonCard projectId={projectId} baselineId={baseline.id} />
+
       <BaselineMembers
         projectId={projectId}
         baselineId={baseline.id}
@@ -211,6 +215,124 @@ export function BaselineDetailView({
         onOpenChange={setIsEditOpen}
         onSaved={() => reload()}
       />
+    </div>
+  );
+}
+
+/**
+ * The formal snapshot-vs-current comparison: exactly what
+ * `classifyBaselineMemberComparison` can prove, and nothing more.
+ *
+ * A read of its own — this fetches `/compare` independently of the
+ * membership table above, so it reflects the same live classification the
+ * Command Center's Configuration section and the API both read, rather than
+ * the browser re-deriving it from `changed`/`currentFingerprint` a second way.
+ */
+function BaselineComparisonCard({
+  projectId,
+  baselineId,
+}: {
+  projectId: string;
+  baselineId: string;
+}) {
+  const { state } = useBaselineComparison(projectId, baselineId);
+
+  if (state.phase === "loading") {
+    return null;
+  }
+  if (state.phase === "error") {
+    return (
+      <p role="alert" className="flex items-start gap-2 text-sm text-destructive">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <span>{describeApiError(state.error)}</span>
+      </p>
+    );
+  }
+  // Defensive: `state.data` is always populated in production once "ready" —
+  // this guards only against a malformed/partial response.
+  if (!state.data) {
+    return null;
+  }
+
+  const { summary, members } = state.data;
+  const changed = members.filter((m) => m.status === "CHANGED");
+  const missing = members.filter((m) => m.status === "OBJECT_MISSING");
+  const unknown = members.filter((m) => m.status === "UNKNOWN");
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Configuration comparison</CardTitle>
+        <CardDescription>
+          The approved snapshot against the engineering record, right now. A count and a
+          classification only — not a score, and not a re-run of drift evaluation.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
+          <ComparisonStat label="Total members" value={summary.total} />
+          <ComparisonStat label="Unchanged" value={summary.unchanged} />
+          <ComparisonStat label="Changed" value={summary.changed} emphasis={summary.changed > 0} />
+          <ComparisonStat label="Missing" value={summary.missing} emphasis={summary.missing > 0} />
+        </dl>
+
+        <ComparisonGroup title="Changed members" members={changed} />
+        <ComparisonGroup title="Missing members" members={missing} />
+        <ComparisonGroup title="Unknown" members={unknown} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ComparisonStat({
+  label,
+  value,
+  emphasis = false,
+}: {
+  label: string;
+  value: number;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className={`text-lg font-semibold ${emphasis ? "text-warning" : "text-foreground"}`}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function ComparisonGroup({
+  title,
+  members,
+}: {
+  title: string;
+  members: BaselineComparisonMemberDto[];
+}) {
+  if (members.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {title} ({members.length})
+      </span>
+      <ul className="flex flex-col divide-y divide-border">
+        {members.map((member) => (
+          <li key={member.memberId} className="flex flex-col gap-0.5 py-1.5">
+            <span className="text-sm text-foreground">
+              {member.identifier && <span className="font-mono">{member.identifier} — </span>}
+              {member.label}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {driftLabel(member.nodeType)}
+              {member.declaredChanges.length > 0
+                ? ` · declared on ${member.declaredChanges.map((c) => c.identifier).join(", ")}`
+                : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

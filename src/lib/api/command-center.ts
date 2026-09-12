@@ -169,6 +169,19 @@ export interface SentinelOverviewDto {
   }>;
 }
 
+export interface ConfigurationOverviewDto {
+  hasActiveBaseline: boolean;
+  baselineId: string | null;
+  baselineIdentifier: string | null;
+  baselineName: string | null;
+  status: "DRAFT" | "ACTIVE" | "SUPERSEDED" | null;
+  memberCount: number | null;
+  changedCount: number | null;
+  missingCount: number | null;
+  comparisonStatus: "CURRENT" | "UNKNOWN" | null;
+  href: string;
+}
+
 export interface CommandCenterDto {
   project: CommandCenterProjectDto;
   attentionItems: AttentionItemDto[];
@@ -180,6 +193,7 @@ export interface CommandCenterDto {
     assumptions: AssumptionOverviewDto;
     drift: DriftOverviewDto;
   };
+  configuration: ConfigurationOverviewDto;
   risks: RiskOverviewDto;
   issues: IssueOverviewDto;
   suppliers: SupplierOverviewDto;

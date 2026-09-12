@@ -55,6 +55,18 @@ function baseView(overrides: Record<string, unknown> = {}) {
         href: `/projects/${PROJECT_ID}/drift`,
       },
     },
+    configuration: {
+      hasActiveBaseline: false,
+      baselineId: null,
+      baselineIdentifier: null,
+      baselineName: null,
+      status: null,
+      memberCount: null,
+      changedCount: null,
+      missingCount: null,
+      comparisonStatus: null,
+      href: `/projects/${PROJECT_ID}/baselines`,
+    },
     risks: { open: 0, items: [] },
     issues: { open: 0, attentionCount: 0, items: [] },
     suppliers: { suppliersUnderReview: [], suppliedItemsUnderReview: [], qualificationsAttention: [] },
@@ -163,6 +175,46 @@ describe("CommandCenterView", () => {
       expect(screen.queryByText("Issue ISS-001 is CRITICAL and OPEN")).not.toBeInTheDocument();
     });
     expect(screen.getByText("Risk RSK-001 is OPEN")).toBeInTheDocument();
+  });
+
+  it("shows the active baseline's real member and changed counts, with a working link", async () => {
+    routeGets(
+      baseView({
+        configuration: {
+          hasActiveBaseline: true,
+          baselineId: "bl1",
+          baselineIdentifier: "BL-001",
+          baselineName: "Preliminary design baseline",
+          status: "ACTIVE",
+          memberCount: 3,
+          changedCount: 1,
+          missingCount: 0,
+          comparisonStatus: "CURRENT",
+          href: `/projects/${PROJECT_ID}/baselines/bl1`,
+        },
+      }),
+    );
+
+    render(<CommandCenterView projectId={PROJECT_ID} />);
+
+    expect(await screen.findByText("Baseline BL-001")).toBeInTheDocument();
+    expect(screen.getByText(/3 member\(s\) · 1 changed · 0 no longer resolvable/)).toBeInTheDocument();
+    const links = screen.getAllByRole("link", { name: "Open" });
+    expect(links.some((link) => link.getAttribute("href") === `/projects/${PROJECT_ID}/baselines/bl1`)).toBe(
+      true,
+    );
+  });
+
+  it("shows an honest empty state when the project has no active baseline", async () => {
+    routeGets(baseView());
+
+    render(<CommandCenterView projectId={PROJECT_ID} />);
+
+    expect(await screen.findByText("No active baseline exists yet for this project.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open baseline workspace" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT_ID}/baselines`,
+    );
   });
 
   it("never renders a score, probability, heatmap or percentage anywhere on the page", async () => {

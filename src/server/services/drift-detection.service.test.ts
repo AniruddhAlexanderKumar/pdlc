@@ -195,7 +195,7 @@ const observationRepository = await import(
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 const assessmentRepository = (await import(
   "@/server/repositories/drift-assessment.repository"
-)) as unknown as { __reset: () => void };
+)) as unknown as { __reset: () => void; loadChangeContext: ReturnType<typeof vi.fn> };
 
 const { DriftDetectionService } = await import("./drift-detection.service");
 
@@ -512,6 +512,99 @@ describe("baseline lifecycle", () => {
     await expect(
       service.createBaseline(CONTEXT, "other-project", { identifier: "BL-001", name: "X" }),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+// --- Baseline comparison -----------------------------------------------------
+
+describe("baseline comparison", () => {
+  it("classifies an unchanged member as UNCHANGED", async () => {
+    scenario({ members: [member()], current: [currentObject()] });
+
+    const report = await service.compareBaseline(CONTEXT, PROJECT_ID, BASELINE_ID);
+
+    expect(report.summary).toEqual({ total: 1, unchanged: 1, changed: 0, missing: 0, unknown: 0 });
+    expect(report.members[0]!.status).toBe("UNCHANGED");
+  });
+
+  it("classifies a member whose current fingerprint differs as CHANGED", async () => {
+    scenario({
+      members: [member()],
+      current: [currentObject({ fingerprint: "fp-now", label: "Combustion chamber (rev B)" })],
+    });
+
+    const report = await service.compareBaseline(CONTEXT, PROJECT_ID, BASELINE_ID);
+
+    expect(report.summary).toEqual({ total: 1, unchanged: 0, changed: 1, missing: 0, unknown: 0 });
+    expect(report.members[0]!.status).toBe("CHANGED");
+    expect(report.members[0]!.currentState).toBe("APPROVED");
+  });
+
+  it("classifies a member that no longer resolves in the project as OBJECT_MISSING", async () => {
+    scenario({ members: [member()], current: [] });
+
+    const report = await service.compareBaseline(CONTEXT, PROJECT_ID, BASELINE_ID);
+
+    expect(report.summary).toEqual({ total: 1, unchanged: 0, changed: 0, missing: 1, unknown: 0 });
+    expect(report.members[0]!.status).toBe("OBJECT_MISSING");
+    expect(report.members[0]!.currentFingerprint).toBeNull();
+  });
+
+  it("attaches a declared change request already on record for a changed member", async () => {
+    scenario({
+      members: [member()],
+      current: [currentObject({ fingerprint: "fp-now" })],
+    });
+    vi.mocked(assessmentRepository.loadChangeContext).mockResolvedValue(
+      new Map([["DESIGN_ITEM:di1", [{ changeRequestId: "cr1", identifier: "CR-001", status: "SUBMITTED" }]]]),
+    );
+
+    const report = await service.compareBaseline(CONTEXT, PROJECT_ID, BASELINE_ID);
+
+    expect(report.members[0]!.declaredChanges).toEqual([
+      { changeRequestId: "cr1", identifier: "CR-001", status: "SUBMITTED" },
+    ]);
+  });
+
+  it("is a pure read: calling it twice never writes anything", async () => {
+    scenario({ members: [member()], current: [currentObject({ fingerprint: "fp-now" })] });
+
+    await service.compareBaseline(CONTEXT, PROJECT_ID, BASELINE_ID);
+    await service.compareBaseline(CONTEXT, PROJECT_ID, BASELINE_ID);
+
+    expect(auditLogRepository.recordAuditEvent).not.toHaveBeenCalled();
+  });
+
+  it("works against a DRAFT baseline — comparison is not restricted to ACTIVE/SUPERSEDED", async () => {
+    scenario({
+      members: [member()],
+      current: [currentObject({ fingerprint: "fp-now" })],
+      baselineStatus: "DRAFT",
+    });
+
+    const report = await service.compareBaseline(CONTEXT, PROJECT_ID, BASELINE_ID);
+
+    expect(report.baselineStatus).toBe("DRAFT");
+    expect(report.summary.changed).toBe(1);
+  });
+
+  it("404s for a baseline in another project", async () => {
+    vi.mocked(baselineRepository.findBaselineInProject).mockResolvedValue(null);
+
+    await expect(
+      service.compareBaseline(CONTEXT, PROJECT_ID, "bl-elsewhere"),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("never contains a score or percentage anywhere in the response", async () => {
+    scenario({
+      members: [member(), member({ id: "mem2", nodeId: "di2" })],
+      current: [currentObject({ fingerprint: "fp-now" })],
+    });
+
+    const report = await service.compareBaseline(CONTEXT, PROJECT_ID, BASELINE_ID);
+
+    expect(JSON.stringify(report)).not.toMatch(/score|percent|confidence|probability/i);
   });
 });
 

@@ -1,5 +1,7 @@
 import {
   DRIFT_VERSION,
+  type BaselineComparisonMember,
+  type BaselineComparisonReport,
   type BaselineMemberType,
   type DriftAssessment,
   type DriftBasisMarker,
@@ -16,6 +18,7 @@ import {
   addBaselineMemberRequestSchema,
   canTransitionBaseline,
   canTransitionObservation,
+  classifyBaselineMemberComparison,
   compareDriftFindings,
   compareObservedValue,
   createBaselineRequestSchema,
@@ -35,6 +38,7 @@ import {
   observationTypeSchema,
   reviewObservationRequestSchema,
   severityForDriftStatus,
+  summarizeBaselineComparison,
   updateBaselineRequestSchema,
   updateObservationRequestSchema,
 } from "@/domain";
@@ -208,21 +212,16 @@ export class DriftDetectionService {
     baselineId: unknown,
   ): Promise<BaselineDetail> {
     const scopedProjectId = await requireProjectInOrganization(context, projectId);
-    const baseline = await this.requireBaseline(scopedProjectId, baselineId);
-
-    const [members, history] = await Promise.all([
-      memberRepository.listMembers(baseline.id),
-      auditLogRepository.listAuditEventsForEntity({
-        organizationId: context.organizationId,
-        entityType: BASELINE_ENTITY_TYPE,
-        entityId: baseline.id,
-      }),
-    ]);
-
-    const current = await memberRepository.loadBaselineableObjects(
+    const { baseline, members, current } = await this.resolveMembersWithCurrent(
       scopedProjectId,
-      members.map((member) => ({ nodeType: member.nodeType, nodeId: member.nodeId })),
+      baselineId,
     );
+
+    const history = await auditLogRepository.listAuditEventsForEntity({
+      organizationId: context.organizationId,
+      entityType: BASELINE_ENTITY_TYPE,
+      entityId: baseline.id,
+    });
 
     return {
       ...baseline,
@@ -237,6 +236,61 @@ export class DriftDetectionService {
         };
       }),
       history,
+    };
+  }
+
+  /**
+   * Deterministic snapshot-vs-current comparison for one baseline, in any
+   * status (DRAFT included) — the formal classification behind the `changed`
+   * flag `getBaseline` already exposes, plus any declared change requests
+   * already on record against a changed member.
+   *
+   * Not a drift evaluation: nothing here reads an observation, applies a
+   * `DRIFT_RULES` rule, or writes anything. Calling this twice in a row
+   * always returns the same shape for the same underlying state, and never
+   * persists a row — there is nothing here for a later read to find stale.
+   */
+  async compareBaseline(
+    context: OrganizationContext,
+    projectId: unknown,
+    baselineId: unknown,
+  ): Promise<BaselineComparisonReport> {
+    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const { baseline, members, current } = await this.resolveMembersWithCurrent(
+      scopedProjectId,
+      baselineId,
+    );
+
+    const refs = members.map((member) => ({ nodeType: member.nodeType, nodeId: member.nodeId }));
+    const declaredChanges = await assessmentRepository.loadChangeContext(scopedProjectId, refs);
+
+    const comparisonMembers: BaselineComparisonMember[] = members
+      .map((member) => {
+        const now = current.get(memberKey(member.nodeType, member.nodeId)) ?? null;
+        return {
+          memberId: member.id,
+          nodeType: member.nodeType,
+          nodeId: member.nodeId,
+          identifier: member.identifierSnapshot,
+          label: member.labelSnapshot,
+          baselinedState: member.stateSnapshot,
+          currentState: now?.state ?? null,
+          baselinedFingerprint: member.fingerprint,
+          currentFingerprint: now?.fingerprint ?? null,
+          status: classifyBaselineMemberComparison(member.fingerprint, now),
+          declaredChanges: declaredChanges.get(memberKey(member.nodeType, member.nodeId)) ?? [],
+        };
+      })
+      .sort((a, b) => (a.memberId < b.memberId ? -1 : a.memberId > b.memberId ? 1 : 0));
+
+    return {
+      baselineId: baseline.id,
+      baselineIdentifier: baseline.identifier,
+      baselineName: baseline.name,
+      baselineStatus: baseline.status,
+      comparedAt: new Date(),
+      members: comparisonMembers,
+      summary: summarizeBaselineComparison(comparisonMembers),
     };
   }
 
@@ -890,6 +944,29 @@ export class DriftDetectionService {
   }
 
   // --- Internals ------------------------------------------------------------
+
+  /**
+   * Resolves one baseline, its membership, and every member's current state
+   * — the one read `getBaseline` and `compareBaseline` both need, kept in one
+   * place so "what does this baseline's membership look like against the
+   * record right now" is answered identically by both.
+   */
+  private async resolveMembersWithCurrent(
+    projectId: string,
+    baselineId: unknown,
+  ): Promise<{
+    baseline: EngineeringBaseline;
+    members: EngineeringBaselineMember[];
+    current: Map<string, BaselineableObject>;
+  }> {
+    const baseline = await this.requireBaseline(projectId, baselineId);
+    const members = await memberRepository.listMembers(baseline.id);
+    const current = await memberRepository.loadBaselineableObjects(
+      projectId,
+      members.map((member) => ({ nodeType: member.nodeType, nodeId: member.nodeId })),
+    );
+    return { baseline, members, current };
+  }
 
   private async requireBaseline(
     projectId: string,

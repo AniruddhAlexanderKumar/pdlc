@@ -3546,6 +3546,232 @@ real source page, confirm an empty project's honest empty state, and
 confirm project isolation through both the real API and the real UI's
 error state.
 
+**Addendum, from the Engineering Configuration and Baseline Integrity
+capability below:** the response gained one more top-level section,
+`configuration` — the project's active engineering baseline and a live
+comparison against it. See
+[Engineering Configuration and Baseline Integrity](#engineering-configuration-and-baseline-integrity)
+for what it contains and why it is independent of the `drift` section
+above.
+
+## Engineering Configuration and Baseline Integrity
+
+The remaining configuration-control question this product's engineering
+record had not yet answered: given `EngineeringBaseline` already exists —
+built for [Design / operations drift](#design--operations-drift) — can a
+user tell, directly and without running a drift evaluation, whether the
+approved basis still matches the record right now? This capability adds
+exactly that, and nothing else. There is no second baseline model, no
+branch/merge/variant/effectivity concept, and no new lifecycle: every
+rule in `BASELINE_STATUSES` / `BASELINE_TRANSITIONS` /
+`isBaselineMembershipEditable` / `isBaselineImmutable` (`drift.ts`) is
+exactly as it was, and the full Baseline workspace this capability builds
+on — list, create DRAFT, add/remove members while DRAFT, activate,
+supersede, inspect membership with its snapshot-vs-current fields — was
+already built for Drift and is reused here without modification.
+
+### What already existed, confirmed by inspection before writing anything
+
+`EngineeringBaseline` / `EngineeringBaselineMember` (frozen snapshot:
+`fingerprint`, `stateSnapshot`, `identifierSnapshot`, `labelSnapshot`,
+`revisionSnapshot`), the seven `BASELINE_MEMBER_TYPES` (`REQUIREMENT`,
+`DESIGN_ITEM`, `ENGINEERING_DECISION`, `DECISION_EXPECTATION`,
+`VERIFICATION_ACTIVITY`, `SUPPLIED_ITEM`, `SUPPLIER_QUALIFICATION` — no
+eighth type was invented), `baseline-member.repository.ts`'s
+`loadBaselineableObjects` (the current-state-and-fingerprint batch read,
+one query per type present, already used by both `addBaselineMember` and
+`evaluateDrift`), the full baseline lifecycle API and UI
+(`/api/projects/:id/baselines/...`, `/projects/:id/baselines/...`), the
+graph's own `ENGINEERING_BASELINE` / `BASELINE_MEMBER` node types and
+`BASELINE_HAS_MEMBER` / `BASELINE_MEMBER_REFERENCES_OBJECT` /
+`DRIFT_ASSESSMENT_AGAINST_BASELINE` edges, and Traceability's own
+`ENGINEERING_BASELINE` selectable root with a real detail route
+(`traceabilityDetailRoute("ENGINEERING_BASELINE", ...)` →
+`/projects/:id/baselines/:baselineId`) — all pre-existing, all reused
+unmodified. Traceability needed no change at all: baseline exposure was
+already complete.
+
+### The one new capability: a formal comparison, independent of drift
+
+`getBaseline`'s own `changed: boolean` / `currentFingerprint: string |
+null` per member already proved the underlying fact; what did not exist
+was a *named*, deterministic classification a caller — the baseline UI,
+the Command Center, an API consumer — could all read identically instead
+of re-deriving it three different ways. `src/domain/baseline-comparison.ts`
+adds exactly that:
+
+- `BaselineComparisonStatus` = `UNCHANGED` | `CHANGED` | `OBJECT_MISSING` |
+  `UNKNOWN`, decided by one pure, total function,
+  `classifyBaselineMemberComparison(baselinedFingerprint, current)`:
+  `OBJECT_MISSING` when the object no longer resolves in the project (the
+  same "current is absent" case `getBaseline` already showed as `Not
+  resolvable`); `UNCHANGED` / `CHANGED` by direct fingerprint equality;
+  `UNKNOWN` only in the defensive case of a member row whose own captured
+  fingerprint is empty. There is no fifth `OBJECT_NO_LONGER_MATCHES`
+  state — given only a fingerprint pair, that would be indistinguishable
+  from `CHANGED`, and inventing a distinction the data cannot prove is
+  exactly what this capability's own specification forbids.
+- `DriftDetectionService.compareBaseline(context, projectId, baselineId)`
+  — the one new service method, on the *same* class that already owns
+  every other baseline operation (adding a second service for this would
+  be the "second configuration-management system" the specification
+  explicitly forbids). A new private helper,
+  `resolveMembersWithCurrent`, factors out the "baseline → members →
+  current state" read `getBaseline` already performed, so both methods
+  answer "what does this baseline's membership look like against the
+  record right now" identically. `compareBaseline` also attaches, per
+  changed member, any change request already declared against it — read
+  from the same `loadChangeContext` batch function `DR-CTX-001` already
+  uses, never a second traversal.
+- **Not a drift evaluation.** Nothing here reads an `OperationalObservation`,
+  applies a `DRIFT_RULES` rule, or persists a row — it is a pure, live
+  read, available for a baseline in *any* status (`DRAFT` included, where
+  no `DriftAssessment` could ever exist), and calling it twice never
+  changes anything. `DriftAssessment`'s own `DR-BAS-002` / `DR-BAS-003`
+  findings answer a related but broader question (also folding in
+  expectations, supplier state and observations) and remain exactly as
+  they were — this capability reuses the same underlying fingerprint
+  fact, not the rule that already reports it.
+
+### API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/projects/:projectId/baselines/:baselineId/compare` | The formal comparison: per-member classification, declared changes, and summary counts |
+
+`GET` is the only verb this route exports — comparison is a read, and a
+test asserts `POST`/`PATCH`/`DELETE` are all `undefined` on the route
+module. Every other baseline route above is unchanged.
+
+### Frontend
+
+The baseline detail page (`baseline-detail-view.tsx`) gained a
+"Configuration comparison" card, above the existing membership table:
+total/unchanged/changed/missing counts, and a "Changed members" /
+"Missing members" / "Unknown" grouping — fetched independently through
+the new endpoint, so it reflects exactly what an API consumer would see,
+rather than the browser re-deriving the classification a second way from
+`getBaseline`'s own `changed` flag. No baseline UI language changed to
+generic "version control" wording — the page still speaks in terms of an
+engineering basis and a snapshot, matching the rest of this capability.
+
+### Change Request integration
+
+Unchanged, and deliberately so. A change that edits a baseline member is
+indistinguishable, from this capability's point of view, from any other
+edit — `compareBaseline` reports `CHANGED` either way, and attaches the
+declared change request as context via the same `loadChangeContext` read
+`DR-CTX-001` already used. Nothing here automatically re-baselines,
+automatically approves or rejects the change, or writes back to the
+change request. The change request remains the sole authoritative record
+of *why* something changed; this capability only proves *that* it did.
+
+### Sentinel integration: one genuine gap, closed
+
+Inspection of `SURVEILLANCE_DEPENDENCY_RULES` before writing anything
+found a real, provable gap: `DESIGN_ITEM`, `SUPPLIED_ITEM`,
+`SUPPLIER_QUALIFICATION` and `OPERATIONAL_OBSERVATION` all already had a
+`→ DRIFT_ASSESSMENT` dependency row, but `REQUIREMENT`,
+`ENGINEERING_DECISION` and `VERIFICATION_ACTIVITY` — three of the seven
+real `BaselineMemberType`s, each already a `SurveillanceSourceType` — did
+not, despite `loadBaselineableObjects` folding every one of the seven
+types into `driftFingerprint`'s basis identically. Reachability was
+confirmed before adding anything: `DecisionSentinelService
+.candidatesFromDrift` is fully generic —
+`members.some((member) => member.nodeType === event.sourceType && member.nodeId === event.sourceId)`
+— so the fix required zero service-code changes, only three new rows in
+the registry (each reusing the existing `ENGINEERING_OBJECT_CHANGED` /
+`DECISION_BASIS_CHANGED` event types the source type already mapped to —
+no new event type). No dependency row was added for
+`DECISION_EXPECTATION`: it is a real `BaselineMemberType` but is not
+itself a `SurveillanceSourceType` at all (a pre-existing gap, unrelated
+to baseline integrity, and out of scope for the minimal fix this
+capability's own specification called for).
+
+Baseline surveillance itself needed no new work: `candidatesFromDrift`
+already treats a changed baseline member of *any* type identically, and
+already emits nothing when the changed object is not a member of the
+project's active baseline — "unrelated object creates no target" already
+held for all seven types, the three new rows only make it *reachable*
+for three of them.
+
+### Technical / Verification / Certification Readiness
+
+Confirmed unchanged, by inspection: none of the three readiness engines
+reads baseline or drift state in any rule today (the same fact the
+Drift capability's own documentation already recorded — "not integrated
+with any new rule in this pass"). No readiness rule was added here
+either; the specification for this capability was explicit that a
+silent new readiness rule is out of scope, and the Baseline workspace
+already shows divergence on its own, independent of whether any
+readiness engine ever consumes it.
+
+### Command Center integration
+
+A `configuration` section, added to the existing Command Center response
+(`CommandCenterConfigurationOverview`, `src/domain/command-center.ts`):
+the active baseline's identifier/name/status, its `memberCount` — a
+literal read of the same stored aggregate (`_count.members`)
+`listBaselinesInProject` already computed for the Baseline workspace's
+own list view, not a re-derived count — and a live `changedCount` /
+`missingCount` from one `compareBaseline` call, bounded to the single
+active baseline (never every baseline in the project). `comparisonStatus`
+is `"CURRENT"` once every member was classified, `"UNKNOWN"` only if a
+member's own comparison came back `UNKNOWN`, and `null` when there is no
+active baseline — a distinct, honest state, not a zeroed-out comparison.
+Deliberately **not** folded into "Attention Required": that list is
+built entirely from Prompt 22's own closed rule set, and this capability
+was explicit that configuration divergence gets its own section rather
+than a new, silently-added attention rule. The Command Center UI gained a
+matching "Configuration baseline" card with a link into the real
+workspace.
+
+### No false precision, anywhere
+
+No percentage, no "N% aligned", no configuration health score, no risk
+score, and no AI-generated explanation exists anywhere in this
+capability — the domain module's own doc comment states the four
+classifications as the complete list of what a fingerprint pair can
+prove, and every test layer below carries the same negative-assertion
+regex the rest of this codebase uses (`score|percent|confidence|
+probability`).
+
+### Verification
+
+No schema change of any kind — `prisma format`/`validate` before and
+after this capability produce an identical `schema.prisma`; this is pure
+composition over data `EngineeringBaseline` already persists, the same
+shape as the Traceability workspace and the Command Center before it.
+Unit suites: `baseline-comparison.test.ts` (the classification function
+and the summary tally, both pure), eight new cases in
+`drift-detection.service.test.ts` (`compareBaseline`: `UNCHANGED` /
+`CHANGED` / `OBJECT_MISSING`, a declared change attached, no audit row
+written by a read, works against `DRAFT`, 404 across projects, no
+score/percent anywhere), five new cases in `drift.route.test.ts` (the
+`/compare` route), three new cases in `sentinel.test.ts` and
+`decision-sentinel.service.test.ts` proving `REQUIREMENT` /
+`ENGINEERING_DECISION` / `VERIFICATION_ACTIVITY` now reach
+`DRIFT_ASSESSMENT`, and new cases in `project-command-center.service
+.test.ts` / `command-center.route.test.ts` / the Command Center UI suite
+for the new `configuration` section (including the honest
+no-active-baseline state and the `comparisonStatus: "UNKNOWN"` case). A
+PostgreSQL integration suite (new cases in
+`src/tests/integration/drift.test.ts` and
+`src/tests/integration/command-center.test.ts`, both skipped without a
+reachable database) proves the classification against real
+`Requirement` / `EngineeringDecision` / `VerificationActivity` /
+`SuppliedItem` rows edited through their own real services, proves the
+baseline's own stored member rows are untouched by reading a comparison
+or by a later baseline's activation, and proves the Command Center's
+`configuration` section and the newly reachable `DRIFT_ASSESSMENT`
+Sentinel target both reflect one real baseline end to end. A Playwright
+spec extends `drift.spec.ts`: the existing baseline-then-rename flow now
+also opens the baseline directly (no drift evaluation) and confirms the
+formal "Changed members" comparison, a later baseline is created and
+activated and the earlier one's frozen snapshot is confirmed to still
+read as it did at activation, and project isolation is confirmed through
+both the real API and the real UI's error state.
+
 ## Directory structure
 
 ```
@@ -3583,10 +3809,14 @@ src/domain/                 Entities, enums, identifiers, link + input validatio
                               explicit-never-derived applicability/method/
                               status/disposition contract, review fingerprint
                               + freshness
-  sentinel.ts                  THE surveillance dependency registry (45
-                              rows), event/target types + status transitions,
-                              detection-vs-membership distinction (Prisma-free,
-                              no AI, no autonomous decisions)
+  sentinel.ts                  THE surveillance dependency registry (48
+                              rows — REQUIREMENT/ENGINEERING_DECISION/
+                              VERIFICATION_ACTIVITY -> DRIFT_ASSESSMENT
+                              added for baseline integrity, closing a real
+                              gap found by inspection), event/target types
+                              + status transitions, detection-vs-membership
+                              distinction (Prisma-free, no AI, no
+                              autonomous decisions)
   risk.ts                      Lifecycle, not-closed/closed editability,
                               owner contract, three-relation link contract
                               (Risk itself is typed in artifacts.ts, unchanged)
@@ -3612,6 +3842,13 @@ src/domain/                 Entities, enums, identifiers, link + input validatio
                               prefix to avoid colliding with each engine's
                               own same-named finding-tally types); no rule,
                               no score field, no new status vocabulary
+  baseline-comparison.ts        The formal snapshot-vs-current
+                              classification (UNCHANGED/CHANGED/
+                              OBJECT_MISSING/UNKNOWN) and its pure,
+                              deterministic decision function; reuses
+                              EngineeringBaseline/EngineeringBaselineMember
+                              from drift.ts, adds no baseline model of its
+                              own
 
 src/server/
   errors.ts                   AppError + typed subclasses (400/401/403/404/409)
@@ -3635,7 +3872,10 @@ src/server/
                               integrity, typed links, no derived status),
                               drift-detection.service.ts (baseline + observation
                               lifecycle, rule evaluation: read, compare, append
-                              — no comparison policy of its own),
+                              — no comparison policy of its own; compareBaseline
+                              is the one addition for configuration/baseline
+                              integrity — a live snapshot-vs-current read,
+                              never a drift evaluation),
                               certification-program.service.ts /
                               certification-basis.service.ts (singleton
                               programme, basis lifecycle + supersession),
@@ -3763,7 +4003,10 @@ src/app/
   api/projects/[projectId]/baselines          list/create, read/update,
                               [baselineId]/activate (POST), [baselineId]/supersede
                               (POST), [baselineId]/members (list/add),
-                              [baselineId]/members/[memberId] (DELETE)
+                              [baselineId]/members/[memberId] (DELETE),
+                              [baselineId]/compare (GET — the formal
+                              snapshot-vs-current comparison; any status,
+                              DRAFT included)
   api/projects/[projectId]/baseline-member-targets
                               objects in this project eligible for baseline
                               membership
@@ -3952,7 +4195,17 @@ src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
   workspace before it, it is pure read-composition over data every other
   capability already persists; `prisma migrate diff --from-empty` is
   unchanged by this capability, and no new Prisma model, column, or enum
-  value was added anywhere for it.
+  value was added anywhere for it. Engineering Configuration and Baseline
+  Integrity needed no schema change either — `EngineeringBaseline` and
+  `EngineeringBaselineMember` already existed for Drift, and this
+  capability reads them through the existing
+  `loadBaselineableObjects`/`listMembers` repository functions; a fresh
+  `prisma format`/`prisma validate` after this capability produced no
+  diff. The three added rows in `SURVEILLANCE_DEPENDENCY_RULES` (closing
+  the `REQUIREMENT`/`ENGINEERING_DECISION`/`VERIFICATION_ACTIVITY` →
+  `DRIFT_ASSESSMENT` gap) are a plain TypeScript constant, not a database
+  migration — `SurveillanceTargetType` already included `DRIFT_ASSESSMENT`
+  and no enum was touched.
 - Cross-project integrity on the supplier relationship tables is enforced in the
   services — every parent and link target is re-resolved inside the scoped
   project before a write — and any row that still crossed a project is reported

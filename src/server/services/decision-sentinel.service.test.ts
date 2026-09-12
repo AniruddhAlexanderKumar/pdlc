@@ -621,6 +621,77 @@ describe("dependency resolution", () => {
     expect(summary.targetsOpened).toBe(0);
   });
 
+  // REQUIREMENT, ENGINEERING_DECISION and VERIFICATION_ACTIVITY are all real
+  // BaselineMemberType values whose fingerprint the drift basis folds in —
+  // the same generic membership check `candidatesFromDrift` already performs
+  // for DESIGN_ITEM above, now reachable for these three too via the three
+  // dependency rows added to SURVEILLANCE_DEPENDENCY_RULES.
+  it("opens a DRIFT_ASSESSMENT target for a requirement baselined as a member", async () => {
+    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
+      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
+    ] as never);
+    vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue({
+      id: BL_ID,
+      identifier: "BL-001",
+      name: "Design baseline",
+    } as never);
+    vi.mocked(baselineMemberRepository.listMembers).mockResolvedValue([
+      { nodeType: "REQUIREMENT", nodeId: REQ_ID },
+    ] as never);
+
+    const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
+
+    expect(summary.targetsOpened).toBe(1);
+    expect(surveillanceTargetRepository.upsertOpenTarget).toHaveBeenCalledWith(
+      expect.objectContaining({ targetType: "DRIFT_ASSESSMENT", targetId: BL_ID }),
+      TX,
+    );
+  });
+
+  it("opens a DRIFT_ASSESSMENT target for a decision baselined as a member", async () => {
+    vi.mocked(prisma.engineeringDecision.findMany).mockResolvedValue([
+      { id: ED_ID, identifier: "ED-001", title: "Use regenerative cooling", createdAt: T0, updatedAt: T1 },
+    ] as never);
+    vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue({
+      id: BL_ID,
+      identifier: "BL-001",
+      name: "Design baseline",
+    } as never);
+    vi.mocked(baselineMemberRepository.listMembers).mockResolvedValue([
+      { nodeType: "ENGINEERING_DECISION", nodeId: ED_ID },
+    ] as never);
+
+    const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
+
+    expect(summary.targetsOpened).toBe(1);
+    expect(surveillanceTargetRepository.upsertOpenTarget).toHaveBeenCalledWith(
+      expect.objectContaining({ targetType: "DRIFT_ASSESSMENT", targetId: BL_ID }),
+      TX,
+    );
+  });
+
+  it("opens a DRIFT_ASSESSMENT target for a verification activity baselined as a member", async () => {
+    vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([
+      { id: VA_ID, identifier: "VA-001", title: "Hot fire test", createdAt: T0, updatedAt: T1 },
+    ] as never);
+    vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue({
+      id: BL_ID,
+      identifier: "BL-001",
+      name: "Design baseline",
+    } as never);
+    vi.mocked(baselineMemberRepository.listMembers).mockResolvedValue([
+      { nodeType: "VERIFICATION_ACTIVITY", nodeId: VA_ID },
+    ] as never);
+
+    const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
+
+    expect(summary.targetsOpened).toBe(1);
+    expect(surveillanceTargetRepository.upsertOpenTarget).toHaveBeenCalledWith(
+      expect.objectContaining({ targetType: "DRIFT_ASSESSMENT", targetId: BL_ID }),
+      TX,
+    );
+  });
+
   it("opens a drift target for a new observation whenever an active baseline exists", async () => {
     vi.mocked(prisma.operationalObservation.findMany).mockResolvedValue([
       { id: "obs1", identifier: "OBS-001", title: "Peak wall temperature", updatedAt: T1 },

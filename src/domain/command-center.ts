@@ -215,6 +215,39 @@ export interface CommandCenterSentinelOverview {
   }>;
 }
 
+/**
+ * The project's active engineering baseline, and a live, deterministic
+ * comparison against it — never a second drift engine, and never a
+ * configuration score. `memberCount` is the real stored aggregate
+ * (`EngineeringBaseline`'s own `_count.members`), not a re-derived one;
+ * `changedCount` / `missingCount` come from
+ * `DriftDetectionService.compareBaseline`'s own classification, reusing the
+ * exact fingerprint comparison the baseline workspace itself shows.
+ *
+ * All fields are `null` when the project has no ACTIVE baseline — a
+ * distinct, honest state, not a zeroed-out comparison.
+ */
+export interface CommandCenterConfigurationOverview {
+  hasActiveBaseline: boolean;
+  baselineId: string | null;
+  baselineIdentifier: string | null;
+  baselineName: string | null;
+  status: "DRAFT" | "ACTIVE" | "SUPERSEDED" | null;
+  memberCount: number | null;
+  changedCount: number | null;
+  missingCount: number | null;
+  /**
+   * "CURRENT" once every member was classified `UNCHANGED`/`CHANGED`/
+   * `OBJECT_MISSING`; "UNKNOWN" if any member's comparison itself came back
+   * `UNKNOWN` (so `changedCount`/`missingCount` cannot be read as
+   * exhaustive); `null` when there is no active baseline to compare. Never
+   * `STALE` — this is always computed live from the current record, not read
+   * from a stored, potentially outdated assessment.
+   */
+  comparisonStatus: "CURRENT" | "UNKNOWN" | null;
+  href: string;
+}
+
 export interface CommandCenterView {
   project: CommandCenterProject;
   attentionItems: AttentionItem[];
@@ -226,6 +259,7 @@ export interface CommandCenterView {
     assumptions: CommandCenterAssumptionOverview;
     drift: CommandCenterDriftOverview;
   };
+  configuration: CommandCenterConfigurationOverview;
   risks: CommandCenterRiskOverview;
   issues: CommandCenterIssueOverview;
   suppliers: CommandCenterSupplierOverview;

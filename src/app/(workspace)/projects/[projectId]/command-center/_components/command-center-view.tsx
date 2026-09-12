@@ -7,6 +7,7 @@ import {
   Eye,
   Factory,
   FileText,
+  GitBranch,
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
@@ -85,6 +86,8 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
       <AttentionSection items={data.attentionItems} />
 
       <ReadinessSection projectId={projectId} data={data} />
+
+      <ConfigurationSection data={data} />
 
       <RisksIssuesSection data={data} />
 
@@ -474,6 +477,59 @@ function ReadinessSection({ projectId, data }: { projectId: string; data: Comman
         </Card>
       </div>
     </div>
+  );
+}
+
+/**
+ * The active engineering baseline, and a live comparison against it —
+ * independent of the Drift card above, which reflects only the latest
+ * *persisted* drift assessment. Nothing here is a configuration score: a
+ * literal stored member count, a live changed/missing count, and a
+ * confidence flag on whether that count is complete.
+ */
+function ConfigurationSection({ data }: { data: CommandCenterDto }) {
+  const { configuration } = data;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <GitBranch className="size-4 text-muted-foreground" aria-hidden="true" />
+          <CardTitle>Configuration baseline</CardTitle>
+        </div>
+        <CardDescription>
+          {configuration.hasActiveBaseline
+            ? `Baseline ${configuration.baselineIdentifier ?? "—"}`
+            : "No active baseline exists yet for this project."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {configuration.hasActiveBaseline ? (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-foreground">{configuration.baselineName}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <StateBadge state={configuration.status ?? "DRAFT"} />
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={configuration.href}>Open</Link>
+                </Button>
+              </div>
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {configuration.memberCount} member(s) · {configuration.changedCount} changed ·{" "}
+              {configuration.missingCount} no longer resolvable
+              {configuration.comparisonStatus === "UNKNOWN"
+                ? " · comparison incomplete for at least one member"
+                : ""}
+            </span>
+          </>
+        ) : (
+          <Button asChild variant="outline" size="sm" className="self-start">
+            <Link href={configuration.href}>Open baseline workspace</Link>
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

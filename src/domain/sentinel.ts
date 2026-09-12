@@ -302,6 +302,11 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
     targetType: "CERTIFICATION_REVIEW",
     reason: "The requirement changed after a certification review linked a compliance item to it.",
   },
+  {
+    sourceType: "REQUIREMENT",
+    targetType: "DRIFT_ASSESSMENT",
+    reason: "The requirement changed after it was baselined — the divergence drift exists to report.",
+  },
   // --- Design item ---
   {
     sourceType: "DESIGN_ITEM",
@@ -354,6 +359,11 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
     targetType: "CERTIFICATION_REVIEW",
     reason: "The decision changed after a certification review linked a compliance item to it.",
   },
+  {
+    sourceType: "ENGINEERING_DECISION",
+    targetType: "DRIFT_ASSESSMENT",
+    reason: "The decision changed after it was baselined — the divergence drift exists to report.",
+  },
   // --- Decision assumption ---
   {
     sourceType: "DECISION_ASSUMPTION",
@@ -390,6 +400,11 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
     sourceType: "VERIFICATION_ACTIVITY",
     targetType: "CERTIFICATION_REVIEW",
     reason: "The verification activity changed after a certification review linked a compliance item to it.",
+  },
+  {
+    sourceType: "VERIFICATION_ACTIVITY",
+    targetType: "DRIFT_ASSESSMENT",
+    reason: "The verification activity changed after it was baselined — the divergence drift exists to report.",
   },
   // --- Supplier / supplied item / supplier qualification ---
   {

@@ -3,6 +3,7 @@ import {
   type CommandCenterAssumptionOverview,
   type CommandCenterCertificationOverview,
   type CommandCenterChangeImpactOverview,
+  type CommandCenterConfigurationOverview,
   type CommandCenterDriftOverview,
   type CommandCenterEvidenceOverview,
   type CommandCenterGateSummary,
@@ -22,6 +23,7 @@ import {
 } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
 import * as monitoringRepository from "@/server/repositories/assumption-monitoring.repository";
+import * as baselineRepository from "@/server/repositories/engineering-baseline.repository";
 import * as certificationFindingRepository from "@/server/repositories/certification-finding.repository";
 import * as impactAnalysisRepository from "@/server/repositories/impact-analysis.repository";
 import { computeProjectFingerprint } from "@/server/repositories/project-revision.repository";
@@ -87,6 +89,7 @@ export async function getCommandCenter(
     changeRequests,
     assumptions,
     driftLatest,
+    activeBaselines,
     riskItems,
     issueItems,
     supplierRows,
@@ -106,6 +109,9 @@ export async function getCommandCenter(
     changeRequestService.listChangeRequests(context, scopedProjectId, {}),
     monitoringRepository.listProjectAssumptions(scopedProjectId),
     driftDetectionService.getLatestDriftAssessment(context, scopedProjectId),
+    // A literal stored aggregate (_count.members), not a re-derived count —
+    // at most one row, since at most one baseline is ever ACTIVE.
+    baselineRepository.listBaselinesInProject(scopedProjectId, { status: "ACTIVE" }),
     riskService.listRisks(context, scopedProjectId, {}),
     issueService.listIssues(context, scopedProjectId, {}),
     supplierService.listSuppliers(context, scopedProjectId, {}),
@@ -326,6 +332,47 @@ export async function getCommandCenter(
         href: `/projects/${scopedProjectId}/drift`,
       };
 
+  // --- Configuration / baseline -------------------------------------------------
+  //
+  // Independent of the `drift` section above on purpose: `drift` reflects the
+  // latest *persisted, explicit* DriftAssessment (which also reads
+  // observations and applies DRIFT_RULES); this reflects a live snapshot-vs-
+  // current read for the active baseline, available whether or not anyone has
+  // ever run a drift evaluation, or recorded an observation at all.
+  const activeBaseline = activeBaselines[0] ?? null;
+  const configuration: CommandCenterConfigurationOverview = activeBaseline
+    ? await (async () => {
+        const comparison = await driftDetectionService.compareBaseline(
+          context,
+          scopedProjectId,
+          activeBaseline.id,
+        );
+        return {
+          hasActiveBaseline: true,
+          baselineId: activeBaseline.id,
+          baselineIdentifier: activeBaseline.identifier,
+          baselineName: activeBaseline.name,
+          status: activeBaseline.status,
+          memberCount: activeBaseline.memberCount,
+          changedCount: comparison.summary.changed,
+          missingCount: comparison.summary.missing,
+          comparisonStatus: comparison.summary.unknown > 0 ? "UNKNOWN" : "CURRENT",
+          href: `/projects/${scopedProjectId}/baselines/${activeBaseline.id}`,
+        };
+      })()
+    : {
+        hasActiveBaseline: false,
+        baselineId: null,
+        baselineIdentifier: null,
+        baselineName: null,
+        status: null,
+        memberCount: null,
+        changedCount: null,
+        missingCount: null,
+        comparisonStatus: null,
+        href: `/projects/${scopedProjectId}/baselines`,
+      };
+
   // --- Risks / Issues ----------------------------------------------------------
   const openRisks = riskItems.filter((risk) => risk.status === "OPEN");
   const risks: CommandCenterRiskOverview = {
@@ -447,6 +494,7 @@ export async function getCommandCenter(
       assumptions: assumptionsView,
       drift,
     },
+    configuration,
     risks,
     issues,
     suppliers,

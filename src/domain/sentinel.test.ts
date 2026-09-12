@@ -244,6 +244,16 @@ describe("the surveillance dependency registry", () => {
     expect(targets).not.toContain("DRIFT_ASSESSMENT");
   });
 
+  it("lets REQUIREMENT, ENGINEERING_DECISION and VERIFICATION_ACTIVITY reach DRIFT_ASSESSMENT — each is a real baseline member type whose fingerprint the drift basis folds in", () => {
+    expect(dependencyRulesFor("REQUIREMENT").map((r) => r.targetType)).toContain("DRIFT_ASSESSMENT");
+    expect(dependencyRulesFor("ENGINEERING_DECISION").map((r) => r.targetType)).toContain(
+      "DRIFT_ASSESSMENT",
+    );
+    expect(dependencyRulesFor("VERIFICATION_ACTIVITY").map((r) => r.targetType)).toContain(
+      "DRIFT_ASSESSMENT",
+    );
+  });
+
   it("connects every target type from at least one source", () => {
     const reachable = new Set(SURVEILLANCE_DEPENDENCY_RULES.map((r) => r.targetType));
     for (const targetType of SURVEILLANCE_TARGET_TYPES) {

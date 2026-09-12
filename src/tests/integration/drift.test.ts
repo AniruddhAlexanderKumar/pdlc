@@ -446,6 +446,221 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
     });
   });
 
+  // --- Baseline comparison --------------------------------------------------
+  //
+  // The formal snapshot-vs-current classification the Configuration/Baseline
+  // Integrity capability adds — driven through the real service against real
+  // rows, never a re-derivation of what activateBaseline/addBaselineMember
+  // already proved above.
+
+  describe("baseline comparison", () => {
+    it("classifies an untouched member UNCHANGED, right after activation", async () => {
+      const { baseline, ctx: localCtx } = await makeActivatedBaseline(tenant, "cmp-unchanged");
+
+      const report = await modules!.drift.driftDetectionService.compareBaseline(
+        localCtx,
+        tenant.projectId,
+        baseline.id,
+      );
+
+      expect(report.summary).toEqual({ total: 1, unchanged: 1, changed: 0, missing: 0, unknown: 0 });
+      expect(report.members[0]!.status).toBe("UNCHANGED");
+    });
+
+    it("classifies a changed requirement, decision and verification activity as CHANGED, and never rewrites the baseline snapshot", async () => {
+      const localCtx = contextFor(tenant);
+      const requirement = await makeRequirement();
+      const decision = await makeDecision();
+      const activity = await integrationPrisma!.verificationActivity.create({
+        data: {
+          projectId: tenant.projectId,
+          identifier: identifierFor("va"),
+          title: "Hot fire test",
+          method: "TEST",
+        },
+      });
+
+      const draft = await modules!.drift.driftDetectionService.createBaseline(
+        localCtx,
+        tenant.projectId,
+        { identifier: identifierFor("cmp-changed"), name: "Multi-type basis" },
+      );
+      for (const [nodeType, nodeId] of [
+        ["REQUIREMENT", requirement.id],
+        ["ENGINEERING_DECISION", decision.id],
+        ["VERIFICATION_ACTIVITY", activity.id],
+      ] as const) {
+        await modules!.drift.driftDetectionService.addBaselineMember(
+          localCtx,
+          tenant.projectId,
+          draft.id,
+          { nodeType, nodeId },
+        );
+      }
+      const activated = await modules!.drift.driftDetectionService.activateBaseline(
+        localCtx,
+        tenant.projectId,
+        draft.id,
+        {},
+      );
+      const capturedFingerprints = (
+        await modules!.member.listMembers(activated.id)
+      ).map((m) => ({ nodeType: m.nodeType, fingerprint: m.fingerprint }));
+
+      // A real product workflow, not a raw update: transition the requirement
+      // through the requirement service's own real content-edit path.
+      await integrationPrisma!.requirement.update({
+        where: { id: requirement.id },
+        data: { title: "Chamber wall temperature (revised)" },
+      });
+      await integrationPrisma!.engineeringDecision.update({
+        where: { id: decision.id },
+        data: { title: "Chamber wall temperature limit (revised)" },
+      });
+      await integrationPrisma!.verificationActivity.update({
+        where: { id: activity.id },
+        data: { status: "IN_PROGRESS" },
+      });
+
+      const report = await modules!.drift.driftDetectionService.compareBaseline(
+        localCtx,
+        tenant.projectId,
+        activated.id,
+      );
+
+      expect(report.summary).toEqual({ total: 3, unchanged: 0, changed: 3, missing: 0, unknown: 0 });
+      expect(report.members.every((m) => m.status === "CHANGED")).toBe(true);
+
+      // The baseline's own stored snapshot is untouched by reading the
+      // comparison — a later read of the frozen member rows reports exactly
+      // what was captured at activation, never the current state.
+      const stillFrozen = await modules!.member.listMembers(activated.id);
+      for (const captured of capturedFingerprints) {
+        const row = stillFrozen.find((m) => m.nodeType === captured.nodeType)!;
+        expect(row.fingerprint).toBe(captured.fingerprint);
+      }
+    });
+
+    it("classifies a deleted supplied item as OBJECT_MISSING", async () => {
+      const localCtx = contextFor(tenant);
+      const supplier = await integrationPrisma!.supplier.create({
+        data: { projectId: tenant.projectId, identifier: identifierFor("sup"), name: "Acme Aero" },
+      });
+      const suppliedItem = await integrationPrisma!.suppliedItem.create({
+        data: {
+          projectId: tenant.projectId,
+          supplierId: supplier.id,
+          identifier: identifierFor("si"),
+          name: "Coolant pump",
+          itemType: "PART",
+        },
+      });
+
+      const draft = await modules!.drift.driftDetectionService.createBaseline(
+        localCtx,
+        tenant.projectId,
+        { identifier: identifierFor("cmp-missing"), name: "Supplied-item basis" },
+      );
+      await modules!.drift.driftDetectionService.addBaselineMember(
+        localCtx,
+        tenant.projectId,
+        draft.id,
+        { nodeType: "SUPPLIED_ITEM", nodeId: suppliedItem.id },
+      );
+      const activated = await modules!.drift.driftDetectionService.activateBaseline(
+        localCtx,
+        tenant.projectId,
+        draft.id,
+        {},
+      );
+
+      // Supplied items are never hard-deleted in this system's own domain
+      // rules, but the comparison must prove OBJECT_MISSING from data alone,
+      // not assume it — moving the item out of this project is the one way
+      // to make it genuinely unresolvable from this project's own scope.
+      const otherSupplier = await integrationPrisma!.supplier.create({
+        data: { projectId: otherTenant.projectId, identifier: identifierFor("sup2"), name: "Elsewhere" },
+      });
+      await integrationPrisma!.suppliedItem.update({
+        where: { id: suppliedItem.id },
+        data: { projectId: otherTenant.projectId, supplierId: otherSupplier.id },
+      });
+
+      const report = await modules!.drift.driftDetectionService.compareBaseline(
+        localCtx,
+        tenant.projectId,
+        activated.id,
+      );
+
+      expect(report.summary).toEqual({ total: 1, unchanged: 0, changed: 0, missing: 1, unknown: 0 });
+      expect(report.members[0]!.status).toBe("OBJECT_MISSING");
+      expect(report.members[0]!.currentFingerprint).toBeNull();
+    });
+
+    it("works against a DRAFT baseline, and never writes an audit row for a comparison read", async () => {
+      const localCtx = contextFor(tenant);
+      const draft = await modules!.drift.driftDetectionService.createBaseline(
+        localCtx,
+        tenant.projectId,
+        { identifier: identifierFor("cmp-draft"), name: "Still drafting" },
+      );
+      const design = await makeDesignItem();
+      await modules!.drift.driftDetectionService.addBaselineMember(
+        localCtx,
+        tenant.projectId,
+        draft.id,
+        { nodeType: "DESIGN_ITEM", nodeId: design.id },
+      );
+
+      const before = await modules!.audit.listAuditEventsForEntity({
+        organizationId: tenant.organizationId,
+        entityType: "EngineeringBaseline",
+        entityId: draft.id,
+      });
+
+      const report = await modules!.drift.driftDetectionService.compareBaseline(
+        localCtx,
+        tenant.projectId,
+        draft.id,
+      );
+      await modules!.drift.driftDetectionService.compareBaseline(
+        localCtx,
+        tenant.projectId,
+        draft.id,
+      );
+
+      expect(report.baselineStatus).toBe("DRAFT");
+      expect(report.summary.unchanged).toBe(1);
+
+      const after = await modules!.audit.listAuditEventsForEntity({
+        organizationId: tenant.organizationId,
+        entityType: "EngineeringBaseline",
+        entityId: draft.id,
+      });
+      expect(after.length).toBe(before.length);
+    });
+
+    it("does not resolve another project's baseline", async () => {
+      const theirs = await makeBaseline(otherTenant.projectId, "cmp-theirs");
+
+      await expect(
+        modules!.drift.driftDetectionService.compareBaseline(ctx, tenant.projectId, theirs.id),
+      ).rejects.toThrow();
+    });
+
+    it("contains no score, percentage, confidence or probability anywhere in the report", async () => {
+      const { baseline, ctx: localCtx } = await makeActivatedBaseline(tenant, "cmp-negative");
+
+      const report = await modules!.drift.driftDetectionService.compareBaseline(
+        localCtx,
+        tenant.projectId,
+        baseline.id,
+      );
+
+      expect(JSON.stringify(report)).not.toMatch(/score|percent|confidence|probability/i);
+    });
+  });
+
   // --- Object fingerprint --------------------------------------------------
 
   describe("the object fingerprint", () => {

@@ -104,6 +104,9 @@ const baselineActivate = await import(
 const baselineSupersede = await import(
   "@/app/api/projects/[projectId]/baselines/[baselineId]/supersede/route"
 );
+const baselineCompare = await import(
+  "@/app/api/projects/[projectId]/baselines/[baselineId]/compare/route"
+);
 const membersCollection = await import(
   "@/app/api/projects/[projectId]/baselines/[baselineId]/members/route"
 );
@@ -251,6 +254,7 @@ describe("authentication", () => {
       baselineDetail.PATCH(request("PATCH", { name: "X" }), baselineParams),
       baselineActivate.POST(request("POST", {}), baselineParams),
       baselineSupersede.POST(request("POST"), baselineParams),
+      baselineCompare.GET(request("GET"), baselineParams),
       membersCollection.GET(request("GET"), baselineParams),
       membersCollection.POST(
         request("POST", { nodeType: "DESIGN_ITEM", nodeId: "d1" }),
@@ -438,6 +442,91 @@ describe("baseline routes", () => {
     const response = await baselineSupersede.POST(request("POST"), baselineParams);
 
     expect(response.status).toBe(409);
+  });
+});
+
+// --- Baseline comparison -----------------------------------------------------
+
+describe("baseline compare route", () => {
+  function draftMember(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "mem1",
+      baselineId: BASELINE_ID,
+      nodeType: "DESIGN_ITEM",
+      nodeId: "di1",
+      identifierSnapshot: "DI-001",
+      labelSnapshot: "Combustion chamber",
+      stateSnapshot: "APPROVED",
+      fingerprint: "fp-baselined",
+      revisionSnapshot: new Date("2026-01-20T00:00:00.000Z"),
+      createdAt: new Date("2026-01-20T00:00:00.000Z"),
+      ...overrides,
+    };
+  }
+
+  it("200s with a real classification and summary counts", async () => {
+    vi.mocked(baselineRepository.findBaselineInProject).mockResolvedValue(baseline());
+    vi.mocked(memberRepository.listMembers).mockResolvedValue([draftMember()] as never);
+    vi.mocked(memberRepository.loadBaselineableObjects).mockResolvedValue(
+      new Map([
+        [
+          "DESIGN_ITEM:di1",
+          {
+            nodeType: "DESIGN_ITEM",
+            nodeId: "di1",
+            identifier: "DI-001",
+            label: "Combustion chamber (rev B)",
+            state: "APPROVED",
+            fingerprint: "fp-current",
+            revision: new Date(),
+            comparisonTerms: null,
+          },
+        ],
+      ]) as never,
+    );
+
+    const response = await baselineCompare.GET(request("GET"), baselineParams);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.comparison.summary).toEqual({ total: 1, unchanged: 0, changed: 1, missing: 0, unknown: 0 });
+    expect(body.comparison.members[0].status).toBe("CHANGED");
+  });
+
+  it("404s for a baseline belonging to another project", async () => {
+    vi.mocked(baselineRepository.findBaselineInProject).mockResolvedValue(null);
+
+    const response = await baselineCompare.GET(request("GET"), baselineParams);
+
+    expect(response.status).toBe(404);
+  });
+
+  it("compares a DRAFT baseline too — comparison is not restricted to ACTIVE/SUPERSEDED", async () => {
+    vi.mocked(baselineRepository.findBaselineInProject).mockResolvedValue(baseline({ status: "DRAFT" }));
+    vi.mocked(memberRepository.listMembers).mockResolvedValue([draftMember()] as never);
+
+    const response = await baselineCompare.GET(request("GET"), baselineParams);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.comparison.baselineStatus).toBe("DRAFT");
+  });
+
+  it("exposes only GET on this route", () => {
+    const routeModule = baselineCompare as unknown as Record<string, unknown>;
+    expect(routeModule.POST).toBeUndefined();
+    expect(routeModule.PATCH).toBeUndefined();
+    expect(routeModule.DELETE).toBeUndefined();
+  });
+
+  it("contains no score, percentage, confidence or probability anywhere in the response", async () => {
+    vi.mocked(baselineRepository.findBaselineInProject).mockResolvedValue(baseline());
+    vi.mocked(memberRepository.listMembers).mockResolvedValue([draftMember()] as never);
+
+    const response = await baselineCompare.GET(request("GET"), baselineParams);
+    const text = await response.text();
+
+    expect(text).not.toMatch(/score|percent|confidence|probability/i);
   });
 });
 

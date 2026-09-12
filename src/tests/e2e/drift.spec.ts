@@ -31,6 +31,7 @@ test.describe.serial("Design / operations drift", () => {
   let account: Awaited<ReturnType<typeof signUpNewAccount>>;
   let projectUrl: string;
   let designUrl: string;
+  let baselineUrl: string;
 
   test.beforeEach(async ({ page, request }) => {
     test.skip(!(await databaseAvailable(request)), "Requires a reachable PostgreSQL database");
@@ -96,6 +97,7 @@ test.describe.serial("Design / operations drift", () => {
     await page.getByRole("button", { name: "Create baseline" }).click();
 
     await expect(page).toHaveURL(/\/baselines\/[a-z0-9]+$/);
+    baselineUrl = page.url();
 
     const members = page.getByRole("list", { name: "Baselined objects" });
 
@@ -199,6 +201,17 @@ test.describe.serial("Design / operations drift", () => {
     await expect(row).toContainText("DI-001");
   });
 
+  test("shows the formal configuration comparison on the baseline itself — no drift evaluation required", async ({
+    page,
+  }) => {
+    await page.goto(baselineUrl);
+
+    const comparison = page.getByText("Configuration comparison").locator("../..");
+    await expect(comparison.getByText("Changed", { exact: true })).toBeVisible();
+    await expect(comparison.getByText("Changed members (1)")).toBeVisible();
+    await expect(comparison.getByText(/Combustion chamber \(rev B\)/)).toBeVisible();
+  });
+
   test("records each evaluation as its own immutable assessment, with no score anywhere", async ({
     page,
   }) => {
@@ -295,5 +308,50 @@ test.describe.serial("Design / operations drift", () => {
     await expect(page.getByText(/Viewing a historical assessment/i)).toBeVisible();
     await expect(page.getByText(/cannot be edited/i)).toBeVisible();
     await expect(page.getByRole("group", { name: "Drift verdict" })).toContainText("No drift");
+  });
+
+  test("activates a later baseline, and the earlier one's frozen snapshot is untouched by it", async ({
+    page,
+  }) => {
+    await page.goto(`${projectUrl}/baselines`);
+    await page.getByRole("button", { name: "New baseline" }).first().click();
+    await page.getByLabel("Identifier").fill("BL-002");
+    await page.getByLabel("Name").fill("Revised design baseline");
+    await page.getByRole("button", { name: "Create baseline" }).click();
+    await expect(page).toHaveURL(/\/baselines\/[a-z0-9]+$/);
+
+    await page.getByLabel("Object type").selectOption("DESIGN_ITEM");
+    await page.getByLabel("Object", { exact: true }).selectOption({ index: 1 });
+    await page.getByRole("button", { name: /add to baseline/i }).click();
+    await expect(page.getByText(/DI-001/)).toBeVisible();
+
+    await page.getByRole("button", { name: "Activate" }).click();
+    await expect(page.getByText(/This baseline is active and immutable/i)).toBeVisible();
+
+    // The earlier baseline is now superseded, and its own snapshot — captured
+    // before the design item was ever renamed — still reads exactly as it did
+    // then, not as the design item reads today.
+    await page.goto(baselineUrl);
+    await expect(page.getByText(/This baseline is superseded and immutable/i)).toBeVisible();
+    const members = page.getByRole("list", { name: "Baselined objects" });
+    await expect(members).toContainText("Combustion chamber");
+    await expect(members).not.toContainText("rev B");
+  });
+
+  test("keeps baselines project-isolated for another organization", async ({ page }) => {
+    const baselineId = new URL(baselineUrl).pathname.split("/").pop();
+    const projectId = new URL(projectUrl).pathname.split("/").pop();
+    const apiBase = new URL(baselineUrl).origin;
+
+    await page.getByRole("button", { name: /sign out/i }).click();
+    await signUpNewAccount(page, "drift-other");
+
+    const response = await page.request.get(
+      `${apiBase}/api/projects/${projectId}/baselines/${baselineId}`,
+    );
+    expect(response.status()).toBe(404);
+
+    await page.goto(baselineUrl);
+    await expect(page.getByRole("alert")).toBeVisible();
   });
 });
