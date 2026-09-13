@@ -40,7 +40,11 @@ import {
   engineeringGraphService,
 } from "@/server/services/engineering-graph.service";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * The change-impact analysis engine.
@@ -104,7 +108,7 @@ export class ChangeImpactAnalysisService {
     changeId: unknown,
     request: unknown = {},
   ): Promise<ImpactAnalysisReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const limits = parseOrThrow(
       runImpactAnalysisRequestSchema,
       request ?? {},
@@ -245,7 +249,7 @@ export class ChangeImpactAnalysisService {
     projectId: unknown,
     changeId: unknown,
   ): Promise<LatestImpactAnalysis> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const change = await this.requireChange(scopedProjectId, changeId);
 
     const latest = await analysisRepository.findLatestAnalysis(scopedProjectId, change.id);
@@ -266,7 +270,7 @@ export class ChangeImpactAnalysisService {
     projectId: unknown,
     changeId: unknown,
   ): Promise<ImpactAnalysis[]> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const change = await this.requireChange(scopedProjectId, changeId);
 
     return analysisRepository.listAnalyses(scopedProjectId, change.id);
@@ -278,7 +282,7 @@ export class ChangeImpactAnalysisService {
     projectId: unknown,
     analysisId: unknown,
   ): Promise<ImpactAnalysisReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const id = parseOrThrow(impactAnalysisIdSchema, analysisId, "Invalid analysis id");
 
     const analysis = await analysisRepository.findAnalysisInProject(scopedProjectId, id);

@@ -6,6 +6,7 @@ import type {
   CertificationProgram,
   ComplianceItem,
   Project,
+  ProjectRole,
 } from "@/domain";
 import { UnauthorizedError } from "@/server/errors";
 
@@ -698,5 +699,112 @@ describe("certification review routes", () => {
     const body = await response.json();
     expect(body.report.review.status).toBe("UNKNOWN");
     expect(body.report.findings).toEqual([]);
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: ProjectRole) {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT.id,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating a certification program", async () => {
+    asRole("VIEWER");
+
+    const response = await programRoute.POST(
+      request("POST", { identifier: "CERT-001", name: "X" }),
+      projectParams,
+    );
+
+    expect(response.status).toBe(403);
+    expect(programRepository.createProgram).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER updating a certification program — review authority is not write authority", async () => {
+    asRole("REVIEWER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(PROGRAM);
+
+    const response = await programRoute.PATCH(request("PATCH", { name: "Renamed" }), projectParams);
+
+    expect(response.status).toBe(403);
+    expect(programRepository.updateProgram).not.toHaveBeenCalled();
+  });
+
+  it("allows an ENGINEER to create a certification program", async () => {
+    asRole("ENGINEER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(null);
+    vi.mocked(programRepository.createProgram).mockResolvedValue(PROGRAM);
+
+    const response = await programRoute.POST(
+      request("POST", { identifier: "CERT-001", name: "X" }),
+      projectParams,
+    );
+
+    expect(response.status).toBe(201);
+  });
+
+  it("refuses a VIEWER evaluating a certification review", async () => {
+    asRole("VIEWER");
+
+    const response = await reviewsRoute.POST(request("POST", {}), projectParams);
+
+    expect(response.status).toBe(403);
+    expect(reviewRepository.createReview).not.toHaveBeenCalled();
+  });
+
+  it("allows an ENGINEER to evaluate a certification review — a system-derived, persisted evaluation, not an approval", async () => {
+    asRole("ENGINEER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(PROGRAM);
+    vi.mocked(basisRepository.findActiveBasis).mockResolvedValue(null);
+    vi.mocked(linkRepository.loadReviewLinkage).mockResolvedValue({
+      requirements: [],
+      verificationActivities: [],
+      decisions: [],
+      designItems: [],
+      risks: [],
+      issues: [],
+      supplierQualifications: [],
+      evidence: [],
+    });
+    vi.mocked(findingRepository.listOpenFindingsForItems).mockResolvedValue([]);
+    vi.mocked(findingRepository.listDispositionedFindingsForItems).mockResolvedValue([]);
+    vi.mocked(reviewRepository.createReview).mockImplementation(async (input) => ({
+      id: "review1",
+      certificationProgramId: input.certificationProgramId,
+      status: input.status,
+      reviewVersion: input.reviewVersion,
+      fingerprint: input.fingerprint,
+      summary: input.summary,
+      evaluatedAt: new Date(),
+      evaluatedById: CONTEXT.actorId,
+      createdAt: new Date(),
+      counts: {
+        findingCount: input.findingCount,
+        blockingCount: input.blockingCount,
+        warningCount: input.warningCount,
+        informationalCount: input.informationalCount,
+        unknownCount: input.unknownCount,
+      },
+    }));
+    vi.mocked(reviewRepository.listFindings).mockResolvedValue([]);
+
+    const response = await reviewsRoute.POST(request("POST", {}), projectParams);
+
+    expect(response.status).toBe(201);
+  });
+
+  it("404s a same-organization caller with no project membership", async () => {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    const response = await programRoute.GET(request("GET"), projectParams);
+
+    expect(response.status).toBe(404);
   });
 });

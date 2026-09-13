@@ -19,7 +19,11 @@ import type { QualificationWithParents } from "@/server/repositories/supplier-qu
 import * as suppliedItemRepository from "@/server/repositories/supplied-item.repository";
 import * as supplierRepository from "@/server/repositories/supplier.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * Supplier qualification application service.
@@ -91,7 +95,7 @@ export async function createSupplierQualification(
   projectId: unknown,
   input: unknown,
 ): Promise<SupplierQualification> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(
     createSupplierQualificationRequestSchema,
     input,
@@ -170,7 +174,7 @@ export async function listSupplierQualifications(
   projectId: unknown,
   filter: { supplierId?: unknown; suppliedItemId?: unknown; status?: unknown } = {},
 ): Promise<QualificationWithParents[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
 
   const optional = <T>(value: unknown, parse: (v: unknown) => T): T | undefined =>
     value === undefined || value === null || value === "" ? undefined : parse(value);
@@ -197,7 +201,7 @@ export async function getSupplierQualification(
   projectId: unknown,
   qualificationId: unknown,
 ): Promise<QualificationDetail> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const qualification = await requireQualification(scopedProjectId, qualificationId);
 
   const [supplier, item, evidence, history] = await Promise.all([
@@ -245,7 +249,7 @@ export async function updateSupplierQualification(
   qualificationId: unknown,
   input: unknown,
 ): Promise<SupplierQualification> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(
     updateSupplierQualificationRequestSchema,
     input,
@@ -306,7 +310,7 @@ export async function linkQualificationEvidence(
   qualificationId: unknown,
   input: unknown,
 ): Promise<QualificationEvidenceSummary[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request: QualificationEvidenceLinkRequest = parseOrThrow(
     qualificationEvidenceLinkRequestSchema,
     input,
@@ -356,7 +360,7 @@ export async function unlinkQualificationEvidence(
   qualificationId: unknown,
   input: unknown,
 ): Promise<QualificationEvidenceSummary[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(
     qualificationEvidenceUnlinkRequestSchema,
     input,

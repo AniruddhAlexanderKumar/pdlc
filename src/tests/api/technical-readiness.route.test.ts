@@ -5,7 +5,7 @@ import {
   type TechnicalReadinessAssessment,
   type TechnicalReadinessReport,
 } from "@/domain";
-import { NotFoundError, UnauthorizedError, ValidationError } from "@/server/errors";
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "@/server/errors";
 
 /**
  * Gate route handlers driven through a faked service, so that path parsing,
@@ -475,5 +475,20 @@ describe("what the API never exposes", () => {
     const text = JSON.stringify(await response.json());
 
     expect(text).not.toMatch(/"score"|"percent|"confidence"|"probability"/i);
+  });
+});
+
+describe("authorization", () => {
+  it("403s when the service refuses an insufficient project role", async () => {
+    vi.mocked(service.evaluateTechnicalReadiness).mockRejectedValue(
+      new ForbiddenError("Your role on this project does not allow editing engineering content."),
+    );
+
+    const response = await gateRoute.POST(
+      jsonRequest(BASE, { gate: "DESIGN_FREEZE" }),
+      projectParams,
+    );
+
+    expect(response.status).toBe(403);
   });
 });

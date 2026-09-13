@@ -13,7 +13,7 @@ import {
   hasVerificationReadiness,
   readinessSignature,
 } from "@/domain";
-import { NotFoundError, ValidationError } from "@/server/errors";
+import { ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 import type { RawEdge } from "@/server/repositories/graph-edge-resolvers";
 import {
   BASELINE_REVISION,
@@ -1816,5 +1816,56 @@ describe("the recorded basis", () => {
         basisFingerprint: "fp-asm1",
       },
     ]);
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT_ID,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER evaluating readiness — a persisted, immutable assessment, not a plain read", async () => {
+    buildScenario(healthyScenario());
+    asRole("VIEWER");
+
+    await expect(
+      service().evaluateVerificationReadiness(CONTEXT, PROJECT_ID, ACTIVITY_ID),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(readinessRepository.createAssessment).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER evaluating readiness — no approval tier exists for this domain", async () => {
+    buildScenario(healthyScenario());
+    asRole("REVIEWER");
+
+    await expect(
+      service().evaluateVerificationReadiness(CONTEXT, PROJECT_ID, ACTIVITY_ID),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows an ENGINEER to evaluate readiness", async () => {
+    buildScenario(healthyScenario());
+    asRole("ENGINEER");
+
+    await expect(
+      service().evaluateVerificationReadiness(CONTEXT, PROJECT_ID, ACTIVITY_ID),
+    ).resolves.toBeDefined();
+  });
+
+  it("a same-organization caller with no project membership cannot even read history", async () => {
+    buildScenario(healthyScenario());
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    await expect(
+      service().listVerificationReadinessHistory(CONTEXT, PROJECT_ID, ACTIVITY_ID),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });

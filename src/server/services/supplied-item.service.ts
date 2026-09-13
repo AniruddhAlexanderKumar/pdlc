@@ -26,7 +26,11 @@ import type {
 } from "@/server/repositories/supplied-item.repository";
 import * as supplierRepository from "@/server/repositories/supplier.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * Supplied item application service.
@@ -97,7 +101,7 @@ export async function createSuppliedItem(
   projectId: unknown,
   input: unknown,
 ): Promise<SuppliedItem> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createSuppliedItemRequestSchema, input, "Invalid supplied item");
 
   return prisma.$transaction(async (tx) => {
@@ -143,7 +147,7 @@ export async function listSuppliedItems(
   projectId: unknown,
   filter: { supplierId?: unknown; itemType?: unknown; status?: unknown } = {},
 ): Promise<SuppliedItemWithSupplier[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
 
   const optional = <T>(value: unknown, parse: (v: unknown) => T): T | undefined =>
     value === undefined || value === null || value === "" ? undefined : parse(value);
@@ -170,7 +174,7 @@ export async function getSuppliedItem(
   projectId: unknown,
   suppliedItemId: unknown,
 ): Promise<SuppliedItemDetail> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const item = await requireSuppliedItem(scopedProjectId, suppliedItemId);
 
   const [supplier, links, qualifications, history] = await Promise.all([
@@ -211,7 +215,7 @@ export async function updateSuppliedItem(
   suppliedItemId: unknown,
   input: unknown,
 ): Promise<SuppliedItem> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(updateSuppliedItemRequestSchema, input, "Invalid supplied item update");
 
   return prisma.$transaction(async (tx) => {
@@ -245,7 +249,7 @@ export async function listSuppliedItemLinkTargets(
   context: OrganizationContext,
   projectId: unknown,
 ): Promise<SuppliedItemLinkTargetOptions> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   return projectArtifactsRepository.listSuppliedItemLinkTargets(scopedProjectId);
 }
 
@@ -264,7 +268,7 @@ export async function linkSuppliedItem(
   suppliedItemId: unknown,
   input: unknown,
 ): Promise<SuppliedItemLinkSummary[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(suppliedItemLinkRequestSchema, input, "Invalid link request");
 
   await prisma.$transaction(async (tx) => {
@@ -317,7 +321,7 @@ export async function unlinkSuppliedItem(
   suppliedItemId: unknown,
   input: unknown,
 ): Promise<SuppliedItemLinkSummary[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(suppliedItemUnlinkRequestSchema, input, "Invalid unlink request");
 
   await prisma.$transaction(async (tx) => {

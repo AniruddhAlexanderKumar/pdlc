@@ -32,7 +32,11 @@ import {
   engineeringGraphService,
 } from "@/server/services/engineering-graph.service";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * Assumption monitoring.
@@ -89,7 +93,7 @@ export class AssumptionMonitoringService {
     decisionId: unknown,
     assumptionId: unknown,
   ): Promise<AssumptionMonitoringState> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const scoped = await this.requireAssumption(
       scopedProjectId,
       decisionId,
@@ -112,7 +116,7 @@ export class AssumptionMonitoringService {
     context: OrganizationContext,
     projectId: unknown,
   ): Promise<AssumptionMonitoringSummary> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const assumptions = await monitoringRepository.listProjectAssumptions(scopedProjectId);
 
     const summary: AssumptionMonitoringSummary = {
@@ -163,7 +167,7 @@ export class AssumptionMonitoringService {
     decisionId: unknown,
     assumptionId: unknown,
   ): Promise<AssumptionMonitoringState> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const scoped = await this.requireAssumption(scopedProjectId, decisionId, assumptionId);
 
     const latest = await monitoringRepository.findLatestRecord(
@@ -180,7 +184,7 @@ export class AssumptionMonitoringService {
     decisionId: unknown,
     assumptionId: unknown,
   ): Promise<AssumptionMonitoringRecord[]> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const scoped = await this.requireAssumption(scopedProjectId, decisionId, assumptionId);
 
     return monitoringRepository.listHistory(scopedProjectId, scoped.assumption.id);
@@ -205,7 +209,7 @@ export class AssumptionMonitoringService {
     assumptionId: unknown,
     input: unknown,
   ): Promise<AssumptionMonitoringState> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const scoped = await this.requireAssumption(scopedProjectId, decisionId, assumptionId);
     const request = parseOrThrow(reviewAssumptionRequestSchema, input, "Invalid review");
 

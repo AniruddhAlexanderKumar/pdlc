@@ -63,7 +63,11 @@ import {
   verificationReadinessService,
 } from "@/server/services/verification-readiness.service";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * The technical readiness engine.
@@ -195,7 +199,7 @@ export class TechnicalReadinessService {
     projectId: unknown,
     request: unknown,
   ): Promise<TechnicalReadinessReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     // The gate, and nothing else. A client that tries to send a verdict, a rule,
     // an actor or a version is rejected rather than having it silently dropped.
     const { gate } = parseOrThrow(
@@ -289,7 +293,7 @@ export class TechnicalReadinessService {
     projectId: unknown,
     gate: unknown,
   ): Promise<LatestTechnicalReadiness> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const { gate: scopedGate } = parseOrThrow(
       evaluateTechnicalReadinessRequestSchema,
       { gate },
@@ -320,7 +324,7 @@ export class TechnicalReadinessService {
     projectId: unknown,
     gate?: unknown,
   ): Promise<TechnicalReadinessAssessment[]> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
 
     const scopedGate =
       gate === undefined || gate === null || gate === ""
@@ -343,7 +347,7 @@ export class TechnicalReadinessService {
     projectId: unknown,
     assessmentId: unknown,
   ): Promise<TechnicalReadinessReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const id = parseOrThrow(technicalReadinessIdSchema, assessmentId, "Invalid assessment id");
 
     const assessment = await readinessRepository.findAssessmentInProject(scopedProjectId, id);

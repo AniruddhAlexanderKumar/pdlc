@@ -32,6 +32,10 @@ const modules = databaseAvailable
       projectMembership: await import("@/server/services/project-membership.service"),
       organizationMembership: await import("@/server/services/organization-membership.service"),
       requirementService: await import("@/server/services/requirement.service"),
+      supplierService: await import("@/server/services/supplier.service"),
+      certificationProgramService: (
+        await import("@/server/services/certification-program.service")
+      ).certificationProgramService,
       auditLog: await import("@/server/repositories/audit-log.repository"),
     }
   : null;
@@ -329,6 +333,71 @@ describe.skipIf(!databaseAvailable)(`Engineering Access Control against PostgreS
       await expect(
         modules!.authorization.requireProjectAccess(otherCtx, tenant.projectId),
       ).rejects.toBeInstanceOf(NotFoundError);
+    });
+  });
+
+  describe("a module completed in the follow-up pass (Supplier), against the same real boundaries", () => {
+    it("a VIEWER reads but cannot create a supplier; an ENGINEER can", async () => {
+      const viewerCtx = await memberWithRole("VIEWER");
+      const engineerCtx = await memberWithRole("ENGINEER");
+
+      await expect(modules!.supplierService.listSuppliers(viewerCtx, tenant.projectId, {})).resolves.toBeDefined();
+      await expect(
+        modules!.supplierService.createSupplier(viewerCtx, tenant.projectId, {
+          identifier: identifierFor("sup"),
+          name: "Vulcan Alloys",
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+
+      const created = await modules!.supplierService.createSupplier(engineerCtx, tenant.projectId, {
+        identifier: identifierFor("sup"),
+        name: "Vulcan Alloys",
+      });
+      expect(created.name).toBe("Vulcan Alloys");
+    });
+
+    it("a same-organization caller with no project membership gets 404 reading suppliers too — reads are gated in this group, unlike the original thirteen services", async () => {
+      const outsider = await makePlainOrgMember(tenant.organizationId, "supplier-outsider");
+      const outsiderCtx = { organizationId: tenant.organizationId, actorId: outsider.id };
+
+      await expect(
+        modules!.supplierService.listSuppliers(outsiderCtx, tenant.projectId, {}),
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    async function memberWithRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+      const user = await makePlainOrgMember(tenant.organizationId, role.toLowerCase());
+      await modules!.projectMembership.addMember(ctx, tenant.projectId, { userId: user.id, role });
+      return { organizationId: tenant.organizationId, actorId: user.id };
+    }
+  });
+
+  describe("owner assignment closes a real gap: CertificationProgram.ownerId", () => {
+    it("refuses an owner who is a real organization member but cannot reach this project", async () => {
+      const outsider = await makePlainOrgMember(tenant.organizationId, "cert-owner-outsider");
+
+      await expect(
+        modules!.certificationProgramService.createProgram(ctx, tenant.projectId, {
+          identifier: identifierFor("cert"),
+          name: "Avionics certification effort",
+          ownerId: outsider.id,
+        }),
+      ).rejects.toThrow(/does not have access to this project/);
+    });
+
+    it("accepts an owner who is an explicit member of this project", async () => {
+      const member = await makePlainOrgMember(tenant.organizationId, "cert-owner-member");
+      await modules!.projectMembership.addMember(ctx, tenant.projectId, {
+        userId: member.id,
+        role: "VIEWER",
+      });
+
+      const program = await modules!.certificationProgramService.createProgram(ctx, tenant.projectId, {
+        identifier: identifierFor("cert"),
+        name: "Avionics certification effort",
+        ownerId: member.id,
+      });
+      expect(program.ownerId).toBe(member.id);
     });
   });
 });

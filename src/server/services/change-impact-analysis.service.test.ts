@@ -8,7 +8,7 @@ import {
   analysisSignature,
   hasImpactAnalysis,
 } from "@/domain";
-import { NotFoundError, ValidationError } from "@/server/errors";
+import { ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 import {
   FIXTURE_PROJECT,
   GraphFixture,
@@ -901,5 +901,47 @@ describe("audit", () => {
     expect(auditLogRepository.recordAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: "change.impact_analysis_failed" }),
     );
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT_ID,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER running an impact analysis — a persisted, immutable record, not a plain read", async () => {
+    asRole("VIEWER");
+    await expect(service.runImpactAnalysis(CONTEXT, PROJECT_ID, CHANGE_ID)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(analysisRepository.createAnalysis).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER running an impact analysis — no approval tier exists for this domain", async () => {
+    asRole("REVIEWER");
+    await expect(service.runImpactAnalysis(CONTEXT, PROJECT_ID, CHANGE_ID)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+  });
+
+  it("allows an ENGINEER to run an impact analysis", async () => {
+    asRole("ENGINEER");
+    await expect(service.runImpactAnalysis(CONTEXT, PROJECT_ID, CHANGE_ID)).resolves.toBeDefined();
+  });
+
+  it("a same-organization caller with no project membership cannot even read a past analysis", async () => {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    await expect(
+      service.getLatestImpactAnalysis(CONTEXT, PROJECT_ID, CHANGE_ID),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });

@@ -148,6 +148,7 @@ function routeGets(
     if (url.match(/\/evidence(\?|$)/) && !url.includes("/verification-activities")) {
       return ok({ evidence: [] });
     }
+    if (url.endsWith("/role")) return ok({ access: { role: "MANAGER", isOrganizationOwner: false } });
     if (url.includes("/api/projects/")) return ok({ project: PROJECT });
     return ok({});
   });

@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, SuppliedItem, Supplier, SupplierQualification } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 
 /**
  * Supplier engineering service behaviour, against fake repositories: no
@@ -63,7 +63,16 @@ vi.mock("@/server/repositories/audit-log.repository", () => ({
   listAuditEventsForEntity: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const supplierRepository = await import("@/server/repositories/supplier.repository");
 const itemRepository = await import("@/server/repositories/supplied-item.repository");
 const qualificationRepository = await import(
@@ -134,6 +143,18 @@ beforeEach(() => {
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
   vi.mocked(auditLogRepository.recordAuditEvent).mockResolvedValue(undefined as never);
   vi.mocked(auditLogRepository.listAuditEventsForEntity).mockResolvedValue([]);
+  // CONTEXT's actor is a MANAGER on PROJECT by default — full read/write/
+  // approve/manage access, so existing tests exercising ordinary behavior
+  // do not also need to set up a role scenario.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+    id: "mem1",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+  });
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 });
 
 // --- Supplier ---------------------------------------------------------------
@@ -711,5 +732,122 @@ describe("SupplierQualificationService evidence", () => {
         evidenceId: "ev1",
       }),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT.id,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId!, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER creating a supplier", async () => {
+    asRole("VIEWER");
+    await expect(
+      supplierService.createSupplier(CONTEXT, PROJECT.id, { identifier: "SUP-001", name: "Vulcan Alloys" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(supplierRepository.createSupplier).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER updating a supplier — review authority is not write authority", async () => {
+    asRole("REVIEWER");
+    vi.mocked(supplierRepository.findSupplierInProject).mockResolvedValue(SUPPLIER);
+
+    await expect(
+      supplierService.updateSupplier(CONTEXT, PROJECT.id, SUPPLIER.id, { name: "Renamed" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows an ENGINEER to create a supplier", async () => {
+    asRole("ENGINEER");
+    vi.mocked(supplierRepository.createSupplier).mockResolvedValue(SUPPLIER);
+
+    await expect(
+      supplierService.createSupplier(CONTEXT, PROJECT.id, { identifier: "SUP-001", name: "Vulcan Alloys" }),
+    ).resolves.toMatchObject({ identifier: "SUP-001" });
+  });
+
+  it("refuses a VIEWER creating a supplied item", async () => {
+    asRole("VIEWER");
+    vi.mocked(supplierRepository.findSupplierInProject).mockResolvedValue(SUPPLIER);
+
+    await expect(
+      itemService.createSuppliedItem(CONTEXT, PROJECT.id, {
+        supplierId: SUPPLIER.id,
+        identifier: "SI-001",
+        name: "Inconel 718 billet",
+        itemType: "MATERIAL",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(itemRepository.createSuppliedItem).not.toHaveBeenCalled();
+  });
+
+  it("allows an ENGINEER to create a supplied item", async () => {
+    asRole("ENGINEER");
+    vi.mocked(supplierRepository.findSupplierInProject).mockResolvedValue(SUPPLIER);
+    vi.mocked(itemRepository.createSuppliedItem).mockResolvedValue(ITEM);
+
+    await expect(
+      itemService.createSuppliedItem(CONTEXT, PROJECT.id, {
+        supplierId: SUPPLIER.id,
+        identifier: "SI-001",
+        name: "Inconel 718 billet",
+        itemType: "MATERIAL",
+      }),
+    ).resolves.toMatchObject({ identifier: "SI-001" });
+  });
+
+  it("refuses a VIEWER creating a supplier qualification", async () => {
+    asRole("VIEWER");
+    vi.mocked(supplierRepository.findSupplierInProject).mockResolvedValue(SUPPLIER);
+
+    await expect(
+      qualificationService.createSupplierQualification(CONTEXT, PROJECT.id, {
+        supplierId: SUPPLIER.id,
+        title: "Vacuum induction melt qualification",
+        qualificationType: "MATERIAL",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(qualificationRepository.createSupplierQualification).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER updating a qualification's status — no approval tier exists for this domain", async () => {
+    asRole("REVIEWER");
+    vi.mocked(qualificationRepository.findQualificationInProject).mockResolvedValue(QUALIFICATION);
+
+    await expect(
+      qualificationService.updateSupplierQualification(CONTEXT, PROJECT.id, QUALIFICATION.id, {
+        status: "EXPIRED",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows an ENGINEER to update a qualification's status — recorded, never approved", async () => {
+    asRole("ENGINEER");
+    vi.mocked(qualificationRepository.findQualificationInProject).mockResolvedValue(QUALIFICATION);
+    vi.mocked(qualificationRepository.updateSupplierQualification).mockResolvedValue({
+      ...QUALIFICATION,
+      status: "EXPIRED",
+    });
+
+    await expect(
+      qualificationService.updateSupplierQualification(CONTEXT, PROJECT.id, QUALIFICATION.id, {
+        status: "EXPIRED",
+      }),
+    ).resolves.toMatchObject({ status: "EXPIRED" });
+  });
+
+  it("allows a MANAGER to do all of the above", async () => {
+    asRole("MANAGER");
+    vi.mocked(supplierRepository.createSupplier).mockResolvedValue(SUPPLIER);
+    await expect(
+      supplierService.createSupplier(CONTEXT, PROJECT.id, { identifier: "SUP-001", name: "Vulcan Alloys" }),
+    ).resolves.toMatchObject({ identifier: "SUP-001" });
   });
 });

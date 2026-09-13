@@ -53,7 +53,11 @@ import {
 } from "@/server/services/verification-readiness.service";
 import { hasVerificationReadiness } from "@/domain/verification-readiness";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * The internal certification readiness review.
@@ -156,7 +160,7 @@ export class CertificationReviewService {
     projectId: unknown,
     input: unknown = {},
   ): Promise<CertificationReviewReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     parseOrThrow(evaluateCertificationReviewRequestSchema, input ?? {}, "Invalid review request");
 
     const program = await this.requireProgram(scopedProjectId);
@@ -220,7 +224,7 @@ export class CertificationReviewService {
     context: OrganizationContext,
     projectId: unknown,
   ): Promise<LatestCertificationReview> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const program = await this.requireProgram(scopedProjectId);
 
     const latest = await reviewRepository.findLatestReview(program.id);
@@ -238,7 +242,7 @@ export class CertificationReviewService {
     context: OrganizationContext,
     projectId: unknown,
   ): Promise<CertificationReview[]> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const program = await this.requireProgram(scopedProjectId);
     return reviewRepository.listReviews(program.id);
   }
@@ -248,7 +252,7 @@ export class CertificationReviewService {
     projectId: unknown,
     reviewId: unknown,
   ): Promise<CertificationReviewReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const program = await this.requireProgram(scopedProjectId);
     const id = parseOrThrow(entityIdSchema, reviewId, "Invalid review id");
 

@@ -811,4 +811,48 @@ describe("project role authorization", () => {
       }),
     ).resolves.toEqual(ITEM);
   });
+
+  it("refuses a VIEWER creating a certification program", async () => {
+    asRole("VIEWER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(null);
+
+    await expect(
+      certificationProgramService.createProgram(CONTEXT, PROJECT.id, {
+        identifier: "CERT-001",
+        name: "Avionics certification effort",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(programRepository.createProgram).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER updating a certification program — review authority is not write authority", async () => {
+    asRole("REVIEWER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(PROGRAM);
+
+    await expect(
+      certificationProgramService.updateProgram(CONTEXT, PROJECT.id, { name: "Renamed" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows an ENGINEER to create a certification program", async () => {
+    asRole("ENGINEER");
+    vi.mocked(programRepository.findProgramInProject).mockResolvedValue(null);
+    vi.mocked(programRepository.createProgram).mockResolvedValue(PROGRAM);
+
+    await expect(
+      certificationProgramService.createProgram(CONTEXT, PROJECT.id, {
+        identifier: "CERT-001",
+        name: "Avionics certification effort",
+      }),
+    ).resolves.toMatchObject({ identifier: "CERT-001" });
+  });
+
+  it("a same-organization caller with no project membership cannot even read the certification program", async () => {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    await expect(
+      certificationProgramService.getProgram(CONTEXT, PROJECT.id),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
 });

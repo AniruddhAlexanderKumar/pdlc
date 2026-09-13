@@ -2,7 +2,6 @@ import {
   canTransitionCertificationProgram,
   type CertificationProgram,
   createCertificationProgramRequestSchema,
-  entityIdSchema,
   updateCertificationProgramRequestSchema,
 } from "@/domain";
 import { prisma } from "@/lib/db";
@@ -11,7 +10,12 @@ import { ConflictError, NotFoundError } from "@/server/errors";
 import * as auditLogRepository from "@/server/repositories/audit-log.repository";
 import * as programRepository from "@/server/repositories/certification-program.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import { requireAssignableOwner } from "./authorization.service";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * The certification workspace's project-level anchor.
@@ -37,12 +41,16 @@ export class CertificationProgramService {
     projectId: unknown,
     input: unknown,
   ): Promise<CertificationProgram> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(
       createCertificationProgramRequestSchema,
       input,
       "Invalid certification program",
     );
+
+    if (data.ownerId) {
+      await requireAssignableOwner(context, scopedProjectId, data.ownerId);
+    }
 
     return prisma.$transaction(async (tx) => {
       const existing = await programRepository.findProgramInProject(scopedProjectId, tx);
@@ -83,7 +91,7 @@ export class CertificationProgramService {
     context: OrganizationContext,
     projectId: unknown,
   ): Promise<CertificationProgram | null> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     return programRepository.findProgramInProject(scopedProjectId);
   }
 
@@ -92,12 +100,16 @@ export class CertificationProgramService {
     projectId: unknown,
     input: unknown,
   ): Promise<CertificationProgram> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(
       updateCertificationProgramRequestSchema,
       input,
       "Invalid certification program update",
     );
+
+    if (data.ownerId) {
+      await requireAssignableOwner(context, scopedProjectId, data.ownerId);
+    }
 
     return prisma.$transaction(async (tx) => {
       const existing = await programRepository.findProgramInProject(scopedProjectId, tx);
@@ -109,9 +121,6 @@ export class CertificationProgramService {
         throw new ConflictError(
           `A certification program cannot move from ${existing.status} to ${data.status}.`,
         );
-      }
-      if (data.ownerId) {
-        parseOrThrow(entityIdSchema, data.ownerId, "Invalid owner id");
       }
 
       const program = await programRepository.updateProgram(existing.id, data, tx);

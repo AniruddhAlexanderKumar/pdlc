@@ -3,9 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { AlertTriangle, ClipboardList, FileCheck, Plus, RefreshCw, ShieldCheck } from "lucide-react";
+import { canWriteProject } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import { useBases } from "@/lib/api/certification";
 import { useProgram } from "@/lib/api/certification";
+import { useMyProjectAccess } from "@/lib/api/project-membership";
 import { useProject } from "@/lib/api/projects";
 import {
   CertificationBasisStatusBadge,
@@ -33,10 +35,14 @@ export function CertificationView({ projectId }: { projectId: string }) {
   const program = useProgram(projectId);
   const bases = useBases(projectId);
   const project = useProject(projectId);
+  const access = useMyProjectAccess(projectId);
   const [isProgramFormOpen, setIsProgramFormOpen] = React.useState(false);
   const [isBasisFormOpen, setIsBasisFormOpen] = React.useState(false);
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
+  // Convenience only — the server re-derives and enforces this on every
+  // write regardless of what this hides.
+  const canWrite = access.state.phase === "ready" && canWriteProject(access.state.data.role);
 
   return (
     <div className="flex flex-col gap-6">
@@ -82,10 +88,12 @@ export function CertificationView({ projectId }: { projectId: string }) {
           title="No certification programme yet"
           description="Create the project's internal certification programme to start tracking obligations against a basis."
           action={
-            <Button onClick={() => setIsProgramFormOpen(true)}>
-              <Plus aria-hidden="true" />
-              Create programme
-            </Button>
+            canWrite ? (
+              <Button onClick={() => setIsProgramFormOpen(true)}>
+                <Plus aria-hidden="true" />
+                Create programme
+              </Button>
+            ) : undefined
           }
         />
       )}

@@ -4,8 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Plus, RefreshCw, Users } from "lucide-react";
+import { canWriteProject } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import { useStakeholderNeeds } from "@/lib/api/artifacts";
+import { useMyProjectAccess } from "@/lib/api/project-membership";
 import { useProject } from "@/lib/api/projects";
 import { StakeholderNeedStatusBadge } from "@/components/common/artifact-badges";
 import { PageHeader } from "@/components/common/page-header";
@@ -29,9 +31,13 @@ export function StakeholderNeedsView({ projectId }: { projectId: string }) {
   const router = useRouter();
   const { state, reload } = useStakeholderNeeds(projectId);
   const project = useProject(projectId);
+  const access = useMyProjectAccess(projectId);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
+  // Convenience only — the server re-derives and enforces this on every
+  // write regardless of what this hides.
+  const canWrite = access.state.phase === "ready" && canWriteProject(access.state.data.role);
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,10 +49,12 @@ export function StakeholderNeedsView({ projectId }: { projectId: string }) {
             : "Originating needs. Requirements derive from these."
         }
         actions={
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus aria-hidden="true" />
-            New stakeholder need
-          </Button>
+          canWrite && (
+            <Button onClick={() => setIsCreateOpen(true)}>
+              <Plus aria-hidden="true" />
+              New stakeholder need
+            </Button>
+          )
         }
       />
 
@@ -75,10 +83,12 @@ export function StakeholderNeedsView({ projectId }: { projectId: string }) {
             title="No stakeholder needs yet"
             description="Capture the originating needs first — requirements can then be traced back to them."
             action={
-              <Button onClick={() => setIsCreateOpen(true)}>
-                <Plus aria-hidden="true" />
-                New stakeholder need
-              </Button>
+              canWrite ? (
+                <Button onClick={() => setIsCreateOpen(true)}>
+                  <Plus aria-hidden="true" />
+                  New stakeholder need
+                </Button>
+              ) : undefined
             }
           />
         ) : (

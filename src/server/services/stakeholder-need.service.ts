@@ -13,7 +13,11 @@ import type { AuditEventSummary } from "@/server/repositories/audit-log.reposito
 import * as needRepository from "@/server/repositories/stakeholder-need.repository";
 import type { LinkedRequirementSummary } from "@/server/repositories/stakeholder-need.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * Stakeholder need application service.
@@ -57,7 +61,7 @@ export async function createStakeholderNeed(
   projectId: unknown,
   input: unknown,
 ): Promise<StakeholderNeed> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createStakeholderNeedRequestSchema, input, "Invalid stakeholder need");
 
   return prisma.$transaction(async (tx) => {
@@ -93,7 +97,7 @@ export async function listStakeholderNeeds(
   projectId: unknown,
   filter: { status?: unknown } = {},
 ): Promise<StakeholderNeed[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
 
   const status =
     filter.status === undefined || filter.status === null || filter.status === ""
@@ -108,7 +112,7 @@ export async function getStakeholderNeed(
   projectId: unknown,
   needId: unknown,
 ): Promise<StakeholderNeedDetail> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const need = await requireNeed(scopedProjectId, needId);
 
   const [requirements, history] = await Promise.all([
@@ -129,7 +133,7 @@ export async function updateStakeholderNeed(
   needId: unknown,
   input: unknown,
 ): Promise<StakeholderNeed> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(
     updateStakeholderNeedRequestSchema,
     input,

@@ -125,6 +125,7 @@ describe("SuppliersView", () => {
   function routeList(suppliers: unknown[]) {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("/suppliers")) return ok({ suppliers });
+      if (url.endsWith("/role")) return ok({ access: { role: "MANAGER", isOrganizationOwner: false } });
       if (url.includes(`/api/projects/${PROJECT_ID}`)) return ok({ project: PROJECT });
       return fail(404, "NOT_FOUND", "No route");
     });
@@ -170,6 +171,7 @@ describe("SuppliersView", () => {
   it("surfaces an API error with a retry rather than an empty table", async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("/suppliers")) return fail(500, "INTERNAL", "Database unreachable");
+      if (url.endsWith("/role")) return ok({ access: { role: "MANAGER", isOrganizationOwner: false } });
       return ok({ project: PROJECT });
     });
 

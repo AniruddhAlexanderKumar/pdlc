@@ -17,7 +17,7 @@ import {
   hasTechnicalReadiness,
   technicalReadinessSignature,
 } from "@/domain";
-import { NotFoundError, ValidationError } from "@/server/errors";
+import { ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 import type { RawEdge } from "@/server/repositories/graph-edge-resolvers";
 import {
   BASELINE_REVISION,
@@ -2013,5 +2013,50 @@ describe("the recorded scope", () => {
       analysisId: "ana1",
       analysisFreshness: "STALE",
     });
+  });
+});
+
+describe("project role authorization", () => {
+  function asRole(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue({
+      id: "mem1",
+      projectId: PROJECT_ID,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    } as never);
+  }
+
+  it("refuses a VIEWER evaluating a gate — a persisted, immutable assessment, not a plain read", async () => {
+    buildScenario(healthy());
+    asRole("VIEWER");
+
+    await expect(evaluate("SYSTEM_DEFINITION")).rejects.toBeInstanceOf(ForbiddenError);
+    expect(readinessRepository.createAssessment).not.toHaveBeenCalled();
+  });
+
+  it("refuses a REVIEWER evaluating a gate — no approval tier exists for this domain", async () => {
+    buildScenario(healthy());
+    asRole("REVIEWER");
+
+    await expect(evaluate("SYSTEM_DEFINITION")).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows an ENGINEER to evaluate a gate", async () => {
+    buildScenario(healthy());
+    asRole("ENGINEER");
+
+    await expect(evaluate("SYSTEM_DEFINITION")).resolves.toBeDefined();
+  });
+
+  it("a same-organization caller with no project membership cannot even read history", async () => {
+    buildScenario(healthy());
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    await expect(
+      service().listTechnicalReadinessHistory(CONTEXT, PROJECT_ID),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });

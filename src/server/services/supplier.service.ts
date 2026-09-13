@@ -17,7 +17,11 @@ import type { SuppliedItemWithSupplier } from "@/server/repositories/supplied-it
 import * as supplierRepository from "@/server/repositories/supplier.repository";
 import type { SupplierWithCounts } from "@/server/repositories/supplier.repository";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * Supplier application service.
@@ -29,10 +33,15 @@ import { artifactAuditEvent, requireProjectInOrganization } from "./project-scop
  *
  * Two rules matter more than the CRUD:
  *
- *  - **Tenancy first.** Every operation starts at `requireProjectInOrganization`,
- *    so a supplier in another organization's project is not found rather than
- *    refused — the API does not confirm what it will not show. The organization
- *    comes from the session and is never accepted from a caller.
+ *  - **Tenancy and access first.** Every operation is scoped through
+ *    `project-scope.ts`, so a supplier in another organization's project — or
+ *    in this organization but a project the caller is not a member of — is
+ *    not found rather than refused; the API does not confirm what it will
+ *    not show. The organization comes from the session and is never
+ *    accepted from a caller. Reads require project read access (any real
+ *    project role, or the organization owner); create/update additionally
+ *    require project write access (`requireProjectWriteAccess` — MANAGER or
+ *    ENGINEER, or the organization owner).
  *  - **Status is not derived.** Nothing here reads a qualification to decide a
  *    supplier's status, or the reverse. A supplier can be ACTIVE while one of
  *    their qualifications is EXPIRED, and preserving both is the point: silently
@@ -79,7 +88,7 @@ export async function createSupplier(
   projectId: unknown,
   input: unknown,
 ): Promise<Supplier> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createSupplierRequestSchema, input, "Invalid supplier");
 
   return prisma.$transaction(async (tx) => {
@@ -111,7 +120,7 @@ export async function listSuppliers(
   projectId: unknown,
   filter: { status?: unknown } = {},
 ): Promise<SupplierWithCounts[]> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
 
   const status =
     filter.status === undefined || filter.status === null || filter.status === ""
@@ -126,7 +135,7 @@ export async function getSupplier(
   projectId: unknown,
   supplierId: unknown,
 ): Promise<SupplierDetail> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const supplier = await requireSupplier(scopedProjectId, supplierId);
 
   const [suppliedItems, qualifications, history] = await Promise.all([
@@ -152,7 +161,7 @@ export async function updateSupplier(
   supplierId: unknown,
   input: unknown,
 ): Promise<Supplier> {
-  const scopedProjectId = await requireProjectInOrganization(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(updateSupplierRequestSchema, input, "Invalid supplier update");
 
   return prisma.$transaction(async (tx) => {

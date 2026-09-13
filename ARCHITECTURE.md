@@ -450,22 +450,19 @@ organization owner, may see who else is on the project); every mutation
 require only authentication (any organization member); the one mutation,
 provisioning a new account, requires `requireOrganizationOwner`.
 
-**Genuine, disclosed limitation.** The remaining services —
+**Full read + write/approve gating (completed in a follow-up pass — see
+[Completing coverage](#completing-project-role-authorization-coverage)):**
 `certification-program.service.ts`, `certification-review.service.ts`,
 `supplier.service.ts`, `supplied-item.service.ts`,
 `supplier-qualification.service.ts`, `stakeholder-need.service.ts`,
 `change-impact-analysis.service.ts`, `technical-readiness.service.ts`,
-`verification-readiness.service.ts`, `assumption-monitoring.service.ts`
-— still call only the original, unchanged `requireProjectInOrganization`.
-Any organization member who can already reach the project (org owner, or
-— for now — nothing stops a same-organization caller with no project
-membership from calling these specific services directly, since they have
-not been migrated) can still read and write through them without a
-project-role check. This is a scope decision, not an oversight: the
-prompt's own instruction was representative coverage across every
-*category* of controlled object, not migrating all ~40 services in one
-pass. Extending the same four-function pattern to the remaining services
-is mechanical and low-risk precisely because the pattern is additive.
+`verification-readiness.service.ts`, `assumption-monitoring.service.ts`.
+Unlike the thirteen services above — whose *reads* were deliberately left
+on the base tenancy-only check — these ten also require
+`requireProjectReadAccess` on every read path, so a same-organization
+caller with no project membership gets 404 on reads too, not only writes.
+That is a real, disclosed inconsistency between the two groups (see that
+section for why), not an oversight in either direction.
 
 ### Approval semantics: write vs. approve, per object
 
@@ -498,6 +495,16 @@ const scopedProjectId = APPROVAL_TRANSITIONS.has(to)
 | Observation (Drift) | create, update | `review`, `reject` |
 | Drift evaluation | `evaluateDrift` | — a run, not a judgement about its result |
 | Sentinel target | `acknowledge`, `detect`, `reevaluate` | `resolve` |
+| Certification Program | create, update (incl. its own status field) | — no domain-recognized approval action |
+| Certification Review | `evaluateCertificationReview` | — a run, not a judgement about its result |
+| Supplier | create, update | — no domain-recognized approval action |
+| Supplied Item | create, update, link, unlink | — no domain-recognized approval action |
+| Supplier Qualification | create, update (incl. status: `EXPIRED`/`WITHDRAWN`), evidence link/unlink | — the service's own doc comment: "nothing here approves anything" |
+| Stakeholder Need | create, update | — no lifecycle gate, no ownership |
+| Change Impact Analysis | `runImpactAnalysis` | — a run, not a judgement about its result |
+| Technical Readiness | `evaluateTechnicalReadiness` | — a run, not a judgement about its result |
+| Verification Readiness | `evaluateVerificationReadiness` | — a run, not a judgement about its result |
+| Assumption Monitoring | `evaluateAssumption`, `evaluateProjectAssumptions`, `reviewAssumption` | — see below |
 
 Risk, Issue, Design Item and Verification Activity have no row in the
 "approval action" column on purpose: their own domain semantics (see each
@@ -522,6 +529,122 @@ Nowhere does record ownership substitute for role: assigning a
 requirement's owner to yourself does not grant approval authority over
 it, and none of the migrated services check `ownerId === context.actorId`
 as an alternate path around `requireProjectApproveAccess`.
+
+### Completing project-role authorization coverage
+
+A follow-up pass closed the gap the section above disclosed. Before
+writing anything, every service, mutation route and
+`requireProjectInOrganization` call site was re-inspected rather than
+trusting the prior report's own summary — which turned out to be
+necessary: that report said "9 services" in prose but then named ten. The
+repository confirms ten, all genuinely still on the original,
+project-role-blind check at the time; the "9" was a miscount in the prose,
+not a real discrepancy in the list.
+
+**Read paths were upgraded too, not only writes.** For the thirteen
+services in the section above, reads were deliberately left on the base
+tenancy-only check — a same-organization, non-project-member caller could
+still read (never write). For these ten, every read now requires
+`requireProjectReadAccess` as well: `getProgram`, all three
+`certification-review` reads, `listSuppliers`/`getSupplier`,
+`listSuppliedItems`/`getSuppliedItem`/`listSuppliedItemLinkTargets`,
+`listSupplierQualifications`/`getSupplierQualification`,
+`listStakeholderNeeds`/`getStakeholderNeed`, all three
+`change-impact-analysis` reads, all three `technical-readiness` reads,
+all three `verification-readiness` reads, and
+`getAssumptionStatus`/`getMonitoringHistory`. A same-organization caller
+with no project membership now gets 404 on these modules' reads, not just
+their writes — deliberately requested this pass ("a non-member must not
+be able to obtain: list data; detail data; relationship data; readiness
+results; certification records; supplier records; monitoring results;
+change-impact records"), and a real, disclosed inconsistency with the
+thirteen services that came before: retroactively tightening their reads
+too is future work, not done here, because it was not what either pass
+asked for.
+
+**System-derived evaluations are write-tier, mirroring the established
+`evaluateDrift` precedent — never approve-tier and never a plain read.**
+`evaluateCertificationReview`, `runImpactAnalysis`,
+`evaluateTechnicalReadiness` and `evaluateVerificationReadiness` each
+persist a new, immutable row (a review, an analysis, an assessment) from
+a bounded computation over already-recorded state. Triggering one is
+ordinary engineering work — deciding what the record currently supports
+is not a judgement call the way approving a requirement is — so each
+requires only `requireProjectWriteAccess`. This was checked against a
+real composition, not just argued: Decision Sentinel's
+`reEvaluateTarget` (write-tier since Prompt 25) dispatches to all four of
+these engines internally, passing the same context straight through: if
+any of them had been classified as approve-tier, an ENGINEER re-running a
+Sentinel target would have started failing with a 403 from inside a
+"write-tier" operation. They compose cleanly precisely because both sides
+of that call are the same tier — confirmed by running the existing
+Sentinel dispatch tests after the change, unmodified, still green.
+
+**Assumption Monitoring has three operations, not two.**
+`evaluateAssumption` / `evaluateProjectAssumptions` are the system-derived
+case above. `reviewAssumption` is different in kind — the service's own
+doc comment calls it "an engineer's explicit review," and it is the one
+path by which an assumption's status can move outside of ordinary content
+editing. It was tempting to read "review" as REVIEWER-tier, but the
+domain gives no support for that: `engineering-decision.service.ts`'s own
+`updateAssumption` (part of a decision's ordinary content, ENGINEER-tier
+since Prompt 25) writes the exact same field through the exact same
+repository call. Making one path ENGINEER-tier and the other
+REVIEWER-tier for the same field would be an invented distinction the
+domain does not draw, which is exactly what this pass was told not to do
+— so `reviewAssumption` is write-tier, consistent with its sibling.
+
+**Owner assignment.** Of the ten, only `CertificationProgram` carries an
+`ownerId` (`Supplier`, `SuppliedItem`, `SupplierQualification` and
+`StakeholderNeed` have none). `createProgram` and `updateProgram` now
+call the same consolidated `requireAssignableOwner` every other
+owner-assignment call site uses — closing a real, separate gap: before
+this pass, a certification program's `ownerId` was accepted with only an
+id-shape check, no organization-membership or project-access validation
+at all.
+
+**Cross-project / IDOR.** No new protection was needed here: every one of
+these ten services already re-resolves every parent and link target
+inside the caller's own scoped project before writing (a supplied item's
+`supplierId`, a qualification's `supplierId`/`suppliedItemId` pair and
+their must-match-the-named-supplier check, every link's target) — the
+same "no id a caller supplies is ever trusted" discipline every other
+module in this codebase already follows, proven by each service's own
+existing "rejects a target/parent from another project" tests. This pass
+verified that discipline was intact; it did not need to add it.
+
+**Authorization matrix.**
+
+| Module | Read | Write | Review/Approve | Admin |
+| --- | --- | --- | --- | --- |
+| Requirement | project member | ENGINEER+ | REVIEWER+ (`APPROVED`, `BASELINED`) | — |
+| Engineering Decision | project member | ENGINEER+ | REVIEWER+ (`APPROVED`) | — |
+| Change Request | project member | ENGINEER+ | REVIEWER+ (`APPROVED`, `REJECTED`) | — |
+| Risk / Issue | project member | ENGINEER+ | — | — |
+| Evidence | project member | ENGINEER+ | REVIEWER+ (`validate`, `supersede`) | — |
+| Design Item / Verification Activity | project member | ENGINEER+ | — | — |
+| Certification Basis | project member | ENGINEER+ | REVIEWER+ (`activate`, `supersede`) | — |
+| Certification Finding | project member | ENGINEER+ | REVIEWER+ (`resolve`, `accept`) | — |
+| Compliance Item | project member | ENGINEER+ | — | — |
+| Baseline / Observation (Drift) | project member | ENGINEER+ | REVIEWER+ (`activate`/`supersede`, `review`/`reject`) | — |
+| Sentinel target | project member | ENGINEER+ (`acknowledge`, `detect`, `reevaluate`) | REVIEWER+ (`resolve`) | — |
+| **Certification Program** | **project member** | **ENGINEER+** | — | — |
+| **Certification Review** | **project member** | **ENGINEER+** (`evaluate`) | — | — |
+| **Supplier / Supplied Item / Supplier Qualification** | **project member** | **ENGINEER+** | — | — |
+| **Stakeholder Need** | **project member** | **ENGINEER+** | — | — |
+| **Change Impact Analysis** | **project member** | **ENGINEER+** (`run`) | — | — |
+| **Technical / Verification Readiness** | **project member** | **ENGINEER+** (`evaluate`) | — | — |
+| **Assumption Monitoring** | **project member** | **ENGINEER+** (`evaluate`, `review`) | — | — |
+| Traceability / Engineering History / Engineering Graph | project member | — (read-only workspace) | — | — |
+| Project Membership | project member | — | — | MANAGER-only |
+| Organization Membership | organization member | — | — | OWNER-only |
+
+Bold rows are this pass's own additions; the rest restate what Prompt 25
+already documented above, kept in one table so the two passes read as one
+consistent model rather than two separate ones. "project member" in the
+Read column means `requireProjectReadAccess` for the bold rows and the
+base tenancy-only check for everything above them — the one disclosed
+asymmetry this table makes visible rather than hides.
 
 ### 401 / 403 / 404 conventions
 

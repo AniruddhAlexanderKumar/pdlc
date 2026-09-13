@@ -9,11 +9,13 @@ import { databaseAvailable, signIn, signUpNewAccount, type E2EAccount } from "./
  *   project role through the real Members page → an ENGINEER creates a
  *   requirement and moves it into review, but cannot approve it → a
  *   REVIEWER cannot create a requirement, but can approve the one the
- *   engineer moved into review → a VIEWER can read the project but cannot
- *   mutate anything → a same-organization user with *no* project
- *   membership cannot reach the project at all (404, indistinguishable
- *   from "does not exist") → the owner removes a member, and that member
- *   immediately loses access.
+ *   engineer moved into review → a VIEWER can read a supplier (one of the
+ *   modules completed in a later authorization-coverage pass) but cannot
+ *   create one, and a non-member cannot even read it → a VIEWER can read
+ *   the project but cannot mutate anything → a same-organization user
+ *   with *no* project membership cannot reach the project at all (404,
+ *   indistinguishable from "does not exist") → the owner removes a
+ *   member, and that member immediately loses access.
  *
  * Every check here goes through the real UI and the real API — server
  * enforcement, not a hidden button standing in for it. Several requirement
@@ -126,6 +128,38 @@ test.describe.serial("Engineering Access Control", () => {
     await expect(page.getByRole("alert").getByText(/blocked/i)).toBeVisible();
     // The rejected click changed nothing: still in review, not approved.
     await expect(page.getByText("Currently in review.")).toBeVisible();
+  });
+
+  test("a VIEWER can read but not create a supplier, and a non-member cannot even read it — one of the modules completed in the follow-up pass", async ({
+    page,
+  }) => {
+    await signIn(page, engineer);
+    await page.goto(`${projectUrl}/suppliers`);
+    await page.getByRole("button", { name: "New supplier" }).first().click();
+    await page.getByLabel("Identifier").fill("SUP-001");
+    await page.getByLabel(/^Name/).fill("Vulcan Alloys");
+    await page.getByLabel(/^Description/).fill("Nickel superalloy billet and forgings.");
+    await page.getByRole("button", { name: "Create supplier" }).click();
+    await expect(page).toHaveURL(/\/suppliers\/[a-z0-9]+$/);
+    const supplierUrl = page.url();
+
+    await signIn(page, viewer);
+    await page.goto(supplierUrl);
+    await expect(page.getByRole("heading", { name: /SUP-001/ })).toBeVisible();
+
+    await page.goto(`${projectUrl}/suppliers`);
+    await page.getByRole("button", { name: "New supplier" }).first().click();
+    await page.getByLabel("Identifier").fill("SUP-002");
+    await page.getByLabel(/^Name/).fill("Should never be created");
+    await page.getByLabel(/^Description/).fill("A viewer has no write authority.");
+    await page.getByRole("button", { name: "Create supplier" }).click();
+    await expect(page.getByRole("alert").getByText(/blocked/i)).toBeVisible();
+
+    // Unlike Requirements, this module's *reads* are also project-membership
+    // gated — a same-organization non-member gets 404, not just on writes.
+    await signIn(page, outsider);
+    await page.goto(supplierUrl);
+    await expect(page.getByText(/no longer exists, or you do not have access/i)).toBeVisible();
   });
 
   test("a REVIEWER cannot create a requirement, but can approve the one the engineer moved into review", async ({

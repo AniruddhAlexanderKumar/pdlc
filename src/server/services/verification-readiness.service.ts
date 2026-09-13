@@ -47,7 +47,11 @@ import {
   engineeringGraphService,
 } from "@/server/services/engineering-graph.service";
 import { parseOrThrow } from "@/server/validation";
-import { artifactAuditEvent, requireProjectInOrganization } from "./project-scope";
+import {
+  artifactAuditEvent,
+  requireProjectReadAccess,
+  requireProjectWriteAccess,
+} from "./project-scope";
 
 /**
  * The verification readiness engine.
@@ -159,7 +163,7 @@ export class VerificationReadinessService {
     activityId: unknown,
     request: unknown = {},
   ): Promise<VerificationReadinessReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     // Strict and empty: no rule outcome, status or finding may be supplied by a
     // caller. A client that tries is rejected rather than silently ignored.
     parseOrThrow(
@@ -257,7 +261,7 @@ export class VerificationReadinessService {
     projectId: unknown,
     activityId: unknown,
   ): Promise<LatestVerificationReadiness> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const activity = await this.requireActivity(scopedProjectId, activityId);
 
     const latest = await readinessRepository.findLatestAssessment(scopedProjectId, activity.id);
@@ -278,7 +282,7 @@ export class VerificationReadinessService {
     projectId: unknown,
     activityId: unknown,
   ): Promise<VerificationReadinessAssessment[]> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const activity = await this.requireActivity(scopedProjectId, activityId);
 
     return readinessRepository.listAssessments(scopedProjectId, activity.id);
@@ -297,7 +301,7 @@ export class VerificationReadinessService {
     projectId: unknown,
     assessmentId: unknown,
   ): Promise<VerificationReadinessReport> {
-    const scopedProjectId = await requireProjectInOrganization(context, projectId);
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
     const id = parseOrThrow(verificationReadinessIdSchema, assessmentId, "Invalid assessment id");
 
     const assessment = await readinessRepository.findAssessmentInProject(scopedProjectId, id);

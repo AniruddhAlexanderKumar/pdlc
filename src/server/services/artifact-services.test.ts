@@ -654,4 +654,39 @@ describe("project role authorization", () => {
       }),
     ).resolves.toMatchObject({ identifier: "DI-001" });
   });
+
+  it("refuses a VIEWER creating a stakeholder need", async () => {
+    asRole("VIEWER");
+    await expect(
+      needService.createStakeholderNeed(CONTEXT, PROJECT.id, {
+        identifier: "SN-001",
+        title: "Payload mass capability",
+        description: "The launch customer needs 4 t to LEO.",
+        stakeholder: "Launch customer",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(needRepository.createStakeholderNeed).not.toHaveBeenCalled();
+  });
+
+  it("allows an ENGINEER to create a stakeholder need", async () => {
+    asRole("ENGINEER");
+    vi.mocked(needRepository.createStakeholderNeed).mockResolvedValue(NEED);
+    await expect(
+      needService.createStakeholderNeed(CONTEXT, PROJECT.id, {
+        identifier: "SN-001",
+        title: "Payload mass capability",
+        description: "The launch customer needs 4 t to LEO.",
+        stakeholder: "Launch customer",
+      }),
+    ).resolves.toMatchObject({ identifier: "SN-001" });
+  });
+
+  it("a same-organization caller with no project membership cannot even read a stakeholder need", async () => {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    await expect(
+      needService.listStakeholderNeeds(CONTEXT, PROJECT.id, {}),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
 });

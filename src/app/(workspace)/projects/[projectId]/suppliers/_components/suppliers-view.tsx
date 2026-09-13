@@ -4,8 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Factory, Plus, RefreshCw } from "lucide-react";
-import { SUPPLIER_STATUSES, type SupplierStatus } from "@/domain";
+import { canWriteProject, SUPPLIER_STATUSES, type SupplierStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
+import { useMyProjectAccess } from "@/lib/api/project-membership";
 import { useProject } from "@/lib/api/projects";
 import { useSuppliers } from "@/lib/api/suppliers";
 import { PageHeader } from "@/components/common/page-header";
@@ -37,9 +38,13 @@ export function SuppliersView({ projectId }: { projectId: string }) {
   const [status, setStatus] = React.useState<SupplierStatus | "">("");
   const { state, reload } = useSuppliers(projectId, status);
   const project = useProject(projectId);
+  const access = useMyProjectAccess(projectId);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
+  // Convenience only — the server re-derives and enforces this on every
+  // write regardless of what this hides.
+  const canWrite = access.state.phase === "ready" && canWriteProject(access.state.data.role);
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,10 +56,12 @@ export function SuppliersView({ projectId }: { projectId: string }) {
             : "Supplier engineering dependencies. Not a procurement record."
         }
         actions={
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus aria-hidden="true" />
-            New supplier
-          </Button>
+          canWrite && (
+            <Button onClick={() => setIsCreateOpen(true)}>
+              <Plus aria-hidden="true" />
+              New supplier
+            </Button>
+          )
         }
       />
 
@@ -107,10 +114,12 @@ export function SuppliersView({ projectId }: { projectId: string }) {
             title={status ? "No suppliers with that status" : "No suppliers yet"}
             description="Record the external organizations this project's engineering depends on, then add what each of them supplies."
             action={
-              <Button onClick={() => setIsCreateOpen(true)}>
-                <Plus aria-hidden="true" />
-                New supplier
-              </Button>
+              canWrite ? (
+                <Button onClick={() => setIsCreateOpen(true)}>
+                  <Plus aria-hidden="true" />
+                  New supplier
+                </Button>
+              ) : undefined
             }
           />
         ) : (

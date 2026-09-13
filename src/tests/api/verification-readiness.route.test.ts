@@ -5,7 +5,7 @@ import {
   type VerificationReadinessAssessment,
   type VerificationReadinessReport,
 } from "@/domain";
-import { NotFoundError, UnauthorizedError, ValidationError } from "@/server/errors";
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "@/server/errors";
 
 /**
  * Readiness route handlers driven through a faked service, so that path
@@ -475,5 +475,20 @@ describe("what the API never exposes", () => {
     const text = JSON.stringify(await response.json());
 
     expect(text).not.toMatch(/"score"|"percent|"confidence"|"probability"/i);
+  });
+});
+
+describe("authorization", () => {
+  it("403s when the service refuses an insufficient project role", async () => {
+    vi.mocked(service.evaluateVerificationReadiness).mockRejectedValue(
+      new ForbiddenError("Your role on this project does not allow editing engineering content."),
+    );
+
+    const response = await readinessRoute.POST(
+      jsonRequest(`${BASE}/verification-activities/${ACTIVITY_ID}/readiness`, {}),
+      activityParams,
+    );
+
+    expect(response.status).toBe(403);
   });
 });

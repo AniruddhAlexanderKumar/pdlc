@@ -68,8 +68,17 @@ vi.mock("@/server/repositories/audit-log.repository", () => ({
   listAuditEventsForEntity: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/user.repository", () => ({
+  isMemberOfOrganization: vi.fn(),
+  getOrganizationRole: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/project-membership.repository", () => ({ findMembership: vi.fn() }));
+
 const authContext = await import("@/server/auth/context");
 const projectRepository = await import("@/server/repositories/project.repository");
+const userRepository = await import("@/server/repositories/user.repository");
+const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const supplierRepository = await import("@/server/repositories/supplier.repository");
 const itemRepository = await import("@/server/repositories/supplied-item.repository");
 const qualificationRepository = await import(
@@ -177,6 +186,10 @@ beforeEach(() => {
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
   vi.mocked(auditLogRepository.recordAuditEvent).mockResolvedValue(undefined as never);
   vi.mocked(auditLogRepository.listAuditEventsForEntity).mockResolvedValue([]);
+  // CONTEXT's actor is treated as the organization owner — full implicit
+  // project access with no explicit ProjectMembership row needed.
+  vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+  vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
 });
 
 // --- Authentication ---------------------------------------------------------
