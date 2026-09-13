@@ -322,7 +322,7 @@ export async function supersedeEvidence(
       );
     }
 
-    const evidence = await evidenceRepository.supersedeEvidence(existing.id, replacement.id, tx);
+    const evidence = await evidenceRepository.supersedeEvidence(existing.id, existing.status, replacement.id, tx);
 
     await auditLogRepository.recordAuditEvent(
       auditEvent(context, EVIDENCE_AUDIT_ACTIONS.superseded, evidence.id, {

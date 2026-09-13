@@ -69,13 +69,25 @@ export async function findLatestReview(
   return row ? toReview(row) : null;
 }
 
+/**
+ * Every review for a program, newest first.
+ *
+ * Bounded like every other project-wide history read in this codebase (see
+ * `drift-assessment.repository.ts#listAssessments`): a review is a human- or
+ * Sentinel-triggered evaluation, not a high-frequency write, so 200 is
+ * generous headroom rather than a real ceiling on normal use — but without
+ * it this was an unbounded scan of the program's entire review history on
+ * every call.
+ */
 export async function listReviews(
   certificationProgramId: string,
+  limit = 200,
   client: DbClient = prisma,
 ): Promise<CertificationReview[]> {
   const rows = await client.certificationReview.findMany({
     where: { certificationProgramId },
     orderBy: NEWEST_FIRST,
+    take: limit,
   });
   return rows.map(toReview);
 }

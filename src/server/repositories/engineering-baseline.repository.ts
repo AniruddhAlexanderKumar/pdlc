@@ -108,15 +108,31 @@ export async function updateBaseline(
 }
 
 /** Records activation: the moment the basis was fixed, and by whom. */
+/**
+ * Fixes the baseline as ACTIVE.
+ *
+ * Race-safe against a concurrent activation of a *different* baseline in the
+ * same project: `engineering_baselines_active_unique` (a partial unique
+ * index — see the migration that adds it) allows at most one ACTIVE row per
+ * project, so a losing concurrent transaction fails here with a unique-
+ * constraint violation rather than silently leaving two baselines ACTIVE.
+ */
 export async function activateBaseline(
   id: string,
   baselinedById: string | null,
   client: DbClient = prisma,
 ): Promise<EngineeringBaseline> {
-  return client.engineeringBaseline.update({
-    where: { id },
-    data: { status: "ACTIVE", baselinedAt: new Date(), baselinedById },
-  });
+  try {
+    return await client.engineeringBaseline.update({
+      where: { id },
+      data: { status: "ACTIVE", baselinedAt: new Date(), baselinedById },
+    });
+  } catch (error) {
+    rethrowAsConflict(
+      error,
+      "Another baseline was activated for this project at the same moment. Reload and try again.",
+    );
+  }
 }
 
 /**

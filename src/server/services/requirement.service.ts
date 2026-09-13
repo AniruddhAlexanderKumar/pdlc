@@ -302,9 +302,10 @@ export async function transitionRequirementStatus(
       );
     }
 
-    const requirement = await requirementRepository.updateRequirement(
+    const requirement = await requirementRepository.transitionStatusGuarded(
       existing.id,
-      { status: to },
+      existing.status,
+      to,
       tx,
     );
 

@@ -38,6 +38,7 @@ vi.mock("@/server/repositories/change-request.repository", () => ({
   listChangeRequestsInProject: vi.fn(),
   findChangeRequester: vi.fn(),
   updateChangeRequest: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   changeImpactTargetExistsInProject: vi.fn(),
   createDeclaredImpact: vi.fn(),
   findDeclaredImpactForChange: vi.fn(),
@@ -350,7 +351,7 @@ describe("PATCH /changes/[changeId]", () => {
 describe("POST /changes/[changeId]/transition", () => {
   it("moves a draft to submitted", async () => {
     vi.mocked(changeRepository.findChangeRequestInProject).mockResolvedValue(change());
-    vi.mocked(changeRepository.updateChangeRequest).mockResolvedValue(
+    vi.mocked(changeRepository.transitionStatusGuarded).mockResolvedValue(
       change({ status: "SUBMITTED" }),
     );
 

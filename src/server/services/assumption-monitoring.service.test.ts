@@ -32,6 +32,7 @@ vi.mock("@/server/repositories/project-membership.repository", () => ({ findMemb
 
 vi.mock("@/server/repositories/decision-assumption.repository", () => ({
   findAssumptionForDecision: vi.fn(),
+  findAssumptionsByIds: vi.fn(),
   updateAssumption: vi.fn(),
 }));
 

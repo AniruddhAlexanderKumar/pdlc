@@ -250,7 +250,7 @@ export async function transitionIssue(
       );
     }
 
-    const issue = await issueRepository.updateIssue(existing.id, { status: to }, tx);
+    const issue = await issueRepository.transitionStatusGuarded(existing.id, existing.status, to, tx);
 
     await auditLogRepository.recordAuditEvent(
       auditEvent(context, ISSUE_AUDIT_ACTIONS.transitioned, issue.id, {

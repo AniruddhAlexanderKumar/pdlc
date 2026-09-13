@@ -280,7 +280,7 @@ export async function transitionChangeRequest(
       );
     }
 
-    const change = await changeRepository.updateChangeRequest(existing.id, { status: to }, tx);
+    const change = await changeRepository.transitionStatusGuarded(existing.id, existing.status, to, tx);
 
     await auditLogRepository.recordAuditEvent(
       audit(context, CHANGE_AUDIT_ACTIONS.transitioned, change.id, {

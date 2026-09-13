@@ -358,6 +358,40 @@ export async function readAssessmentBasis(
 }
 
 /**
+ * The persisted basis for the latest assessment of each of several
+ * activities, in one pass.
+ *
+ * The same shape as {@link findLatestForActivities} — one query rather than
+ * one per activity — for callers that need each activity's last-recorded
+ * basis rather than the assessment summary itself (Sentinel's dependency
+ * resolution, so far). `findLatestForActivities` cannot serve this directly:
+ * its `AssessmentRow`/`VerificationReadinessAssessment` shape deliberately
+ * drops the `basis` column (it is the readiness detail, not the summary), so
+ * reading it back required a second per-row query until this existed.
+ */
+export async function findLatestBasisForActivities(
+  projectId: string,
+  verificationActivityIds: readonly string[],
+  client: DbClient = prisma,
+): Promise<Map<string, VerificationReadinessBasis>> {
+  if (verificationActivityIds.length === 0) return new Map();
+
+  const rows = await client.verificationReadinessAssessment.findMany({
+    where: { projectId, verificationActivityId: { in: [...verificationActivityIds] } },
+    orderBy: NEWEST_FIRST,
+    select: { verificationActivityId: true, scope: true, basis: true },
+  });
+
+  const latest = new Map<string, VerificationReadinessBasis>();
+  for (const row of rows) {
+    if (!latest.has(row.verificationActivityId)) {
+      latest.set(row.verificationActivityId, toBasis(row.verificationActivityId, row.scope, row.basis));
+    }
+  }
+  return latest;
+}
+
+/**
  * The latest assessment for each of several activities, in one pass.
  *
  * The verification list needs to show what was last recorded per activity and

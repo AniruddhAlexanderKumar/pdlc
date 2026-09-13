@@ -15,7 +15,7 @@ import {
 import { type DbClient, prisma } from "@/lib/db";
 import { parseOrThrow } from "@/server/validation";
 import { toIssue } from "./mappers";
-import { rethrowAsConflict } from "./prisma-error";
+import { assertGuardedTransition, rethrowAsConflict } from "./prisma-error";
 
 /** Issue data access, including the trace edges that hang off an issue. */
 
@@ -81,6 +81,28 @@ export async function updateIssue(
       ownerId: data.ownerId,
     },
   });
+  return toIssue(row);
+}
+
+/**
+ * The status write behind `transitionIssue`. Guarded, unlike
+ * {@link updateIssue}: see `assertGuardedTransition`.
+ */
+export async function transitionStatusGuarded(
+  id: string,
+  fromStatus: IssueStatus,
+  toStatus: IssueStatus,
+  client: DbClient = prisma,
+): Promise<Issue> {
+  const result = await client.issue.updateMany({
+    where: { id, status: fromStatus },
+    data: { status: toStatus },
+  });
+  assertGuardedTransition(
+    result.count,
+    "This issue's status was changed by someone else first. Reload and try again.",
+  );
+  const row = await client.issue.findUniqueOrThrow({ where: { id } });
   return toIssue(row);
 }
 

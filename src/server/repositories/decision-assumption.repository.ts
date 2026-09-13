@@ -47,6 +47,28 @@ export async function listAssumptions(
   return rows.map(toDecisionAssumption);
 }
 
+/**
+ * Several assumptions by id, in one query.
+ *
+ * For a project-wide sweep that already has the id list from
+ * `listProjectAssumptions` and needs the full row `evaluate` requires (that
+ * lighter, joined select omits columns like `rationale` a full evaluation
+ * reads) — one query rather than one per assumption.
+ */
+export async function findAssumptionsByIds(
+  assumptionIds: readonly string[],
+  client: DbClient = prisma,
+): Promise<Map<string, DecisionAssumption>> {
+  const byId = new Map<string, DecisionAssumption>();
+  if (assumptionIds.length === 0) return byId;
+
+  const rows = await client.decisionAssumption.findMany({
+    where: { id: { in: [...assumptionIds] } },
+  });
+  for (const row of rows) byId.set(row.id, toDecisionAssumption(row));
+  return byId;
+}
+
 export async function findAssumptionForDecision(
   engineeringDecisionId: string,
   assumptionId: string,

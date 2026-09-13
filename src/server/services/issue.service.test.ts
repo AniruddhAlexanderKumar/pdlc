@@ -24,6 +24,7 @@ vi.mock("@/server/repositories/project.repository", () => ({
 vi.mock("@/server/repositories/issue.repository", () => ({
   createIssue: vi.fn(),
   updateIssue: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   findIssueInProject: vi.fn(),
   listIssuesInProject: vi.fn(),
   findIssueOwner: vi.fn(),
@@ -295,7 +296,7 @@ describe("updateIssue", () => {
 describe("transitionIssue", () => {
   it("moves OPEN to IN_PROGRESS and audits the transition", async () => {
     vi.mocked(issueRepository.findIssueInProject).mockResolvedValue(issue({ status: "OPEN" }));
-    vi.mocked(issueRepository.updateIssue).mockResolvedValue(issue({ status: "IN_PROGRESS" }));
+    vi.mocked(issueRepository.transitionStatusGuarded).mockResolvedValue(issue({ status: "IN_PROGRESS" }));
 
     const updated = await service.transitionIssue(CONTEXT, PROJECT.id, "issue1", { to: "IN_PROGRESS" });
 
@@ -316,7 +317,7 @@ describe("transitionIssue", () => {
       ["RESOLVED", "CLOSED"],
     ] as const) {
       vi.mocked(issueRepository.findIssueInProject).mockResolvedValue(issue({ status: from }));
-      vi.mocked(issueRepository.updateIssue).mockResolvedValue(issue({ status: to }));
+      vi.mocked(issueRepository.transitionStatusGuarded).mockResolvedValue(issue({ status: to }));
 
       await expect(
         service.transitionIssue(CONTEXT, PROJECT.id, "issue1", { to }),
@@ -563,7 +564,7 @@ describe("project role authorization", () => {
     ).resolves.toMatchObject({ identifier: "ISS-001" });
 
     vi.mocked(issueRepository.findIssueInProject).mockResolvedValue(issue());
-    vi.mocked(issueRepository.updateIssue).mockResolvedValue(issue({ status: "IN_PROGRESS" }));
+    vi.mocked(issueRepository.transitionStatusGuarded).mockResolvedValue(issue({ status: "IN_PROGRESS" }));
     await expect(
       service.transitionIssue(CONTEXT, PROJECT.id, "issue1", { to: "IN_PROGRESS" }),
     ).resolves.toMatchObject({ status: "IN_PROGRESS" });

@@ -22,6 +22,7 @@ vi.mock("@/server/repositories/project.repository", () => ({
 vi.mock("@/server/repositories/requirement.repository", () => ({
   createRequirement: vi.fn(),
   updateRequirement: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   findRequirementInProject: vi.fn(),
   listRequirementsInProject: vi.fn(),
   findRequirementOwner: vi.fn(),
@@ -207,16 +208,17 @@ describe("lifecycle transitions", () => {
     vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(
       requirement({ status: from }),
     );
-    vi.mocked(requirementRepository.updateRequirement).mockResolvedValue(
+    vi.mocked(requirementRepository.transitionStatusGuarded).mockResolvedValue(
       requirement({ status: to }),
     );
 
     const result = await service.transitionRequirementStatus(CONTEXT, PROJECT.id, "req1", { to });
 
     expect(result.status).toBe(to);
-    expect(requirementRepository.updateRequirement).toHaveBeenCalledWith(
+    expect(requirementRepository.transitionStatusGuarded).toHaveBeenCalledWith(
       expect.any(String),
-      { status: to },
+      from,
+      to,
       TX,
     );
     expect(auditLogRepository.recordAuditEvent).toHaveBeenCalledWith(
@@ -256,7 +258,7 @@ describe("lifecycle transitions", () => {
 
   it("records the supplied rationale on the audit event", async () => {
     vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(requirement());
-    vi.mocked(requirementRepository.updateRequirement).mockResolvedValue(
+    vi.mocked(requirementRepository.transitionStatusGuarded).mockResolvedValue(
       requirement({ status: "IN_REVIEW" }),
     );
 
@@ -625,7 +627,7 @@ describe("project role authorization", () => {
     vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(
       requirement({ status: "IN_REVIEW" }),
     );
-    vi.mocked(requirementRepository.updateRequirement).mockResolvedValue(
+    vi.mocked(requirementRepository.transitionStatusGuarded).mockResolvedValue(
       requirement({ status: "APPROVED" }),
     );
 
@@ -658,7 +660,7 @@ describe("project role authorization", () => {
     vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(
       requirement({ status: "IN_REVIEW" }),
     );
-    vi.mocked(requirementRepository.updateRequirement).mockResolvedValue(
+    vi.mocked(requirementRepository.transitionStatusGuarded).mockResolvedValue(
       requirement({ status: "APPROVED" }),
     );
     await expect(

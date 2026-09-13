@@ -15,7 +15,7 @@ import {
 import { type DbClient, prisma } from "@/lib/db";
 import { parseOrThrow } from "@/server/validation";
 import { toEvidence } from "./mappers";
-import { rethrowAsConflict } from "./prisma-error";
+import { assertGuardedTransition, rethrowAsConflict } from "./prisma-error";
 
 /** Evidence data access, including the trace edges that hang off a piece of evidence. */
 
@@ -138,16 +138,28 @@ export async function updateEvidence(
   return toEvidence(row);
 }
 
-/** DRAFT -> VALIDATED. */
+/**
+ * DRAFT -> VALIDATED.
+ *
+ * Guarded: the write only applies if the row is still DRAFT, so a concurrent
+ * validation (or supersession) of the same evidence cannot be silently
+ * overwritten by — or silently overwrite — another one racing it. See
+ * `assertGuardedTransition`.
+ */
 export async function validateEvidence(
   id: string,
   validatedById: string,
   client: DbClient = prisma,
 ): Promise<Evidence> {
-  const row = await client.evidence.update({
-    where: { id },
+  const result = await client.evidence.updateMany({
+    where: { id, status: "DRAFT" },
     data: { status: "VALIDATED", validatedById, validatedAt: new Date() },
   });
+  assertGuardedTransition(
+    result.count,
+    "This evidence's status was changed by someone else first. Reload and try again.",
+  );
+  const row = await client.evidence.findUniqueOrThrow({ where: { id } });
   return toEvidence(row);
 }
 
@@ -158,16 +170,26 @@ export async function validateEvidence(
  * so every historical relationship keeps pointing at this exact record. A
  * caller who wants the new evidence linked where this one was must add that
  * link explicitly, through the normal link path.
+ *
+ * Guarded against the same race as {@link validateEvidence}: the write only
+ * applies if the row is still in `fromStatus` (DRAFT or VALIDATED — whichever
+ * the caller actually read).
  */
 export async function supersedeEvidence(
   id: string,
+  fromStatus: EvidenceStatus,
   newEvidenceId: string,
   client: DbClient = prisma,
 ): Promise<Evidence> {
-  const row = await client.evidence.update({
-    where: { id },
+  const result = await client.evidence.updateMany({
+    where: { id, status: fromStatus },
     data: { status: "SUPERSEDED", supersededById: newEvidenceId, supersededAt: new Date() },
   });
+  assertGuardedTransition(
+    result.count,
+    "This evidence's status was changed by someone else first. Reload and try again.",
+  );
+  const row = await client.evidence.findUniqueOrThrow({ where: { id } });
   return toEvidence(row);
 }
 

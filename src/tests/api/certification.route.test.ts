@@ -124,6 +124,7 @@ vi.mock("@/server/services/verification-readiness.service", async () => {
         verificationActivityId: "",
         readinessVersion: "1",
       })),
+      getLatestForActivitiesBatch: vi.fn(async () => new Map()),
     },
   };
 });

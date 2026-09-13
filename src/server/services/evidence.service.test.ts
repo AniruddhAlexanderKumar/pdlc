@@ -322,7 +322,12 @@ describe("supersedeEvidence", () => {
 
     expect(superseded.status).toBe("SUPERSEDED");
     expect(superseded.supersededById).toBe(OTHER_EVIDENCE_ID);
-    expect(evidenceRepository.supersedeEvidence).toHaveBeenCalledWith(EVIDENCE_ID, OTHER_EVIDENCE_ID, TX);
+    expect(evidenceRepository.supersedeEvidence).toHaveBeenCalledWith(
+      EVIDENCE_ID,
+      "DRAFT",
+      OTHER_EVIDENCE_ID,
+      TX,
+    );
     expect(auditLogRepository.recordAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: "evidence.superseded" }),
       TX,

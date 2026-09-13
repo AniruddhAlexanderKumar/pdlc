@@ -220,15 +220,27 @@ export async function findLatestAssessment(
   return row ? toAssessment(row) : null;
 }
 
-/** Assessments for one project, newest first. Nothing is ever removed. */
+/**
+ * Assessments for one project, newest first. Nothing is ever removed.
+ *
+ * Bounded like every other project-wide history read in this codebase
+ * (`listAllForProject` for technical/verification readiness and impact
+ * analysis, `listEventsForProject`/`listTargetsForProject` for Sentinel):
+ * drift evaluation is a human- or Sentinel-triggered event, not a
+ * high-frequency write, so 200 is generous headroom rather than a real
+ * ceiling on normal use — but without it this was an unbounded scan of the
+ * project's entire drift history on every call.
+ */
 export async function listAssessments(
   projectId: string,
   baselineId: string | undefined,
+  limit = 200,
   client: DbClient = prisma,
 ): Promise<DriftAssessment[]> {
   const rows = await client.driftAssessment.findMany({
     where: { projectId, ...(baselineId ? { baselineId } : {}) },
     orderBy: NEWEST_FIRST,
+    take: limit,
     select: ASSESSMENT_SELECT,
   });
   return rows.map(toAssessment);

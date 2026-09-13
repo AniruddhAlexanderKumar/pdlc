@@ -4,6 +4,7 @@ import type {
   CertificationFindingStatus,
 } from "@/domain";
 import { type DbClient, prisma } from "@/lib/db";
+import { assertGuardedTransition } from "./prisma-error";
 
 export interface CreateCertificationFindingData {
   complianceItemId: string;
@@ -53,6 +54,12 @@ export async function updateFinding(
   return client.certificationFinding.update({ where: { id }, data });
 }
 
+/**
+ * Guarded: applies only if the finding is still OPEN or IN_PROGRESS at write
+ * time, so a concurrent disposition of the same finding cannot silently
+ * overwrite — or be silently overwritten by — another one racing it. See
+ * `assertGuardedTransition`.
+ */
 export async function dispositionFinding(
   id: string,
   status: "RESOLVED" | "ACCEPTED",
@@ -61,8 +68,8 @@ export async function dispositionFinding(
   resolvedById: string | null,
   client: DbClient = prisma,
 ): Promise<CertificationFinding> {
-  return client.certificationFinding.update({
-    where: { id },
+  const result = await client.certificationFinding.updateMany({
+    where: { id, status: { in: ["OPEN", "IN_PROGRESS"] } },
     data: {
       status,
       resolutionNote: note,
@@ -71,6 +78,11 @@ export async function dispositionFinding(
       resolvedAt: new Date(),
     },
   });
+  assertGuardedTransition(
+    result.count,
+    "This certification finding was already dispositioned by someone else first. Reload and try again.",
+  );
+  return client.certificationFinding.findUniqueOrThrow({ where: { id } });
 }
 
 /** Open (OPEN/IN_PROGRESS) findings across a set of compliance items, one query for all of them. */

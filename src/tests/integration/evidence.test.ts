@@ -266,6 +266,49 @@ describe.skipIf(!databaseAvailable)(`Evidence against PostgreSQL (${SKIP_REASON}
       );
       expect(replacementLinks).toEqual([]);
     });
+
+    it("**guards supersession against a concurrent supersede by a different replacement**", async () => {
+      // Two callers who both read DRAFT and both decide to supersede the
+      // same evidence with a *different* replacement must not both win —
+      // whichever transaction's write lands second finds the row no longer
+      // DRAFT and is refused, rather than silently overwriting the winner's
+      // supersededById.
+      const original = await modules!.evidenceService.createEvidence(ctx, tenant.projectId, {
+        identifier: identifierFor("ev-race"),
+        title: "Raced",
+        evidenceType: "ANALYSIS",
+        sourceReference: "d",
+      });
+      const replacementA = await modules!.evidenceService.createEvidence(ctx, tenant.projectId, {
+        identifier: identifierFor("ev-race-a"),
+        title: "Replacement A",
+        evidenceType: "ANALYSIS",
+        sourceReference: "d",
+      });
+      const replacementB = await modules!.evidenceService.createEvidence(ctx, tenant.projectId, {
+        identifier: identifierFor("ev-race-b"),
+        title: "Replacement B",
+        evidenceType: "ANALYSIS",
+        sourceReference: "d",
+      });
+
+      const results = await Promise.allSettled([
+        modules!.evidenceService.supersedeEvidence(ctx, tenant.projectId, original.id, {
+          newEvidenceId: replacementA.id,
+        }),
+        modules!.evidenceService.supersedeEvidence(ctx, tenant.projectId, original.id, {
+          newEvidenceId: replacementB.id,
+        }),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === "fulfilled");
+      expect(fulfilled).toHaveLength(1);
+      expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+
+      const final = await modules!.evidenceService.getEvidence(ctx, tenant.projectId, original.id);
+      const winner = fulfilled[0] as PromiseFulfilledResult<{ supersededById: string | null }>;
+      expect(final.supersededById).toBe(winner.value.supersededById);
+    });
   });
 
   describe("traceability", () => {

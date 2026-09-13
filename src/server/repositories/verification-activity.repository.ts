@@ -47,6 +47,26 @@ export async function findVerificationActivityInProject(
   return row ? toVerificationActivity(row) : null;
 }
 
+/**
+ * Several activities by id, project-scoped, in one query.
+ *
+ * For callers that already have a set of activity ids from elsewhere (a
+ * compliance item's linked activities, so far) and need the real rows to
+ * work from — an id from outside the project is silently excluded rather
+ * than resolved, the same "not found" treatment a single lookup gives.
+ */
+export async function listVerificationActivitiesByIds(
+  projectId: string,
+  activityIds: readonly string[],
+  client: DbClient = prisma,
+): Promise<VerificationActivity[]> {
+  if (activityIds.length === 0) return [];
+  const rows = await client.verificationActivity.findMany({
+    where: { projectId, id: { in: [...activityIds] } },
+  });
+  return rows.map(toVerificationActivity);
+}
+
 export async function listVerificationActivitiesInProject(
   projectId: string,
   options: { status?: VerificationStatus } = {},

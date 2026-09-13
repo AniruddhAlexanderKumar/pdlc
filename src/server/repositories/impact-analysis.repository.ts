@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {
   ImpactAnalysis,
   ImpactAnalysisRoot,
@@ -160,9 +161,12 @@ export interface PersistRootInput {
 /**
  * Writes the roots, returning their generated ids keyed by `type:id`.
  *
- * Created one at a time rather than in a batch because the findings that follow
- * need the generated root ids to reference, and a batch insert does not return
- * them portably.
+ * One statement rather than one per root: `createMany` does not hand back
+ * generated ids, so the id each row needs (to let the findings that follow
+ * reference their root) is generated here instead — the same
+ * generate-then-insert shape `surveillance-target.repository.ts` already
+ * uses for its own race-safe write, just without that one's raw SQL, since
+ * nothing here needs a partial-index upsert.
  */
 export async function createRoots(
   analysisId: string,
@@ -170,23 +174,24 @@ export async function createRoots(
   client: DbClient = prisma,
 ): Promise<Map<string, string>> {
   const byNode = new Map<string, string>();
+  if (roots.length === 0) return byNode;
 
-  for (const root of roots) {
-    const created = await client.impactAnalysisRoot.create({
-      data: {
-        analysisId,
-        nodeType: root.nodeType,
-        nodeId: root.nodeId,
-        identifier: root.identifier,
-        label: root.label,
-        resolved: root.resolved,
-        declaredImpactId: root.declaredImpactId,
-      },
-      select: { id: true },
-    });
-    byNode.set(`${root.nodeType}:${root.nodeId}`, created.id);
-  }
+  const rows = roots.map((root) => {
+    const id = randomUUID();
+    byNode.set(`${root.nodeType}:${root.nodeId}`, id);
+    return {
+      id,
+      analysisId,
+      nodeType: root.nodeType,
+      nodeId: root.nodeId,
+      identifier: root.identifier,
+      label: root.label,
+      resolved: root.resolved,
+      declaredImpactId: root.declaredImpactId,
+    };
+  });
 
+  await client.impactAnalysisRoot.createMany({ data: rows });
   return byNode;
 }
 

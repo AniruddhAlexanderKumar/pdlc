@@ -276,6 +276,56 @@ export class VerificationReadinessService {
     return this.buildReport(context, scopedProjectId, activity, latest);
   }
 
+  /**
+   * The latest verification readiness for several activities at once — one
+   * authorization check and one batched assessment read, not one of each per
+   * activity.
+   *
+   * Built for certification review evaluation, which needs the consumed
+   * verification readiness for every activity a basis links — often several
+   * at once. Calling {@link getLatestVerificationReadiness} in a loop
+   * repeated the project-membership check and the single-assessment lookup
+   * once per activity; this does each exactly once.
+   *
+   * What is **not** batched: each activity's freshness still requires its
+   * own walk of the engineering graph, because two activities can have
+   * entirely different dependency neighbourhoods — there is no single query
+   * that answers "is this still fresh?" for more than one activity, so
+   * `deriveFreshness` still runs once per activity that has an assessment.
+   */
+  async getLatestForActivitiesBatch(
+    context: OrganizationContext,
+    projectId: unknown,
+    activityIds: readonly string[],
+  ): Promise<Map<string, LatestVerificationReadiness>> {
+    const scopedProjectId = await requireProjectReadAccess(context, projectId);
+    const result = new Map<string, LatestVerificationReadiness>();
+    if (activityIds.length === 0) return result;
+
+    const activities = await verificationRepository.listVerificationActivitiesByIds(
+      scopedProjectId,
+      activityIds,
+    );
+    const latestByActivity = await readinessRepository.findLatestForActivities(
+      scopedProjectId,
+      activities.map((a) => a.id),
+    );
+
+    for (const activity of activities) {
+      const latest = latestByActivity.get(activity.id);
+      if (!latest) {
+        result.set(activity.id, {
+          status: "NOT_EVALUATED",
+          verificationActivityId: activity.id,
+          readinessVersion: VERIFICATION_READINESS_VERSION,
+        });
+        continue;
+      }
+      result.set(activity.id, await this.buildReport(context, scopedProjectId, activity, latest));
+    }
+    return result;
+  }
+
   /** Every assessment for one activity, newest first. Nothing is overwritten. */
   async listVerificationReadinessHistory(
     context: OrganizationContext,

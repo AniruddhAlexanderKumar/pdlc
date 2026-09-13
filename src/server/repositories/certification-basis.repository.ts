@@ -1,5 +1,6 @@
 import type { CertificationBasis, CertificationBasisStatus } from "@/domain";
 import { type DbClient, prisma } from "@/lib/db";
+import { rethrowAsConflict } from "./prisma-error";
 
 export interface CreateCertificationBasisData {
   certificationProgramId: string;
@@ -60,15 +61,31 @@ export async function updateBasis(
   return client.certificationBasis.update({ where: { id }, data });
 }
 
+/**
+ * Fixes the basis as ACTIVE.
+ *
+ * Race-safe against a concurrent activation of a *different* basis in the
+ * same program: `certification_bases_active_unique` (a partial unique index
+ * — see the migration that adds it) allows at most one ACTIVE row per
+ * program, so a losing concurrent transaction fails here with a unique-
+ * constraint violation rather than silently leaving two bases ACTIVE.
+ */
 export async function activateBasis(
   id: string,
   activatedById: string | null,
   client: DbClient = prisma,
 ): Promise<CertificationBasis> {
-  return client.certificationBasis.update({
-    where: { id },
-    data: { status: "ACTIVE", activatedAt: new Date(), activatedById },
-  });
+  try {
+    return await client.certificationBasis.update({
+      where: { id },
+      data: { status: "ACTIVE", activatedAt: new Date(), activatedById },
+    });
+  } catch (error) {
+    rethrowAsConflict(
+      error,
+      "Another certification basis was activated for this program at the same moment. Reload and try again.",
+    );
+  }
 }
 
 export async function supersedeBasis(

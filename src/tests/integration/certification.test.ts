@@ -279,6 +279,39 @@ describe.skipIf(!databaseAvailable)(`certification workspace against PostgreSQL 
       expect(oldRow.supersededById).toBe(basisB.id);
     });
 
+    it("**allows at most one ACTIVE basis per program, even under a genuine concurrent race**", async () => {
+      // Same property as engineering baselines (see drift.test.ts), enforced
+      // the same way: `certification_bases_active_unique`, a partial unique
+      // index, not the service's own "is one already active?" read, which
+      // cannot see a sibling transaction's write before it commits.
+      const program = await makeProgram();
+      const raceA = await makeBasis(program.id);
+      const raceB = await modules!.basis.createBasis({
+        certificationProgramId: program.id,
+        identifier: identifierFor("cb-race"),
+        title: "Race basis",
+        description: null,
+        revision: "1",
+        sourceReference: null,
+        createdById: tenant.userId,
+      });
+
+      const results = await Promise.allSettled([
+        modules!.basisService.certificationBasisService.activateBasis(ctx, tenant.projectId, raceA.id, {}),
+        modules!.basisService.certificationBasisService.activateBasis(ctx, tenant.projectId, raceB.id, {}),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === "fulfilled");
+      const rejected = results.filter((r) => r.status === "rejected");
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      const activeRows = await integrationPrisma!.certificationBasis.findMany({
+        where: { certificationProgramId: program.id, status: "ACTIVE" },
+      });
+      expect(activeRows).toHaveLength(1);
+    });
+
     it("service-enforces immutability once ACTIVE", async () => {
       const program = await makeProgram();
       const basis = await makeActiveBasis(program.id);

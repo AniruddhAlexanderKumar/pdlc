@@ -40,6 +40,7 @@ vi.mock("@/server/repositories/project.repository", () => ({
 vi.mock("@/server/repositories/requirement.repository", () => ({
   createRequirement: vi.fn(),
   updateRequirement: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   findRequirementInProject: vi.fn(),
   listRequirementsInProject: vi.fn(),
   findRequirementOwner: vi.fn(),
@@ -325,7 +326,7 @@ describe("PATCH /requirements/[id]", () => {
 describe("POST /transition", () => {
   it("performs a legal transition", async () => {
     vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(requirement());
-    vi.mocked(requirementRepository.updateRequirement).mockResolvedValue(
+    vi.mocked(requirementRepository.transitionStatusGuarded).mockResolvedValue(
       requirement({ status: "IN_REVIEW" }),
     );
 

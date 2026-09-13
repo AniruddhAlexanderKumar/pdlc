@@ -46,6 +46,7 @@ vi.mock("@/server/repositories/project.repository", () => ({
 vi.mock("@/server/repositories/engineering-decision.repository", () => ({
   createDecision: vi.fn(),
   updateDecision: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   findDecisionInProject: vi.fn(),
   listDecisionsInProject: vi.fn(),
   findDecisionOwner: vi.fn(),
@@ -401,7 +402,7 @@ describe("decision detail and update", () => {
 describe("lifecycle endpoint", () => {
   it("performs a legal transition", async () => {
     vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(decision());
-    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(
+    vi.mocked(decisionRepository.transitionStatusGuarded).mockResolvedValue(
       decision({ status: "UNDER_REVIEW" }),
     );
 

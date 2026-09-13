@@ -313,8 +313,9 @@ export async function transitionDecisionStatus(
       );
     }
 
-    const decision = await decisionRepository.updateDecision(
+    const decision = await decisionRepository.transitionStatusGuarded(
       existing.id,
+      existing.status,
       {
         status: to,
         // Approving records when the decision was actually taken, if the

@@ -4549,6 +4549,379 @@ follow it back to the requirement, follow it into Traceability, and
 confirm project isolation through both the real API and the real UI's
 error state.
 
+## Performance, Concurrency, and Database Query Hardening
+
+A hardening pass over the whole platform, not a new capability: every
+module in the numbered list at the top of this section's originating
+prompt — Requirements, Stakeholder Needs, Design Items, Verification
+Activities, Engineering Decisions, Risks, Issues, Suppliers, Evidence,
+Change Requests, Change Impact, Assumption Monitoring, Technical/
+Verification Readiness, Certification, Drift, Sentinel, Traceability,
+Engineering History, Configuration/Baselines, the Command Center,
+Authentication, and Project Membership/Authorization — was inspected for
+N+1 queries, unbounded reads, missing indexes, and races. Nothing here
+changes what any engine computes, what any route returns, or what any
+role may do; every fix is either "the same result with fewer queries" or
+"the same intended invariant, now actually enforced by the database
+under concurrency."
+
+### Baseline audit: what inspection actually found
+
+Real findings, from reading the code rather than assuming where the
+weight would be:
+
+- **Decision Sentinel's dependency resolution** (the read side of
+  `evaluateTargetsForEvent`, in `decision-sentinel.service.ts`) issued a
+  database query — sometimes two — per candidate, inside a loop, in three
+  of its six rule branches: one read per verification activity in the
+  project, one read per gate (bounded, but still one call per gate rather
+  than one call total), and one read plus two counts per active change
+  request. None of the other three branches (assumption monitoring,
+  drift, certification) had this shape — they were already batched or
+  inherently O(1).
+- **`certification-review.service.ts`'s `resolveBasis`** called the full
+  `VerificationReadinessService.getLatestVerificationReadiness` — its own
+  authorization check, its own activity lookup, its own assessment
+  query, its own freshness derivation — once per *distinct linked
+  verification activity* on the active basis. For a basis linking many
+  activities across its compliance items, that repeated the project
+  membership check as many times as there were distinct activities.
+- **`assumption-monitoring.service.ts`'s `evaluateProjectAssumptions`**
+  (the project-wide sweep) re-fetched each assumption's full row one at a
+  time after already having its id from the initial list query.
+- **`impact-analysis.repository.ts`'s `createRoots`** inserted one row per
+  root with a sequential `await` in a loop, documented at the time as
+  necessary because `createMany` does not return generated ids and the
+  findings written next need those ids to reference.
+- **Two genuinely unbounded `findMany` calls**: `drift-assessment
+  .repository.ts#listAssessments` and `certification-review.repository
+  .ts#listReviews` had no `take` at all, unlike every sibling "list this
+  project's/program's history" function elsewhere in the codebase
+  (`listAllForProject` for technical/verification readiness and impact
+  analysis, `listEventsForProject`/`listTargetsForProject` for Sentinel),
+  all of which already default to a bounded read.
+- **A missing index**: Sentinel's relationship-change detection filters
+  `audit_logs` by `organizationId` and `entityId IN (...)`; neither
+  existing index (`organizationId, createdAt` / `entityType, entityId`)
+  covers that shape.
+- **Seven unguarded lifecycle transitions**: every "read current status,
+  check the transition table, write the new status" service method
+  (`requirement.service.ts`, `engineering-decision.service.ts`,
+  `risk.service.ts`, `issue.service.ts`, `change-request.service.ts`,
+  `evidence.service.ts` ×2 — validate and supersede,
+  `certification-finding.service.ts`'s disposition) wrote through a plain
+  `update({ where: { id } })`, with nothing tying the write to the status
+  the decision was actually based on. Two concurrent callers deciding
+  from the same starting status could both pass their check and both
+  write, the second silently overwriting the first.
+- **Two missing singleton invariants**: `EngineeringBaseline` (at most
+  one `ACTIVE` per project) and `CertificationBasis` (at most one
+  `ACTIVE` per program) were both enforced only by a service-side "is one
+  already active?" read before the write — the exact TOCTOU shape
+  Sentinel's own `surveillance_targets_open_unique` partial index already
+  exists to close for OPEN targets, just not yet applied to these two.
+
+Everything else inspected — Command Center's fan-out, the graph
+traversal's BFS, the change-impact walk's delegation to
+`EngineeringGraphService`, `ProjectMembership`'s uniqueness, Sentinel's
+own target-creation race safety — was already correct, several of them
+by explicit prior design. Those are recorded below under [What was
+already correct](#what-was-already-correct-confirmed-not-assumed) rather
+than silently confirmed and left undocumented.
+
+### N+1 elimination
+
+**Sentinel candidate resolution**, in `decision-sentinel.service.ts`:
+
+- `candidatesFromVerificationReadiness` now calls a new
+  `verificationReadinessRepository.findLatestBasisForActivities`, which
+  reads every relevant activity's latest basis in one query keyed by
+  activity id — the same "fetch every matching row newest-first, keep the
+  first per key" shape `findLatestForActivities` already used, extended
+  to also carry the `basis` column that function's own mapped type
+  deliberately drops. One query for the whole project's activities, not
+  one per activity.
+- `candidatesFromTechnicalReadiness` now calls a new
+  `technicalReadinessRepository.findLatestScopeForGates`, the same shape
+  for the small, fixed set of readiness gates.
+- `candidatesFromImpactAnalysis` now reuses the existing
+  `impactAnalysisRepository.findLatestForChanges` — the same batched
+  function the Command Center already relies on — instead of calling
+  `findLatestAnalysis` per active change request, and replaces the
+  per-analysis `count()`/`count()` pair with two `findMany` calls scoped
+  to every completed analysis's id at once, then checks set membership in
+  memory.
+
+**Certification review's verification-readiness lookup**: a new
+`VerificationReadinessService.getLatestForActivitiesBatch` does the
+authorization check once and the assessment lookup once for the whole
+set of distinct linked activities, then still derives freshness once per
+activity — that part is not batched, deliberately: each activity's
+dependency neighbourhood is its own graph walk, and there is no single
+query that answers "is this still fresh?" for more than one activity at
+once. `resolveBasis` in `certification-review.service.ts` now calls this
+instead of the single-activity method in a loop.
+
+**Assumption monitoring's project sweep**: a new
+`decisionAssumptionRepository.findAssumptionsByIds` fetches every
+assumption's full row in one query; `evaluateProjectAssumptions` builds
+the map once before its loop instead of re-fetching per assumption. The
+per-assumption `evaluate()` call itself — the actual graph-based
+judgement — remains one call per assumption, for the same reason
+verification readiness's freshness derivation does: each assumption's
+basis is genuinely its own neighbourhood.
+
+**Impact analysis root insertion**: `createRoots` now generates each
+root's id client-side (`randomUUID()`, the same pattern
+`surveillance-target.repository.ts` already uses for its own write) and
+inserts every root in one `createMany`, instead of one `create()` per
+root with an `await` in between. The returned `Map<string, string>` is
+built from the generated ids directly, so no read-back was needed either
+way — this was always avoidable, not an inherent limit of `createMany`.
+
+None of these changes touch what gets returned, what gets persisted, or
+which project/organization a batched query is scoped to — every batch
+call still takes the caller's already-scoped id list as input.
+
+### Bounded reads, and why the rest are not paginated
+
+`drift-assessment.repository.ts#listAssessments` and
+`certification-review.repository.ts#listReviews` now default to
+`take: 200`, matching the convention every sibling "whole history"
+function in this codebase already followed
+(`listAllForProject`/`listEventsForProject`/`listTargetsForProject`).
+Neither gained caller-facing pagination — the same choice those siblings
+already made — because a review or a drift assessment is a human- or
+Sentinel-triggered evaluation event, not a per-mutation log entry; 200 is
+headroom, not a real ceiling on normal use, and adding offset/limit
+parameters nobody asked for would be new API surface for a page that
+does not exist to consume it.
+
+The core artifact lists — Requirements, Decisions, Risks, Issues,
+Suppliers, Supplied Items, Qualifications, Evidence, Change Requests,
+Verification Activities, Certification Items/Findings — remain
+unpaginated on purpose. Each list's size is bounded by how many of that
+artifact a single engineering project actually has, which grows only by
+a person deliberately creating one — not by an event stream that
+accretes on every read or every re-evaluation. Their frontend pages
+already render a full, filterable table, which is the correct shape for
+traceability work (finding every requirement that touches a component,
+generating a compliance sweep); paginating them would not reduce real
+work, only relocate it into more round trips, and nothing in this pass
+found a query pattern that justified the UX cost of changing it. History,
+Sentinel events/targets, drift assessments, and certification reviews
+are different in kind — they accrete on every evaluation, including ones
+Sentinel triggers automatically — which is why those, and only those,
+already carry (or now carry) a bound.
+
+Engineering History's own aggregation (`collectNativeEvents` in
+`engineering-history.service.ts`) already read each of its seven native
+sources through a bounded function before this pass — `listAllForProject`
+(200 default) for technical/verification readiness and impact analysis,
+`listEventsForProject`/`listTargetsForProject` (100 default) for
+Sentinel — and now every one of the seven is bounded, since drift and
+certification-review's own reads are. True cursor pagination across all
+seven heterogeneous sources at once (so page 40 does not still read the
+first 200 rows of each source) was considered and not built: it would
+mean either a merge-sort across seven independently-paginated cursors —
+real complexity for a page nobody has reported taking too long — or
+teaching every source's repository function a shared cursor shape it
+does not otherwise need. `paginateHistoryEvents`'s existing offset/limit
+slicing over the merged, bounded set is unchanged.
+
+### Indexes
+
+One index added, justified by the one query pattern this pass found
+that genuinely needed it — see the baseline audit above:
+
+```prisma
+model AuditLog {
+  // ...
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+  @@index([organizationId, entityId])   // new
+}
+```
+
+`prisma migrate diff --from-empty --to-schema ./prisma/schema.prisma
+--script` (this environment has no live database, so `--from-migrations`
+is unavailable — it needs a shadow database; `--from-empty` does not)
+was cross-checked and produces exactly this one new
+`CREATE INDEX "audit_logs_organizationId_entityId_idx"` beyond the
+already-migrated schema, in migration
+`20260914000001_add_audit_log_entity_index`. No other index was added.
+The schema was already heavily indexed — a `(parentId, status)` or
+`(projectId, status)` composite exists on essentially every artifact
+table already — from the prompts that built each capability, and this
+pass did not find a second real gap.
+
+### Concurrency and uniqueness
+
+**Two new partial unique indexes**, in migration
+`20260914000000_add_concurrency_guards`, both hand-written raw SQL for
+the same reason `surveillance_targets_open_unique` already is — Prisma's
+schema DSL has no syntax for a filtered index:
+
+```sql
+CREATE UNIQUE INDEX "engineering_baselines_active_unique"
+ON "engineering_baselines" ("projectId")
+WHERE "status" = 'ACTIVE';
+
+CREATE UNIQUE INDEX "certification_bases_active_unique"
+ON "certification_bases" ("certificationProgramId")
+WHERE "status" = 'ACTIVE';
+```
+
+Neither changes how `activateBaseline`/`activateBasis` write — they
+still do the same read-then-decide-then-write inside a transaction the
+service always did, including the existing explicit
+`supersedeActive`-gated supersession. What changes is that a *losing*
+concurrent transaction's write now fails at the database with a unique
+constraint violation instead of silently succeeding alongside the
+winner; both repository functions now wrap that write in
+`rethrowAsConflict` (already used elsewhere in this codebase for the
+same P2002-to-`ConflictError` translation) so the loser sees an ordinary
+`ConflictError`, not a raw Prisma error.
+
+**A shared guard for the other shape of race** — one row transitioning
+its own status field, not a sibling-exclusivity invariant — added as
+`assertGuardedTransition` next to `rethrowAsConflict` in
+`prisma-error.ts`:
+
+```ts
+export function assertGuardedTransition(count: number, message: string): void {
+  if (count === 0) throw new ConflictError(message);
+}
+```
+
+Prisma's typed `update()` only accepts a `where` that resolves to a
+unique constraint or id, so it cannot also require "and the row is still
+in the status this decision was based on." `updateMany()` has no such
+restriction: each of the seven affected repositories gained a
+`transitionStatusGuarded` (or, for `evidence.repository.ts`, guarded
+`validateEvidence`/`supersedeEvidence`, and for
+`certification-finding.repository.ts`, a guarded `dispositionFinding`)
+that folds the expected prior status into `updateMany`'s `where`, then
+asserts its `count`. A count of zero means another transaction already
+moved the row; the caller's decision no longer holds and is refused
+rather than silently overwriting whatever that other transaction just
+did. The existing generic `updateRequirement`/`updateRisk`/`updateIssue`/
+`updateDecision`/`updateChangeRequest`/`updateEvidence` functions are
+untouched — they still serve plain field edits, which have no such
+invariant to protect — only the dedicated transition/disposition path
+was changed at each of the seven call sites.
+
+`ProjectMembership`'s own concurrency safety needed no change: `addMember`
+already calls `create()` under the schema's `@@unique([projectId,
+userId])` and translates a violation through `rethrowAsConflict` — the
+same pattern this pass just extended everywhere else, already applied
+here from an earlier prompt. Sentinel's own storm-protection
+(`surveillance_targets_open_unique`, `upsertOpenTarget`'s `INSERT ...
+ON CONFLICT ... DO UPDATE`) was inspected and left exactly as it was —
+it was already the model these two new indexes and seven new guards
+follow.
+
+Transaction boundaries were reviewed alongside these changes and found
+already correct throughout: every guarded transition still runs inside
+the same `prisma.$transaction` its service method already opened, so the
+guard's own re-read (`findUniqueOrThrow` after a successful `updateMany`,
+needed because `updateMany` does not return the row) reads its own
+transaction's just-committed write, not a separate round trip outside
+it; the audit event for a transition is still written in the same
+transaction as the guarded update, so a refused transition — including
+one refused by the new guard — writes no audit row and mutates no
+engineering state, the same "unauthorized/refused attempts never produce
+a fake successful event" property Prompt 26 established for
+authorization refusals. No read-only operation in this pass was wrapped
+in a transaction that did not already need one.
+
+### What was already correct, confirmed not assumed
+
+- **The Engineering Command Center** (`project-command-center.service.ts`)
+  already batches every section through the same `findLatestFor*`
+  functions the individual engines use — technical readiness gates via
+  one `Promise.all` over a small fixed set, verification readiness and
+  change impact via `findLatestForActivities`/`findLatestForChanges`,
+  assumption records via `findLatestForAssumptions`, certification
+  findings via `listOpenFindingsForItems` keyed by the resolved item ids
+  — and performs no per-object readiness or certification query and no
+  graph traversal. Its own doc comment already said so before this pass;
+  inspection confirmed it, rather than assuming the comment was still
+  true.
+- **The engineering graph's BFS** (`EngineeringGraphService.traverse`)
+  already resolves one whole frontier per depth level in a single batched
+  `getEdges`/`materializeEdges` call, not one call per node, and already
+  enforces `maxDepth`/`maxNodes`/`maxEdges` with a reported
+  `truncatedBy`. `engineering-graph.service.test.ts` already asserts all
+  three truncation kinds; no new traversal test was needed to prove a cap
+  that was already tested.
+- **Change impact's graph work** is already fully delegated to
+  `EngineeringGraphService` — nothing in `change-impact-analysis.service
+  .ts` walks a relationship table on its own — and its finding insert was
+  already a single `createMany` (only the root insert, addressed above,
+  was not).
+- **Sentinel's own detection and target-creation path** was already
+  idempotent and race-safe before this pass: re-running detection against
+  unchanged state produces no new events (nothing to detect), and
+  concurrent detection racing to open the same target was already proved
+  race-safe by `sentinel.test.ts`'s existing concurrent-upsert test. This
+  pass did not touch `upsertOpenTarget` or its partial index.
+
+### Testing
+
+Unit: a new `getLatestForActivitiesBatch` describe block in
+`verification-readiness.service.test.ts` (asserts one call to each
+batched repository function regardless of activity count, and the
+empty-list short-circuit); `decision-sentinel.service.test.ts` updated
+throughout to mock the new batched repository functions instead of the
+per-item ones it previously drove in a loop, with the same assertions
+about which targets open and which do not. Existing tests for every
+guarded transition were updated to mock `transitionStatusGuarded` /
+`supersedeEvidence`'s new `fromStatus` parameter / `dispositionFinding`
+in place of the generic update they previously mocked; no test's
+asserted *behavior* — which transitions succeed, which are refused, what
+the audit event says — changed, only which repository call it mocks.
+
+PostgreSQL integration (skipped in this environment — no reachable
+database, the established convention throughout this project): a new
+concurrent-activation race test in `drift.test.ts` and `certification
+.test.ts` each, both proving `Promise.allSettled` on two genuinely
+concurrent activations resolves exactly one and rejects the other, with
+exactly one row left `ACTIVE` in the database afterward; a new guarded
+status-transition race test in `repositories.test.ts`, exercising
+`transitionStatusGuarded` directly against real Postgres for
+`Requirement` (representative of the identical mechanism protecting
+Decision/Risk/Issue/ChangeRequest/Evidence/CertificationFinding — the
+same `updateMany`+`assertGuardedTransition` shape, code-reviewable at
+each of the other six call sites rather than needing six more identical
+integration tests); and a concurrent-supersession race test in
+`evidence.test.ts`, proving two callers superseding the same evidence
+with two different replacements cannot both win.
+
+### Known, disclosed limitations
+
+No load test was run and no query-count instrumentation exists in this
+codebase to measure one — every claim above is about the *shape* of a
+query (one batched call vs. one per item, bounded vs. unbounded), never
+a measured latency or throughput number, per this prompt's own
+instruction not to report a performance claim that was not actually
+measured. `findLatestPerGate` (technical readiness) and
+`findLatestForActivities`/`findLatestBasisForActivities` (verification
+readiness) still read every historical row for the requested gates/
+activities and dedupe "latest per key" in application code rather than
+in SQL (a `DISTINCT ON` or window-function rewrite would read less data
+per call); this was inspected and left alone rather than rewritten,
+because the change could not be verified against a real PostgreSQL
+instance in this environment and an unverified rewrite of a query's
+result-set semantics is a worse risk than the read pattern it would
+replace, which is already bounded by realistic gate/activity cardinality
+in practice. Per-activity and per-assumption freshness/basis derivation
+remains genuinely one graph walk per object in every engine that has
+one (verification readiness, technical readiness, assumption
+monitoring) — batching that would mean teaching the graph layer to
+resolve multiple independent neighbourhoods in one traversal, a real
+engine change this pass deliberately did not make.
+
 ## Directory structure
 
 ```

@@ -16,7 +16,7 @@ import { type DbClient, prisma } from "@/lib/db";
 import { NotFoundError } from "@/server/errors";
 import { parseOrThrow } from "@/server/validation";
 import { toEngineeringDecision } from "./mappers";
-import { rethrowAsConflict } from "./prisma-error";
+import { assertGuardedTransition, rethrowAsConflict } from "./prisma-error";
 
 /** Engineering decision data access. */
 
@@ -236,6 +236,28 @@ export async function updateDecision(
   client: DbClient = prisma,
 ): Promise<EngineeringDecision> {
   const row = await client.engineeringDecision.update({ where: { id }, data });
+  return toEngineeringDecision(row);
+}
+
+/**
+ * The status write behind `transitionDecisionStatus`. Guarded, unlike
+ * {@link updateDecision}: see `assertGuardedTransition`.
+ */
+export async function transitionStatusGuarded(
+  id: string,
+  fromStatus: DecisionStatus,
+  data: { status: DecisionStatus; decidedAt?: Date },
+  client: DbClient = prisma,
+): Promise<EngineeringDecision> {
+  const result = await client.engineeringDecision.updateMany({
+    where: { id, status: fromStatus },
+    data,
+  });
+  assertGuardedTransition(
+    result.count,
+    "This decision's status was changed by someone else first. Reload and try again.",
+  );
+  const row = await client.engineeringDecision.findUniqueOrThrow({ where: { id } });
   return toEngineeringDecision(row);
 }
 

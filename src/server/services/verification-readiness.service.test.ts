@@ -62,6 +62,7 @@ vi.mock("@/server/repositories/project-membership.repository", () => ({ findMemb
 
 vi.mock("@/server/repositories/verification-activity.repository", () => ({
   findVerificationActivityInProject: vi.fn(),
+  listVerificationActivitiesByIds: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/verification-readiness-basis.repository", () => ({
@@ -1867,5 +1868,69 @@ describe("project role authorization", () => {
     await expect(
       service().listVerificationReadinessHistory(CONTEXT, PROJECT_ID, ACTIVITY_ID),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("getLatestForActivitiesBatch", () => {
+  function authorize() {
+    vi.mocked(projectRepository.findProjectInOrganization).mockImplementation(
+      async (organizationId: string, id: string) =>
+        organizationId === CONTEXT.organizationId && id === PROJECT_ID ? PROJECT : null,
+    );
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
+  }
+
+  it("issues one authorization check and one batched read for many activities, not one of each", async () => {
+    authorize();
+    const activityA: VerificationActivity = {
+      id: "va-a",
+      projectId: PROJECT_ID,
+      identifier: "VA-A",
+      title: "Hot fire test",
+      description: null,
+      method: "TEST",
+      status: "PLANNED",
+      ownerId: null,
+      plannedDate: null,
+      completedDate: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+    const activityB: VerificationActivity = { ...activityA, id: "va-b", identifier: "VA-B" };
+    vi.mocked(verificationRepository.listVerificationActivitiesByIds).mockResolvedValue([
+      activityA,
+      activityB,
+    ]);
+    readinessRepository.findLatestForActivities!.mockResolvedValue(new Map());
+
+    const result = await service().getLatestForActivitiesBatch(CONTEXT, PROJECT_ID, [
+      "va-a",
+      "va-b",
+    ]);
+
+    // One call for the whole batch — never a loop issuing one per activity.
+    expect(verificationRepository.listVerificationActivitiesByIds).toHaveBeenCalledTimes(1);
+    expect(verificationRepository.listVerificationActivitiesByIds).toHaveBeenCalledWith(PROJECT_ID, [
+      "va-a",
+      "va-b",
+    ]);
+    expect(readinessRepository.findLatestForActivities).toHaveBeenCalledTimes(1);
+
+    expect(result.size).toBe(2);
+    const forA = result.get("va-a");
+    const forB = result.get("va-b");
+    expect(forA && !hasVerificationReadiness(forA) ? forA.status : null).toBe("NOT_EVALUATED");
+    expect(forB && !hasVerificationReadiness(forB) ? forB.status : null).toBe("NOT_EVALUATED");
+  });
+
+  it("returns an empty map without touching the database for an empty id list", async () => {
+    authorize();
+
+    const result = await service().getLatestForActivitiesBatch(CONTEXT, PROJECT_ID, []);
+
+    expect(result.size).toBe(0);
+    expect(verificationRepository.listVerificationActivitiesByIds).not.toHaveBeenCalled();
+    expect(readinessRepository.findLatestForActivities).not.toHaveBeenCalled();
   });
 });

@@ -425,6 +425,55 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       expect(supersededFirst?.supersededById).toBe(second.id);
     });
 
+    it("**allows at most one ACTIVE baseline per project, even under a genuine concurrent race**", async () => {
+      // Both reads happen before either write commits: a service-level
+      // "is one already active?" check cannot see the other transaction, so
+      // this property has to come from the database — the partial unique
+      // index `engineering_baselines_active_unique` — not from the check
+      // itself. Two callers activating two *different*, currently-inactive
+      // baselines is exactly the race that check cannot defend against.
+      const raceA = await modules!.drift.driftDetectionService.createBaseline(
+        ctx,
+        tenant.projectId,
+        { identifier: identifierFor("race-a"), name: "Race baseline A" },
+      );
+      const designA = await makeDesignItem();
+      await modules!.drift.driftDetectionService.addBaselineMember(
+        ctx,
+        tenant.projectId,
+        raceA.id,
+        { nodeType: "DESIGN_ITEM", nodeId: designA.id },
+      );
+
+      const raceB = await modules!.drift.driftDetectionService.createBaseline(
+        ctx,
+        tenant.projectId,
+        { identifier: identifierFor("race-b"), name: "Race baseline B" },
+      );
+      const designB = await makeDesignItem();
+      await modules!.drift.driftDetectionService.addBaselineMember(
+        ctx,
+        tenant.projectId,
+        raceB.id,
+        { nodeType: "DESIGN_ITEM", nodeId: designB.id },
+      );
+
+      const results = await Promise.allSettled([
+        modules!.drift.driftDetectionService.activateBaseline(ctx, tenant.projectId, raceA.id, {}),
+        modules!.drift.driftDetectionService.activateBaseline(ctx, tenant.projectId, raceB.id, {}),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === "fulfilled");
+      const rejected = results.filter((r) => r.status === "rejected");
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      const activeRows = await integrationPrisma!.engineeringBaseline.findMany({
+        where: { projectId: tenant.projectId, status: "ACTIVE" },
+      });
+      expect(activeRows).toHaveLength(1);
+    });
+
     it("does not resolve another project's baseline by id or in a listing", async () => {
       const theirs = await makeBaseline(otherTenant.projectId, "theirs");
       const theirDesign = await makeDesignItem(otherTenant.projectId);

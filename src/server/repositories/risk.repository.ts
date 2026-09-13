@@ -14,7 +14,7 @@ import {
 import { type DbClient, prisma } from "@/lib/db";
 import { parseOrThrow } from "@/server/validation";
 import { toRisk } from "./mappers";
-import { rethrowAsConflict } from "./prisma-error";
+import { assertGuardedTransition, rethrowAsConflict } from "./prisma-error";
 
 /** Risk data access, including the trace edges that hang off a risk. */
 
@@ -77,6 +77,28 @@ export async function updateRisk(
       ownerId: data.ownerId,
     },
   });
+  return toRisk(row);
+}
+
+/**
+ * The status write behind `transitionRisk`. Guarded, unlike
+ * {@link updateRisk}: see `assertGuardedTransition`.
+ */
+export async function transitionStatusGuarded(
+  id: string,
+  fromStatus: RiskStatus,
+  toStatus: RiskStatus,
+  client: DbClient = prisma,
+): Promise<Risk> {
+  const result = await client.risk.updateMany({
+    where: { id, status: fromStatus },
+    data: { status: toStatus },
+  });
+  assertGuardedTransition(
+    result.count,
+    "This risk's status was changed by someone else first. Reload and try again.",
+  );
+  const row = await client.risk.findUniqueOrThrow({ where: { id } });
   return toRisk(row);
 }
 

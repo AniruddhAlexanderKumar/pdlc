@@ -190,6 +190,7 @@ model AuditLog {
 
   @@index([organizationId, createdAt])
   @@index([entityType, entityId])
+  @@index([organizationId, entityId])
   @@map("audit_logs")
 }
 

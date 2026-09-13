@@ -24,6 +24,7 @@ vi.mock("@/server/repositories/project.repository", () => ({
 vi.mock("@/server/repositories/risk.repository", () => ({
   createRisk: vi.fn(),
   updateRisk: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   findRiskInProject: vi.fn(),
   listRisksInProject: vi.fn(),
   findRiskOwner: vi.fn(),
@@ -275,12 +276,17 @@ describe("updateRisk", () => {
 describe("transitionRisk", () => {
   it("moves OPEN to MITIGATED and audits the transition", async () => {
     vi.mocked(riskRepository.findRiskInProject).mockResolvedValue(risk({ status: "OPEN" }));
-    vi.mocked(riskRepository.updateRisk).mockResolvedValue(risk({ status: "MITIGATED" }));
+    vi.mocked(riskRepository.transitionStatusGuarded).mockResolvedValue(risk({ status: "MITIGATED" }));
 
     const updated = await service.transitionRisk(CONTEXT, PROJECT.id, "risk1", { to: "MITIGATED" });
 
     expect(updated.status).toBe("MITIGATED");
-    expect(riskRepository.updateRisk).toHaveBeenCalledWith("risk1aaaaaaaaaaaaaaaaaa", { status: "MITIGATED" }, TX);
+    expect(riskRepository.transitionStatusGuarded).toHaveBeenCalledWith(
+      "risk1aaaaaaaaaaaaaaaaaa",
+      "OPEN",
+      "MITIGATED",
+      TX,
+    );
     expect(auditLogRepository.recordAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: "risk.status_transitioned", metadata: expect.objectContaining({ from: "OPEN", to: "MITIGATED" }) }),
       TX,
@@ -295,7 +301,7 @@ describe("transitionRisk", () => {
       ["ACCEPTED", "CLOSED"],
     ] as const) {
       vi.mocked(riskRepository.findRiskInProject).mockResolvedValue(risk({ status: from }));
-      vi.mocked(riskRepository.updateRisk).mockResolvedValue(risk({ status: to }));
+      vi.mocked(riskRepository.transitionStatusGuarded).mockResolvedValue(risk({ status: to }));
 
       await expect(
         service.transitionRisk(CONTEXT, PROJECT.id, "risk1", { to }),
@@ -531,7 +537,7 @@ describe("project role authorization", () => {
     ).resolves.toMatchObject({ identifier: "RSK-001" });
 
     vi.mocked(riskRepository.findRiskInProject).mockResolvedValue(risk());
-    vi.mocked(riskRepository.updateRisk).mockResolvedValue(risk({ status: "ACCEPTED" }));
+    vi.mocked(riskRepository.transitionStatusGuarded).mockResolvedValue(risk({ status: "ACCEPTED" }));
     await expect(
       service.transitionRisk(CONTEXT, PROJECT.id, "risk1", { to: "ACCEPTED" }),
     ).resolves.toMatchObject({ status: "ACCEPTED" });

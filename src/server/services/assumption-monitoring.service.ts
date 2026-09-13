@@ -127,11 +127,16 @@ export class AssumptionMonitoringService {
       unknown: 0,
     };
 
+    // One query for every assumption's full row, not one per assumption —
+    // listProjectAssumptions's own select is deliberately lighter (it joins
+    // in the decision identifier for display) and omits columns evaluate()
+    // needs, so a full re-fetch is unavoidable; batching it is not.
+    const fullAssumptionsById = await assumptionRepository.findAssumptionsByIds(
+      assumptions.map((row) => row.id),
+    );
+
     for (const row of assumptions) {
-      const assumption = await assumptionRepository.findAssumptionForDecision(
-        row.engineeringDecisionId,
-        row.id,
-      );
+      const assumption = fullAssumptionsById.get(row.id);
       if (!assumption) continue;
 
       const record = await this.evaluate(context, scopedProjectId, {

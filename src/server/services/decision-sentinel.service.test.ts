@@ -68,8 +68,8 @@ vi.mock("@/lib/db", () => ({
     issue: { findMany: vi.fn() },
     evidence: { findMany: vi.fn() },
     auditLog: { findMany: vi.fn(), findFirst: vi.fn() },
-    impactAnalysisRoot: { count: vi.fn() },
-    impactFinding: { count: vi.fn() },
+    impactAnalysisRoot: { findMany: vi.fn() },
+    impactFinding: { findMany: vi.fn() },
   },
 }));
 
@@ -97,7 +97,7 @@ vi.mock("@/server/repositories/baseline-member.repository", () => ({
 }));
 
 vi.mock("@/server/repositories/impact-analysis.repository", () => ({
-  findLatestAnalysis: vi.fn(),
+  findLatestForChanges: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/assumption-monitoring.repository", () => ({
@@ -119,13 +119,11 @@ vi.mock("@/server/repositories/certification-review.repository", () => ({
 }));
 
 vi.mock("@/server/repositories/verification-readiness.repository", () => ({
-  findLatestForActivities: vi.fn(),
-  readAssessmentBasis: vi.fn(),
+  findLatestBasisForActivities: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/technical-readiness.repository", () => ({
-  findLatestPerGate: vi.fn(),
-  readAssessmentScope: vi.fn(),
+  findLatestScopeForGates: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/sentinel-event.repository", () => ({
@@ -274,20 +272,14 @@ beforeEach(() => {
   vi.mocked(prisma.evidence.findMany).mockResolvedValue([]);
   vi.mocked(prisma.auditLog.findMany).mockResolvedValue([]);
   vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
-  vi.mocked(prisma.impactAnalysisRoot.count).mockResolvedValue(0);
-  vi.mocked(prisma.impactFinding.count).mockResolvedValue(0);
+  vi.mocked(prisma.impactAnalysisRoot.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.impactFinding.findMany).mockResolvedValue([]);
 
   // Every dependent domain: nothing to consult by default, so no membership
   // check can ever pass. Each test that wants a specific target opts in.
-  vi.mocked(verificationReadinessRepository.findLatestForActivities).mockResolvedValue(new Map());
-  vi.mocked(verificationReadinessRepository.readAssessmentBasis).mockResolvedValue({
-    objects: [],
-  } as never);
-  vi.mocked(technicalReadinessRepository.findLatestPerGate).mockResolvedValue(new Map());
-  vi.mocked(technicalReadinessRepository.readAssessmentScope).mockResolvedValue({
-    objects: [],
-  } as never);
-  vi.mocked(impactAnalysisRepository.findLatestAnalysis).mockResolvedValue(null);
+  vi.mocked(verificationReadinessRepository.findLatestBasisForActivities).mockResolvedValue(new Map());
+  vi.mocked(technicalReadinessRepository.findLatestScopeForGates).mockResolvedValue(new Map());
+  vi.mocked(impactAnalysisRepository.findLatestForChanges).mockResolvedValue(new Map());
   vi.mocked(monitoringRepository.listProjectAssumptions).mockResolvedValue([]);
   vi.mocked(monitoringRepository.findLatestForAssumptions).mockResolvedValue(new Map());
   vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue(null);
@@ -562,12 +554,9 @@ describe("dependency resolution", () => {
     vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([
       { id: VA_ID, identifier: "VA-001", title: "Hot fire test", createdAt: T0, updatedAt: T0 },
     ] as never);
-    vi.mocked(verificationReadinessRepository.findLatestForActivities).mockResolvedValue(
-      new Map([[VA_ID, { id: "vra1" }]]) as never,
+    vi.mocked(verificationReadinessRepository.findLatestBasisForActivities).mockResolvedValue(
+      new Map([[VA_ID, { objects: [{ type: "DESIGN_ITEM", id: "some-other-design-item" }] }]]) as never,
     );
-    vi.mocked(verificationReadinessRepository.readAssessmentBasis).mockResolvedValue({
-      objects: [{ type: "DESIGN_ITEM", id: "some-other-design-item" }],
-    } as never);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -582,12 +571,9 @@ describe("dependency resolution", () => {
     vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([
       { id: VA_ID, identifier: "VA-001", title: "Hot fire test", createdAt: T0, updatedAt: T0 },
     ] as never);
-    vi.mocked(verificationReadinessRepository.findLatestForActivities).mockResolvedValue(
-      new Map([[VA_ID, { id: "vra1" }]]) as never,
+    vi.mocked(verificationReadinessRepository.findLatestBasisForActivities).mockResolvedValue(
+      new Map([[VA_ID, { objects: [{ type: "REQUIREMENT", id: REQ_ID }] }]]) as never,
     );
-    vi.mocked(verificationReadinessRepository.readAssessmentBasis).mockResolvedValue({
-      objects: [{ type: "REQUIREMENT", id: REQ_ID }],
-    } as never);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -739,11 +725,10 @@ describe("dependency resolution", () => {
     vi.mocked(prisma.changeRequest.findMany).mockResolvedValue([
       { id: CR_ID, identifier: "CR-001", title: "Reduce wall thickness", createdAt: T0, updatedAt: T0 },
     ] as never);
-    vi.mocked(impactAnalysisRepository.findLatestAnalysis).mockResolvedValue({
-      id: "ia1",
-      status: "COMPLETED",
-    } as never);
-    vi.mocked(prisma.impactAnalysisRoot.count).mockResolvedValue(1);
+    vi.mocked(impactAnalysisRepository.findLatestForChanges).mockResolvedValue(
+      new Map([[CR_ID, { id: "ia1", status: "COMPLETED" }]]) as never,
+    );
+    vi.mocked(prisma.impactAnalysisRoot.findMany).mockResolvedValue([{ analysisId: "ia1" }] as never);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -761,15 +746,14 @@ describe("dependency resolution", () => {
     vi.mocked(prisma.changeRequest.findMany).mockResolvedValue([
       { id: CR_ID, identifier: "CR-001", title: "Reduce wall thickness", createdAt: T0, updatedAt: T0 },
     ] as never);
-    vi.mocked(impactAnalysisRepository.findLatestAnalysis).mockResolvedValue({
-      id: "ia1",
-      status: "RUNNING",
-    } as never);
+    vi.mocked(impactAnalysisRepository.findLatestForChanges).mockResolvedValue(
+      new Map([[CR_ID, { id: "ia1", status: "RUNNING" }]]) as never,
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
     expect(summary.targetsOpened).toBe(0);
-    expect(prisma.impactAnalysisRoot.count).not.toHaveBeenCalled();
+    expect(prisma.impactAnalysisRoot.findMany).not.toHaveBeenCalled();
   });
 
   it("opens ASSUMPTION_MONITORING for the assumption's own change", async () => {
@@ -876,11 +860,10 @@ describe("dependency resolution", () => {
     vi.mocked(prisma.changeRequest.findMany).mockResolvedValue([
       { id: CR_ID, identifier: "CR-001", title: "Reduce wall thickness", createdAt: T0, updatedAt: T0 },
     ] as never);
-    vi.mocked(impactAnalysisRepository.findLatestAnalysis).mockResolvedValue({
-      id: "ia1",
-      status: "COMPLETED",
-    } as never);
-    vi.mocked(prisma.impactAnalysisRoot.count).mockResolvedValue(1);
+    vi.mocked(impactAnalysisRepository.findLatestForChanges).mockResolvedValue(
+      new Map([[CR_ID, { id: "ia1", status: "COMPLETED" }]]) as never,
+    );
+    vi.mocked(prisma.impactAnalysisRoot.findMany).mockResolvedValue([{ analysisId: "ia1" }] as never);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -905,12 +888,9 @@ describe("dependency resolution", () => {
     vi.mocked(prisma.issue.findMany).mockResolvedValue([
       { id: ISSUE_ID, identifier: "ISS-001", title: "Chamber wall crack found", createdAt: T0, updatedAt: T1 },
     ] as never);
-    vi.mocked(technicalReadinessRepository.findLatestPerGate).mockResolvedValue(
-      new Map([["SYSTEM_DEFINITION", { id: "tra1", gate: "SYSTEM_DEFINITION", projectId: PROJECT_ID }]]) as never,
+    vi.mocked(technicalReadinessRepository.findLatestScopeForGates).mockResolvedValue(
+      new Map([["SYSTEM_DEFINITION", { objects: [{ type: "ISSUE", id: ISSUE_ID }] }]]) as never,
     );
-    vi.mocked(technicalReadinessRepository.readAssessmentScope).mockResolvedValue({
-      objects: [{ type: "ISSUE", id: ISSUE_ID }],
-    } as never);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -943,12 +923,9 @@ describe("duplicate suppression", () => {
     vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([
       { id: VA_ID, identifier: "VA-001", title: "Hot fire test", createdAt: T0, updatedAt: T0 },
     ] as never);
-    vi.mocked(verificationReadinessRepository.findLatestForActivities).mockResolvedValue(
-      new Map([[VA_ID, { id: "vra1" }]]) as never,
+    vi.mocked(verificationReadinessRepository.findLatestBasisForActivities).mockResolvedValue(
+      new Map([[VA_ID, { objects: [{ type: "REQUIREMENT", id: REQ_ID }] }]]) as never,
     );
-    vi.mocked(verificationReadinessRepository.readAssessmentBasis).mockResolvedValue({
-      objects: [{ type: "REQUIREMENT", id: REQ_ID }],
-    } as never);
     return service.detectProjectChanges(CONTEXT, PROJECT_ID);
   }
 

@@ -2,6 +2,7 @@ import {
   type ChangeImpactTargetType,
   type ChangeRequest,
   type ChangeRequestFilter,
+  type ChangeRequestStatus,
   type CreateChangeRequestInput,
   type DeclaredImpact,
   type UpdateChangeRequestInput,
@@ -13,7 +14,7 @@ import { type DbClient, prisma } from "@/lib/db";
 import { AppError } from "@/server/errors";
 import { parseOrThrow } from "@/server/validation";
 import { toChangeRequest } from "./mappers";
-import { rethrowAsConflict } from "./prisma-error";
+import { assertGuardedTransition, rethrowAsConflict } from "./prisma-error";
 
 /**
  * Change request data access.
@@ -127,6 +128,28 @@ export async function updateChangeRequest(
       status: data.status,
     },
   });
+  return toChangeRequest(row);
+}
+
+/**
+ * The status write behind `transitionChangeRequest`. Guarded, unlike
+ * {@link updateChangeRequest}: see `assertGuardedTransition`.
+ */
+export async function transitionStatusGuarded(
+  id: string,
+  fromStatus: ChangeRequestStatus,
+  toStatus: ChangeRequestStatus,
+  client: DbClient = prisma,
+): Promise<ChangeRequest> {
+  const result = await client.changeRequest.updateMany({
+    where: { id, status: fromStatus },
+    data: { status: toStatus },
+  });
+  assertGuardedTransition(
+    result.count,
+    "This change request's status was changed by someone else first. Reload and try again.",
+  );
+  const row = await client.changeRequest.findUniqueOrThrow({ where: { id } });
   return toChangeRequest(row);
 }
 

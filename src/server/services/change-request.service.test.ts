@@ -35,6 +35,7 @@ vi.mock("@/server/repositories/change-request.repository", () => ({
   listChangeRequestsInProject: vi.fn(),
   findChangeRequester: vi.fn(),
   updateChangeRequest: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   changeImpactTargetExistsInProject: vi.fn(),
   createDeclaredImpact: vi.fn(),
   findDeclaredImpactForChange: vi.fn(),
@@ -337,7 +338,7 @@ describe("updating", () => {
 describe("transitioning", () => {
   it("moves a draft to submitted and audits both ends", async () => {
     vi.mocked(changeRepository.findChangeRequestInProject).mockResolvedValue(change());
-    vi.mocked(changeRepository.updateChangeRequest).mockResolvedValue(
+    vi.mocked(changeRepository.transitionStatusGuarded).mockResolvedValue(
       change({ status: "SUBMITTED" }),
     );
 
@@ -653,7 +654,7 @@ describe("project role authorization", () => {
         to: "APPROVED",
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
-    expect(changeRepository.updateChangeRequest).not.toHaveBeenCalled();
+    expect(changeRepository.transitionStatusGuarded).not.toHaveBeenCalled();
   });
 
   it("refuses an ENGINEER rejecting a change request", async () => {
@@ -672,7 +673,7 @@ describe("project role authorization", () => {
   it("allows an ENGINEER to move a change through a non-disposition transition", async () => {
     asRole("ENGINEER");
     vi.mocked(changeRepository.findChangeRequestInProject).mockResolvedValue(change());
-    vi.mocked(changeRepository.updateChangeRequest).mockResolvedValue(
+    vi.mocked(changeRepository.transitionStatusGuarded).mockResolvedValue(
       change({ status: "SUBMITTED" }),
     );
 
@@ -688,7 +689,7 @@ describe("project role authorization", () => {
     vi.mocked(changeRepository.findChangeRequestInProject).mockResolvedValue(
       change({ status: "UNDER_REVIEW" }),
     );
-    vi.mocked(changeRepository.updateChangeRequest).mockResolvedValue(
+    vi.mocked(changeRepository.transitionStatusGuarded).mockResolvedValue(
       change({ status: "APPROVED" }),
     );
 
@@ -725,7 +726,7 @@ describe("project role authorization", () => {
     vi.mocked(changeRepository.findChangeRequestInProject).mockResolvedValue(
       change({ status: "UNDER_REVIEW" }),
     );
-    vi.mocked(changeRepository.updateChangeRequest).mockResolvedValue(
+    vi.mocked(changeRepository.transitionStatusGuarded).mockResolvedValue(
       change({ status: "REJECTED" }),
     );
     await expect(

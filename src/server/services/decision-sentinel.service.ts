@@ -631,16 +631,17 @@ export class DecisionSentinelService {
       where: { projectId },
       select: { id: true, identifier: true, title: true },
     });
-    const latest = await verificationReadinessRepository.findLatestForActivities(
+    // One query for every activity's latest basis, not one per activity —
+    // see findLatestBasisForActivities's own doc comment.
+    const basisByActivity = await verificationReadinessRepository.findLatestBasisForActivities(
       projectId,
       activities.map((a) => a.id),
     );
 
     const results: Array<{ targetId: string; targetIdentifier: string | null; targetLabel: string }> = [];
     for (const activity of activities) {
-      const assessment = latest.get(activity.id);
-      if (!assessment) continue;
-      const basis = await verificationReadinessRepository.readAssessmentBasis(assessment);
+      const basis = basisByActivity.get(activity.id);
+      if (!basis) continue;
       if (basisContains(basis.objects, event.sourceType, event.sourceId)) {
         results.push({ targetId: activity.id, targetIdentifier: activity.identifier, targetLabel: activity.title });
       }
@@ -649,12 +650,13 @@ export class DecisionSentinelService {
   }
 
   private async candidatesFromTechnicalReadiness(projectId: string, event: SentinelEvent) {
-    const latestByGate = await technicalReadinessRepository.findLatestPerGate(projectId);
+    // One query for every gate's latest scope, not one per gate — see
+    // findLatestScopeForGates's own doc comment.
+    const scopeByGate = await technicalReadinessRepository.findLatestScopeForGates(projectId);
     const results: Array<{ targetId: string; targetIdentifier: string | null; targetLabel: string }> = [];
     for (const gate of TECHNICAL_READINESS_GATES) {
-      const assessment = latestByGate.get(gate);
-      if (!assessment) continue;
-      const scope = await technicalReadinessRepository.readAssessmentScope(assessment);
+      const scope = scopeByGate.get(gate);
+      if (!scope) continue;
       if (basisContains(scope.objects, event.sourceType, event.sourceId)) {
         results.push({ targetId: gate, targetIdentifier: null, targetLabel: gate.replaceAll("_", " ") });
       }
@@ -668,17 +670,43 @@ export class DecisionSentinelService {
       select: { id: true, identifier: true, title: true },
     });
 
-    const results: Array<{ targetId: string; targetIdentifier: string | null; targetLabel: string }> = [];
-    for (const change of changes) {
-      const analysis = await impactAnalysisRepository.findLatestAnalysis(projectId, change.id);
-      if (!analysis || analysis.status !== "COMPLETED") continue;
+    // One query for every active change's latest run, not one per change —
+    // the same batched read the Command Center already relies on.
+    const latestByChange = await impactAnalysisRepository.findLatestForChanges(
+      projectId,
+      changes.map((c) => c.id),
+    );
+    const completed = changes
+      .map((change) => ({ change, analysis: latestByChange.get(change.id) }))
+      .filter(
+        (entry): entry is { change: (typeof changes)[number]; analysis: NonNullable<typeof entry.analysis> } =>
+          entry.analysis !== undefined && entry.analysis.status === "COMPLETED",
+      );
+    if (completed.length === 0) return [];
 
-      const nodeType = event.sourceType;
-      const [rootHit, findingHit] = await Promise.all([
-        prisma.impactAnalysisRoot.count({ where: { analysisId: analysis.id, nodeType, nodeId: event.sourceId } }),
-        prisma.impactFinding.count({ where: { analysisId: analysis.id, nodeType, nodeId: event.sourceId } }),
-      ]);
-      if (rootHit > 0 || findingHit > 0) {
+    const nodeType = event.sourceType;
+    const analysisIds = completed.map((entry) => entry.analysis.id);
+    // Two queries total for every completed analysis, not two per analysis:
+    // which analyses cite this node as a root or a finding, across the whole
+    // batch at once.
+    const [rootHits, findingHits] = await Promise.all([
+      prisma.impactAnalysisRoot.findMany({
+        where: { analysisId: { in: analysisIds }, nodeType, nodeId: event.sourceId },
+        select: { analysisId: true },
+      }),
+      prisma.impactFinding.findMany({
+        where: { analysisId: { in: analysisIds }, nodeType, nodeId: event.sourceId },
+        select: { analysisId: true },
+      }),
+    ]);
+    const hitAnalysisIds = new Set([
+      ...rootHits.map((r) => r.analysisId),
+      ...findingHits.map((f) => f.analysisId),
+    ]);
+
+    const results: Array<{ targetId: string; targetIdentifier: string | null; targetLabel: string }> = [];
+    for (const { change, analysis } of completed) {
+      if (hitAnalysisIds.has(analysis.id)) {
         results.push({ targetId: change.id, targetIdentifier: change.identifier, targetLabel: change.title });
       }
     }

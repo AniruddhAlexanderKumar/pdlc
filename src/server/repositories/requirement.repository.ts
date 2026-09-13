@@ -16,7 +16,7 @@ import { type DbClient, prisma } from "@/lib/db";
 import { NotFoundError } from "@/server/errors";
 import { parseOrThrow } from "@/server/validation";
 import { toRequirement } from "./mappers";
-import { rethrowAsConflict } from "./prisma-error";
+import { assertGuardedTransition, rethrowAsConflict } from "./prisma-error";
 
 /** Requirement data access, including the trace edges that hang off a requirement. */
 
@@ -104,6 +104,32 @@ export async function updateRequirement(
       ownerId: data.ownerId,
     },
   });
+  return toRequirement(row);
+}
+
+/**
+ * The status write behind `transitionRequirementStatus`.
+ *
+ * Guarded, unlike {@link updateRequirement}: the write only applies if the
+ * row is still in `fromStatus`, so a concurrent transition of the same
+ * requirement cannot silently overwrite — or be silently overwritten by —
+ * another one racing it. See `assertGuardedTransition`.
+ */
+export async function transitionStatusGuarded(
+  id: string,
+  fromStatus: RequirementStatus,
+  toStatus: RequirementStatus,
+  client: DbClient = prisma,
+): Promise<Requirement> {
+  const result = await client.requirement.updateMany({
+    where: { id, status: fromStatus },
+    data: { status: toStatus },
+  });
+  assertGuardedTransition(
+    result.count,
+    "This requirement's status was changed by someone else first. Reload and try again.",
+  );
+  const row = await client.requirement.findUniqueOrThrow({ where: { id } });
   return toRequirement(row);
 }
 

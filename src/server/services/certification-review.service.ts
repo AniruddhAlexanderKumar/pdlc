@@ -326,10 +326,13 @@ export class CertificationReviewService {
    *      service's own batched reader
    *
    * Nothing here re-runs another engine. Verification readiness is the one
-   * partial exception — one read per *distinct linked activity*, not per
-   * compliance item, which mirrors the same documented tradeoff
-   * `TechnicalReadinessService` makes for the same reason: reimplementing its
-   * freshness rule here would be the real duplication.
+   * partial exception — one *freshness derivation* per distinct linked
+   * activity, not per compliance item, which mirrors the same documented
+   * tradeoff `TechnicalReadinessService` makes for the same reason:
+   * reimplementing its freshness rule here would be the real duplication.
+   * Everything around that per-activity work — the authorization check and
+   * the assessment lookup — is batched once for every linked activity
+   * together; see `getLatestForActivitiesBatch`.
    */
   private async resolveBasis(
     context: OrganizationContext,
@@ -414,30 +417,34 @@ export class CertificationReviewService {
     }
 
     // --- Consumed: verification readiness (bounded to distinct linked activities) ---
+    // One authorization check and one batched assessment read for every
+    // linked activity, not one of each per activity — see
+    // getLatestForActivitiesBatch's own doc comment.
     const activityIds = [...new Set(linkage.verificationActivities.map((row) => row.id))];
-    const verificationReadiness: CertificationConsumedVerificationReadiness[] = [];
-    for (const activityId of activityIds) {
-      const latest = await this.verificationReadiness.getLatestVerificationReadiness(
-        context,
-        projectId,
-        activityId,
-      );
-      if (hasVerificationReadiness(latest)) {
-        verificationReadiness.push({
-          verificationActivityId: activityId,
-          assessmentId: latest.assessment.id,
-          status: latest.assessment.status,
-          freshness: latest.freshness,
-        });
-      } else {
-        verificationReadiness.push({
+    const latestByActivity = await this.verificationReadiness.getLatestForActivitiesBatch(
+      context,
+      projectId,
+      activityIds,
+    );
+    const verificationReadiness: CertificationConsumedVerificationReadiness[] = activityIds.map(
+      (activityId) => {
+        const latest = latestByActivity.get(activityId);
+        if (latest && hasVerificationReadiness(latest)) {
+          return {
+            verificationActivityId: activityId,
+            assessmentId: latest.assessment.id,
+            status: latest.assessment.status,
+            freshness: latest.freshness,
+          };
+        }
+        return {
           verificationActivityId: activityId,
           assessmentId: null,
-          status: "NOT_EVALUATED",
+          status: "NOT_EVALUATED" as const,
           freshness: null,
-        });
-      }
-    }
+        };
+      },
+    );
 
     // --- Consumed: change impact, reusing the existing readiness basis repository ---
     const impactSubjects: ReadinessSubjectRef[] = linkedObjects

@@ -133,6 +133,42 @@ describe.skipIf(!databaseAvailable)(`repositories against PostgreSQL (${SKIP_REA
 
       expect(approved.map((row) => row.identifier)).toEqual(["REQ-040"]);
     });
+
+    it("**guards a status transition against a concurrent write, real Postgres included**", async () => {
+      // The same read-decide-write shape repeats across every lifecycle
+      // transition in this codebase (Requirement, EngineeringDecision, Risk,
+      // Issue, ChangeRequest, Evidence, CertificationFinding) — all guarded
+      // through `transitionStatusGuarded`/`assertGuardedTransition`, which
+      // this exercises directly rather than through the service, since the
+      // guard itself lives in the repository. Two concurrent callers who
+      // both read DRAFT and both decide to write a *different* next status
+      // must not both silently win: one commits, the other gets a real
+      // conflict from the database, not a client-side check.
+      const r = repos!.requirement;
+      const created = await r.createRequirement({
+        projectId: tenant.projectId,
+        identifier: "REQ-050",
+        title: "Raced",
+        statement: "The system shall race.",
+      });
+
+      const results = await Promise.allSettled([
+        r.transitionStatusGuarded(created.id, "DRAFT", "IN_REVIEW"),
+        r.transitionStatusGuarded(created.id, "DRAFT", "OBSOLETE"),
+      ]);
+
+      const fulfilled = results.filter((res) => res.status === "fulfilled");
+      const rejected = results.filter((res) => res.status === "rejected");
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      const final = await r.findRequirementInProject(tenant.projectId, created.id);
+      expect(["IN_REVIEW", "OBSOLETE"]).toContain(final?.status);
+      // Whichever transition actually landed matches the one call that
+      // resolved — no third, blended outcome.
+      const winner = fulfilled[0] as PromiseFulfilledResult<{ status: string }>;
+      expect(final?.status).toBe(winner.value.status);
+    });
   });
 
   describe("traceability links", () => {

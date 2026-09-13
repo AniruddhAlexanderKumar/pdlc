@@ -246,7 +246,7 @@ export async function transitionRisk(
       );
     }
 
-    const risk = await riskRepository.updateRisk(existing.id, { status: to }, tx);
+    const risk = await riskRepository.transitionStatusGuarded(existing.id, existing.status, to, tx);
 
     await auditLogRepository.recordAuditEvent(
       auditEvent(context, RISK_AUDIT_ACTIONS.transitioned, risk.id, {

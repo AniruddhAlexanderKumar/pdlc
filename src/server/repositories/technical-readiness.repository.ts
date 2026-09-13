@@ -369,3 +369,30 @@ export async function findLatestPerGate(
   }
   return latest;
 }
+
+/**
+ * The persisted scope for the latest assessment of each gate, in one pass.
+ *
+ * The same shape as {@link findLatestPerGate} — one query rather than one per
+ * gate — for callers that need each gate's last-recorded scope rather than
+ * the assessment summary (Sentinel's dependency resolution, so far).
+ * `findLatestPerGate` cannot serve this directly: its mapped
+ * `TechnicalReadinessAssessment` deliberately drops the `scope` column, so
+ * reading it back required a second per-gate query until this existed.
+ */
+export async function findLatestScopeForGates(
+  projectId: string,
+  client: DbClient = prisma,
+): Promise<Map<TechnicalReadinessGate, TechnicalReadinessScope>> {
+  const rows = await client.technicalReadinessAssessment.findMany({
+    where: { projectId },
+    orderBy: NEWEST_FIRST,
+    select: { gate: true, scope: true },
+  });
+
+  const latest = new Map<TechnicalReadinessGate, TechnicalReadinessScope>();
+  for (const row of rows) {
+    if (!latest.has(row.gate)) latest.set(row.gate, toScope(row.gate, row.scope));
+  }
+  return latest;
+}

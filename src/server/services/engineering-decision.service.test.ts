@@ -28,6 +28,7 @@ vi.mock("@/server/repositories/project.repository", () => ({
 vi.mock("@/server/repositories/engineering-decision.repository", () => ({
   createDecision: vi.fn(),
   updateDecision: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   findDecisionInProject: vi.fn(),
   listDecisionsInProject: vi.fn(),
   findDecisionOwner: vi.fn(),
@@ -269,7 +270,7 @@ describe("lifecycle", () => {
     ["APPROVED", "SUPERSEDED"],
   ] as const)("allows %s → %s", async (from, to) => {
     vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(decision({ status: from }));
-    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(decision({ status: to }));
+    vi.mocked(decisionRepository.transitionStatusGuarded).mockResolvedValue(decision({ status: to }));
 
     const result = await service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to });
 
@@ -296,7 +297,7 @@ describe("lifecycle", () => {
     await expect(
       service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to }),
     ).rejects.toBeInstanceOf(ConflictError);
-    expect(decisionRepository.updateDecision).not.toHaveBeenCalled();
+    expect(decisionRepository.transitionStatusGuarded).not.toHaveBeenCalled();
     expect(auditLogRepository.recordAuditEvent).not.toHaveBeenCalled();
   });
 
@@ -304,11 +305,11 @@ describe("lifecycle", () => {
     vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
       decision({ status: "UNDER_REVIEW", decidedAt: null }),
     );
-    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(decision({ status: "APPROVED" }));
+    vi.mocked(decisionRepository.transitionStatusGuarded).mockResolvedValue(decision({ status: "APPROVED" }));
 
     await service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "APPROVED" });
 
-    const written = vi.mocked(decisionRepository.updateDecision).mock.calls[0]?.[1];
+    const written = vi.mocked(decisionRepository.transitionStatusGuarded).mock.calls[0]?.[2];
     expect(written?.decidedAt).toBeInstanceOf(Date);
   });
 
@@ -317,11 +318,11 @@ describe("lifecycle", () => {
     vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
       decision({ status: "UNDER_REVIEW", decidedAt }),
     );
-    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(decision({ status: "APPROVED" }));
+    vi.mocked(decisionRepository.transitionStatusGuarded).mockResolvedValue(decision({ status: "APPROVED" }));
 
     await service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "APPROVED" });
 
-    expect(vi.mocked(decisionRepository.updateDecision).mock.calls[0]?.[1]).not.toHaveProperty(
+    expect(vi.mocked(decisionRepository.transitionStatusGuarded).mock.calls[0]?.[2]).not.toHaveProperty(
       "decidedAt",
     );
   });
@@ -866,7 +867,7 @@ describe("project role authorization", () => {
     await expect(
       service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "APPROVED" }),
     ).rejects.toBeInstanceOf(ForbiddenError);
-    expect(decisionRepository.updateDecision).not.toHaveBeenCalled();
+    expect(decisionRepository.transitionStatusGuarded).not.toHaveBeenCalled();
   });
 
   it("allows an ENGINEER to move a decision through a non-approval transition", async () => {
@@ -874,7 +875,7 @@ describe("project role authorization", () => {
     vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
       decision({ status: "PROPOSED" }),
     );
-    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(
+    vi.mocked(decisionRepository.transitionStatusGuarded).mockResolvedValue(
       decision({ status: "UNDER_REVIEW" }),
     );
 
@@ -888,7 +889,7 @@ describe("project role authorization", () => {
     vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
       decision({ status: "UNDER_REVIEW" }),
     );
-    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(decision({ status: "APPROVED" }));
+    vi.mocked(decisionRepository.transitionStatusGuarded).mockResolvedValue(decision({ status: "APPROVED" }));
 
     await expect(
       service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "APPROVED" }),
@@ -916,7 +917,7 @@ describe("project role authorization", () => {
     vi.mocked(decisionRepository.findDecisionInProject).mockResolvedValue(
       decision({ status: "UNDER_REVIEW" }),
     );
-    vi.mocked(decisionRepository.updateDecision).mockResolvedValue(decision({ status: "APPROVED" }));
+    vi.mocked(decisionRepository.transitionStatusGuarded).mockResolvedValue(decision({ status: "APPROVED" }));
     await expect(
       service.transitionDecisionStatus(CONTEXT, PROJECT.id, "dec1", { to: "APPROVED" }),
     ).resolves.toMatchObject({ status: "APPROVED" });
