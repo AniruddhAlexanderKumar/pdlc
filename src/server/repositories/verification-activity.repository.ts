@@ -2,7 +2,7 @@ import type { VerificationActivity, VerificationMethod, VerificationStatus } fro
 import { type DbClient, prisma } from "@/lib/db";
 import type { OwnerSummary } from "./design-item.repository";
 import { toVerificationActivity } from "./mappers";
-import { rethrowAsConflict } from "./prisma-error";
+import { assertGuardedTransition, rethrowAsConflict } from "./prisma-error";
 import type { LinkedRequirementSummary } from "./stakeholder-need.repository";
 
 /** Verification activity data access. Project-scoped throughout. */
@@ -106,6 +106,31 @@ export async function updateVerificationActivity(
   client: DbClient = prisma,
 ): Promise<VerificationActivity> {
   const row = await client.verificationActivity.update({ where: { id }, data });
+  return toVerificationActivity(row);
+}
+
+/**
+ * The status write behind `transitionVerificationStatus`. Guarded, unlike
+ * {@link updateVerificationActivity}: the write only applies if the row is
+ * still in `fromStatus`, so a concurrent transition of the same activity
+ * cannot silently overwrite — or be silently overwritten by — another one
+ * racing it. See `assertGuardedTransition`.
+ */
+export async function transitionStatusGuarded(
+  id: string,
+  fromStatus: VerificationStatus,
+  data: UpdateVerificationActivityData,
+  client: DbClient = prisma,
+): Promise<VerificationActivity> {
+  const result = await client.verificationActivity.updateMany({
+    where: { id, status: fromStatus },
+    data,
+  });
+  assertGuardedTransition(
+    result.count,
+    "This verification activity's status was changed by someone else first. Reload and try again.",
+  );
+  const row = await client.verificationActivity.findUniqueOrThrow({ where: { id } });
   return toVerificationActivity(row);
 }
 

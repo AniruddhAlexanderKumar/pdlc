@@ -60,6 +60,7 @@ vi.mock("@/server/repositories/verification-activity.repository", () => ({
   findVerificationActivityInProject: vi.fn(),
   listVerificationActivitiesInProject: vi.fn(),
   updateVerificationActivity: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   findVerificationActivityOwner: vi.fn(),
   listRequirementsForVerification: vi.fn(),
   listEvidenceForVerification: vi.fn(),
@@ -407,7 +408,7 @@ describe("verification activities API", () => {
     vi.mocked(verificationRepository.findVerificationActivityInProject).mockResolvedValue(
       activity(),
     );
-    vi.mocked(verificationRepository.updateVerificationActivity).mockResolvedValue(
+    vi.mocked(verificationRepository.transitionStatusGuarded).mockResolvedValue(
       activity({ status: "IN_PROGRESS" }),
     );
 

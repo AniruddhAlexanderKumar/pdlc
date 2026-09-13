@@ -4988,6 +4988,65 @@ process, never one per request) were all already in place from earlier
 work and are unchanged here — this pass added what was missing around them,
 not a second copy of any of it.
 
+## Security hardening pass
+
+An adversarial audit, not a new capability — see [SECURITY.md](./SECURITY.md)
+for the threat model and the full security architecture this pass mostly
+confirmed rather than changed. What it actually found and fixed:
+
+**A real timing side channel in sign-in.** `signIn` used to call
+`verifyPassword` only once a credential row was found, so a request for an
+email with no account returned before any Argon2id computation, while a
+request for a real email with the wrong password additionally waited for
+one — an easily-measurable gap that leaked which emails have accounts
+despite both responses carrying the same generic message. `password.ts`'s
+new `verifyPasswordSafely` always performs a real Argon2id verification,
+against the real hash when one exists and a fixed per-process decoy hash
+otherwise, closing the gap without changing what a legitimate sign-in
+requires.
+
+**Four more lifecycle transitions had the TOCTOU shape Prompt 27 closed
+everywhere else.** `VerificationActivity.transitionVerificationStatus`,
+`SurveillanceTarget`'s `acknowledgeTarget`/`resolveTarget`, and
+`CertificationProgram.updateProgram`'s status branch were all still a
+blind `update()` after a `canTransition*` check — found only because this
+pass re-audited every `canTransition*` call site in the codebase rather
+than trusting the earlier pass's own module list. Guarded the same way:
+`updateMany` with the expected prior status folded into the `WHERE`,
+`assertGuardedTransition` on the resulting count. `CertificationProgram`'s
+guard is conditional on the request actually changing `status` — a plain
+name/description edit still goes through the unguarded `updateProgram`,
+since there is no lifecycle decision in that path to protect.
+
+**Confirmed, not changed, after direct adversarial inspection**: mass
+assignment (every client-facing request schema is `z.strictObject`, 23 of
+29 `src/domain/*.ts` files use it, verified against the real schemas in
+`src/tests/security/mass-assignment.test.ts`); SQL injection (one raw-SQL
+call site, already parameterized, already justified — Sentinel's
+partial-index upsert); script/URL injection (no `dangerouslySetInnerHTML`
+anywhere; evidence's `sourceReference` and every other external-locator
+field is rendered as inert text, never as an `href`, so there is no link
+for a `javascript:` scheme to become); audit actor integrity (no request
+schema anywhere accepts an `actorId`); CI token permissions (now explicit
+`contents: read` rather than an implicit default); the production Docker
+image (already non-root, already free of dev dependencies and secrets from
+Prompt 28). A new `src/server/api/response.test.ts` and
+`src/tests/security/` directory hold the tests this pass added that had no
+prior home; the IDOR-specific block in
+`src/tests/integration/access-control.test.ts` adds nested/linked-object
+id coverage (a valid project of the attacker's own, an object id belonging
+to someone else's) alongside the wrong-project-entirely coverage already
+there.
+
+**One real, disclosed, non-code finding**: `npm audit` reports two
+advisories in `mysql2`, reachable only as a transitive dependency of the
+`prisma` CLI package (which bundles every database driver Prisma supports,
+not just PostgreSQL). Never imported by this codebase, absent from the
+production image entirely (verified: `.next/standalone`'s traced
+`node_modules` contains no `mysql2` and no `prisma` CLI package). Recorded
+in SECURITY.md rather than "fixed" by the only available remediation,
+which is a major downgrade of Prisma itself.
+
 ## Directory structure
 
 ```

@@ -235,6 +235,41 @@ describe.skipIf(!databaseAvailable)(`certification workspace against PostgreSQL 
       expect(found).toBeNull();
       expect(found).not.toEqual(program);
     });
+
+    it("**guards a status-changing update against a concurrent status change**", async () => {
+      // Found during a later adversarial security pass: updateProgram's
+      // status branch had the same read-decide-write TOCTOU shape Prompt 27
+      // guarded elsewhere, just not yet here — DRAFT can legally reach
+      // either ACTIVE or CLOSED, so two callers racing from the same DRAFT
+      // program toward different outcomes must not both win.
+      const program = await modules!.programService.certificationProgramService.createProgram(
+        ctx,
+        tenant.projectId,
+        { identifier: identifierFor("cert-race"), name: "Race program" },
+      );
+
+      const results = await Promise.allSettled([
+        modules!.programService.certificationProgramService.updateProgram(ctx, tenant.projectId, {
+          status: "ACTIVE",
+        }),
+        modules!.programService.certificationProgramService.updateProgram(ctx, tenant.projectId, {
+          status: "CLOSED",
+        }),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === "fulfilled");
+      expect(fulfilled).toHaveLength(1);
+      expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+
+      const final = await modules!.programService.certificationProgramService.getProgram(
+        ctx,
+        tenant.projectId,
+      );
+      expect(["ACTIVE", "CLOSED"]).toContain(final?.status);
+      // Whichever program is once again `program.id` — updateProgram acts on
+      // a project's singular program, not a target this test picked by id.
+      expect(final?.id).toBe(program.id);
+    });
   });
 
   // --- Certification basis ----------------------------------------------------

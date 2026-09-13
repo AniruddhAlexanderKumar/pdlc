@@ -14,8 +14,10 @@ import { databaseAvailable, signIn, signUpNewAccount, type E2EAccount } from "./
  *   create one, and a non-member cannot even read it → a VIEWER can read
  *   the project but cannot mutate anything → a same-organization user
  *   with *no* project membership cannot reach the project at all (404,
- *   indistinguishable from "does not exist") → the owner removes a
- *   member, and that member immediately loses access.
+ *   indistinguishable from "does not exist") → a requirement title crafted
+ *   to look like a script-injection payload renders as inert text, never
+ *   executes → the owner removes a member, and that member immediately
+ *   loses access.
  *
  * Every check here goes through the real UI and the real API — server
  * enforcement, not a hidden button standing in for it. Several requirement
@@ -213,6 +215,30 @@ test.describe.serial("Engineering Access Control", () => {
 
     await page.goto(projectUrl);
     await expect(page.getByText(/no longer exists, or you do not have access/i)).toBeVisible();
+  });
+
+  test("a malicious title is rendered as literal text, never executed", async ({ page }) => {
+    await signIn(page, engineer);
+
+    const payload = '<img src=x onerror="window.__xssFired = true">Injected';
+    await page.goto(`${projectUrl}/requirements`);
+    await page.getByRole("button", { name: "New requirement" }).first().click();
+    await page.getByLabel("Identifier").fill("REQ-XSS");
+    await page.getByLabel("Title").fill(payload);
+    await page.getByLabel("Statement").fill("The system shall reject nothing typed into a text field.");
+    await page.getByRole("button", { name: "Create requirement" }).click();
+    await expect(page).toHaveURL(/\/requirements\/[a-z0-9]+$/);
+
+    // The exact string appears as literal, visible text — proof React
+    // escaped it rather than the browser silently dropping an unrenderable
+    // tag some other way.
+    await expect(page.getByText(payload, { exact: false })).toBeVisible();
+    // The strongest proof: the injected onerror handler never ran. A real
+    // XSS would have set this before the page finished settling.
+    const fired = await page.evaluate(() => (window as unknown as { __xssFired?: boolean }).__xssFired);
+    expect(fired).toBeUndefined();
+    // No broken/real <img> was parsed out of the title into the live DOM.
+    await expect(page.locator('img[src="x"]')).toHaveCount(0);
   });
 
   test("the owner removes a member, and that member immediately loses access", async ({ page }) => {

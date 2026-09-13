@@ -1057,6 +1057,7 @@ describe("acknowledge", () => {
 
     expect(surveillanceTargetRepository.acknowledgeTarget).toHaveBeenCalledWith(
       TARGET_ID,
+      "OPEN",
       CONTEXT.actorId,
       "seen it",
       TX,
@@ -1103,6 +1104,7 @@ describe("resolve", () => {
 
     expect(surveillanceTargetRepository.resolveTarget).toHaveBeenCalledWith(
       TARGET_ID,
+      "ACKNOWLEDGED",
       CONTEXT.actorId,
       "re-ran readiness",
       TX,
@@ -1142,6 +1144,7 @@ describe("reevaluation dispatch", () => {
     );
     expect(surveillanceTargetRepository.resolveTarget).toHaveBeenCalledWith(
       TARGET_ID,
+      "OPEN",
       CONTEXT.actorId,
       expect.stringMatching(/resolved automatically/i),
       TX,

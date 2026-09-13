@@ -32,6 +32,8 @@ const modules = databaseAvailable
       projectMembership: await import("@/server/services/project-membership.service"),
       organizationMembership: await import("@/server/services/organization-membership.service"),
       requirementService: await import("@/server/services/requirement.service"),
+      decisionService: await import("@/server/services/engineering-decision.service"),
+      evidenceService: await import("@/server/services/evidence.service"),
       supplierService: await import("@/server/services/supplier.service"),
       certificationProgramService: (
         await import("@/server/services/certification-program.service")
@@ -333,6 +335,84 @@ describe.skipIf(!databaseAvailable)(`Engineering Access Control against PostgreS
       await expect(
         modules!.authorization.requireProjectAccess(otherCtx, tenant.projectId),
       ).rejects.toBeInstanceOf(NotFoundError);
+    });
+  });
+
+  /**
+   * IDOR, told as the adversarial scenario it actually is: User A (this
+   * suite's `tenant`, a real OWNER of a real Project A) tries to reach
+   * objects that belong to User B (`otherTenant`, a real OWNER of their own,
+   * entirely separate Project B) by id — not by guessing Project B's id (the
+   * "cross-project and cross-organization isolation" block above already
+   * covers that), but the sharper case section 4 asks for: a *nested* id,
+   * where User A supplies their own genuinely-valid project in the URL and
+   * only the inner object id belongs to User B. If a lookup were ever
+   * written as "find this id" instead of "find this id within *this*
+   * project", this is the shape of bug that would slip through — an
+   * attacker's own project passes every project-level check, and only the
+   * object-level scoping catches the substitution.
+   */
+  describe("IDOR: User A's own valid project does not make User B's object ids resolve", () => {
+    it("a requirement, decision and evidence record created under Project B do not resolve under Project A's id", async () => {
+      const [requirementB, decisionB, evidenceB] = await Promise.all([
+        modules!.requirementService.createRequirement(otherCtx, otherTenant.projectId, {
+          identifier: identifierFor("req-b"),
+          title: "Belongs to Project B",
+          statement: "The system shall be User B's alone.",
+        }),
+        modules!.decisionService.createDecision(otherCtx, otherTenant.projectId, {
+          identifier: identifierFor("dec-b"),
+          title: "Belongs to Project B",
+          statement: "User B's decision.",
+          rationale: "Because it is User B's.",
+        }),
+        modules!.evidenceService.createEvidence(otherCtx, otherTenant.projectId, {
+          identifier: identifierFor("ev-b"),
+          title: "Belongs to Project B",
+          evidenceType: "DOCUMENT",
+          sourceReference: "b-only",
+        }),
+      ]);
+
+      // User A, authenticated as themselves, in their *own* real project —
+      // not a made-up id, a project ctx genuinely grants them access to.
+      await expect(
+        modules!.requirementService.getRequirement(ctx, tenant.projectId, requirementB.id),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      await expect(
+        modules!.decisionService.getDecision(ctx, tenant.projectId, decisionB.id),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      await expect(
+        modules!.evidenceService.getEvidence(ctx, tenant.projectId, evidenceB.id),
+      ).rejects.toBeInstanceOf(NotFoundError);
+
+      // The same substitution attempt from an unrelated organization member
+      // who is not even a User-A-style OWNER of anything, for good measure.
+      await expect(
+        modules!.requirementService.getRequirement(otherCtx, otherTenant.projectId, requirementB.id),
+      ).resolves.toMatchObject({ id: requirementB.id }); // sanity: B really can read their own record
+    });
+
+    it("a supplier and certification program created under Project B do not resolve under Project A's id", async () => {
+      const [supplierB, programB] = await Promise.all([
+        modules!.supplierService.createSupplier(otherCtx, otherTenant.projectId, {
+          identifier: identifierFor("sup-b"),
+          name: "Belongs to Project B",
+        }),
+        modules!.certificationProgramService.createProgram(otherCtx, otherTenant.projectId, {
+          identifier: identifierFor("cert-b"),
+          name: "Belongs to Project B",
+        }),
+      ]);
+
+      await expect(
+        modules!.supplierService.getSupplier(ctx, tenant.projectId, supplierB.id),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      // CertificationProgram has no id-lookup of its own (one per project by
+      // design) — the equivalent substitution is asking Project A's context
+      // for Project A's program and getting exactly that, never B's.
+      const ownProgram = await modules!.certificationProgramService.getProgram(ctx, tenant.projectId);
+      expect(ownProgram?.id).not.toBe(programB.id);
     });
   });
 

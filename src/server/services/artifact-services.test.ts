@@ -42,6 +42,7 @@ vi.mock("@/server/repositories/verification-activity.repository", () => ({
   findVerificationActivityInProject: vi.fn(),
   listVerificationActivitiesInProject: vi.fn(),
   updateVerificationActivity: vi.fn(),
+  transitionStatusGuarded: vi.fn(),
   findVerificationActivityOwner: vi.fn(),
   listRequirementsForVerification: vi.fn(),
   listEvidenceForVerification: vi.fn(),
@@ -432,7 +433,7 @@ describe("VerificationActivityService", () => {
     vi.mocked(verificationRepository.findVerificationActivityInProject).mockResolvedValue(
       activity({ status: from }),
     );
-    vi.mocked(verificationRepository.updateVerificationActivity).mockResolvedValue(
+    vi.mocked(verificationRepository.transitionStatusGuarded).mockResolvedValue(
       activity({ status: to }),
     );
 
@@ -468,14 +469,14 @@ describe("VerificationActivityService", () => {
     await expect(
       verificationService.transitionVerificationStatus(CONTEXT, PROJECT.id, "ver1", { to }),
     ).rejects.toBeInstanceOf(ConflictError);
-    expect(verificationRepository.updateVerificationActivity).not.toHaveBeenCalled();
+    expect(verificationRepository.transitionStatusGuarded).not.toHaveBeenCalled();
   });
 
   it("stamps completedDate when reaching a terminal outcome", async () => {
     vi.mocked(verificationRepository.findVerificationActivityInProject).mockResolvedValue(
       activity({ status: "IN_PROGRESS" }),
     );
-    vi.mocked(verificationRepository.updateVerificationActivity).mockResolvedValue(
+    vi.mocked(verificationRepository.transitionStatusGuarded).mockResolvedValue(
       activity({ status: "PASSED" }),
     );
 
@@ -483,7 +484,7 @@ describe("VerificationActivityService", () => {
       to: "PASSED",
     });
 
-    const written = vi.mocked(verificationRepository.updateVerificationActivity).mock.calls[0]?.[1];
+    const written = vi.mocked(verificationRepository.transitionStatusGuarded).mock.calls[0]?.[2];
     expect(written?.completedDate).toBeInstanceOf(Date);
   });
 
@@ -491,7 +492,7 @@ describe("VerificationActivityService", () => {
     vi.mocked(verificationRepository.findVerificationActivityInProject).mockResolvedValue(
       activity({ status: "PLANNED" }),
     );
-    vi.mocked(verificationRepository.updateVerificationActivity).mockResolvedValue(
+    vi.mocked(verificationRepository.transitionStatusGuarded).mockResolvedValue(
       activity({ status: "IN_PROGRESS" }),
     );
 
@@ -499,7 +500,7 @@ describe("VerificationActivityService", () => {
       to: "IN_PROGRESS",
     });
 
-    const written = vi.mocked(verificationRepository.updateVerificationActivity).mock.calls[0]?.[1];
+    const written = vi.mocked(verificationRepository.transitionStatusGuarded).mock.calls[0]?.[2];
     expect(written?.completedDate).toBeUndefined();
   });
 
@@ -619,7 +620,7 @@ describe("project role authorization", () => {
     vi.mocked(verificationRepository.findVerificationActivityInProject).mockResolvedValue(
       activity({ status: "PLANNED" }),
     );
-    vi.mocked(verificationRepository.updateVerificationActivity).mockResolvedValue(
+    vi.mocked(verificationRepository.transitionStatusGuarded).mockResolvedValue(
       activity({ status: "IN_PROGRESS" }),
     );
     await expect(

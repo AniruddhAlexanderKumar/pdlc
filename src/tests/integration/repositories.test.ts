@@ -423,6 +423,38 @@ describe.skipIf(!databaseAvailable)(`repositories against PostgreSQL (${SKIP_REA
       expect(activity?.status).toBe("PLANNED");
     });
 
+    it("**guards a verification activity's status transition against a concurrent write**", async () => {
+      // Same shape and same fix as the Requirement race test above —
+      // verification activities were the one lifecycle-controlled object
+      // this exact TOCTOU pattern was found in during a later adversarial
+      // security pass, not the original concurrency-hardening one.
+      const created = await repos!.verification.createVerificationActivity({
+        projectId: tenant.projectId,
+        identifier: "VER-500",
+        title: "Raced",
+        description: null,
+        method: "TEST",
+        plannedDate: null,
+        ownerId: null,
+      });
+
+      const results = await Promise.allSettled([
+        repos!.verification.transitionStatusGuarded(created.id, "PLANNED", { status: "IN_PROGRESS" }),
+        repos!.verification.transitionStatusGuarded(created.id, "PLANNED", { status: "WAIVED" }),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === "fulfilled");
+      const rejected = results.filter((r) => r.status === "rejected");
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+
+      const final = await repos!.verification.findVerificationActivityInProject(
+        tenant.projectId,
+        created.id,
+      );
+      expect(["IN_PROGRESS", "WAIVED"]).toContain(final?.status);
+    });
+
     it("enumerates link targets for a project", async () => {
       const targets = await repos!.artifacts.listLinkTargets(tenant.projectId);
 

@@ -5,6 +5,15 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege: the default GITHUB_TOKEN this workflow gets is otherwise
+# whatever the repository/organization default is, which can be broader than
+# anything these jobs actually do. Neither job writes to the repository,
+# comments on a PR, or touches releases — checkout and the Playwright report
+# upload (a dedicated permission, not contents access) are all either job
+# needs, so read-only is what both get, explicitly, rather than by chance.
+permissions:
+  contents: read
+
 # Cancel superseded runs on the same branch rather than queueing them.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

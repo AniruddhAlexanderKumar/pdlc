@@ -5,7 +5,7 @@ import {
 } from "@/domain";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { hashPassword, verifyPassword } from "@/server/auth/password";
+import { hashPassword, verifyPasswordSafely } from "@/server/auth/password";
 import { clearAttempts, isRateLimited, recordFailedAttempt } from "@/server/auth/rate-limit";
 import { createSessionForUser, invalidateSession } from "@/server/auth/session";
 import { ConflictError, UnauthorizedError } from "@/server/errors";
@@ -148,14 +148,21 @@ export async function signIn(input: unknown): Promise<AuthResult> {
 
   const account = await userRepository.findAuthRecordByEmail(data.email);
 
-  if (!account?.credential) {
-    recordFailedAttempt(data.email);
-    throw genericFailure;
-  }
+  // Always runs a real Argon2id verification, against the account's own
+  // hash when one exists and against a fixed decoy otherwise — see
+  // verifyPasswordSafely's own doc comment. Without this, an email with no
+  // account returned as soon as the lookup missed, while a real email with
+  // the wrong password additionally paid for a full hash computation: an
+  // easily-measurable timing gap that leaks which emails have accounts even
+  // though every response here carries the identical generic message.
+  const passwordMatches = await verifyPasswordSafely(
+    account?.credential?.passwordHash,
+    data.password,
+  );
 
-  if (!(await verifyPassword(account.credential.passwordHash, data.password))) {
+  if (!account?.credential || !passwordMatches) {
     recordFailedAttempt(data.email);
-    log.warn("Failed sign-in attempt", { userId: account.id });
+    if (account) log.warn("Failed sign-in attempt", { userId: account.id });
     throw genericFailure;
   }
 

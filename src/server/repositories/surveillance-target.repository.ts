@@ -6,6 +6,7 @@ import type {
   SurveillanceTargetType,
 } from "@/domain";
 import { type DbClient, prisma } from "@/lib/db";
+import { assertGuardedTransition } from "./prisma-error";
 
 /**
  * A surveillance target enriched with the source event that most recently
@@ -173,14 +174,21 @@ export async function findOpenTargetFor(
   });
 }
 
+/**
+ * Guarded: applies only if the target is still in `fromStatus` — the status
+ * the caller's own transition check just read — so a concurrent
+ * acknowledge/resolve of the same target cannot silently overwrite, or be
+ * silently overwritten by, another one racing it. See `assertGuardedTransition`.
+ */
 export async function acknowledgeTarget(
   id: string,
+  fromStatus: SurveillanceTargetStatus,
   acknowledgedById: string | null,
   note: string | null,
   client: DbClient = prisma,
 ): Promise<SurveillanceTarget> {
-  return client.surveillanceTarget.update({
-    where: { id },
+  const result = await client.surveillanceTarget.updateMany({
+    where: { id, status: fromStatus },
     data: {
       status: "ACKNOWLEDGED",
       acknowledgedAt: new Date(),
@@ -188,16 +196,22 @@ export async function acknowledgeTarget(
       acknowledgementNote: note,
     },
   });
+  assertGuardedTransition(
+    result.count,
+    "This surveillance target's status was changed by someone else first. Reload and try again.",
+  );
+  return client.surveillanceTarget.findUniqueOrThrow({ where: { id } });
 }
 
 export async function resolveTarget(
   id: string,
+  fromStatus: SurveillanceTargetStatus,
   resolvedById: string | null,
   note: string,
   client: DbClient = prisma,
 ): Promise<SurveillanceTarget> {
-  return client.surveillanceTarget.update({
-    where: { id },
+  const result = await client.surveillanceTarget.updateMany({
+    where: { id, status: fromStatus },
     data: {
       status: "RESOLVED",
       resolvedAt: new Date(),
@@ -205,6 +219,11 @@ export async function resolveTarget(
       resolutionNote: note,
     },
   });
+  assertGuardedTransition(
+    result.count,
+    "This surveillance target's status was changed by someone else first. Reload and try again.",
+  );
+  return client.surveillanceTarget.findUniqueOrThrow({ where: { id } });
 }
 
 /** Counts for the dashboard card and the workspace header — real aggregates, never estimates. */

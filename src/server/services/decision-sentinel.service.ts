@@ -252,6 +252,7 @@ export class DecisionSentinelService {
 
       const target = await surveillanceTargetRepository.acknowledgeTarget(
         existing.id,
+        existing.status,
         context.actorId,
         data.note ?? null,
         tx,
@@ -300,7 +301,13 @@ export class DecisionSentinelService {
         throw new ConflictError(`This surveillance target is already ${existing.status}.`);
       }
 
-      const target = await surveillanceTargetRepository.resolveTarget(existing.id, context.actorId, note, tx);
+      const target = await surveillanceTargetRepository.resolveTarget(
+        existing.id,
+        existing.status,
+        context.actorId,
+        note,
+        tx,
+      );
 
       await auditLogRepository.recordAuditEvent(
         artifactAuditEvent(context, SENTINEL_AUDIT_ACTIONS.targetResolved, SURVEILLANCE_TARGET_ENTITY_TYPE, target.id, {

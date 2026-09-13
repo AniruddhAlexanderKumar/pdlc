@@ -123,7 +123,9 @@ export class CertificationProgramService {
         );
       }
 
-      const program = await programRepository.updateProgram(existing.id, data, tx);
+      const program = data.status
+        ? await programRepository.updateProgramGuarded(existing.id, existing.status, data, tx)
+        : await programRepository.updateProgram(existing.id, data, tx);
 
       await auditLogRepository.recordAuditEvent(
         artifactAuditEvent(

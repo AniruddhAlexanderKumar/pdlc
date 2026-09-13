@@ -218,6 +218,67 @@ describe.skipIf(!databaseAvailable)(`Decision Sentinel against PostgreSQL (${SKI
       expect(rows).toHaveLength(1);
     });
 
+    it("**guards acknowledgement against a concurrent acknowledge/resolve of the same target**", async () => {
+      // Found during a later adversarial security pass: upsertOpenTarget's
+      // partial-index race safety (above) only protects target *creation*.
+      // acknowledgeTarget/resolveTarget had the same read-decide-write shape
+      // Prompt 27 guarded elsewhere (Requirement, Evidence, ...) without yet
+      // reaching Sentinel's own downstream transitions.
+      const event = await makeSentinelEvent();
+      const targetId = `va-ack-race-${uniqueSuffix("x")}`;
+      const { id } = await modules!.targetRepo.upsertOpenTarget({
+        projectId: tenant.projectId,
+        targetType: "VERIFICATION_READINESS",
+        targetId,
+        targetIdentifier: "VA-ACK-RACE",
+        targetLabel: "Acknowledge race target",
+        reason: "reason",
+        sourceEventId: event.id,
+      });
+
+      const results = await Promise.allSettled([
+        modules!.targetRepo.acknowledgeTarget(id, "OPEN", tenant.userId, "first"),
+        modules!.targetRepo.acknowledgeTarget(id, "OPEN", tenant.userId, "second"),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === "fulfilled");
+      expect(fulfilled).toHaveLength(1);
+      expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+
+      const final = await modules!.targetRepo.findTargetInProject(tenant.projectId, id);
+      expect(final?.status).toBe("ACKNOWLEDGED");
+    });
+
+    it("**guards resolution against a concurrent acknowledge racing a resolve of the same target**", async () => {
+      const event = await makeSentinelEvent();
+      const targetId = `va-res-race-${uniqueSuffix("x")}`;
+      const { id } = await modules!.targetRepo.upsertOpenTarget({
+        projectId: tenant.projectId,
+        targetType: "VERIFICATION_READINESS",
+        targetId,
+        targetIdentifier: "VA-RES-RACE",
+        targetLabel: "Resolve race target",
+        reason: "reason",
+        sourceEventId: event.id,
+      });
+
+      // Two different transitions racing from the same OPEN starting point —
+      // not two identical calls — is the case a status-only guard actually
+      // has to get right: whichever lands first must win outright, not
+      // merge with the loser's data.
+      const results = await Promise.allSettled([
+        modules!.targetRepo.acknowledgeTarget(id, "OPEN", tenant.userId, "seen it"),
+        modules!.targetRepo.resolveTarget(id, "OPEN", tenant.userId, "fixed it"),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === "fulfilled");
+      expect(fulfilled).toHaveLength(1);
+      expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+
+      const final = await modules!.targetRepo.findTargetInProject(tenant.projectId, id);
+      expect(["ACKNOWLEDGED", "RESOLVED"]).toContain(final?.status);
+    });
+
     it("supersedes an ACKNOWLEDGED target when a fresh OPEN one is written for the same domain object", async () => {
       const targetId = `va-${uniqueSuffix("super")}`;
       const eventA = await makeSentinelEvent();
@@ -230,7 +291,7 @@ describe.skipIf(!databaseAvailable)(`Decision Sentinel against PostgreSQL (${SKI
         reason: "first reason",
         sourceEventId: eventA.id,
       });
-      await modules!.targetRepo.acknowledgeTarget(first.id, tenant.userId, "seen it");
+      await modules!.targetRepo.acknowledgeTarget(first.id, "OPEN", tenant.userId, "seen it");
 
       const eventB = await makeSentinelEvent();
       const second = await modules!.targetRepo.upsertOpenTarget({

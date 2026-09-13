@@ -308,8 +308,9 @@ export async function transitionVerificationStatus(
       );
     }
 
-    const activity = await verificationRepository.updateVerificationActivity(
+    const activity = await verificationRepository.transitionStatusGuarded(
       existing.id,
+      existing.status,
       {
         status: to,
         ...(isTerminalVerificationStatus(to) ? { completedDate: new Date() } : {}),

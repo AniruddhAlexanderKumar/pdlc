@@ -41,6 +41,7 @@ vi.mock("@/server/repositories/certification-program.repository", () => ({
   findProgramInProject: vi.fn(),
   findProgramById: vi.fn(),
   updateProgram: vi.fn(),
+  updateProgramGuarded: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/certification-basis.repository", () => ({
@@ -270,11 +271,12 @@ describe("CertificationProgramService.updateProgram", () => {
     ).rejects.toBeInstanceOf(ConflictError);
 
     expect(programRepository.updateProgram).not.toHaveBeenCalled();
+    expect(programRepository.updateProgramGuarded).not.toHaveBeenCalled();
   });
 
   it("allows DRAFT -> ACTIVE and audits the change", async () => {
     vi.mocked(programRepository.findProgramInProject).mockResolvedValue(PROGRAM);
-    vi.mocked(programRepository.updateProgram).mockResolvedValue({ ...PROGRAM, status: "ACTIVE" });
+    vi.mocked(programRepository.updateProgramGuarded).mockResolvedValue({ ...PROGRAM, status: "ACTIVE" });
 
     const updated = await certificationProgramService.updateProgram(CONTEXT, PROJECT.id, { status: "ACTIVE" });
 

@@ -5,9 +5,11 @@ Next.js (App Router) · TypeScript · Tailwind · Prisma · **PostgreSQL** ·
 self-hosted authentication.
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for how the system is put together,
-and [DEPLOYMENT.md](./DEPLOYMENT.md) for running it in production —
+[DEPLOYMENT.md](./DEPLOYMENT.md) for running it in production —
 provisioning PostgreSQL, migrations, the production container, backups, and
-what is and is not covered by this repository's own tooling.
+what is and is not covered by this repository's own tooling — and
+[SECURITY.md](./SECURITY.md) for the threat model, authentication and
+authorization architecture, and known limitations.
 
 ## The database is PostgreSQL
 

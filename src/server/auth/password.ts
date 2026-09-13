@@ -42,3 +42,40 @@ export async function verifyPassword(passwordHash: string, password: string): Pr
     return false;
   }
 }
+
+/**
+ * A hash of no real password, computed once per process and reused —
+ * not a credential, a stand-in used only to make {@link verifyPasswordSafely}
+ * spend the same CPU time whether or not an account exists.
+ */
+let decoyHash: Promise<string> | undefined;
+
+function getDecoyHash(): Promise<string> {
+  decoyHash ??= hashPassword(`decoy-${Math.random()}`);
+  return decoyHash;
+}
+
+/**
+ * Verifies a password when the account might not exist, in constant time
+ * with respect to that fact.
+ *
+ * `signIn` used to call `verifyPassword` only when a credential row was
+ * found, which meant a request for an email with no account returned in
+ * however long a database lookup takes, while a request for a real email
+ * with the wrong password additionally waited for a full Argon2id
+ * computation — tens of milliseconds, an easily-measurable gap that turns
+ * the sign-in endpoint into a username-enumeration oracle despite both
+ * responses carrying the identical generic error message. This always runs
+ * the same Argon2id verification, against the real hash when one exists and
+ * against a fixed decoy otherwise, so both cases cost the same CPU time.
+ * Returns `false` unconditionally when `passwordHash` is `undefined` — the
+ * decoy is never a hash any real password could match.
+ */
+export async function verifyPasswordSafely(
+  passwordHash: string | undefined,
+  password: string,
+): Promise<boolean> {
+  const target = passwordHash ?? (await getDecoyHash());
+  const matched = await verifyPassword(target, password);
+  return passwordHash !== undefined && matched;
+}
