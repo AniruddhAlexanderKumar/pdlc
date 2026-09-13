@@ -105,6 +105,58 @@ jobs:
             --shadow-database-url "postgresql://postgres:postgres@localhost:5432/pdlc_shadow?schema=public" \
             --exit-code
 
+      # Builds the actual production image from the actual Dockerfile and
+      # proves it starts against this job's already-migrated database —
+      # the one part of "does the production container work" that a plain
+      # `npm run build` (below) does not touch at all, since that runs the
+      # app directly on the runner, never through the image a real
+      # deployment would pull. `--network host` puts the container on the
+      # runner's own network namespace so it can reach the Postgres service
+      # container at `localhost:5432` exactly like every other step here
+      # does, and so this step can curl it back on `localhost` too.
+      - name: Build production Docker image
+        run: docker build -t pdlc-platform:ci .
+
+      - name: Start production container and verify health
+        run: |
+          docker run -d --name pdlc-smoke --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e NODE_ENV=production \
+            -e LOG_LEVEL=error \
+            -e PORT=3050 \
+            pdlc-platform:ci
+
+          # The container's own process starting is not the same claim as
+          # "ready to serve" — poll rather than assume the first request lands
+          # after some arbitrary sleep.
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3050/api/health/live > /dev/null; then
+              echo "Liveness OK after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Container never became live; logs:"
+              docker logs pdlc-smoke
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # Readiness against the real, migrated schema this job just applied.
+          readiness=$(curl -fsS http://localhost:3050/api/health)
+          echo "$readiness"
+          echo "$readiness" | grep -q '"status":"ok"' || {
+            echo "Readiness check did not report ok"
+            docker logs pdlc-smoke
+            exit 1
+          }
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pdlc_test?schema=public
+
+      - name: Stop production container
+        if: always()
+        run: docker rm -f pdlc-smoke || true
+
       # Runs the repository layer against real PostgreSQL: composite keys,
       # include/select shapes, unique constraints, cascades and scoping.
       - name: Integration tests (real PostgreSQL)

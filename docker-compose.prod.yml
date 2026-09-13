@@ -1,0 +1,85 @@
+# Production-oriented Compose: the application container plus its own
+# PostgreSQL, wired together on an internal network only.
+#
+# What this deliberately does NOT do:
+#   - run migrations automatically (see DEPLOYMENT.md — `migrate deploy` is
+#     always a separate, explicit step you run yourself, before or after
+#     `up`, never something a container boots into);
+#   - seed any data;
+#   - expose PostgreSQL's port to the host — only the `app` service can reach
+#     it, over the Compose-managed internal network;
+#   - bundle any development tooling (no Playwright, no Prisma Studio) into
+#     the application image this points at.
+#
+# Usage — see DEPLOYMENT.md for the full procedure:
+#   cp .env.example .env.production        # fill in real values, never commit it
+#   docker compose -f docker-compose.prod.yml --env-file .env.production build
+#   docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app npx prisma migrate deploy
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-pdlc}
+    # No `ports:` mapping — reachable only from the `app` service, on the
+    # network Compose creates for this file. If you genuinely need external
+    # access (an ad-hoc `psql`, a backup tool running outside this Compose
+    # project), open a tunnel for that one session rather than publishing the
+    # port permanently.
+    volumes:
+      # Named, persistent volume — survives `docker compose down`,
+      # `app` container replacement/redeploy, and image upgrades. Only
+      # `docker compose down -v` (never run against this file without meaning
+      # it) or deleting the volume directly removes the data. See
+      # DEPLOYMENT.md's "Data persistence" section.
+      - pdlc-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-pdlc}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        # Waits for the healthcheck above, not just "container started" —
+        # PostgreSQL accepting TCP connections and being ready to serve a
+        # query are two different moments.
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-pdlc}?schema=public
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-PDLC Platform}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
+    ports:
+      # Bind to localhost only: a reverse proxy terminating TLS (see
+      # DEPLOYMENT.md) is the intended public entry point, not this port
+      # directly. Change to "3000:3000" only if you understand and accept
+      # that this exposes plain HTTP on every interface.
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      # Liveness, deliberately — see src/app/api/health/live/route.ts. A
+      # database blip should not make the orchestrator restart a healthy
+      # application container; that is what the readiness endpoint
+      # (/api/health) and the reverse proxy's own routing are for.
+      test:
+        [
+          "CMD-SHELL",
+          "node -e 'fetch(\"http://localhost:3000/api/health/live\").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  pdlc-postgres-data:

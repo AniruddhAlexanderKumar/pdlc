@@ -4,7 +4,10 @@ Aerospace Product Development Life Cycle platform. Modular monolith:
 Next.js (App Router) · TypeScript · Tailwind · Prisma · **PostgreSQL** ·
 self-hosted authentication.
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for how the system is put together.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for how the system is put together,
+and [DEPLOYMENT.md](./DEPLOYMENT.md) for running it in production —
+provisioning PostgreSQL, migrations, the production container, backups, and
+what is and is not covered by this repository's own tooling.
 
 ## The database is PostgreSQL
 
@@ -120,8 +123,10 @@ The split is deliberate:
 - **static** — typecheck, lint and the unit suite. No database.
 - **database** — boots a **PostgreSQL 17 service container**, applies the
   committed migrations with `migrate deploy`, verifies the migrations still
-  match `schema.prisma`, then runs the integration suite, the build and the
-  end-to-end suite against it.
+  match `schema.prisma`, builds the actual production Docker image and
+  starts it against that migrated database to confirm both health endpoints
+  respond, then runs the integration suite, the build and the end-to-end
+  suite against it.
 
 CI uses real PostgreSQL, not SQLite and not a mock. The credentials in the
 workflow belong to an ephemeral container on an isolated runner and are

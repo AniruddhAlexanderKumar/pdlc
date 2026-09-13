@@ -168,31 +168,42 @@ describe("DecisionsView", () => {
     expect(fetchMock.mock.calls.every(([, init]) => (init?.method ?? "GET") === "GET")).toBe(true);
   });
 
-  it("creates a decision and navigates to it", async () => {
-    routeGets();
-    const user = userEvent.setup();
+  it(
+    "creates a decision and navigates to it",
+    async () => {
+      routeGets();
+      const user = userEvent.setup();
 
-    render(<DecisionsView projectId={PROJECT_ID} />);
-    await screen.findByText("No decisions recorded yet");
+      render(<DecisionsView projectId={PROJECT_ID} />);
+      await screen.findByText("No decisions recorded yet");
 
-    await user.click(screen.getAllByRole("button", { name: /new decision/i })[0]!);
-    await user.type(await screen.findByLabelText(/identifier/i), "ED-001");
-    await user.type(screen.getByLabelText(/^Title/), "Use regenerative cooling");
-    await user.type(screen.getByLabelText(/^Statement/), "The chamber will be cooled.");
-    await user.type(screen.getByLabelText(/^Rationale/), "Ablative mass was prohibitive.");
+      await user.click(screen.getAllByRole("button", { name: /new decision/i })[0]!);
+      await user.type(await screen.findByLabelText(/identifier/i), "ED-001");
+      await user.type(screen.getByLabelText(/^Title/), "Use regenerative cooling");
+      await user.type(screen.getByLabelText(/^Statement/), "The chamber will be cooled.");
+      await user.type(screen.getByLabelText(/^Rationale/), "Ablative mass was prohibitive.");
 
-    fetchMock.mockImplementationOnce(async () => ok({ decision: decision() }));
-    await user.click(screen.getByRole("button", { name: /create decision/i }));
+      fetchMock.mockImplementationOnce(async () => ok({ decision: decision() }));
+      await user.click(screen.getByRole("button", { name: /create decision/i }));
 
-    await waitFor(() =>
-      expect(push).toHaveBeenCalledWith(`/projects/${PROJECT_ID}/decisions/${DECISION_ID}`),
-    );
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith(`/projects/${PROJECT_ID}/decisions/${DECISION_ID}`),
+      );
 
-    const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
-    const payload = JSON.parse(post![1].body);
-    expect(payload).not.toHaveProperty("status");
-    expect(payload).not.toHaveProperty("organizationId");
-  });
+      const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+      const payload = JSON.parse(post![1].body);
+      expect(payload).not.toHaveProperty("status");
+      expect(payload).not.toHaveProperty("organizationId");
+    },
+    // Four sequential user.type() calls across ~90 characters is the
+    // heaviest single interaction sequence in this file — realistic,
+    // per-keystroke userEvent simulation over that much text is close
+    // enough to Vitest's default 5000ms budget that it has intermittently
+    // exceeded it under full-suite parallel load (see Prompt 27/28's
+    // regression checks; the test's own logic and assertions are
+    // unchanged — this raises only how long it is allowed to take).
+    15_000,
+  );
 });
 
 describe("DecisionDetailView", () => {

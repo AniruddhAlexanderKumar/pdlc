@@ -1,0 +1,3 @@
+Keeps `public/` present in the repository so the production Dockerfile's
+`COPY --from=builder /app/public ./public` step is always valid, even before
+any real static asset exists. Delete this file once something else lives here.

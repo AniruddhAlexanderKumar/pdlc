@@ -4922,6 +4922,72 @@ monitoring) — batching that would mean teaching the graph layer to
 resolve multiple independent neighbourhoods in one traversal, a real
 engine change this pass deliberately did not make.
 
+## Production deployment foundation
+
+The operational side of "self-hosted" — how the application actually runs
+as a deployed process, not how its features are built. Full procedure
+(provisioning, migrations, backups, upgrade/rollback) lives in
+[DEPLOYMENT.md](./DEPLOYMENT.md), deliberately kept out of this file; what
+belongs here is what changed architecturally to make that guide possible.
+
+**Production container.** `next.config.ts` now sets `output: "standalone"`
+— Next.js traces the actual runtime `node_modules` a build needs and
+writes a self-contained server, rather than the production image shipping
+`npm ci`'s full tree. The `Dockerfile` (new) is a three-stage build — deps,
+build, runtime — on `node:22-bookworm-slim` rather than an Alpine/musl base,
+because `@node-rs/argon2` (already a dependency, already
+`serverExternalPackages`-excluded from bundling for the same native-addon
+reason) ships prebuilt native binaries, and musl compatibility for a
+platform-specific optional dependency is a real, recurring failure mode —
+reliability over image size, the explicit trade this makes. The runtime
+stage runs as a non-root user, sets `NODE_ENV=production` explicitly rather
+than relying on it being inherited, and never runs `next dev`.
+
+**Security headers.** `next.config.ts`'s `headers()` applies a
+`Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+`Referrer-Policy`, and a restrictive `Permissions-Policy` to every response.
+The CSP is honest about needing `'unsafe-inline'` for `script-src` (Next's
+inline hydration payload, no nonce wired through) and `style-src` (Radix UI
+sets inline `style` attributes for portalled positioning) — both documented
+inline rather than silently weakened or silently claimed strict.
+
+**Health endpoints, split.** `/api/health` (unchanged — a real `SELECT 1`
+against PostgreSQL) is readiness: can this instance do its job right now.
+`/api/health/live` (new) is liveness: is the process up at all, with no
+dependency outside it. The distinction exists so a database blip makes a
+load balancer stop routing traffic to an instance without an orchestrator
+concluding the instance itself is dead and restarting it.
+
+**Request correlation.** `src/middleware.ts` now stamps every request with
+a server-generated id (never a client-supplied one — nothing about it is
+trusted from outside), logs it once per request, forwards it to route
+handlers via a request header, and echoes it back as the `x-request-id`
+response header for support correlation.
+
+**Startup and shutdown.** `src/instrumentation.ts` (new) is Next.js's own
+lifecycle hook, not a custom process manager: on the Node runtime only (this
+file also loads under the Edge runtime for middleware, where it does
+nothing), it logs application startup — forcing `@/config/env`'s validated
+singleton to resolve, so an invalid environment fails loudly before the
+server would otherwise start serving — and registers `SIGTERM`/`SIGINT`
+handlers that close the Prisma connection pool cleanly before the process
+exits. Database reachability is deliberately not a startup gate — see
+DEPLOYMENT.md's "Startup order" for why.
+
+**What already existed, confirmed correct rather than rebuilt.** Structured
+JSON logging (`src/lib/logger.ts`), centralized environment validation
+(`src/config/env.ts`), the `AppError` hierarchy and its production-mode
+sanitization (`src/server/errors.ts`, `src/server/api/response.ts` —
+internal exceptions logged server-side in full, clients get a generic
+message, stack traces never leave development), secure/httpOnly/SameSite
+session cookies (`src/server/auth/cookies.ts`), the CSRF origin check
+(`src/middleware.ts`), Argon2id password hashing at OWASP-recommended
+parameters (`src/server/auth/password.ts`), and the singleton Prisma client
+via `@prisma/adapter-pg` (`src/lib/db.ts`, one connection pool for the
+process, never one per request) were all already in place from earlier
+work and are unchanged here — this pass added what was missing around them,
+not a second copy of any of it.
+
 ## Directory structure
 
 ```
