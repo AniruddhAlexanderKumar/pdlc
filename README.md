@@ -85,16 +85,40 @@ You can skip the seed entirely and register through `/sign-up`, which creates
 an organization and its first administrator in one step. That is the preferred
 path for anything other than local development.
 
+### Seeding a realistic demo scenario
+
+`npm run db:seed` gives you one empty project. For a populated one — a
+requirement, a decision, a verification activity, evidence, a supplier, an
+active baseline, a change request with a real impact analysis, a
+certification programme, and a real Sentinel detection, all built through the
+real application services — run:
+
+```bash
+npm run db:seed:scenario
+```
+
+This is a separate script (`prisma/seed-scenario.ts`), never wired into
+Prisma's own `db seed` hook, so `npm run db:seed` and `prisma migrate reset`
+never invoke it and stay exactly as minimal as documented above. It creates
+its own organization and prints every account it creates — an owner plus one
+user per project role (manager/engineer/reviewer/viewer, and one
+organization member deliberately left off the project) — with a fresh
+Argon2id-hashed password each, shown once so you can actually sign in. It
+refuses to run with `NODE_ENV=production` and requires `DATABASE_URL`, same
+as every other database command here; see DEPLOYMENT.md's Data retention
+section for why production must never run it.
+
 ### Everyday database commands
 
-| Command | What it does |
-| --- | --- |
-| `npm run db:up` / `npm run db:down` | Start / stop the PostgreSQL container |
-| `npm run db:migrate` | Create and apply a migration during development |
-| `npm run db:migrate:deploy` | Apply committed migrations (what CI and deploys run) |
-| `npm run db:seed` | Create the local bootstrap account |
-| `npm run db:studio` | Browse the data |
-| `npm run db:reset:local` | **Destroys the local volume**, restarts, re-migrates |
+| Command                             | What it does                                                      |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `npm run db:up` / `npm run db:down` | Start / stop the PostgreSQL container                             |
+| `npm run db:migrate`                | Create and apply a migration during development                   |
+| `npm run db:migrate:deploy`         | Apply committed migrations (what CI and deploys run)              |
+| `npm run db:seed`                   | Create the local bootstrap account                                |
+| `npm run db:seed:scenario`          | Populate a realistic demo project (dev-only, never in production) |
+| `npm run db:studio`                 | Browse the data                                                   |
+| `npm run db:reset:local`            | **Destroys the local volume**, restarts, re-migrates              |
 
 `db:reset:local` is deliberately named: it only ever affects the local Docker
 volume. Nothing in this repository resets a database it did not create.
@@ -112,11 +136,11 @@ and migrations applied, they execute for real.
 
 The split is deliberate:
 
-| Suite | Needs a database | What it proves |
-| --- | --- | --- |
-| `npm run test` | no | Domain rules, service logic, API contracts, UI behavior (repositories faked) |
-| `npm run test:integration` | **yes** | The Prisma queries themselves: composite keys, `include`/`select` shapes, unique constraints, cascades, project scoping |
-| `npm run test:e2e` | **yes** | Real browser against the running app and a real database |
+| Suite                      | Needs a database | What it proves                                                                                                          |
+| -------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `npm run test`             | no               | Domain rules, service logic, API contracts, UI behavior (repositories faked)                                            |
+| `npm run test:integration` | **yes**          | The Prisma queries themselves: composite keys, `include`/`select` shapes, unique constraints, cascades, project scoping |
+| `npm run test:e2e`         | **yes**          | Real browser against the running app and a real database                                                                |
 
 ## Continuous integration
 

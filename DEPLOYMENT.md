@@ -40,13 +40,13 @@ obscure runtime error later (see "Environment validation" below).
 
 The variables that matter for a production deployment specifically:
 
-| Variable | Required | Production expectation |
-| --- | --- | --- |
-| `NODE_ENV` | effectively yes | `production`. `next build`/`next start` set this automatically; only override it if you run the compiled server through something that does not. |
-| `DATABASE_URL` | **yes** | A real PostgreSQL connection string. No default exists — there is nothing for this to silently fall back to. |
-| `LOG_LEVEL` | no | `info` or `warn` in production; `debug` is development-only noise. |
-| `SESSION_TTL_DAYS` | no | Defaults to 30. Session expiry is enforced server-side regardless of this value's size — it only sets how long that is. |
-| `NEXT_PUBLIC_APP_NAME` | no | Cosmetic; inlined into the client bundle, so it is genuinely public — never put anything sensitive behind a `NEXT_PUBLIC_` name. |
+| Variable               | Required        | Production expectation                                                                                                                           |
+| ---------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NODE_ENV`             | effectively yes | `production`. `next build`/`next start` set this automatically; only override it if you run the compiled server through something that does not. |
+| `DATABASE_URL`         | **yes**         | A real PostgreSQL connection string. No default exists — there is nothing for this to silently fall back to.                                     |
+| `LOG_LEVEL`            | no              | `info` or `warn` in production; `debug` is development-only noise.                                                                               |
+| `SESSION_TTL_DAYS`     | no              | Defaults to 30. Session expiry is enforced server-side regardless of this value's size — it only sets how long that is.                          |
+| `NEXT_PUBLIC_APP_NAME` | no              | Cosmetic; inlined into the client bundle, so it is genuinely public — never put anything sensitive behind a `NEXT_PUBLIC_` name.                 |
 
 `SEED_ADMIN_*` / `SEED_ORGANIZATION_NAME` are **not** production variables —
 see "Data retention and deletion" below.
@@ -135,7 +135,7 @@ npm run start          # next start — binds :3000 by default
    thing that happens.
 2. **Application initialization.** Next.js's own server startup —
    unremarkable, no custom bootstrapping.
-3. **Database availability.** Deliberately *not* a startup gate. A
+3. **Database availability.** Deliberately _not_ a startup gate. A
    temporarily-unreachable database at the exact moment of a rolling
    restart should not prevent the process from starting and later
    recovering once the database returns — it should make `/api/health`
@@ -286,6 +286,20 @@ Concretely:
   account in a real deployment is registering through `/sign-up`, which
   creates an organization and its first administrator in one step, the same
   path every subsequent user goes through.
+- `npm run db:seed:scenario` (`prisma/seed-scenario.ts`) has **no production
+  use either**, and is deliberately more dangerous-looking than `db:seed` to
+  make that obvious: it creates a full synthetic engineering project —
+  fictional accounts, a fictional requirement/decision/supplier/
+  certification programme, all clearly labeled `[DEMO]`/`(fictional)` — and
+  prints every account password it creates to the terminal once. It refuses
+  outright if `NODE_ENV=production`. Nothing in this deployment path (the
+  Dockerfile, `docker-compose.prod.yml`, `instrumentation.ts`'s startup
+  hook, or the steps in CI that build and start the production image) ever
+  invokes it — the only way it runs is a developer typing the command by
+  hand against a database they control. (CI's own database job does run
+  plain `npm run db:seed` later, but only to provision a throwaway account
+  for the end-to-end suite in CI's own disposable database — never against
+  the production image, and never `db:seed:scenario`.)
 - `npm run db:reset:local` / `docker compose down -v` are **local-only**
   commands, named and documented as such (see README.md) — they destroy the
   named Docker volume `docker-compose.yml` (development) or
@@ -311,7 +325,7 @@ metadata/reference records only. It has never stored evidence file
 contents, and this prompt did not add that capability.** A `sourceReference`
 is a pointer (a document id, a file path, a URL — whatever the recording
 engineer typed) to something that lives outside this system. Backing up
-this system's PostgreSQL database backs up every evidence *record* —
+this system's PostgreSQL database backs up every evidence _record_ —
 title, type, status, links, the reference string itself — but **not** the
 file or document that reference points to, because this system never had a
 copy of it. See ARCHITECTURE.md's Evidence section ("Binary/file integrity —

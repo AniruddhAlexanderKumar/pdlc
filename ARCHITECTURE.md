@@ -29,21 +29,21 @@ persistence types meet.
 The system records a connected engineering history, not a set of independent
 lists. The canonical entities are:
 
-| Entity | Purpose |
-| --- | --- |
-| `Organization`, `User` | Tenancy and attribution |
-| `Project` | A program; every artifact is scoped to exactly one |
-| `StakeholderNeed` | Originating need or problem a requirement answers |
-| `Requirement` | Formal requirement: statement, rationale, status, priority, owner |
-| `EngineeringDecision` | Decision with rationale, alternatives, assumptions |
-| `DesignItem` | System / subsystem / assembly / component / software element |
-| `InterfaceDefinition` | Interface between design elements |
-| `VerificationActivity` | Planned or executed verification, with method and outcome |
-| `Risk`, `Issue` | Engineering risk register and open problems |
-| `ChangeRequest` | Proposed change, with the artifacts it affects |
-| `Approval` | Approval/rejection recorded against one artifact |
-| `Evidence` | External supporting artifact (document, test result, analysis) |
-| `AuditLog` | Append-only event stream (preserved from the foundation) |
+| Entity                 | Purpose                                                           |
+| ---------------------- | ----------------------------------------------------------------- |
+| `Organization`, `User` | Tenancy and attribution                                           |
+| `Project`              | A program; every artifact is scoped to exactly one                |
+| `StakeholderNeed`      | Originating need or problem a requirement answers                 |
+| `Requirement`          | Formal requirement: statement, rationale, status, priority, owner |
+| `EngineeringDecision`  | Decision with rationale, alternatives, assumptions                |
+| `DesignItem`           | System / subsystem / assembly / component / software element      |
+| `InterfaceDefinition`  | Interface between design elements                                 |
+| `VerificationActivity` | Planned or executed verification, with method and outcome         |
+| `Risk`, `Issue`        | Engineering risk register and open problems                       |
+| `ChangeRequest`        | Proposed change, with the artifacts it affects                    |
+| `Approval`             | Approval/rejection recorded against one artifact                  |
+| `Evidence`             | External supporting artifact (document, test result, analysis)    |
+| `AuditLog`             | Append-only event stream (preserved from the foundation)          |
 
 Artifacts carry a human-facing `identifier` ("REQ-001") that is unique **per
 project** — identity is the (project, identifier) pair, never the string alone.
@@ -120,47 +120,47 @@ shape nor storage detail:
 REST route handlers under `src/app/api`. Each handler resolves the request
 context, calls a service, and hands the result to `src/server/api/response.ts`.
 
-| Endpoint | Behavior |
-| --- | --- |
-| `GET /api/projects` | List the organization's projects, newest first |
-| `POST /api/projects` | Create (201) |
-| `GET /api/projects/[projectId]` | Fetch one, scoped to the organization |
-| `PATCH /api/projects/[projectId]` | Update name and/or description |
-| `POST /api/projects/[projectId]/archive` | Transition to ARCHIVED |
-| `GET|POST /api/projects/[id]/requirements` | List (optional `?status=`) / create |
-| `GET|PATCH /api/projects/[id]/requirements/[rid]` | Detail (owner, links, transitions, history) / content update |
-| `POST …/requirements/[rid]/transition` | The only path that changes status |
-| `POST …/requirements/[rid]/owner` | Assign or clear the owner |
-| `GET|POST|DELETE …/requirements/[rid]/links` | Typed traceability edges |
-| `GET /api/projects/[id]/link-targets` | Read-only lookup for the link selectors |
-| `GET /api/organization/members` | Owner selector; id, name, email only |
-| `GET\|POST /api/projects/[id]/stakeholder-needs` | List / create |
-| `GET\|PATCH …/stakeholder-needs/[needId]` | Detail (derived requirements, history) / update |
-| `GET\|POST /api/projects/[id]/design-items` | List / create |
-| `GET\|PATCH …/design-items/[designItemId]` | Detail (allocations, decisions, history) / update |
-| `POST …/design-items/[designItemId]/owner` | Assign or clear the owner |
-| `GET\|POST /api/projects/[id]/verification-activities` | List / create (always PLANNED) |
-| `GET\|PATCH …/verification-activities/[activityId]` | Detail (transitions, evidence, history) / update plan |
-| `POST …/verification-activities/[activityId]/transition` | The only path that changes status |
-| `POST …/verification-activities/[activityId]/owner` | Assign or clear the owner |
-| `GET\|POST /api/projects/[id]/decisions` | List (`?status=`) / create (always PROPOSED) |
-| `GET\|PATCH …/decisions/[decisionId]` | Full decision memory / content update |
-| `POST …/decisions/[decisionId]/transition` | The only path that changes status |
-| `POST …/decisions/[decisionId]/owner` | Assign or clear the owner |
-| `GET\|POST …/decisions/[id]/alternatives` + `PATCH\|DELETE …/[alternativeId]` | Alternatives considered |
-| `GET\|POST …/decisions/[id]/assumptions` + `PATCH\|DELETE …/[assumptionId]` | Assumptions and their status |
-| `GET\|PUT\|DELETE …/decisions/[id]/expectation` | The single expected outcome |
-| `GET\|POST\|DELETE …/decisions/[id]/links` | Typed traceability and evidence |
-| `GET /api/projects/[id]/decision-link-targets` | Read-only selector lookup |
-| `GET\|POST /api/projects/[id]/changes` | List (`?status=`, newest first) / raise (always DRAFT) |
-| `GET\|PATCH …/changes/[changeId]` | Detail (declared impacts, transitions, history) / definition update |
-| `POST …/changes/[changeId]/transition` | The only path that changes status |
-| `GET\|POST …/changes/[changeId]/impacts` | Declared impacts — list / declare |
-| `DELETE …/changes/[changeId]/impacts/[impactId]` | Withdraw a declared impact |
-| `GET /api/projects/[id]/change-impact-targets` | Read-only selector lookup |
-| `POST\|GET …/changes/[changeId]/impact-analysis` | Run an analysis (201) / list run history |
-| `GET …/changes/[changeId]/impact-analysis/latest` | Latest run, with derived freshness |
-| `GET /api/projects/[id]/impact-analyses/[analysisId]` | One analysis in full |
+| Endpoint                                                                      | Behavior                                                            |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `GET /api/projects`                                                           | List the organization's projects, newest first                      |
+| `POST /api/projects`                                                          | Create (201)                                                        |
+| `GET /api/projects/[projectId]`                                               | Fetch one, scoped to the organization                               |
+| `PATCH /api/projects/[projectId]`                                             | Update name and/or description                                      |
+| `POST /api/projects/[projectId]/archive`                                      | Transition to ARCHIVED                                              |
+| `GET                                                                          | POST /api/projects/[id]/requirements`                               | List (optional `?status=`) / create                          |
+| `GET                                                                          | PATCH /api/projects/[id]/requirements/[rid]`                        | Detail (owner, links, transitions, history) / content update |
+| `POST …/requirements/[rid]/transition`                                        | The only path that changes status                                   |
+| `POST …/requirements/[rid]/owner`                                             | Assign or clear the owner                                           |
+| `GET                                                                          | POST                                                                | DELETE …/requirements/[rid]/links`                           | Typed traceability edges |
+| `GET /api/projects/[id]/link-targets`                                         | Read-only lookup for the link selectors                             |
+| `GET /api/organization/members`                                               | Owner selector; id, name, email only                                |
+| `GET\|POST /api/projects/[id]/stakeholder-needs`                              | List / create                                                       |
+| `GET\|PATCH …/stakeholder-needs/[needId]`                                     | Detail (derived requirements, history) / update                     |
+| `GET\|POST /api/projects/[id]/design-items`                                   | List / create                                                       |
+| `GET\|PATCH …/design-items/[designItemId]`                                    | Detail (allocations, decisions, history) / update                   |
+| `POST …/design-items/[designItemId]/owner`                                    | Assign or clear the owner                                           |
+| `GET\|POST /api/projects/[id]/verification-activities`                        | List / create (always PLANNED)                                      |
+| `GET\|PATCH …/verification-activities/[activityId]`                           | Detail (transitions, evidence, history) / update plan               |
+| `POST …/verification-activities/[activityId]/transition`                      | The only path that changes status                                   |
+| `POST …/verification-activities/[activityId]/owner`                           | Assign or clear the owner                                           |
+| `GET\|POST /api/projects/[id]/decisions`                                      | List (`?status=`) / create (always PROPOSED)                        |
+| `GET\|PATCH …/decisions/[decisionId]`                                         | Full decision memory / content update                               |
+| `POST …/decisions/[decisionId]/transition`                                    | The only path that changes status                                   |
+| `POST …/decisions/[decisionId]/owner`                                         | Assign or clear the owner                                           |
+| `GET\|POST …/decisions/[id]/alternatives` + `PATCH\|DELETE …/[alternativeId]` | Alternatives considered                                             |
+| `GET\|POST …/decisions/[id]/assumptions` + `PATCH\|DELETE …/[assumptionId]`   | Assumptions and their status                                        |
+| `GET\|PUT\|DELETE …/decisions/[id]/expectation`                               | The single expected outcome                                         |
+| `GET\|POST\|DELETE …/decisions/[id]/links`                                    | Typed traceability and evidence                                     |
+| `GET /api/projects/[id]/decision-link-targets`                                | Read-only selector lookup                                           |
+| `GET\|POST /api/projects/[id]/changes`                                        | List (`?status=`, newest first) / raise (always DRAFT)              |
+| `GET\|PATCH …/changes/[changeId]`                                             | Detail (declared impacts, transitions, history) / definition update |
+| `POST …/changes/[changeId]/transition`                                        | The only path that changes status                                   |
+| `GET\|POST …/changes/[changeId]/impacts`                                      | Declared impacts — list / declare                                   |
+| `DELETE …/changes/[changeId]/impacts/[impactId]`                              | Withdraw a declared impact                                          |
+| `GET /api/projects/[id]/change-impact-targets`                                | Read-only selector lookup                                           |
+| `POST\|GET …/changes/[changeId]/impact-analysis`                              | Run an analysis (201) / list run history                            |
+| `GET …/changes/[changeId]/impact-analysis/latest`                             | Latest run, with derived freshness                                  |
+| `GET /api/projects/[id]/impact-analyses/[analysisId]`                         | One analysis in full                                                |
 
 Status codes come from the error hierarchy rather than being restated at each
 call site: `ValidationError` → 400, `NotFoundError` → 404, `ConflictError` →
@@ -242,7 +242,7 @@ multi-instance deployment must place a real rate-limiting layer in front of
 
 **Not implemented:** SSO, OAuth, MFA, password reset, email verification,
 invitations, organization switching. Real organization/project role-based
-access control *is* implemented — see
+access control _is_ implemented — see
 [Engineering Access Control](#engineering-access-control) — on top of, not
 instead of, everything above; nothing in this section changed to build it.
 Expired session rows are deleted when encountered but nothing sweeps them on a
@@ -251,7 +251,7 @@ schedule yet (`deleteExpiredSessions` exists for when something does).
 ## Tenancy boundary
 
 Every project operation is scoped by `organizationId`, and the scoping lives in
-the *query* (`findProjectInOrganization`), not in a post-fetch comparison — a
+the _query_ (`findProjectInOrganization`), not in a post-fetch comparison — a
 project in another organization simply does not match. A project the caller
 cannot see returns 404, never 403, so the API does not confirm the existence of
 records outside the tenancy.
@@ -263,7 +263,7 @@ workspace layout resolves the session before any page renders, and every API
 route calls `requireAuthenticatedContext()` — unauthenticated page access
 redirects to `/sign-in`, unauthenticated API access returns a 401 JSON error —
 and, for project-scoped operations, a real project-role check (see
-[Engineering Access Control](#engineering-access-control)) decides *what* an
+[Engineering Access Control](#engineering-access-control)) decides _what_ an
 authenticated, in-organization caller may read or do on that specific project.
 
 ## Engineering Access Control
@@ -382,7 +382,7 @@ database read — it never trusts a role carried on `context`, only
   consolidated form of a check six services each used to duplicate
   locally (an owner must be a real member of the caller's organization),
   plus the one new rule this capability adds: the proposed owner must
-  also be able to reach *this* project — an explicit member, or the
+  also be able to reach _this_ project — an explicit member, or the
   organization's owner — because assigning responsibility to someone who
   cannot open the project would be a silent dead end.
 
@@ -415,7 +415,7 @@ appropriate `require*Access` function at each specific call site — most
 services use more than one level, matching the domain meaning of each
 mutation (see the approval table). Read paths (`list*`, `get*`) are left
 on the unchanged base function throughout: any organization member who
-can reach a project's *mutations* already had to pass `requireProjectAccess`
+can reach a project's _mutations_ already had to pass `requireProjectAccess`
 to get there, and a `VIEWER`'s whole purpose is to read without it.
 
 **Full write/approve gating:** `requirement.service.ts`,
@@ -457,7 +457,7 @@ provisioning a new account, requires `requireOrganizationOwner`.
 `supplier-qualification.service.ts`, `stakeholder-need.service.ts`,
 `change-impact-analysis.service.ts`, `technical-readiness.service.ts`,
 `verification-readiness.service.ts`, `assumption-monitoring.service.ts`.
-Unlike the thirteen services above — whose *reads* were deliberately left
+Unlike the thirteen services above — whose _reads_ were deliberately left
 on the base tenancy-only check — these ten also require
 `requireProjectReadAccess` on every read path, so a same-organization
 caller with no project membership gets 404 on reads too, not only writes.
@@ -470,7 +470,7 @@ REVIEWER's authority is deliberately narrow — only the specific
 transitions the existing domain already treats as a distinct
 accept/reject moment, never "every mutation on an approvable object."
 Each migrated service picks its access level by inspecting the target
-status *before* choosing which check to call, e.g.
+status _before_ choosing which check to call, e.g.
 `requirement.service.ts`'s `transitionRequirementStatus`:
 
 ```ts
@@ -480,31 +480,31 @@ const scopedProjectId = APPROVAL_TRANSITIONS.has(to)
   : await requireProjectWriteAccess(context, projectId);
 ```
 
-| Object | Ordinary write (ENGINEER+) | Approval action (REVIEWER+) |
-| --- | --- | --- |
-| Requirement | create, update, all other transitions | transition to `APPROVED`, `BASELINED` |
-| Engineering Decision | create, update, alternatives, assumptions, expectation, links | transition to `APPROVED` |
-| Change Request | create, update, declared impacts, all other transitions | transition to `APPROVED`, `REJECTED` |
-| Risk / Issue | create, update, all transitions (incl. `ACCEPTED`/`RESOLVED`) | — no domain-recognized approval action |
-| Evidence | create, update, links | `validate`, `supersede` |
-| Design Item / Verification Activity | create, update, all transitions | — no domain-recognized approval action |
-| Certification Basis | create, update | `activate`, `supersede` |
-| Certification Finding | create, update | `resolve`, `accept` |
-| Compliance Item | create, update, links | — |
-| Baseline (Drift) | create, update, member add/remove | `activate`, `supersede` |
-| Observation (Drift) | create, update | `review`, `reject` |
-| Drift evaluation | `evaluateDrift` | — a run, not a judgement about its result |
-| Sentinel target | `acknowledge`, `detect`, `reevaluate` | `resolve` |
-| Certification Program | create, update (incl. its own status field) | — no domain-recognized approval action |
-| Certification Review | `evaluateCertificationReview` | — a run, not a judgement about its result |
-| Supplier | create, update | — no domain-recognized approval action |
-| Supplied Item | create, update, link, unlink | — no domain-recognized approval action |
-| Supplier Qualification | create, update (incl. status: `EXPIRED`/`WITHDRAWN`), evidence link/unlink | — the service's own doc comment: "nothing here approves anything" |
-| Stakeholder Need | create, update | — no lifecycle gate, no ownership |
-| Change Impact Analysis | `runImpactAnalysis` | — a run, not a judgement about its result |
-| Technical Readiness | `evaluateTechnicalReadiness` | — a run, not a judgement about its result |
-| Verification Readiness | `evaluateVerificationReadiness` | — a run, not a judgement about its result |
-| Assumption Monitoring | `evaluateAssumption`, `evaluateProjectAssumptions`, `reviewAssumption` | — see below |
+| Object                              | Ordinary write (ENGINEER+)                                                 | Approval action (REVIEWER+)                                       |
+| ----------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Requirement                         | create, update, all other transitions                                      | transition to `APPROVED`, `BASELINED`                             |
+| Engineering Decision                | create, update, alternatives, assumptions, expectation, links              | transition to `APPROVED`                                          |
+| Change Request                      | create, update, declared impacts, all other transitions                    | transition to `APPROVED`, `REJECTED`                              |
+| Risk / Issue                        | create, update, all transitions (incl. `ACCEPTED`/`RESOLVED`)              | — no domain-recognized approval action                            |
+| Evidence                            | create, update, links                                                      | `validate`, `supersede`                                           |
+| Design Item / Verification Activity | create, update, all transitions                                            | — no domain-recognized approval action                            |
+| Certification Basis                 | create, update                                                             | `activate`, `supersede`                                           |
+| Certification Finding               | create, update                                                             | `resolve`, `accept`                                               |
+| Compliance Item                     | create, update, links                                                      | —                                                                 |
+| Baseline (Drift)                    | create, update, member add/remove                                          | `activate`, `supersede`                                           |
+| Observation (Drift)                 | create, update                                                             | `review`, `reject`                                                |
+| Drift evaluation                    | `evaluateDrift`                                                            | — a run, not a judgement about its result                         |
+| Sentinel target                     | `acknowledge`, `detect`, `reevaluate`                                      | `resolve`                                                         |
+| Certification Program               | create, update (incl. its own status field)                                | — no domain-recognized approval action                            |
+| Certification Review                | `evaluateCertificationReview`                                              | — a run, not a judgement about its result                         |
+| Supplier                            | create, update                                                             | — no domain-recognized approval action                            |
+| Supplied Item                       | create, update, link, unlink                                               | — no domain-recognized approval action                            |
+| Supplier Qualification              | create, update (incl. status: `EXPIRED`/`WITHDRAWN`), evidence link/unlink | — the service's own doc comment: "nothing here approves anything" |
+| Stakeholder Need                    | create, update                                                             | — no lifecycle gate, no ownership                                 |
+| Change Impact Analysis              | `runImpactAnalysis`                                                        | — a run, not a judgement about its result                         |
+| Technical Readiness                 | `evaluateTechnicalReadiness`                                               | — a run, not a judgement about its result                         |
+| Verification Readiness              | `evaluateVerificationReadiness`                                            | — a run, not a judgement about its result                         |
+| Assumption Monitoring               | `evaluateAssumption`, `evaluateProjectAssumptions`, `reviewAssumption`     | — see below                                                       |
 
 Risk, Issue, Design Item and Verification Activity have no row in the
 "approval action" column on purpose: their own domain semantics (see each
@@ -520,7 +520,7 @@ called. `reEvaluateTarget` triggers a real engine run and, on success,
 resolves the target automatically — the "new current assessment" the
 resolution policy already accepted as objective evidence. That automatic
 resolution is not an approval judgement, so `reEvaluateTarget` itself only
-requires write-tier access; only the *human-initiated*
+requires write-tier access; only the _human-initiated_
 `resolveSurveillance` requires approve-tier. The resolve-and-audit logic
 was extracted into a private `completeResolution` helper so both callers
 share it without either re-checking access the caller already established.
@@ -615,29 +615,29 @@ verified that discipline was intact; it did not need to add it.
 
 **Authorization matrix.**
 
-| Module | Read | Write | Review/Approve | Admin |
-| --- | --- | --- | --- | --- |
-| Requirement | project member | ENGINEER+ | REVIEWER+ (`APPROVED`, `BASELINED`) | — |
-| Engineering Decision | project member | ENGINEER+ | REVIEWER+ (`APPROVED`) | — |
-| Change Request | project member | ENGINEER+ | REVIEWER+ (`APPROVED`, `REJECTED`) | — |
-| Risk / Issue | project member | ENGINEER+ | — | — |
-| Evidence | project member | ENGINEER+ | REVIEWER+ (`validate`, `supersede`) | — |
-| Design Item / Verification Activity | project member | ENGINEER+ | — | — |
-| Certification Basis | project member | ENGINEER+ | REVIEWER+ (`activate`, `supersede`) | — |
-| Certification Finding | project member | ENGINEER+ | REVIEWER+ (`resolve`, `accept`) | — |
-| Compliance Item | project member | ENGINEER+ | — | — |
-| Baseline / Observation (Drift) | project member | ENGINEER+ | REVIEWER+ (`activate`/`supersede`, `review`/`reject`) | — |
-| Sentinel target | project member | ENGINEER+ (`acknowledge`, `detect`, `reevaluate`) | REVIEWER+ (`resolve`) | — |
-| **Certification Program** | **project member** | **ENGINEER+** | — | — |
-| **Certification Review** | **project member** | **ENGINEER+** (`evaluate`) | — | — |
-| **Supplier / Supplied Item / Supplier Qualification** | **project member** | **ENGINEER+** | — | — |
-| **Stakeholder Need** | **project member** | **ENGINEER+** | — | — |
-| **Change Impact Analysis** | **project member** | **ENGINEER+** (`run`) | — | — |
-| **Technical / Verification Readiness** | **project member** | **ENGINEER+** (`evaluate`) | — | — |
-| **Assumption Monitoring** | **project member** | **ENGINEER+** (`evaluate`, `review`) | — | — |
-| Traceability / Engineering History / Engineering Graph | project member | — (read-only workspace) | — | — |
-| Project Membership | project member | — | — | MANAGER-only |
-| Organization Membership | organization member | — | — | OWNER-only |
+| Module                                                 | Read                | Write                                             | Review/Approve                                        | Admin        |
+| ------------------------------------------------------ | ------------------- | ------------------------------------------------- | ----------------------------------------------------- | ------------ |
+| Requirement                                            | project member      | ENGINEER+                                         | REVIEWER+ (`APPROVED`, `BASELINED`)                   | —            |
+| Engineering Decision                                   | project member      | ENGINEER+                                         | REVIEWER+ (`APPROVED`)                                | —            |
+| Change Request                                         | project member      | ENGINEER+                                         | REVIEWER+ (`APPROVED`, `REJECTED`)                    | —            |
+| Risk / Issue                                           | project member      | ENGINEER+                                         | —                                                     | —            |
+| Evidence                                               | project member      | ENGINEER+                                         | REVIEWER+ (`validate`, `supersede`)                   | —            |
+| Design Item / Verification Activity                    | project member      | ENGINEER+                                         | —                                                     | —            |
+| Certification Basis                                    | project member      | ENGINEER+                                         | REVIEWER+ (`activate`, `supersede`)                   | —            |
+| Certification Finding                                  | project member      | ENGINEER+                                         | REVIEWER+ (`resolve`, `accept`)                       | —            |
+| Compliance Item                                        | project member      | ENGINEER+                                         | —                                                     | —            |
+| Baseline / Observation (Drift)                         | project member      | ENGINEER+                                         | REVIEWER+ (`activate`/`supersede`, `review`/`reject`) | —            |
+| Sentinel target                                        | project member      | ENGINEER+ (`acknowledge`, `detect`, `reevaluate`) | REVIEWER+ (`resolve`)                                 | —            |
+| **Certification Program**                              | **project member**  | **ENGINEER+**                                     | —                                                     | —            |
+| **Certification Review**                               | **project member**  | **ENGINEER+** (`evaluate`)                        | —                                                     | —            |
+| **Supplier / Supplied Item / Supplier Qualification**  | **project member**  | **ENGINEER+**                                     | —                                                     | —            |
+| **Stakeholder Need**                                   | **project member**  | **ENGINEER+**                                     | —                                                     | —            |
+| **Change Impact Analysis**                             | **project member**  | **ENGINEER+** (`run`)                             | —                                                     | —            |
+| **Technical / Verification Readiness**                 | **project member**  | **ENGINEER+** (`evaluate`)                        | —                                                     | —            |
+| **Assumption Monitoring**                              | **project member**  | **ENGINEER+** (`evaluate`, `review`)              | —                                                     | —            |
+| Traceability / Engineering History / Engineering Graph | project member      | — (read-only workspace)                           | —                                                     | —            |
+| Project Membership                                     | project member      | —                                                 | —                                                     | MANAGER-only |
+| Organization Membership                                | organization member | —                                                 | —                                                     | OWNER-only   |
 
 Bold rows are this pass's own additions; the rest restate what Prompt 25
 already documented above, kept in one table so the two passes read as one
@@ -730,11 +730,11 @@ what the requirement says; BASELINED and OBSOLETE are frozen.
 
 **Traceability** uses the existing typed join tables — stakeholder needs,
 design items, verification activities and engineering decisions. The API takes
-a discriminated union on `relation`, *not* an `entityType + entityId` pair:
+a discriminated union on `relation`, _not_ an `entityType + entityId` pair:
 each variant names one real table with its own foreign key and its own valid
 link types, and each carries exactly the metadata its table can store (the
 stakeholder-need edge has no note column, so a note is rejected rather than
-dropped). Every target is checked to exist *in the same project* against its
+dropped). Every target is checked to exist _in the same project_ against its
 own table before the edge is written, so a cross-project link is impossible.
 The authenticated actor is recorded as `createdById`.
 
@@ -794,7 +794,7 @@ when there are none.
 ## Decision memory
 
 A decision is a first-class engineering object, not a note. Its value is not
-the sentence describing it but the ability to reconstruct, years later, *why*
+the sentence describing it but the ability to reconstruct, years later, _why_
 it was made — so the reasoning around it is stored as structured records
 rather than prose:
 
@@ -822,7 +822,7 @@ links to requirements, design items, risks, issues and evidence through
 `RequirementDecisionLink`, `DecisionDesignLink`, `DecisionRiskLink`,
 `DecisionIssueLink` and `EvidenceLink`. The API takes a discriminated union on
 `relation`, never an `entityType + entityId` pair, and every target is checked
-to exist *in the same project* before an edge is written. Requirement and
+to exist _in the same project_ before an edge is written. Requirement and
 design-item pages read the same edges from their side; there is one
 relationship store, not two.
 
@@ -854,12 +854,12 @@ put words in an engineer's mouth.
 This is the distinction the whole module is built around, and it exists in the
 type names, the API, and the UI headings — not just in prose.
 
-- **Declared impact** — what an engineer *asserted* this change affects. A human
+- **Declared impact** — what an engineer _asserted_ this change affects. A human
   claim, recorded as a `ChangeRequestImpact` row with its author and the reason
   they gave. It is not evidence that the artifact is actually affected, and not a
   claim that the list is complete.
 - **Computed impact** — what traversing the engineering graph from the change
-  *implies* is affected. **Not implemented.** No count, no blast radius, no
+  _implies_ is affected. **Not implemented.** No count, no blast radius, no
   score, and no placeholder card that resembles a result.
 
 The change detail page states this plainly in a "Computed impact" section whose
@@ -901,7 +901,7 @@ Two rules, not a configuration system:
   not the thing examined.
 - **The declared scope** stays editable through `UNDER_REVIEW` and freezes at
   approval. Deliberately wider than the definition: getting the declared scope
-  right is much of what a review is *for* — a reviewer saying "this also touches
+  right is much of what a review is _for_ — a reviewer saying "this also touches
   the thermal interface" is the process working, not the change mutating.
 
 The project and identifier are editable in no state at all, which is why no
@@ -970,11 +970,11 @@ reached and why.
 
 ### Three impact concepts, kept apart
 
-| | What it is | Where it lives |
-| --- | --- | --- |
-| **Declared impact** | What an engineer *asserted* the change affects | `change_request_impacts` |
-| **Computed impact** | What the engine *derived* by walking the graph | `impact_findings` |
-| **Consequence** | What actually happened | Not built |
+|                     | What it is                                     | Where it lives           |
+| ------------------- | ---------------------------------------------- | ------------------------ |
+| **Declared impact** | What an engineer _asserted_ the change affects | `change_request_impacts` |
+| **Computed impact** | What the engine _derived_ by walking the graph | `impact_findings`        |
+| **Consequence**     | What actually happened                         | Not built                |
 
 The engine reads declared impacts as its roots and never writes back to them.
 That separation is the whole point: when the engine and the engineer disagree,
@@ -1013,20 +1013,20 @@ an "and we did not judge it" marker:
 `IMPACT_PROPAGATION` in `src/domain/impact-analysis.ts` is the single
 authoritative table: one rule per canonical edge type, each with a rationale in
 engineering terms. Nothing outside it decides whether an edge carries impact.
-The graph registry says what an edge *means*; this says what an analysis should
-*do* with it.
+The graph registry says what an edge _means_; this says what an analysis should
+_do_ with it.
 
 Each rule has two independent flags, read against the edge's canonical
 direction:
 
 - `propagates` -- walked **outbound, multi-hop**. This is impact.
-- `context` -- walked **inbound, one hop from a root only**. This is *not*
+- `context` -- walked **inbound, one hop from a root only**. This is _not_
   impact. One hop keeps it bounded by the number of declared roots rather than
   by the size of the reachable set, and the separate classification means
   context can never be mistaken for propagation.
 
 Two edges carry no impact at all. `CHANGE_IMPACTS_OBJECT` is excluded because it
-*is* the declared-impact edge -- the roots are its targets, so walking it would
+_is_ the declared-impact edge -- the roots are its targets, so walking it would
 restate the change's own scope, and following it inbound would drag in every
 other change touching the same object. `APPROVAL_RELATES_TO_OBJECT` does not
 propagate forward, because changing an approval record does not alter what it
@@ -1034,13 +1034,13 @@ approved; it is context in the other direction.
 
 ### Classification
 
-| Classification | Meaning |
-| --- | --- |
-| `DIRECT` | Explicitly declared on the change |
-| `CROSS_DOMAIN` | Reached by propagation, having left the root's artifact domain |
-| `DOWNSTREAM` | Reached by propagation, staying inside the root's domain |
-| `UPSTREAM_CONTEXT` | Surfaced by walking against an edge -- context, not impact |
-| `UNKNOWN` | Could not be classified |
+| Classification     | Meaning                                                        |
+| ------------------ | -------------------------------------------------------------- |
+| `DIRECT`           | Explicitly declared on the change                              |
+| `CROSS_DOMAIN`     | Reached by propagation, having left the root's artifact domain |
+| `DOWNSTREAM`       | Reached by propagation, staying inside the root's domain       |
+| `UPSTREAM_CONTEXT` | Surfaced by walking against an edge -- context, not impact     |
+| `UNKNOWN`          | Could not be classified                                        |
 
 **Precedence.** An object that is both declared and discovered stays `DIRECT`:
 what the engineer asserted outranks what the walk inferred. Below that, a
@@ -1097,7 +1097,7 @@ state, and reading compares it against the current one.
 The fingerprint is a project-level digest -- row count and newest timestamp for
 every artifact and relationship table in the project. That is deliberately
 conservative: an edit anywhere in the project marks the analysis stale, even one
-that could not have affected it. False *stale* costs one re-run; false *current*
+that could not have affected it. False _stale_ costs one re-run; false _current_
 would present an out-of-date assessment as though it still held. It is also
 cheap, where a per-finding fingerprint would mean re-walking the graph just to
 answer "is this still valid?" -- as expensive as re-running it.
@@ -1219,7 +1219,7 @@ those columns and `null` where it does not. Nothing is invented to fill a field.
 its source type, its permitted target types, its direction, and whether it can
 carry a note or a link type. `EDGE_RESOLVERS` in
 `src/server/repositories/graph-edge-resolvers.ts` is the matching single source
-of truth for how to *read* it. Adding a relationship means one entry in each, and
+of truth for how to _read_ it. Adding a relationship means one entry in each, and
 `Record<GraphEdgeType, …>` makes the compiler enforce that neither drifts.
 
 Two edge types are genuinely polymorphic on their target — a change request
@@ -1264,8 +1264,7 @@ dropped rather than followed — the graph fails closed. A relationship row that
 points into another project therefore produces no edge at all.
 
 Organization tenancy goes through the same `requireProjectInOrganization` guard
-as every other module, so a project in another organization is a 404, never a
-403.
+as every other module, so a project in another organization is a 404, never a 403.
 
 ### Consistency: reported, never repaired
 
@@ -1290,7 +1289,7 @@ worth being precise about which and why:
 - `DUPLICATE_EDGE` — unreachable: every link table is unique on its pair. Five of
   them include `linkType` in that key, so the check keys on it too — a
   `DECOMPOSES_TO` and a `DEPENDS_ON` between the same requirements are two
-  assertions, not a repeat. `approvals` has *no* unique constraint because an
+  assertions, not a repeat. `approvals` has _no_ unique constraint because an
   artifact accumulates an approval history, so the registry marks that edge type
   `uniquePerPair: false` and the check skips it. Flagging every approval after
   the first would be a false alarm on entirely normal data.
@@ -1306,12 +1305,12 @@ the duplicate the check is written to catch.
 
 ### Graph API
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/projects/:projectId/graph/node/:nodeType/:nodeId` | Resolve one node |
-| GET | `…/graph/node/:nodeType/:nodeId/neighbors` | One hop; `direction`, repeatable `edgeType` |
-| POST | `/api/projects/:projectId/graph/traverse` | Breadth-first traversal |
-| GET | `/api/projects/:projectId/graph/consistency` | Anomaly report; repeatable `edgeType` |
+| Method | Path                                                    | Purpose                                     |
+| ------ | ------------------------------------------------------- | ------------------------------------------- |
+| GET    | `/api/projects/:projectId/graph/node/:nodeType/:nodeId` | Resolve one node                            |
+| GET    | `…/graph/node/:nodeType/:nodeId/neighbors`              | One hop; `direction`, repeatable `edgeType` |
+| POST   | `/api/projects/:projectId/graph/traverse`               | Breadth-first traversal                     |
+| GET    | `/api/projects/:projectId/graph/consistency`            | Anomaly report; repeatable `edgeType`       |
 
 The node type is in the path rather than inferred from the id: ids are unique per
 table, not globally, so without the type the server would have to guess which
@@ -1330,18 +1329,18 @@ the same foundation, each documented in its own section.
 
 One question, asked of one verification activity:
 
-> *Given the current engineering baseline and the records that exist, can this
-> verification activity be executed — or concluded — responsibly?*
+> _Given the current engineering baseline and the records that exist, can this
+> verification activity be executed — or concluded — responsibly?_
 
 ### Readiness is not a result
 
 This is the distinction the whole capability rests on, and it is held apart in
 the schema, the service, the API and the interface:
 
-| | Question | Where it lives |
-| --- | --- | --- |
-| **Verification result** | What happened when the verification was performed? | `VerificationActivity.status` — `PLANNED → IN_PROGRESS → PASSED \| FAILED \| WAIVED` |
-| **Verification readiness** | Can it be executed or closed responsibly, given the recorded state? | `VerificationReadinessAssessment.status` — `READY \| NOT_READY \| UNKNOWN` |
+|                            | Question                                                            | Where it lives                                                                       |
+| -------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Verification result**    | What happened when the verification was performed?                  | `VerificationActivity.status` — `PLANNED → IN_PROGRESS → PASSED \| FAILED \| WAIVED` |
+| **Verification readiness** | Can it be executed or closed responsibly, given the recorded state? | `VerificationReadinessAssessment.status` — `READY \| NOT_READY \| UNKNOWN`           |
 
 A READY activity has **not** passed. A NOT_READY one has **not** failed, and does
 not mean the requirement is wrong. Readiness never writes the activity's status,
@@ -1349,7 +1348,7 @@ and the transition endpoint never writes an assessment. Merging them would
 destroy the only thing either is good for: a record that says both what was
 attempted and whether attempting it was defensible.
 
-Readiness also answers a *different question* depending on where the activity is
+Readiness also answers a _different question_ depending on where the activity is
 in its life, and the assessment records which one it answered:
 
 - `PLANNED` → **EXECUTION**: can this be started?
@@ -1378,18 +1377,18 @@ rule means adding a registry entry rather than editing a branch.
 Rules that could produce two different outcomes are split into two rules, so a
 rule id in a finding is enough to know what was concluded.
 
-| Area | Rules |
-| --- | --- |
-| Traceability | `VR-TRACE-001` no requirement linked (blocking); `VR-TRACE-002` linked requirement unreadable (unknown) |
-| Requirement state | `VR-REQ-001` DRAFT/IN_REVIEW (blocking); `VR-REQ-002` OBSOLETE (blocking); `VR-REQ-003` APPROVED/BASELINED (informational) |
-| Definition | `VR-DEF-001` no title; `VR-DEF-002` no method (both blocking) |
-| Lifecycle | `VR-LIFE-001` planned; `VR-LIFE-002` in progress (informational); `VR-LIFE-003` concluded (blocking) |
-| Owner | `VR-OWN-001` unassigned (warning) |
-| Design state | `VR-DES-001` obsolete (blocking); `VR-DES-002` uncontrolled (warning); `VR-DES-003` controlled (informational) |
-| Decision state | `VR-DEC-001` proposed/under review (blocking); `VR-DEC-002` rejected (blocking); `VR-DEC-003` superseded (warning); `VR-DEC-004` approved (informational) |
-| Assumption state | `VR-ASM-001` review required (blocking); `VR-ASM-002` basis changed (warning); `VR-ASM-003` never monitored (unknown); `VR-ASM-004` current (informational); `VR-ASM-005` invalidated (blocking) |
-| Evidence | `VR-EVD-001` attached; `VR-EVD-002` absent before execution (both informational); `VR-EVD-003` absent at closure (warning) |
-| Change impact | `VR-CHG-001` reaches the activity; `VR-CHG-002` reaches a verified requirement (both blocking); `VR-CHG-003` stale analysis; `VR-CHG-004` no analysis (both unknown); `VR-CHG-005` reaches surrounding configuration (warning) |
+| Area              | Rules                                                                                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Traceability      | `VR-TRACE-001` no requirement linked (blocking); `VR-TRACE-002` linked requirement unreadable (unknown)                                                                                                                        |
+| Requirement state | `VR-REQ-001` DRAFT/IN_REVIEW (blocking); `VR-REQ-002` OBSOLETE (blocking); `VR-REQ-003` APPROVED/BASELINED (informational)                                                                                                     |
+| Definition        | `VR-DEF-001` no title; `VR-DEF-002` no method (both blocking)                                                                                                                                                                  |
+| Lifecycle         | `VR-LIFE-001` planned; `VR-LIFE-002` in progress (informational); `VR-LIFE-003` concluded (blocking)                                                                                                                           |
+| Owner             | `VR-OWN-001` unassigned (warning)                                                                                                                                                                                              |
+| Design state      | `VR-DES-001` obsolete (blocking); `VR-DES-002` uncontrolled (warning); `VR-DES-003` controlled (informational)                                                                                                                 |
+| Decision state    | `VR-DEC-001` proposed/under review (blocking); `VR-DEC-002` rejected (blocking); `VR-DEC-003` superseded (warning); `VR-DEC-004` approved (informational)                                                                      |
+| Assumption state  | `VR-ASM-001` review required (blocking); `VR-ASM-002` basis changed (warning); `VR-ASM-003` never monitored (unknown); `VR-ASM-004` current (informational); `VR-ASM-005` invalidated (blocking)                               |
+| Evidence          | `VR-EVD-001` attached; `VR-EVD-002` absent before execution (both informational); `VR-EVD-003` absent at closure (warning)                                                                                                     |
+| Change impact     | `VR-CHG-001` reaches the activity; `VR-CHG-002` reaches a verified requirement (both blocking); `VR-CHG-003` stale analysis; `VR-CHG-004` no analysis (both unknown); `VR-CHG-005` reaches surrounding configuration (warning) |
 
 Three boundaries in that table are places where a plausible-looking rule would
 have been wrong, and the registry records why:
@@ -1399,9 +1398,9 @@ have been wrong, and the registry records why:
   does not have, so `VR-OWN-001` warns.
 - **Design need not be approved.** Analysis and demonstration legitimately run
   against a draft design. `VR-DES-002` reports the uncontrolled configuration
-  and does not disqualify it; only an *obsolete* design blocks.
+  and does not disqualify it; only an _obsolete_ design blocks.
 - **A decision merely derived from is not a dependency.** Only decisions that
-  *address* a verified requirement or *shape* a prerequisite design item are
+  _address_ a verified requirement or _shape_ a prerequisite design item are
   evaluated. Applying the rule to every connected decision would fire on
   records nobody would call prerequisites.
 
@@ -1414,7 +1413,7 @@ with "not defensible", which is the exact confusion this engine exists to
 prevent.
 
 `VR-EVD-002` therefore records the absence of evidence before execution as
-*informational*, explicitly saying it is not a deficiency. At closure,
+_informational_, explicitly saying it is not a deficiency. At closure,
 `VR-EVD-003` raises it to a warning — concluding an activity that recorded
 nothing leaves an outcome with no support — but still does not block, because
 the domain does not require evidence to conclude an activity and a waiver
@@ -1505,7 +1504,7 @@ assessment**, which is what makes a "stale" badge worth believing.
 
 One project-wide signal does enter, and only where it is genuinely part of the
 basis. When an assessment consumed a change request's impact analysis, that
-analysis's *freshness* is in the digest — and the impact engine derives freshness
+analysis's _freshness_ is in the digest — and the impact engine derives freshness
 from a project-wide digest, so an edit anywhere can flip it. That affects only
 assessments actually resting on an impact analysis, and for those the flip is a
 real change in what the assessment relied on rather than noise.
@@ -1523,7 +1522,7 @@ must not change after it is written.
   basis could not be read back. Reported as indeterminate rather than presented
   as current.
 
-The verification list shows the *last recorded* assessment per activity with its
+The verification list shows the _last recorded_ assessment per activity with its
 date and no freshness verdict, because establishing currency means re-resolving
 one basis per row. The column is labelled accordingly, and an activity nobody
 has assessed shows "Not assessed" rather than a placeholder verdict. The same
@@ -1542,9 +1541,9 @@ The readiness engine composes existing capabilities and computes none of them:
   bounded walk cannot become a query per node. There is no second traceability
   mechanism and no traversal code in the service.
 - **Change impact.** Stored analyses are read and their freshness judged. The
-  engine never runs an analysis, and it distinguishes *no analysis*, *failed
-  analysis*, *stale analysis*, *reaches the activity*, *reaches a verified
-  requirement* and *reaches the surrounding configuration*. A change is only in
+  engine never runs an analysis, and it distinguishes _no analysis_, _failed
+  analysis_, _stale analysis_, _reaches the activity_, _reaches a verified
+  requirement_ and _reaches the surrounding configuration_. A change is only in
   the basis at all when it declares or computes an effect on something this
   activity stands on, so readiness is not disturbed by every change in the
   project.
@@ -1553,7 +1552,7 @@ The readiness engine composes existing capabilities and computes none of them:
   VALIDATED assumption whose basis moved stays VALIDATED, with the readiness
   finding saying a person must look.
 - **Decision memory.** A decision's lifecycle state is read. An APPROVED
-  decision means the decision was *taken*, not that its content is correct, and
+  decision means the decision was _taken_, not that its content is correct, and
   the finding says so.
 
 An evaluation reads, judges and appends. It modifies no source artifact — the
@@ -1562,12 +1561,12 @@ by an evaluation.
 
 ### Readiness API
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| POST | `/api/projects/:projectId/verification-activities/:activityId/readiness` | Evaluate; creates a new immutable assessment |
-| GET | `…/verification-activities/:activityId/readiness` | Assessment history, newest first |
-| GET | `…/verification-activities/:activityId/readiness/latest` | Latest assessment with derived freshness |
-| GET | `/api/projects/:projectId/verification-readiness/:assessmentId` | One assessment in full, with its basis |
+| Method | Path                                                                     | Purpose                                      |
+| ------ | ------------------------------------------------------------------------ | -------------------------------------------- |
+| POST   | `/api/projects/:projectId/verification-activities/:activityId/readiness` | Evaluate; creates a new immutable assessment |
+| GET    | `…/verification-activities/:activityId/readiness`                        | Assessment history, newest first             |
+| GET    | `…/verification-activities/:activityId/readiness/latest`                 | Latest assessment with derived freshness     |
+| GET    | `/api/projects/:projectId/verification-readiness/:assessmentId`          | One assessment in full, with its basis       |
 
 The evaluation body is `strictObject({})`: there is no readiness verdict,
 finding or rule override a client may supply, and one that tries is rejected
@@ -1591,7 +1590,7 @@ harder to read. Reads are not audited.
 ### Feeding the technical-readiness engine
 
 This is deliberately not a generic `ReadinessAssessment` table. Technical
-readiness asks a different question of a different subject — a *project* at a
+readiness asks a different question of a different subject — a _project_ at a
 named gate, rather than one verification activity — so it has its own tables and
 its own registry, and the two rule sets can change without either silently
 rewriting the meaning of the other's history.
@@ -1611,7 +1610,7 @@ project at one gate:
 > ready to enter the specified development gate?
 
 It shares no table, no rule registry and no status vocabulary with verification
-readiness. What it shares is a *shape*: a declared rule registry, deterministic
+readiness. What it shares is a _shape_: a declared rule registry, deterministic
 status precedence, a scope-specific fingerprint, derived freshness and immutable
 history. The two engines are siblings, not layers.
 
@@ -1630,7 +1629,7 @@ it reads. Four things it deliberately is not:
   A number would read as a measurement of something nobody measured.
 - **Not a checklist.** Nothing is a box a person ticks. Every finding is derived
   from a record and cites what it was read from.
-- **Not certification.** These are *internal* engineering gates. `RELEASE_READY`
+- **Not certification.** These are _internal_ engineering gates. `RELEASE_READY`
   is not a claim of regulatory or airworthiness approval. Compliance evidence has
   its own semantics, in a capability that does not exist yet.
 - **Not an inference from silence.** Where the record cannot answer, the answer is
@@ -1640,13 +1639,13 @@ it reads. Four things it deliberately is not:
 
 Five internal gates, in programme order:
 
-| Gate | The question it asks |
-| --- | --- |
-| `SYSTEM_DEFINITION` | Is what the product must do recorded, controlled and traceable to the needs it came from? |
-| `DESIGN_REVIEW` | Is there a design to review, allocated from controlled requirements, with its decisions recorded? |
-| `DESIGN_FREEZE` | Is the configuration settled enough that changing it should now go through change control? |
-| `VERIFICATION_READY` | Can the planned verification actually be performed against what has been recorded? |
-| `RELEASE_READY` | Has the product been shown to meet its baselined requirements, with the record to support it? |
+| Gate                 | The question it asks                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------- |
+| `SYSTEM_DEFINITION`  | Is what the product must do recorded, controlled and traceable to the needs it came from?         |
+| `DESIGN_REVIEW`      | Is there a design to review, allocated from controlled requirements, with its decisions recorded? |
+| `DESIGN_FREEZE`      | Is the configuration settled enough that changing it should now go through change control?        |
+| `VERIFICATION_READY` | Can the planned verification actually be performed against what has been recorded?                |
+| `RELEASE_READY`      | Has the product been shown to meet its baselined requirements, with the record to support it?     |
 
 These deliberately do not claim equivalence to PDR, CDR, TRR or any external
 regulatory milestone — naming one after such a milestone would imply the system
@@ -1664,7 +1663,7 @@ type, the basis markers it reads, and an engineering rationale.
 
 The service owns **no gate policy**. Every finding flows through one `emitFinding`
 function that looks the rule up by id and takes the category, status, severity
-and base markers *from the registry*; an id the registry does not define throws,
+and base markers _from the registry_; an id the registry does not define throws,
 and a rule that does not apply to the gate being evaluated produces nothing. No
 `if` in the service can introduce a condition nobody wrote down, and no client can
 add one — the request contract carries a gate and nothing else.
@@ -1681,15 +1680,15 @@ rule would have been wrong:
   The record contains no statement of what a complete set would be, and inventing
   a denominator would be inventing a measurement.
 - **Risk severity is not modelled.** `Risk` carries a status but no severity, so
-  the engine will not rank risks. It reports an *open* risk — one nobody has
+  the engine will not rank risks. It reports an _open_ risk — one nobody has
   mitigated, accepted or closed — and says explicitly that it is not classifying
-  it further. `Issue` *does* carry a severity set by a person, so issue rules
+  it further. `Issue` _does_ carry a severity set by a person, so issue rules
   consume that human judgement rather than inventing one.
 - **Design allocation warns, never blocks.** Not every requirement is met by a
   design element; process and programmatic requirements are not. Blocking would
   enforce a rule the product does not hold.
 - **Evidence is not required because a gate exists.** It is required at
-  `RELEASE_READY` for a verification that has *passed*, where its absence means a
+  `RELEASE_READY` for a verification that has _passed_, where its absence means a
   verdict with nothing behind it. A waiver legitimately has none, and a failure is
   already blocking on its own.
 
@@ -1778,7 +1777,7 @@ Every evaluation appends. Nothing is updated, nothing is overwritten and the
 repository exposes no update or delete. A historical assessment is returned
 exactly as it was recorded — the findings and the scope it was written with,
 never re-judged under today's state — because the value of a gate record is that
-it says what was believed *then*. Its freshness against the present is reported
+it says what was believed _then_. Its freshness against the present is reported
 alongside, so a reader sees both.
 
 ### Consuming the other engines
@@ -1793,8 +1792,8 @@ The engine composes; it does not duplicate. It never writes to anything it reads
   silently re-run, because re-evaluating is an explicit act by a person, not a
   side effect of asking about a gate.
 - **Change-impact analysis.** The latest analysis per in-flight change is read
-  along with its freshness. *No analysis*, *failed analysis*, *stale analysis* and
-  *reaches the evaluated scope* are four distinct conditions with four distinct
+  along with its freshness. _No analysis_, _failed analysis_, _stale analysis_ and
+  _reaches the evaluated scope_ are four distinct conditions with four distinct
   rules. A stale analysis is never treated as current, and the engine will not run
   one on the caller's behalf.
 - **Assumption monitoring.** Monitoring verdicts are consumed. Nothing here runs
@@ -1803,7 +1802,7 @@ The engine composes; it does not duplicate. It never writes to anything it reads
   the monitoring verdict so a person can look. An assumption that has never been
   monitored is UNKNOWN, not a pass.
 - **Decision memory.** Lifecycle, assumptions and expectations are read. An
-  APPROVED decision means the decision was *taken*, not that its content is
+  APPROVED decision means the decision was _taken_, not that its content is
   correct, and the rationale says so. A SUPERSEDED decision warns rather than
   blocks: the schema records no link to a successor, so the engine genuinely
   cannot say which decision now governs and leaves the substitution to a person.
@@ -1837,7 +1836,7 @@ Never "Project not ready" without saying why.
 Basis markers name what was read — `REQUIREMENT_LIFECYCLE_STATE`,
 `VERIFICATION_READINESS_STALE`, `NEED_REQUIREMENT_LINK` — and carry the negative
 space too: `ASSUMPTION_MONITORING_NOT_EVALUATED` and `RISK_SEVERITY_NOT_MODELLED`
-exist so a reader can tell what the engine deliberately did *not* decide.
+exist so a reader can tell what the engine deliberately did _not_ decide.
 
 ### Determinism
 
@@ -1855,12 +1854,12 @@ timestamps, so two evaluations can be compared for equivalence.
 
 ### Technical readiness API
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| POST | `/api/projects/:projectId/technical-readiness` | Evaluate one gate; creates a new immutable assessment |
-| GET | `/api/projects/:projectId/technical-readiness/latest?gate=…` | Latest assessment for a gate, with derived freshness |
-| GET | `/api/projects/:projectId/technical-readiness?gate=…` | Assessment history, newest first; all gates without `gate` |
-| GET | `/api/projects/:projectId/technical-readiness/:assessmentId` | One assessment in full, with the scope it was written with |
+| Method | Path                                                         | Purpose                                                    |
+| ------ | ------------------------------------------------------------ | ---------------------------------------------------------- |
+| POST   | `/api/projects/:projectId/technical-readiness`               | Evaluate one gate; creates a new immutable assessment      |
+| GET    | `/api/projects/:projectId/technical-readiness/latest?gate=…` | Latest assessment for a gate, with derived freshness       |
+| GET    | `/api/projects/:projectId/technical-readiness?gate=…`        | Assessment history, newest first; all gates without `gate` |
+| GET    | `/api/projects/:projectId/technical-readiness/:assessmentId` | One assessment in full, with the scope it was written with |
 
 The evaluation body is `strictObject({ gate })`. **The backend owns rule selection
 entirely** — the gate names a set of rules in the registry, and there is no request
@@ -1946,19 +1945,19 @@ the domain, the API or the interface — and no status value that implies one
 domain test asserts their absence). Those belong to a procurement system.
 Modelling them here would turn an engineering capability into a CRM wearing
 aerospace vocabulary, and would put commercial relationships into a graph whose
-edges are supposed to mean *the product depends on this*.
+edges are supposed to mean _the product depends on this_.
 
 The counterpart discipline: **no derived judgement**. Nothing computes a rating,
 ranks suppliers, or infers one record's state from another's.
 
 ### Four records, kept apart
 
-| Record | What it says |
-| --- | --- |
-| `Supplier` | *Who* provides something the project's engineering depends on |
-| `SuppliedItem` | *What* they provide |
-| `SupplierQualification` | What establishes that it is *suitable* |
-| Relationship rows | *Where* the supplied item participates in the product |
+| Record                  | What it says                                                  |
+| ----------------------- | ------------------------------------------------------------- |
+| `Supplier`              | _Who_ provides something the project's engineering depends on |
+| `SuppliedItem`          | _What_ they provide                                           |
+| `SupplierQualification` | What establishes that it is _suitable_                        |
+| Relationship rows       | _Where_ the supplied item participates in the product         |
 
 They are separate because they change independently and a change to one reaches
 different things than a change to another. Collapsing them — a supplier record
@@ -1991,7 +1990,7 @@ failure proven**.
 `suppliedItemId` is nullable. A `SOURCE` qualification is about the supplier and
 is not scoped to any one item; a `MATERIAL`, `PART` or `PROCESS` qualification
 usually is. Forcing an item onto the first case would invent a subject the record
-does not have. Where an item *is* named, the service enforces that it is provided
+does not have. Where an item _is_ named, the service enforces that it is provided
 by the named supplier — a qualification pointing at one supplier's record and
 another's item would assert something false about both.
 
@@ -2013,18 +2012,18 @@ Three node types — `SUPPLIER`, `SUPPLIED_ITEM`, `SUPPLIER_QUALIFICATION` — a
 edge types, each with its direction declared once in `GRAPH_EDGE_DEFINITIONS` and
 read source → target. No client infers direction from a table or column name.
 
-| Edge | Meaning |
-| --- | --- |
-| `SUPPLIER_PROVIDES_ITEM` | Supplier → SuppliedItem |
-| `SUPPLIER_HAS_QUALIFICATION` | Supplier → SupplierQualification |
-| `SUPPLIED_ITEM_QUALIFIED_BY` | SuppliedItem → SupplierQualification (absent for a SOURCE qualification) |
-| `SUPPLIED_ITEM_ALLOCATED_TO_DESIGN` | SuppliedItem → DesignItem |
-| `SUPPLIED_ITEM_SUPPORTS_REQUIREMENT` | SuppliedItem → Requirement |
-| `SUPPLIED_ITEM_REQUIRES_VERIFICATION` | SuppliedItem → VerificationActivity |
-| `SUPPLIED_ITEM_LINKED_TO_DECISION` | SuppliedItem → EngineeringDecision |
-| `SUPPLIED_ITEM_LINKED_TO_RISK` | SuppliedItem → Risk |
-| `SUPPLIED_ITEM_HAS_EVIDENCE` | SuppliedItem → Evidence |
-| `SUPPLIER_QUALIFICATION_HAS_EVIDENCE` | SupplierQualification → Evidence |
+| Edge                                  | Meaning                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------ |
+| `SUPPLIER_PROVIDES_ITEM`              | Supplier → SuppliedItem                                                  |
+| `SUPPLIER_HAS_QUALIFICATION`          | Supplier → SupplierQualification                                         |
+| `SUPPLIED_ITEM_QUALIFIED_BY`          | SuppliedItem → SupplierQualification (absent for a SOURCE qualification) |
+| `SUPPLIED_ITEM_ALLOCATED_TO_DESIGN`   | SuppliedItem → DesignItem                                                |
+| `SUPPLIED_ITEM_SUPPORTS_REQUIREMENT`  | SuppliedItem → Requirement                                               |
+| `SUPPLIED_ITEM_REQUIRES_VERIFICATION` | SuppliedItem → VerificationActivity                                      |
+| `SUPPLIED_ITEM_LINKED_TO_DECISION`    | SuppliedItem → EngineeringDecision                                       |
+| `SUPPLIED_ITEM_LINKED_TO_RISK`        | SuppliedItem → Risk                                                      |
+| `SUPPLIED_ITEM_HAS_EVIDENCE`          | SuppliedItem → Evidence                                                  |
+| `SUPPLIER_QUALIFICATION_HAS_EVIDENCE` | SupplierQualification → Evidence                                         |
 
 The five supplied-item → engineering relationships are **typed join tables** with
 real foreign keys on both ends — never an `entityType + entityId` pair. The three
@@ -2052,7 +2051,7 @@ mechanism would mean two answers to the same question.
 What the engine gained is ten entries in `IMPACT_PROPAGATION`, one per new edge.
 All of them propagate, because each is a genuine engineering dependency: the
 product relies on the supplied item, so a change to it reaches what relies on it.
-Note what is *not* there — no commercial relationship is in the graph at all, so
+Note what is _not_ there — no commercial relationship is in the graph at all, so
 there is no edge that could carry impact without an engineering consequence behind
 it.
 
@@ -2069,14 +2068,14 @@ basis.
 
 `IMPACT_ENGINE_VERSION` moved to `2`. The change is purely additive — no existing
 edge's rule changed — but the set of relationships the engine walks is part of
-what an analysis *means*, so a result produced before supplier records could be
+what an analysis _means_, so a result produced before supplier records could be
 reached is labelled as a different statement rather than quietly reinterpreted.
 
 ### Readiness integration
 
 None, deliberately. No technical-readiness rule and no verification-readiness rule
-was added or altered for suppliers. Supplier state is now *visible through the
-graph*, which is what a later readiness rule would need; inventing a gate
+was added or altered for suppliers. Supplier state is now _visible through the
+graph_, which is what a later readiness rule would need; inventing a gate
 condition now — "no supplier may be UNDER_REVIEW at design freeze" — would be
 policy nobody asked for, expressed in a registry that is supposed to contain only
 declared conditions. Supplier-linked verification activities continue to work
@@ -2105,17 +2104,17 @@ audit actor remains the authenticated application user.
 
 ### Supplier API
 
-| Method | Path |
-| --- | --- |
-| GET, POST | `/api/projects/:projectId/suppliers` |
-| GET, PATCH | `/api/projects/:projectId/suppliers/:supplierId` |
-| GET, POST | `/api/projects/:projectId/supplied-items` |
-| GET, PATCH | `/api/projects/:projectId/supplied-items/:suppliedItemId` |
-| POST, DELETE | `…/supplied-items/:suppliedItemId/links` |
-| GET | `/api/projects/:projectId/supplied-item-link-targets` |
-| GET, POST | `/api/projects/:projectId/supplier-qualifications` |
-| GET, PATCH | `…/supplier-qualifications/:qualificationId` |
-| POST, DELETE | `…/supplier-qualifications/:qualificationId/evidence` |
+| Method       | Path                                                      |
+| ------------ | --------------------------------------------------------- |
+| GET, POST    | `/api/projects/:projectId/suppliers`                      |
+| GET, PATCH   | `/api/projects/:projectId/suppliers/:supplierId`          |
+| GET, POST    | `/api/projects/:projectId/supplied-items`                 |
+| GET, PATCH   | `/api/projects/:projectId/supplied-items/:suppliedItemId` |
+| POST, DELETE | `…/supplied-items/:suppliedItemId/links`                  |
+| GET          | `/api/projects/:projectId/supplied-item-link-targets`     |
+| GET, POST    | `/api/projects/:projectId/supplier-qualifications`        |
+| GET, PATCH   | `…/supplier-qualifications/:qualificationId`              |
+| POST, DELETE | `…/supplier-qualifications/:qualificationId/evidence`     |
 
 The relationship endpoint is **typed, not generic**: the body carries a `relation`
 drawn from a fixed list, each naming one real join table. Every route is
@@ -2168,7 +2167,7 @@ one asks a backward-looking question about one project against one baseline:
 Aerospace systems drift without anyone changing the baseline. The actual
 operating temperature stops matching the design assumption; a supplier's process
 moves without an engineering change; the field configuration diverges from the
-approved design. Nothing in the record is *wrong* — each individual entry was
+approved design. Nothing in the record is _wrong_ — each individual entry was
 made honestly — and yet the engineering basis and reality have come apart. This
 capability makes that visible, and it implements one chain, deliberately without
 a shortcut:
@@ -2193,7 +2192,7 @@ Prisma-free.
 - **Not telemetry.** Observations are recorded by people in V1. There is no
   ingestion pipeline, no time series, no event bus, and none is implied.
 - **Not a baseline updater.** Detecting that an object changed since it was
-  baselined must never rewrite the baseline. That divergence *is* the finding;
+  baselined must never rewrite the baseline. That divergence _is_ the finding;
   erasing it would destroy the only evidence drift ever produces.
 
 ### EngineeringBaseline and its members: a fixed point, not a moving one
@@ -2231,7 +2230,7 @@ it" becomes a fact rather than an impression. The seven baselineable node types
 (`REQUIREMENT`, `DESIGN_ITEM`, `ENGINEERING_DECISION`, `DECISION_EXPECTATION`,
 `VERIFICATION_ACTIVITY`, `SUPPLIED_ITEM`, `SUPPLIER_QUALIFICATION`) are a subset
 of the graph node registry, not an arbitrary type/id pair: a change request or
-an approval is an *event*, not part of the engineering basis, so neither is
+an approval is an _event_, not part of the engineering basis, so neither is
 baselineable.
 
 ### The object fingerprint: what it excludes, and why
@@ -2277,7 +2276,7 @@ against it — but its existence is still surfaced, by `DR-OBS-001`, so a
 written down.
 
 The measured value is stored as `NUMERIC(38,12)`, never a float, and read back
-through Prisma's `Decimal` via `.toString()` as an exact decimal *string* end to
+through Prisma's `Decimal` via `.toString()` as an exact decimal _string_ end to
 end. `parseExactDecimal` reduces that string to a scaled BigInt mantissa, and
 `compareExactDecimals` rescales both sides to a common scale before comparing —
 exact for every value a person can type, with no binary floating point involved
@@ -2288,7 +2287,7 @@ one thing it is for.
 An observation's subject is at most one of `designItemId`,
 `decisionExpectationId` or `suppliedItemId`, enforced by the CHECK constraint
 `operational_observations_at_most_one_subject`. This is **AT MOST** one, not
-*exactly* one the way `evidence_links` and `change_request_impacts` require —
+_exactly_ one the way `evidence_links` and `change_request_impacts` require —
 a field report that does not yet name the element it concerns is still a real
 and useful record, and forcing a subject onto it would invite somebody to
 guess at one. `REQUIREMENT` is deliberately absent from the observable subject
@@ -2303,7 +2302,7 @@ baseline integrity, expectations, configuration observations, value deviation,
 supplier state, observation hygiene and context. The service holds **no
 comparison policy of its own**: every finding flows through one `emitFinding`
 function that looks a rule up by id and takes its category, status, severity
-and basis markers *from the registry*; an id the registry does not define
+and basis markers _from the registry_; an id the registry does not define
 throws (`DriftEvaluationFailure`) rather than silently dropping a comparison.
 `evaluateDriftRequestSchema` is `strictObject({ baselineId })` — a client that
 tries to send a verdict, a finding, a rule, an actor or anything else is
@@ -2367,7 +2366,7 @@ no business converting, or get the direction wrong on a scale with an offset.
 Different units produce `UNKNOWN`, which is a true statement about what this
 system knows. Both sides unitless is compatible — a dimensionless expectation
 compared with a dimensionless observation is a real comparison — but one side
-having a unit and the other not is *not* compatible, because it means somebody
+having a unit and the other not is _not_ compatible, because it means somebody
 recorded incomplete information and a silent match would be assuming what they
 meant.
 
@@ -2377,9 +2376,9 @@ No rule in `DRIFT_RULES` ever concludes failure. `REVIEW_REQUIRED` is the
 ceiling — there is no `FAILED`, `BREACHED` or `DEFECT` anywhere in
 `DriftFindingStatus`, because producing one would be this engine claiming an
 engineering conclusion it has no basis for. The registry's own rationale for
-`DR-VAL-001` states the case plainly: *"Expected 100, observed 103 is a
+`DR-VAL-001` states the case plainly: _"Expected 100, observed 103 is a
 `VALUE_DEVIATION` requiring review — it is not a failure, and the amount of the
-difference is reported rather than scored."* `DR-BAS-002` — the central
+difference is reported rather than scored."_ `DR-BAS-002` — the central
 configuration-drift comparison — says the same thing from the baseline side:
 what it does not say is that a change was wrong, that it was unauthorised, or
 that the baseline should be updated; a change may be entirely correct and
@@ -2391,9 +2390,9 @@ expectation moves to `BREACHED`, no assumption is invalidated, no
 qualification is marked unqualified, no requirement is reopened. Those are
 determinations people make, and two of them belong to engines that already
 own that question. `DR-EXP-001` fires when an observation violates an
-expectation's comparison and says so explicitly in its own explanation: *"The
+expectation's comparison and says so explicitly in its own explanation: _"The
 expectation's status has not been changed — whether this constitutes a breach
-is an engineering determination."*
+is an engineering determination."_
 
 ### Freshness: a fingerprint scoped to drift, not to the project
 
@@ -2407,7 +2406,7 @@ the assessment.
 
 `driftFingerprint` hashes exactly what an evaluation rested on: the drift
 version, the baseline's id and status, every member with both its baselined
-*and* current fingerprint, and every observation consumed with its own
+_and_ current fingerprint, and every observation consumed with its own
 revision stamp. Time is never included, so two digests taken a moment apart
 from unchanged state match — otherwise every assessment would be stale the
 instant it was written. Crucially, an artifact that is neither a baseline
@@ -2418,7 +2417,7 @@ This is deliberately its **own** function rather than a reuse of
 `computeProjectFingerprint` (`project-revision.repository.ts`), which backs
 change-impact analysis and is consumed by the readiness engines. That one is
 blunt on purpose: for every table an analysis could have read, it hashes the
-row count and the newest `updatedAt` across the *whole project*, so an edit
+row count and the newest `updatedAt` across the _whole project_, so an edit
 anywhere moves it. That bluntness is the right, conservative choice there — a
 false "stale" costs one re-run, while a false "current" would present a
 defunct impact analysis as though it still held, and a per-finding
@@ -2432,7 +2431,7 @@ freshness signal worthless.
 
 ### Relationship to other engines
 
-- **Change Impact Analysis.** Drift reads only *declared* impacts
+- **Change Impact Analysis.** Drift reads only _declared_ impacts
   (`loadChangeContext`), never runs or reads a computed impact analysis. A
   drifted baseline object that is also the target of a declared impact on an
   in-flight change surfaces as `DR-CTX-001` context — "it may have changed
@@ -2452,20 +2451,20 @@ freshness signal worthless.
   `OPERATIONAL_OBSERVATION`, `DRIFT_ASSESSMENT`, `DRIFT_FINDING`, all in the
   `DRIFT` domain) and six edges exist for traversal only, and are explicitly
   **inert** under impact-analysis propagation — `propagates: false,
-  context: false` on every one of them:
+context: false` on every one of them:
 
-  | Edge | Meaning |
-  | --- | --- |
-  | `BASELINE_HAS_MEMBER` | Baseline → Member |
-  | `BASELINE_MEMBER_REFERENCES_OBJECT` | Member → the engineering object it snapshots |
-  | `OBSERVATION_CONCERNS_OBJECT` | Observation → the object it was recorded about |
-  | `DRIFT_ASSESSMENT_AGAINST_BASELINE` | Assessment → Baseline it compared against |
-  | `DRIFT_ASSESSMENT_HAS_FINDING` | Assessment → Finding |
-  | `DRIFT_FINDING_CONCERNS_OBJECT` | Finding → the object or observation it concerns |
+  | Edge                                | Meaning                                         |
+  | ----------------------------------- | ----------------------------------------------- |
+  | `BASELINE_HAS_MEMBER`               | Baseline → Member                               |
+  | `BASELINE_MEMBER_REFERENCES_OBJECT` | Member → the engineering object it snapshots    |
+  | `OBSERVATION_CONCERNS_OBJECT`       | Observation → the object it was recorded about  |
+  | `DRIFT_ASSESSMENT_AGAINST_BASELINE` | Assessment → Baseline it compared against       |
+  | `DRIFT_ASSESSMENT_HAS_FINDING`      | Assessment → Finding                            |
+  | `DRIFT_FINDING_CONCERNS_OBJECT`     | Finding → the object or observation it concerns |
 
   The impact-policy comments are explicit about why: a baseline records what
   was approved, an observation records what somebody saw, and a drift finding
-  records that those two disagree — none of them *causes* an engineering
+  records that those two disagree — none of them _causes_ an engineering
   change, so none can carry impact forward, and none is admitted as context
   either, or every observation ever recorded about a design item would bury
   the impact report for an unrelated change under operational history. The
@@ -2485,23 +2484,23 @@ did **not** decide — which for this capability matters as much as what it did.
 
 ### Drift API
 
-| Method | Path |
-| --- | --- |
-| GET, POST | `/api/projects/:projectId/baselines` |
-| GET, PATCH | `/api/projects/:projectId/baselines/:baselineId` |
-| POST | `/api/projects/:projectId/baselines/:baselineId/activate` |
-| POST | `/api/projects/:projectId/baselines/:baselineId/supersede` |
-| GET, POST | `/api/projects/:projectId/baselines/:baselineId/members` |
-| DELETE | `/api/projects/:projectId/baselines/:baselineId/members/:memberId` |
-| GET | `/api/projects/:projectId/baseline-member-targets` |
-| GET, POST | `/api/projects/:projectId/observations` |
-| GET, PATCH | `/api/projects/:projectId/observations/:observationId` |
-| POST | `/api/projects/:projectId/observations/:observationId/review` |
-| POST | `/api/projects/:projectId/observations/:observationId/reject` |
-| POST | `/api/projects/:projectId/drift/evaluate` |
-| GET | `/api/projects/:projectId/drift/latest` |
-| GET | `/api/projects/:projectId/drift` |
-| GET | `/api/projects/:projectId/drift/:assessmentId` |
+| Method     | Path                                                               |
+| ---------- | ------------------------------------------------------------------ |
+| GET, POST  | `/api/projects/:projectId/baselines`                               |
+| GET, PATCH | `/api/projects/:projectId/baselines/:baselineId`                   |
+| POST       | `/api/projects/:projectId/baselines/:baselineId/activate`          |
+| POST       | `/api/projects/:projectId/baselines/:baselineId/supersede`         |
+| GET, POST  | `/api/projects/:projectId/baselines/:baselineId/members`           |
+| DELETE     | `/api/projects/:projectId/baselines/:baselineId/members/:memberId` |
+| GET        | `/api/projects/:projectId/baseline-member-targets`                 |
+| GET, POST  | `/api/projects/:projectId/observations`                            |
+| GET, PATCH | `/api/projects/:projectId/observations/:observationId`             |
+| POST       | `/api/projects/:projectId/observations/:observationId/review`      |
+| POST       | `/api/projects/:projectId/observations/:observationId/reject`      |
+| POST       | `/api/projects/:projectId/drift/evaluate`                          |
+| GET        | `/api/projects/:projectId/drift/latest`                            |
+| GET        | `/api/projects/:projectId/drift`                                   |
+| GET        | `/api/projects/:projectId/drift/:assessmentId`                     |
 
 `activate` takes `{ supersedeActive?: boolean }` and nothing else. `evaluate`
 takes `{ baselineId: string }` and nothing else — the backend owns rule
@@ -2520,7 +2519,7 @@ immutability here is structural rather than a convention.
 Three workspaces: `/projects/:projectId/baselines`,
 `/projects/:projectId/observations`, and `/projects/:projectId/drift`. Nothing
 evaluates automatically on page load — choosing a baseline in the drift
-workspace only *reads* the latest recorded assessment for it; running the
+workspace only _reads_ the latest recorded assessment for it; running the
 comparison is its own explicit "Evaluate drift" action, and a baseline that
 has never been evaluated says so in words rather than rendering an empty
 findings table that would read as "nothing has drifted". A stale assessment
@@ -2602,8 +2601,8 @@ sets:
   because a determination recorded with no accountable author and no moment
   would be worse than no determination at all.
 - `method` (`ANALYSIS`/`TEST`/`INSPECTION`/`DEMONSTRATION`/
-  `REVIEW_OF_DESIGN`/`DOCUMENTATION`/`OTHER`) — describes *how* compliance is
-  established, never asserts *that* it has been.
+  `REVIEW_OF_DESIGN`/`DOCUMENTATION`/`OTHER`) — describes _how_ compliance is
+  established, never asserts _that_ it has been.
 - `status` (`OPEN`/`IN_PROGRESS`/`SATISFIED`/`BLOCKED`/`WAIVED`/`CLOSED`) — a
   plain workflow state.
 - `disposition` (`UNASSESSED`/`COMPLIANT`/`NON_COMPLIANT`/`NOT_APPLICABLE`/
@@ -2694,7 +2693,7 @@ The registry is conservative by declared policy, not by accident:
   no engineering linkage at all (`CR-LNK-001`) or no compliance method
   (`CR-MTH-001`) are all `BLOCKING` — an empty or undecided certification
   record is never read as compliant.
-- Conditions discovered by *other* engines — verification readiness, change
+- Conditions discovered by _other_ engines — verification readiness, change
   impact, drift, supplier qualification, an assumption behind a linked
   decision — are always **surfaced**, never re-judged into `NON_COMPLIANT`.
   `CR-DRF-001` fires `WARNING` when drift is detected against a linked
@@ -2737,7 +2736,7 @@ Six of the seven are fully inert
 `COMPLIANCE_ITEM_HAS_FINDING`, `CERTIFICATION_REVIEW_HAS_FINDING`,
 `CERTIFICATION_REVIEW_FINDING_CONCERNS_OBJECT` — for the same reason every one
 of drift's structural edges is inert: a certification record is evidence
-*about* engineering, not an engineering object, and none of them causes a
+_about_ engineering, not an engineering object, and none of them causes a
 change.
 
 `COMPLIANCE_ITEM_LINKED_TO_OBJECT` is the one exception, and it is asymmetric
@@ -2745,7 +2744,7 @@ on purpose. Its canonical direction is `COMPLIANCE_ITEM → {REQUIREMENT,
 VERIFICATION_ACTIVITY, EVIDENCE, ENGINEERING_DECISION, DESIGN_ITEM, RISK,
 ISSUE, SUPPLIER_QUALIFICATION}`, and it never propagates forward — a
 compliance item cannot cause an engineering change, because certification
-stays downstream of engineering by design. But it *is* real dependency read
+stays downstream of engineering by design. But it _is_ real dependency read
 backwards (`context: true`): when the requirement, design item, decision,
 verification activity, evidence, risk, issue or supplier qualification a
 compliance item depends on changes, the compliance item becomes visible as
@@ -2757,7 +2756,7 @@ uses: reaching a `COMPLIANCE_ITEM` yields `CERTIFICATION_ITEM_PRESENT` +
 
 `IMPACT_ENGINE_VERSION` moved from `"2"` to `"3"` for this addition, purely
 additively — no existing edge's rule changed — because the set of
-relationships the engine walks is part of what an analysis *means*, and a
+relationships the engine walks is part of what an analysis _means_, and a
 result produced before certification records could be reached is not the
 same statement as one produced after.
 
@@ -2769,7 +2768,7 @@ same statement as one produced after.
   There is no second impact engine. A change reaching a linked object
   surfaces as `CR-CHG-001` (`WARNING`); a stale or absent analysis surfaces as
   `CR-CHG-002`/`CR-CHG-003` (`UNKNOWN`) rather than asserting either way.
-- **Verification readiness.** For every *distinct* linked verification
+- **Verification readiness.** For every _distinct_ linked verification
   activity — not per compliance item — the review calls
   `VerificationReadinessService.getLatestVerificationReadiness` once. This
   mirrors `TechnicalReadinessService`'s own documented tradeoff at its
@@ -2787,8 +2786,8 @@ same statement as one produced after.
   in scope), never re-evaluated. `REVIEW_REQUIRED` surfaces as `CR-ASM-001`
   (`WARNING`); an `INVALIDATED` assumption status surfaces as `CR-ASM-004`
   (`WARNING`). Nothing here invalidates an assumption.
-- **Drift.** The review reads the project's *active* `EngineeringBaseline`'s
-  *latest* `DriftAssessment` and checks each linked object's own
+- **Drift.** The review reads the project's _active_ `EngineeringBaseline`'s
+  _latest_ `DriftAssessment` and checks each linked object's own
   `baselineSubject` against it — it never runs a new drift evaluation. A
   `REVIEW_REQUIRED` drift finding concerning a linked object surfaces as
   `CR-DRF-001` (`WARNING`); operational deviation is never equated with
@@ -2801,25 +2800,25 @@ same statement as one produced after.
 
 ### API
 
-| Method | Path | |
-|---|---|---|
-| GET/POST/PATCH | `/api/projects/[projectId]/certification/program` | the project's singular programme |
-| GET/POST | `/api/projects/[projectId]/certification/bases` | |
-| GET/PATCH | `/api/projects/[projectId]/certification/bases/[basisId]` | |
-| POST | `/api/projects/[projectId]/certification/bases/[basisId]/activate` | |
-| POST | `/api/projects/[projectId]/certification/bases/[basisId]/supersede` | |
-| GET/POST | `/api/projects/[projectId]/certification/items` | `?basisId=` (default: active basis) |
-| GET/PATCH | `/api/projects/[projectId]/certification/items/[itemId]` | |
-| GET/POST | `/api/projects/[projectId]/certification/items/[itemId]/links` | |
-| DELETE | `/api/projects/[projectId]/certification/items/[itemId]/links/[linkId]` | |
-| GET | `/api/projects/[projectId]/certification/link-targets` | picker options, all 8 types |
-| GET/POST | `/api/projects/[projectId]/certification/items/[itemId]/findings` | |
-| PATCH | `/api/projects/[projectId]/certification/items/[itemId]/findings/[findingId]` | |
-| POST | `/api/projects/[projectId]/certification/items/[itemId]/findings/[findingId]/resolve` | |
-| POST | `/api/projects/[projectId]/certification/items/[itemId]/findings/[findingId]/accept` | |
-| POST/GET | `/api/projects/[projectId]/certification/reviews` | POST evaluates — the only mutation |
-| GET | `/api/projects/[projectId]/certification/reviews/latest` | |
-| GET | `/api/projects/[projectId]/certification/reviews/[reviewId]` | |
+| Method         | Path                                                                                  |                                     |
+| -------------- | ------------------------------------------------------------------------------------- | ----------------------------------- |
+| GET/POST/PATCH | `/api/projects/[projectId]/certification/program`                                     | the project's singular programme    |
+| GET/POST       | `/api/projects/[projectId]/certification/bases`                                       |                                     |
+| GET/PATCH      | `/api/projects/[projectId]/certification/bases/[basisId]`                             |                                     |
+| POST           | `/api/projects/[projectId]/certification/bases/[basisId]/activate`                    |                                     |
+| POST           | `/api/projects/[projectId]/certification/bases/[basisId]/supersede`                   |                                     |
+| GET/POST       | `/api/projects/[projectId]/certification/items`                                       | `?basisId=` (default: active basis) |
+| GET/PATCH      | `/api/projects/[projectId]/certification/items/[itemId]`                              |                                     |
+| GET/POST       | `/api/projects/[projectId]/certification/items/[itemId]/links`                        |                                     |
+| DELETE         | `/api/projects/[projectId]/certification/items/[itemId]/links/[linkId]`               |                                     |
+| GET            | `/api/projects/[projectId]/certification/link-targets`                                | picker options, all 8 types         |
+| GET/POST       | `/api/projects/[projectId]/certification/items/[itemId]/findings`                     |                                     |
+| PATCH          | `/api/projects/[projectId]/certification/items/[itemId]/findings/[findingId]`         |                                     |
+| POST           | `/api/projects/[projectId]/certification/items/[itemId]/findings/[findingId]/resolve` |                                     |
+| POST           | `/api/projects/[projectId]/certification/items/[itemId]/findings/[findingId]/accept`  |                                     |
+| POST/GET       | `/api/projects/[projectId]/certification/reviews`                                     | POST evaluates — the only mutation  |
+| GET            | `/api/projects/[projectId]/certification/reviews/latest`                              |                                     |
+| GET            | `/api/projects/[projectId]/certification/reviews/[reviewId]`                          |                                     |
 
 Seventeen routes; no PATCH/PUT/DELETE exists anywhere under `.../reviews/**`
 — review history is read-only by construction, not merely by convention.
@@ -2952,13 +2951,13 @@ one-to-one relation here would have been copying the wrong precedent.
 
 `SURVEILLANCE_DEPENDENCY_RULES` is the single authoritative policy: 37 rows,
 each a `{ sourceType, targetType, reason }` triple stating
-once which changed source types *may* affect which of the six target
+once which changed source types _may_ affect which of the six target
 domains, and why, in plain engineering language a reviewer can check. It is
 deliberately not "every relationship implies every engine" — a
 `DecisionAssumption` cannot affect `DRIFT_ASSESSMENT` (drift compares
 baselined engineering objects against observations, and an assumption is
 neither), so no such row exists, and a domain test asserts this negative
-directly. A row in the registry is a *may* affect, never a guarantee:
+directly. A row in the registry is a _may_ affect, never a guarantee:
 `evaluateTargetsForEvent` looks up candidates here, then confirms each one
 against that specific target domain's own real, already-stored basis before
 ever creating a row — "the registry says what is worth checking, not what is
@@ -2977,7 +2976,7 @@ for `TECHNICAL_READINESS`, an `EngineeringBaseline` id for
 `DRIFT_ASSESSMENT`, a `CertificationProgram` id for `CERTIFICATION_REVIEW`.
 This is what turns `dispatchReevaluation` into a one-line-per-branch
 `switch` rather than a lookup table of its own, and it is the reason
-membership resolution for each target type reads that domain's *own*
+membership resolution for each target type reads that domain's _own_
 storage shape rather than a generic one: relational membership checks
 (`ImpactAnalysisRoot`/`ImpactFinding` rows for impact analysis,
 `EngineeringBaselineMember` rows for drift) where relational data already
@@ -2990,8 +2989,8 @@ right shape to check.
 
 ### Detection
 
-`detectProjectChanges` has two genuinely separate phases. First, *what
-changed*: `loadContentChangeCandidates` runs ten parallel, project-scoped
+`detectProjectChanges` has two genuinely separate phases. First, _what
+changed_: `loadContentChangeCandidates` runs ten parallel, project-scoped
 `findMany` queries and keeps only rows where `updatedAt` has moved past
 `createdAt`; `loadObservationCandidates` treats every observation as
 inherently surveillance-worthy (recording one is the surveillance-worthy act
@@ -3001,8 +3000,8 @@ consistently (`requirement.link_added`/`link_removed`,
 `decision.assumption_added`/`assumption_updated`,
 `decision.expectation_set`/`expectation_cleared`, and their `link_added`/
 `link_removed` decision counterparts) rather than attempting to parse every
-action string this codebase's ~20 services happen to emit. Second, *what it
-might affect*: each newly-created event is evaluated once, sequentially —
+action string this codebase's ~20 services happen to emit. Second, _what it
+might affect_: each newly-created event is evaluated once, sequentially —
 detection is an explicit, occasional action, the same philosophy
 `AssumptionMonitoringService`'s own project sweep already follows, not a
 per-request hot path that would justify parallelizing database load — against
@@ -3016,8 +3015,8 @@ dispatches to the one real engine via `dispatchReevaluation`, and — on
 success only — calls `resolveSurveillance` itself with an auto-generated
 note (`"Resolved automatically: a new ... evaluation was run and reflects
 the current engineering state."`). This is a deliberate reading of a
-genuinely nuanced policy: reevaluation must never auto-resolve *merely
-because an evaluation ran* (a failed evaluation leaves the target open, its
+genuinely nuanced policy: reevaluation must never auto-resolve _merely
+because an evaluation ran_ (a failed evaluation leaves the target open, its
 failure surfaced to the caller, never silently dropped), but a freshly-run
 evaluation is, by construction, current relative to the specific change
 that opened this particular target — the same "just written from this
@@ -3036,7 +3035,7 @@ unique index (`WHERE status = 'OPEN'`), which cannot be expressed in
 `INSERT ... ON CONFLICT ("projectId","targetType","targetId") WHERE
 "status" = 'OPEN' DO UPDATE ... RETURNING "id", (xmax = 0) AS "inserted"` —
 the standard PostgreSQL idiom for a race-safe insert-or-update against a
-*filtered* index, which Prisma's own `upsert()` cannot express because it
+_filtered_ index, which Prisma's own `upsert()` cannot express because it
 only knows about constraints declared in the schema. This is explicitly not
 a service-side check-then-insert: an integration test opens two identical
 targets concurrently via `Promise.all` and asserts exactly one insert wins,
@@ -3053,8 +3052,8 @@ stale one.
 ### Integration with the six engines
 
 Every one of the six is consumed exactly twice, never duplicated: once for
-*membership* (does this domain's own already-stored basis reference the
-changed object?) and once for *reevaluation* (call the real `evaluate*`
+_membership_ (does this domain's own already-stored basis reference the
+changed object?) and once for _reevaluation_ (call the real `evaluate*`
 method, unmodified). Change Impact Analysis is checked relationally against
 `ImpactAnalysisRoot`/`ImpactFinding` rows of the latest `COMPLETED` analysis
 for each active `ChangeRequest` — a `RUNNING` or absent analysis is never
@@ -3068,22 +3067,22 @@ Drift is checked relationally against `EngineeringBaselineMember` rows of
 the project's active baseline, with one unconditional rule: any new
 observation is inherently drift-relevant by definition. Certification
 Review distinguishes its own basis object (`CERTIFICATION_BASIS` — only the
-*active* basis changing matters, and only the review's own linked
+_active_ basis changing matters, and only the review's own linked
 `objects` for every other source type) from every other domain's generic
 basis check.
 
 ### API
 
-| Method | Path | |
-|---|---|---|
-| GET | `/api/projects/[projectId]/sentinel` | real open/acknowledged counts |
-| GET | `/api/projects/[projectId]/sentinel/open` | OPEN and ACKNOWLEDGED targets |
-| GET | `/api/projects/[projectId]/sentinel/history` | RESOLVED and SUPERSEDED targets |
-| POST | `/api/projects/[projectId]/sentinel/detect` | the only route that writes new detections |
-| GET | `/api/projects/[projectId]/sentinel/[targetId]` | one target in full, with its source |
-| POST | `/api/projects/[projectId]/sentinel/[targetId]/acknowledge` | `{note?}` |
-| POST | `/api/projects/[projectId]/sentinel/[targetId]/resolve` | `{note}`, note required |
-| POST | `/api/projects/[projectId]/sentinel/[targetId]/reevaluate` | dispatches, then resolves on success |
+| Method | Path                                                        |                                           |
+| ------ | ----------------------------------------------------------- | ----------------------------------------- |
+| GET    | `/api/projects/[projectId]/sentinel`                        | real open/acknowledged counts             |
+| GET    | `/api/projects/[projectId]/sentinel/open`                   | OPEN and ACKNOWLEDGED targets             |
+| GET    | `/api/projects/[projectId]/sentinel/history`                | RESOLVED and SUPERSEDED targets           |
+| POST   | `/api/projects/[projectId]/sentinel/detect`                 | the only route that writes new detections |
+| GET    | `/api/projects/[projectId]/sentinel/[targetId]`             | one target in full, with its source       |
+| POST   | `/api/projects/[projectId]/sentinel/[targetId]/acknowledge` | `{note?}`                                 |
+| POST   | `/api/projects/[projectId]/sentinel/[targetId]/resolve`     | `{note}`, note required                   |
+| POST   | `/api/projects/[projectId]/sentinel/[targetId]/reevaluate`  | dispatches, then resolves on success      |
 
 Eight routes — one beyond the seven named directly in the originating
 specification, added because "reevaluation is always an explicit engineer
@@ -3229,13 +3228,13 @@ registry only where something was genuinely missing — nothing was. What
 this capability adds is real data to traverse: before it, `prisma.risk`/
 `prisma.issue` had no way to gain rows outside a raw insert, so every one of
 those edges was reachable in principle but empty in practice. The one gap
-this session found and closed was at the *routing* layer, not the
+this session found and closed was at the _routing_ layer, not the
 resolution layer — `graph-repository.test.ts` had zero tests proving which
 tables get queried for a `RISK`/`ISSUE` node's outgoing and incoming edges
 (unlike every other node type, which already had one), so that routing is
 now directly tested, including the subtlety that
 `complianceItemRiskLink`/`complianceItemIssueLink` belong to a risk's or
-issue's *incoming* side (a compliance item points at them, not the reverse)
+issue's _incoming_ side (a compliance item points at them, not the reverse)
 — caught by running the test against the real routing code rather than
 assuming the direction.
 
@@ -3317,22 +3316,22 @@ signal when it changes.
 
 ### API
 
-| Method | Path | |
-|---|---|---|
-| GET/POST | `/api/projects/[projectId]/risks` | |
-| GET/PATCH | `/api/projects/[projectId]/risks/[riskId]` | content fields only |
-| POST | `/api/projects/[projectId]/risks/[riskId]/transition` | the only path that moves status |
-| POST | `/api/projects/[projectId]/risks/[riskId]/owner` | `{ownerId}`, nullable to clear |
-| GET/POST | `/api/projects/[projectId]/risks/[riskId]/links` | |
-| DELETE | `/api/projects/[projectId]/risks/[riskId]/links/[linkId]` | composite key |
-| GET | `/api/projects/[projectId]/risk-link-targets` | project-scoped selector options |
-| GET/POST | `/api/projects/[projectId]/issues` | `?status=`, `?severity=` |
-| GET/PATCH | `/api/projects/[projectId]/issues/[issueId]` | content fields only |
-| POST | `/api/projects/[projectId]/issues/[issueId]/transition` | |
-| POST | `/api/projects/[projectId]/issues/[issueId]/owner` | |
-| GET/POST | `/api/projects/[projectId]/issues/[issueId]/links` | |
-| DELETE | `/api/projects/[projectId]/issues/[issueId]/links/[linkId]` | |
-| GET | `/api/projects/[projectId]/issue-link-targets` | |
+| Method    | Path                                                        |                                 |
+| --------- | ----------------------------------------------------------- | ------------------------------- |
+| GET/POST  | `/api/projects/[projectId]/risks`                           |                                 |
+| GET/PATCH | `/api/projects/[projectId]/risks/[riskId]`                  | content fields only             |
+| POST      | `/api/projects/[projectId]/risks/[riskId]/transition`       | the only path that moves status |
+| POST      | `/api/projects/[projectId]/risks/[riskId]/owner`            | `{ownerId}`, nullable to clear  |
+| GET/POST  | `/api/projects/[projectId]/risks/[riskId]/links`            |                                 |
+| DELETE    | `/api/projects/[projectId]/risks/[riskId]/links/[linkId]`   | composite key                   |
+| GET       | `/api/projects/[projectId]/risk-link-targets`               | project-scoped selector options |
+| GET/POST  | `/api/projects/[projectId]/issues`                          | `?status=`, `?severity=`        |
+| GET/PATCH | `/api/projects/[projectId]/issues/[issueId]`                | content fields only             |
+| POST      | `/api/projects/[projectId]/issues/[issueId]/transition`     |                                 |
+| POST      | `/api/projects/[projectId]/issues/[issueId]/owner`          |                                 |
+| GET/POST  | `/api/projects/[projectId]/issues/[issueId]/links`          |                                 |
+| DELETE    | `/api/projects/[projectId]/issues/[issueId]/links/[linkId]` |                                 |
+| GET       | `/api/projects/[projectId]/issue-link-targets`              |                                 |
 
 Sixteen routes plus the two link-target selectors — one route beyond each
 entity's literal seven, matching the same reasoning the certification and
@@ -3420,7 +3419,7 @@ Being excluded from the flat picker does not mean a type is unreachable.
 `EngineeringGraphService.getNode` resolves all twenty-nine node types
 uniformly, so a `DECISION_ALTERNATIVE` or a `DRIFT_FINDING`, once reached by
 following a relationship from a supported root, is inspected and traversed
-exactly like anything else — the picker only decides where a user can *start*.
+exactly like anything else — the picker only decides where a user can _start_.
 
 ### Exploring from an object
 
@@ -3439,7 +3438,7 @@ Two panels, both reading the unmodified graph API:
 - **Extended neighborhood** — several hops at once, via the existing
   `POST …/graph/traverse` endpoint, bounded by `GRAPH_LIMITS` exactly as
   before (depth capped at 5, the same request-rejected-not-clamped rule). Each
-  reached object shows its depth and the *shortest* chain of relationships
+  reached object shows its depth and the _shortest_ chain of relationships
   that reached it — literally `TraversalNode.path`, unmodified — and a
   truncation banner names which cap stopped it, when one did.
 
@@ -3473,9 +3472,9 @@ gets `null`, never a guessed URL.
 
 ### API
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/projects/:projectId/traceability/objects?type=:nodeType` | Real, project-scoped objects of one selectable type, for the picker |
+| Method | Path                                                           | Purpose                                                             |
+| ------ | -------------------------------------------------------------- | ------------------------------------------------------------------- |
+| GET    | `/api/projects/:projectId/traceability/objects?type=:nodeType` | Real, project-scoped objects of one selectable type, for the picker |
 
 Everything else the workspace calls — node resolution, one-hop neighbors,
 bounded traversal — is the pre-existing graph API in
@@ -3557,7 +3556,7 @@ Three distinct claims, and this module only makes the first two:
   was added.
 - **Binary/file integrity — not provided, and never claimed.** No file
   storage exists anywhere in this schema. There is no hash, checksum, or
-  fingerprint of file *contents* anywhere on this record — only
+  fingerprint of file _contents_ anywhere on this record — only
   `updatedAt`-based revision stamps, the same mechanism every other artifact
   in this system already uses for "has this changed?", which says nothing
   about a file because there is no file.
@@ -3604,7 +3603,7 @@ by the `VALIDATED` transition.
 
 ### Supersession semantics
 
-Superseding sets three fields on the *old* record — `status: SUPERSEDED`,
+Superseding sets three fields on the _old_ record — `status: SUPERSEDED`,
 `supersededById`, `supersededAt` — and touches **nothing else**. No
 `EvidenceLink` row is moved, copied, or deleted. A requirement that cited the
 original evidence keeps citing exactly that version; if someone wants the
@@ -3613,7 +3612,7 @@ an automatic one. The superseded record remains fully readable (its own
 detail page, its own history) and is never deleted, matching the platform's
 "no destructive deletion of a record already referenced" rule.
 
-Supersession requires the *replacement* to already exist as its own real
+Supersession requires the _replacement_ to already exist as its own real
 evidence record in the same project — it never creates evidence on the
 caller's behalf, and it rejects a replacement that is itself already
 `SUPERSEDED` (no chaining through a dead link) and rejects evidence
@@ -3643,8 +3642,8 @@ Two modules gained real evidence support they lacked entirely:
   (`linkVerificationEvidence`/`unlinkVerificationEvidence`), mirroring
   Supplier Qualification's own single-relation evidence attach/detach exactly.
   Deliberately **not** gated by `isVerificationEditable`: that gate freezes
-  the activity's *plan* once concluded, but attaching the result evidence is
-  exactly what happens *as* an activity concludes.
+  the activity's _plan_ once concluded, but attaching the result evidence is
+  exactly what happens _as_ an activity concludes.
 
 Engineering Decision, Supplied Item, Supplier Qualification and Compliance
 Item already had real evidence linking from their own side before this
@@ -3678,10 +3677,10 @@ routing now includes it alongside the pre-existing `evidenceLink` table.
 
 Deliberately unchanged, and verified rather than assumed unchanged:
 `impact-analysis.ts` already treats every `X_HAS_EVIDENCE` edge as
-*propagating* — reached forward from the object that changed, with its own
+_propagating_ — reached forward from the object that changed, with its own
 dedicated `EVIDENCE_IN_PATH` classification distinct from a full impacted
 object — and evidence itself is not, and was not made, a change-impact
-*target* (`CHANGE_IMPACT_TARGET_TYPES` still excludes it). Evidence is
+_target_ (`CHANGE_IMPACT_TARGET_TYPES` still excludes it). Evidence is
 reached as a consequence of something else changing; it does not itself
 propagate change forward. Nothing in this file was edited.
 
@@ -3691,7 +3690,7 @@ Both engines already read evidence through the graph (`VERIFICATION_HAS_EVIDENCE
 and already stamp every basis object — including evidence — with its real
 `updatedAt` revision via `EngineeringGraphService.getNodeRevisions`. Neither
 engine's own rule logic changed. What changed is that evidence can now be a
-*real, service-created* record instead of only a raw-inserted test fixture —
+_real, service-created_ record instead of only a raw-inserted test fixture —
 proven in the PostgreSQL integration suite by attaching real evidence to a
 real verification activity and confirming both engines' own basis snapshots
 include it.
@@ -3734,16 +3733,16 @@ target" rule exists, matching the Change Impact section above.
 
 ### API
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET, POST | `/api/projects/[projectId]/evidence` | List (`?status=`, `?evidenceType=`), create (always `DRAFT`) |
-| GET, PATCH | `.../evidence/[evidenceId]` | Full detail; content-only update while `DRAFT` |
-| POST | `.../evidence/[evidenceId]/validate` | `DRAFT → VALIDATED` |
-| POST | `.../evidence/[evidenceId]/supersede` | `DRAFT`\|`VALIDATED → SUPERSEDED`; body names the real replacement |
-| GET, POST | `.../evidence/[evidenceId]/links` | List / add a typed link (six relations) |
-| DELETE | `.../evidence/[evidenceId]/links/[linkId]` | Remove by composite `"RELATION:rowId"` key |
-| GET | `/api/projects/[projectId]/evidence-link-targets` | Project-scoped picker options, all six relations |
-| POST, DELETE | `/api/projects/[projectId]/verification-activities/[activityId]/evidence` | Attach/detach an *existing* evidence record — the read was already there; this endpoint is new |
+| Method       | Path                                                                      | Purpose                                                                                        |
+| ------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| GET, POST    | `/api/projects/[projectId]/evidence`                                      | List (`?status=`, `?evidenceType=`), create (always `DRAFT`)                                   |
+| GET, PATCH   | `.../evidence/[evidenceId]`                                               | Full detail; content-only update while `DRAFT`                                                 |
+| POST         | `.../evidence/[evidenceId]/validate`                                      | `DRAFT → VALIDATED`                                                                            |
+| POST         | `.../evidence/[evidenceId]/supersede`                                     | `DRAFT`\|`VALIDATED → SUPERSEDED`; body names the real replacement                             |
+| GET, POST    | `.../evidence/[evidenceId]/links`                                         | List / add a typed link (six relations)                                                        |
+| DELETE       | `.../evidence/[evidenceId]/links/[linkId]`                                | Remove by composite `"RELATION:rowId"` key                                                     |
+| GET          | `/api/projects/[projectId]/evidence-link-targets`                         | Project-scoped picker options, all six relations                                               |
+| POST, DELETE | `/api/projects/[projectId]/verification-activities/[activityId]/evidence` | Attach/detach an _existing_ evidence record — the read was already there; this endpoint is new |
 
 Every mutating route validates through a `z.strictObject` schema; create
 accepts no `status`, no `recordedById`, no `organizationId`, no `actorId`, no
@@ -3758,7 +3757,7 @@ into a generic update.
 `/projects/[projectId]/evidence` (list: identifier/title/type/status,
 filterable by both) and `/projects/[projectId]/evidence/[evidenceId]` (full
 detail, lifecycle controls limited to what the server allows, a supersede
-dialog that only offers *real, existing* non-superseded evidence as a
+dialog that only offers _real, existing_ non-superseded evidence as a
 replacement, the six-relation traceability panel, a read-only list of
 certification findings that cite this evidence, and history via the
 existing audit infrastructure). No upload control exists anywhere in this
@@ -3830,7 +3829,7 @@ route, UI, and integration), each checking the full serialized output
 against a shared forbidden-pattern regex.
 
 Not a write path. Every read this capability performs is a plain repository
-or service *read* method — nothing here evaluates an assumption, runs a
+or service _read_ method — nothing here evaluates an assumption, runs a
 readiness gate, triggers Sentinel detection, or otherwise creates a new
 assessment row as a side effect of opening the page. The integration suite
 proves this directly: calling `getCommandCenter` twice in a row leaves
@@ -3847,7 +3846,7 @@ it returns traces back to a real, already-existing call:
   so this is a bounded, constant number of calls, not one per project
   object) — the real service, so its own graph-based freshness re-derivation
   runs unmodified.
-- **Verification readiness** — deliberately *not* the per-activity service
+- **Verification readiness** — deliberately _not_ the per-activity service
   method, because that would be one graph-walking call per activity and
   scale with project size. Instead this reads only the already-batched
   `verificationReadinessRepository.findLatestForActivities` — the same
@@ -3876,7 +3875,7 @@ it returns traces back to a real, already-existing call:
 - **Assumptions** — read directly at the repository layer
   (`monitoringRepository.listProjectAssumptions` +
   `findLatestForAssumptions`), bypassing the service layer entirely,
-  because the service's own `evaluateProjectAssumptions` *writes* a new
+  because the service's own `evaluateProjectAssumptions` _writes_ a new
   monitoring record for every assumption — exactly the kind of
   read-triggers-a-write behavior a read model must not have.
 - **Drift, Risks, Issues, Suppliers, Evidence, Sentinel** — each read
@@ -3919,7 +3918,7 @@ isn't a direct read of an existing status:
   regenerated.
 
 Deliberately excluded, on the same "no invented rule" discipline: `DRAFT`
-evidence is *not* an attention item — it is evidence's own normal starting
+evidence is _not_ an attention item — it is evidence's own normal starting
 state, not an urgency signal, and is shown only as a count in the Evidence
 section. Each item is deduplicated by a
 `sourceModule:sourceType:sourceId` key (also the item's own `key` field, so
@@ -3946,9 +3945,9 @@ have no per-item URL, link to their existing workspace pages
 
 ### API
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/projects/[projectId]/command-center` | The full composed view: project, attentionItems, readiness (technical/verification/certification/changeImpact/assumptions/drift), risks, issues, suppliers, evidence, sentinel, traceabilityHref, historyHref |
+| Method | Path                                       | Purpose                                                                                                                                                                                                       |
+| ------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/projects/[projectId]/command-center` | The full composed view: project, attentionItems, readiness (technical/verification/certification/changeImpact/assumptions/drift), risks, issues, suppliers, evidence, sentinel, traceabilityHref, historyHref |
 
 The route is read-only by construction — it exports only `GET`, verified
 by a test asserting `POST`/`PATCH`/`DELETE` are all `undefined` on the
@@ -4043,7 +4042,7 @@ already complete.
 
 `getBaseline`'s own `changed: boolean` / `currentFingerprint: string |
 null` per member already proved the underlying fact; what did not exist
-was a *named*, deterministic classification a caller — the baseline UI,
+was a _named_, deterministic classification a caller — the baseline UI,
 the Command Center, an API consumer — could all read identically instead
 of re-deriving it three different ways. `src/domain/baseline-comparison.ts`
 adds exactly that:
@@ -4053,14 +4052,14 @@ adds exactly that:
   `classifyBaselineMemberComparison(baselinedFingerprint, current)`:
   `OBJECT_MISSING` when the object no longer resolves in the project (the
   same "current is absent" case `getBaseline` already showed as `Not
-  resolvable`); `UNCHANGED` / `CHANGED` by direct fingerprint equality;
+resolvable`); `UNCHANGED` / `CHANGED` by direct fingerprint equality;
   `UNKNOWN` only in the defensive case of a member row whose own captured
   fingerprint is empty. There is no fifth `OBJECT_NO_LONGER_MATCHES`
   state — given only a fingerprint pair, that would be indistinguishable
   from `CHANGED`, and inventing a distinction the data cannot prove is
   exactly what this capability's own specification forbids.
 - `DriftDetectionService.compareBaseline(context, projectId, baselineId)`
-  — the one new service method, on the *same* class that already owns
+  — the one new service method, on the _same_ class that already owns
   every other baseline operation (adding a second service for this would
   be the "second configuration-management system" the specification
   explicitly forbids). A new private helper,
@@ -4073,7 +4072,7 @@ adds exactly that:
   uses, never a second traversal.
 - **Not a drift evaluation.** Nothing here reads an `OperationalObservation`,
   applies a `DRIFT_RULES` rule, or persists a row — it is a pure, live
-  read, available for a baseline in *any* status (`DRAFT` included, where
+  read, available for a baseline in _any_ status (`DRAFT` included, where
   no `DriftAssessment` could ever exist), and calling it twice never
   changes anything. `DriftAssessment`'s own `DR-BAS-002` / `DR-BAS-003`
   findings answer a related but broader question (also folding in
@@ -4083,9 +4082,9 @@ adds exactly that:
 
 ### API
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/projects/:projectId/baselines/:baselineId/compare` | The formal comparison: per-member classification, declared changes, and summary counts |
+| Method | Path                                                     | Purpose                                                                                |
+| ------ | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| GET    | `/api/projects/:projectId/baselines/:baselineId/compare` | The formal comparison: per-member classification, declared changes, and summary counts |
 
 `GET` is the only verb this route exports — comparison is a read, and a
 test asserts `POST`/`PATCH`/`DELETE` are all `undefined` on the route
@@ -4112,7 +4111,7 @@ declared change request as context via the same `loadChangeContext` read
 `DR-CTX-001` already used. Nothing here automatically re-baselines,
 automatically approves or rejects the change, or writes back to the
 change request. The change request remains the sole authoritative record
-of *why* something changed; this capability only proves *that* it did.
+of _why_ something changed; this capability only proves _that_ it did.
 
 ### Sentinel integration: one genuine gap, closed
 
@@ -4137,10 +4136,10 @@ to baseline integrity, and out of scope for the minimal fix this
 capability's own specification called for).
 
 Baseline surveillance itself needed no new work: `candidatesFromDrift`
-already treats a changed baseline member of *any* type identically, and
+already treats a changed baseline member of _any_ type identically, and
 already emits nothing when the changed object is not a member of the
 project's active baseline — "unrelated object creates no target" already
-held for all seven types, the three new rows only make it *reachable*
+held for all seven types, the three new rows only make it _reachable_
 for three of them.
 
 ### Technical / Verification / Certification Readiness
@@ -4222,12 +4221,12 @@ both the real API and the real UI's error state.
 
 ## Engineering History
 
-A project's engineers can inspect an object's *current* state (every detail
+A project's engineers can inspect an object's _current_ state (every detail
 page) and, for twelve of them, its own `AuditLog` trail (`ArtifactHistory`
 and each module's own inline history panel). What did not exist was a
-single place to ask the temporal questions directly — *"what happened to
-this object over time?"*, *"when was this decided?"*, *"what changed, and
-who changed it?"* — across the whole record, or a chronological stream for
+single place to ask the temporal questions directly — _"what happened to
+this object over time?"_, _"when was this decided?"_, _"what changed, and
+who changed it?"_ — across the whole record, or a chronological stream for
 the project as a whole. Engineering History answers exactly that, and
 nothing more: a read-only composition over facts every other capability in
 this system already persisted.
@@ -4264,13 +4263,13 @@ target that really opened. Concretely:
   that `{from, to}` pair in their metadata (`detailFromMetadata`, reused
   from the same field-recognition logic `ArtifactHistory` already uses).
 - **"Requirement REQ-12 had description Y before it was approved"** is
-  never produced. This system's audit rows record *that* content changed
+  never produced. This system's audit rows record _that_ content changed
   (`requirement.updated`, with a `changedFields` list) and, for a status
   change, the two status values — never a diff of the prose itself, because
   no prior version of the text is ever stored anywhere. `toArtifactEvent`
-  can only ever attach the object's *current* identifier and label to an
+  can only ever attach the object's _current_ identifier and label to an
   event (`ProjectArtifactRef` is read fresh, from the live table, every
-  time); it is never presented as what the object was called *then*, and
+  time); it is never presented as what the object was called _then_, and
   the domain module's own doc comment states this limitation as the
   capability's central rule, not an afterthought.
 - Sentinel events are labeled exactly `DETECTED` / `ACKNOWLEDGED` /
@@ -4280,7 +4279,7 @@ target that really opened. Concretely:
   — a detection event says the monitoring system noticed a condition; it
   is not evidence of why the condition occurred, and nothing here implies
   it is.
-- A baseline comparison finding is never presented as proof of *when* the
+- A baseline comparison finding is never presented as proof of _when_ the
   underlying object changed — only the object's own recorded transition
   (its `AuditLog` row, or its own `updatedAt`-backed content-change event)
   ever carries a timestamp for that. `DriftAssessment`/`compareBaseline`
@@ -4299,7 +4298,7 @@ target that really opened. Concretely:
 two reads:
 
 - `listProjectArtifacts(projectId)` — every object of the sixteen
-  `AuditLog`-backed artifact types *in this project*
+  `AuditLog`-backed artifact types _in this project_
   (`Requirement`, `DesignItem`, `EngineeringDecision`, `Risk`, `Issue`,
   `Evidence`, `ChangeRequest`, `EngineeringBaseline`, `Supplier`,
   `SuppliedItem`, `SupplierQualification`, `VerificationActivity`,
@@ -4333,7 +4332,7 @@ carry `projectId` as a real column.
 
 **"Do not duplicate an AuditLog entry as a second event merely because
 another service references it"** is enforced structurally: Technical
-Readiness and Verification Readiness *do* write `AuditLog` rows against
+Readiness and Verification Readiness _do_ write `AuditLog` rows against
 their own assessment ids (`TECHNICAL_READINESS_ENTITY_TYPE` /
 `VERIFICATION_READINESS_ENTITY_TYPE`), but Engineering History never reads
 those two entity types from `AuditLog` — the native assessment row is
@@ -4371,7 +4370,7 @@ Two entry points, one shared composition:
 
 - `getObjectHistory(context, projectId, objectType, objectId)` — one
   object's own `AuditLog` trail, plus, for exactly the three object types
-  where a *different* engine's own per-object history is genuinely part of
+  where a _different_ engine's own per-object history is genuinely part of
   that object's story, the real history from that engine's own existing
   per-object list function — never a second traversal:
   - a **change request** — `impactAnalysisRepository.listAnalyses(projectId, changeRequestId)`
@@ -4391,7 +4390,7 @@ not re-decided — so "does this type get its own history page" is answered
 by the same map that already answers "does this type have a detail page",
 never a second opinion. A certification basis, a compliance finding, or an
 operational observation — real `AuditLog`-backed types with no standalone
-detail page — still appear in the *project*-level stream; they simply have
+detail page — still appear in the _project_-level stream; they simply have
 no page of their own to link back to, the identical "selectable ≠ has a
 detail page" distinction Traceability already draws for the same reason.
 
@@ -4400,7 +4399,7 @@ detail page" distinction Traceability already draws for the same reason.
 Building `HISTORY_OBJECT_TYPES` off `traceabilityDetailRoute` required
 first confirming that map was itself current — it was not. Evidence
 gained a real detail page and a real project-wide listing service in the
-Evidence Management capability, built in this same session but *after*
+Evidence Management capability, built in this same session but _after_
 the Traceability workspace's own selectable-root list and detail-route map
 were written; nobody had gone back to add it. `EVIDENCE` was still
 recorded as unselectable ("no project-wide listing service exists, and
@@ -4442,7 +4441,7 @@ Traceability picker root.
   relationship-change event; a real, completed impact analysis appears as
   its own started/completed pair of `ASSESSMENT` events (an analysis still
   `RUNNING` never gets a fabricated "completed" event). Nothing here
-  infers that a change *caused* a nearby event — only the change's own
+  infers that a change _caused_ a nearby event — only the change's own
   declared, explicit relationships (reused from `ChangeRequestImpact`, the
   same table Drift's own `DR-CTX-001` context rule already reads) connect
   a change to another object's history.
@@ -4507,10 +4506,10 @@ to do its own job honestly.
 
 ### API
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/projects/:projectId/history` | The project's merged, filtered, paginated history stream |
-| GET | `/api/projects/:projectId/history/:objectType/:objectId` | One object's own real history |
+| Method | Path                                                     | Purpose                                                  |
+| ------ | -------------------------------------------------------- | -------------------------------------------------------- |
+| GET    | `/api/projects/:projectId/history`                       | The project's merged, filtered, paginated history stream |
+| GET    | `/api/projects/:projectId/history/:objectType/:objectId` | One object's own real history                            |
 
 Both routes export only `GET` — a test asserts `POST`/`PATCH`/`DELETE` are
 `undefined` on each route module. Query filters (`module`, `objectType`,
@@ -4582,8 +4581,8 @@ weight would be:
 - **`certification-review.service.ts`'s `resolveBasis`** called the full
   `VerificationReadinessService.getLatestVerificationReadiness` — its own
   authorization check, its own activity lookup, its own assessment
-  query, its own freshness derivation — once per *distinct linked
-  verification activity* on the active basis. For a basis linking many
+  query, its own freshness derivation — once per _distinct linked
+  verification activity_ on the active basis. For a basis linking many
   activities across its compliance items, that repeated the project
   membership check as many times as there were distinct activities.
 - **`assumption-monitoring.service.ts`'s `evaluateProjectAssumptions`**
@@ -4594,8 +4593,8 @@ weight would be:
   necessary because `createMany` does not return generated ids and the
   findings written next need those ids to reference.
 - **Two genuinely unbounded `findMany` calls**: `drift-assessment
-  .repository.ts#listAssessments` and `certification-review.repository
-  .ts#listReviews` had no `take` at all, unlike every sibling "list this
+.repository.ts#listAssessments` and `certification-review.repository
+.ts#listReviews` had no `take` at all, unlike every sibling "list this
   project's/program's history" function elsewhere in the codebase
   (`listAllForProject` for technical/verification readiness and impact
   analysis, `listEventsForProject`/`listTargetsForProject` for Sentinel),
@@ -4775,7 +4774,7 @@ WHERE "status" = 'ACTIVE';
 Neither changes how `activateBaseline`/`activateBasis` write — they
 still do the same read-then-decide-then-write inside a transaction the
 service always did, including the existing explicit
-`supersedeActive`-gated supersession. What changes is that a *losing*
+`supersedeActive`-gated supersession. What changes is that a _losing_
 concurrent transaction's write now fails at the database with a unique
 constraint violation instead of silently succeeding alongside the
 winner; both repository functions now wrap that write in
@@ -4857,7 +4856,7 @@ in a transaction that did not already need one.
   that was already tested.
 - **Change impact's graph work** is already fully delegated to
   `EngineeringGraphService` — nothing in `change-impact-analysis.service
-  .ts` walks a relationship table on its own — and its finding insert was
+.ts` walks a relationship table on its own — and its finding insert was
   already a single `createMany` (only the root insert, addressed above,
   was not).
 - **Sentinel's own detection and target-creation path** was already
@@ -4879,7 +4878,7 @@ about which targets open and which do not. Existing tests for every
 guarded transition were updated to mock `transitionStatusGuarded` /
 `supersedeEvidence`'s new `fromStatus` parameter / `dispositionFinding`
 in place of the generic update they previously mocked; no test's
-asserted *behavior* — which transitions succeed, which are refused, what
+asserted _behavior_ — which transitions succeed, which are refused, what
 the audit event says — changed, only which repository call it mocks.
 
 PostgreSQL integration (skipped in this environment — no reachable
@@ -4901,7 +4900,7 @@ with two different replacements cannot both win.
 ### Known, disclosed limitations
 
 No load test was run and no query-count instrumentation exists in this
-codebase to measure one — every claim above is about the *shape* of a
+codebase to measure one — every claim above is about the _shape_ of a
 query (one batched call vs. one per item, bounded vs. unbounded), never
 a measured latency or throughput number, per this prompt's own
 instruction not to report a performance claim that was not actually
@@ -5047,6 +5046,102 @@ production image entirely (verified: `.next/standalone`'s traced
 in SECURITY.md rather than "fixed" by the only available remediation,
 which is a major downgrade of Prisma itself.
 
+## Engineering seed data and the V1 acceptance fixture
+
+Three genuinely different needs, kept as three genuinely different things
+rather than one script trying to serve all of them:
+
+**`prisma/seed.ts`** — the minimal bootstrap Prisma's own `db seed` /
+`migrate reset` hooks invoke automatically: one organization, one admin
+user, one empty project, and nothing else. It stays exactly this small on
+purpose, because anything a silent `migrate reset` could reintroduce must
+never be more than that.
+
+**`prisma/seed-scenario.ts`** — a realistic, populated demo project, run
+only by explicit name (`npm run db:seed:scenario`, documented in README.md)
+and never wired into Prisma's own seed hook. It refuses immediately under
+`NODE_ENV=production`.
+
+**`src/tests/fixtures/engineering-scenario.ts`** — the shared foundation
+both of the above (indirectly) and the tests below build on:
+`createProjectRoleUsers` (one real user per project role — manager,
+engineer, reviewer, viewer, plus one organization member deliberately never
+added to the project — created through the real auth and membership
+services) and `buildEngineeringScenario` (one coherent propulsion-program
+scenario, built entirely by calling real application services in the order
+a real engineer would use them — never a raw Prisma `create` standing in
+for a service call, and never a hand-inserted `ImpactAnalysis`,
+`DriftAssessment`, `SentinelEvent`/`SurveillanceTarget`, or
+`CertificationReview` row). One call builds: a stakeholder need and a
+requirement it traces to; a design item; an engineering decision with an
+alternative, an assumption, and an expectation, linked to both and carried
+through PROPOSED → UNDER_REVIEW → APPROVED; a verification activity linked
+to the requirement and carried to PASSED; four evidence records (validated
+and linked, superseded with a real replacement via `supersedeEvidence`, and
+one left in DRAFT); a risk and an issue; a supplier with a supplied item and
+two qualifications (one ACTIVE, one deliberately EXPIRED — a natural,
+unforced trigger for Command Center's supplier-attention rule); a change
+request carried to SUBMITTED with a declared design-item impact and a real
+`runImpactAnalysis` result; two engineering baselines (the first activated,
+then explicitly superseded by the second via `activateBaseline(...,
+{supersedeActive: true})`), followed by a real post-freeze design-item edit
+and a real `evaluateDrift` call so the comparison genuinely shows CHANGED,
+not an asserted one; a certification program and an activated basis with
+three compliance items and two findings (one resolved via `resolveFinding`,
+one left open) evaluated through a real `evaluateCertificationReview`; two
+real technical-readiness gate evaluations, a real verification-readiness
+evaluation, and a real assumption-monitoring evaluation; and a real
+`detectProjectChanges` call, with a conditional real acknowledgement of
+whatever surveillance target it actually opens. Every status this scenario
+ends up in — READY/NOT_READY/UNKNOWN, COMPLIANT/OPEN_FINDING, CHANGED/
+UNCHANGED — is whatever the real engines actually computed, never chosen in
+advance.
+
+**`src/tests/integration/engineering-scenario.test.ts`** — builds the
+scenario once against real PostgreSQL and asks it four questions a
+single-module suite cannot: cross-module consistency (the same requirement
+reads identically from its own service, the graph, Engineering History, and
+Command Center; evidence stays linked after supersession; Change Impact,
+baseline comparison, Sentinel, and a certification compliance item all
+resolve back to the same real objects); access control (each real role user
+can do only what their role should, exercised through the real services
+`createProjectRoleUsers` built them with — never a hard-coded role check);
+multi-project and cross-organization isolation (a second project in the
+same organization, and a second organization entirely, both reach every
+module and get nothing); and negative assertions (no score/percentage/
+health field anywhere in Command Center's output, no invented risk-score
+field on a Risk, no real regulatory claim in the certification program's
+name, and — checked structurally against this test file's own source, not
+by convention — no direct `prisma.impactAnalysis`/`sentinelEvent`/
+`certificationReview` write anywhere in it).
+
+**`src/tests/e2e/acceptance-scenario.spec.ts`** — the sixteen-step
+acceptance tour end to end, through the real UI and the real API: sign up →
+create the project → two requirements → a design item and an approved
+decision → a verification activity and a real readiness evaluation → a
+supplier, a supplied item and a qualification → evidence, linked and
+validated → an activated baseline → a submitted change request → a real
+change-impact analysis → a real technical-readiness gate evaluation → a
+certification program/basis/compliance item and a real review → a real
+Sentinel detection and acknowledgement on the second requirement (left
+un-approved specifically so it stays editable) → Traceability → the
+requirement's own Engineering History → Command Center. It is a companion
+to the per-module E2E specs (`decisions.spec.ts`, `certification.spec.ts`,
+`sentinel.spec.ts`, …), not a replacement — those already cover each
+module's own edge cases; this one proves the _same_ objects hold together
+across all of them in one continuous session.
+
+`buildEngineeringScenario` itself never touches Prisma directly — every
+engineering object it creates goes through a real service, checked by grep
+against the file's own imports, not merely by convention. The integration
+test's one raw `prisma.project.create` (a second, otherwise-empty project,
+for the isolation tests) and `seed-scenario.ts`'s own organization/owner/
+project bootstrap are the same already-established, disclosed exception
+every other integration test's `createTestTenant` harness makes: standing
+up the tenancy shell a test runs inside is infrastructure, not engineering
+content, and both are one raw call each — never a substitute for calling
+the actual service under test.
+
 ## Directory structure
 
 ```
@@ -5059,6 +5154,12 @@ prisma/schema.prisma        72 tables: tenancy, artifacts, traceability links,
                             added no table for either.
 prisma/migrations/          Initial migration + eleven additive migrations
 prisma/seed.ts              Development seed: one org, one user, one empty project
+                            (wired into Prisma's own `db seed` hook — stays
+                            this minimal on purpose; see below)
+prisma/seed-scenario.ts     Explicit, separate demo-scenario seed
+                            (`npm run db:seed:scenario` only — never wired
+                            into `db seed`/`migrate reset`, refuses in
+                            production)
 prisma7.config.ts           Prisma CLI config (schema, migrations, seed, datasource)
 
 src/domain/                 Entities, enums, identifiers, link + input validation
@@ -5480,7 +5581,7 @@ src/lib/                    db.ts (Prisma singleton), logger.ts, utils.ts,
   all — it reads the existing graph API and existing services' own listing
   methods, and adds no table, column, enum or migration. The Evidence
   capability's migration (`20260912000000_add_evidence_lifecycle`) is
-  additive to an *existing* table rather than creating a new one: one new
+  additive to an _existing_ table rather than creating a new one: one new
   enum (`EvidenceStatus`) and seven new columns on `evidence`
   (`identifier`, `status`, `recordedById`, `validatedById`, `validatedAt`,
   `supersededAt`, `supersededById`) plus three new foreign keys — two into
