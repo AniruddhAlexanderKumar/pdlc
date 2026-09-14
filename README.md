@@ -7,9 +7,12 @@ self-hosted authentication.
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for how the system is put together,
 [DEPLOYMENT.md](./DEPLOYMENT.md) for running it in production —
 provisioning PostgreSQL, migrations, the production container, backups, and
-what is and is not covered by this repository's own tooling — and
+what is and is not covered by this repository's own tooling —
 [SECURITY.md](./SECURITY.md) for the threat model, authentication and
-authorization architecture, and known limitations.
+authorization architecture, and known limitations, and
+[RELEASE_READINESS.md](./RELEASE_READINESS.md) for the current V1
+release-readiness assessment, verification results, and known limitations
+at a glance.
 
 ## The database is PostgreSQL
 
