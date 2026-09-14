@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -16,6 +17,7 @@ const { Sidebar } = await import("./sidebar");
 
 afterEach(() => {
   pathname = "/dashboard";
+  window.localStorage.clear();
 });
 
 describe("Sidebar", () => {
@@ -87,5 +89,31 @@ describe("Sidebar", () => {
 
     expect(screen.getByRole("link", { name: /Overview/ })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: /^Requirements$/ })).not.toHaveAttribute("aria-current");
+  });
+
+  it("Simplify collapses to daily-tier modules only, and remembers the choice", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    const user = userEvent.setup();
+    const { unmount } = render(<Sidebar />);
+
+    // Weekly/occasional-tier modules are present by default.
+    expect(screen.getByRole("link", { name: /Traceability/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Requirements$/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Simplify" }));
+
+    expect(screen.queryByRole("link", { name: /Traceability/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Requirements$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show all modules" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    // A fresh mount (the next page navigation, in practice) reads the same
+    // stored choice back rather than resetting to "everything shown".
+    unmount();
+    render(<Sidebar />);
+    expect(await screen.findByRole("button", { name: "Show all modules" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Traceability/ })).not.toBeInTheDocument();
   });
 });

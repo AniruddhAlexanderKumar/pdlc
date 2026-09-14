@@ -3,14 +3,23 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, LayoutGrid, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import {
+  LayoutDashboard,
+  LayoutGrid,
+  PanelLeftClose,
+  PanelLeftOpen,
+  SlidersHorizontal,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useStoredFlag } from "@/lib/use-stored-flag";
 import { MODULE_GROUPS, PROJECT_MODULES } from "../projects/_components/project-modules";
 import { NAV_ITEMS } from "./nav-items";
 
 /** Matches `/projects/{id}` at the start of a path and captures the id. */
 const CURRENT_PROJECT_PATTERN = /^\/projects\/([^/]+)(?:\/|$)/;
+
+const SIMPLIFY_STORAGE_KEY = "pdlc:nav-simplified";
 
 /** Dashboard and Projects are global anchors — always shown, never rewritten. */
 const GLOBAL_ITEMS = NAV_ITEMS.filter((item) => item.href === "/dashboard" || item.href === "/projects");
@@ -83,6 +92,12 @@ function NavLink({
  * from the project overview grid and Command Center's own sections instead
  * of permanent sidebar residency (see project-modules.ts's module ranking).
  *
+ * The "Simplify" toggle applies that same ranking one step further: it
+ * collapses every group down to its daily-tier members only (a handful of
+ * links), for anyone who wants less to look at than the full six groups —
+ * a real per-browser preference (localStorage), not a second navigation
+ * mode with its own routes to keep in sync.
+ *
  * Collapses to the icon rail by default on a narrow viewport — a desktop
  * engineering tool does not need a full mobile drawer pattern, but it must
  * not permanently spend 240px of a ~375px phone viewport on navigation —
@@ -95,6 +110,12 @@ function Sidebar() {
   const [manualCollapsed, setManualCollapsed] = React.useState<boolean | null>(null);
   const collapsed = manualCollapsed ?? isNarrowViewport;
   const currentProjectId = pathname.match(CURRENT_PROJECT_PATTERN)?.[1] ?? null;
+
+  const [simplified, setSimplified] = useStoredFlag(SIMPLIFY_STORAGE_KEY);
+
+  function toggleSimplified() {
+    setSimplified(!simplified);
+  }
 
   function isActiveEntry(href: string, exact: boolean): boolean {
     return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
@@ -164,8 +185,27 @@ function Sidebar() {
               isActive={isActiveEntry(`/projects/${currentProjectId}`, true)}
             />
 
+            <button
+              type="button"
+              onClick={toggleSimplified}
+              title={collapsed ? (simplified ? "Show all modules" : "Simplify") : undefined}
+              aria-pressed={simplified}
+              className={cn(
+                "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm font-medium text-muted-foreground transition-colors",
+                "hover:bg-secondary hover:text-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              )}
+            >
+              <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
+              {!collapsed && <span className="truncate">{simplified ? "Show all modules" : "Simplify"}</span>}
+            </button>
+
             {MODULE_GROUPS.map((group) => {
-              const members = PROJECT_MODULES.filter((module) => module.group === group.id);
+              const members = PROJECT_MODULES.filter(
+                (module) =>
+                  module.group === group.id && (!simplified || module.tier === "daily"),
+              );
               if (members.length === 0) return null;
               return (
                 <React.Fragment key={group.id}>

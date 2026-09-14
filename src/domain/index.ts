@@ -26,6 +26,7 @@ export * from "./graph";
 export * from "./impact-analysis";
 export * from "./issue";
 export * from "./links";
+export * from "./organization";
 export * from "./project";
 export * from "./requirement";
 export * from "./risk";

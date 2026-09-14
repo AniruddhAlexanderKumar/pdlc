@@ -38,6 +38,18 @@ export const MODULE_GROUPS: ReadonlyArray<{ id: ModuleGroupId; label: string }> 
   { id: "certify", label: "Certify" },
 ] as const;
 
+/**
+ * How often an engineer actually touches this module in a week — the
+ * ranking Master Prompt 3 asked for, made real rather than left as a
+ * one-time report. Drives the sidebar's "Simplify" mode: daily-tier modules
+ * stay, everything else collapses out until the engineer asks for it back.
+ * This is a rough, honest estimate grounded in what each module is *for*
+ * (a program owner opens Requirements/Decisions/Risks/Issues constantly;
+ * Certification or Baselines get real attention only around a milestone),
+ * not a measurement — no usage instrumentation exists to measure it from.
+ */
+export type ModuleTier = "daily" | "weekly" | "occasional";
+
 export interface ProjectModule {
   label: string;
   /** Appended to `/projects/[id]`, e.g. "/requirements". Empty string means the project's own overview page. */
@@ -54,6 +66,7 @@ export interface ProjectModule {
    * full weekly/occasional reasoning.
    */
   group: ModuleGroupId | null;
+  tier: ModuleTier;
 }
 
 /**
@@ -73,6 +86,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: LayoutDashboard,
     description: "One view of what needs attention and the current readiness/traceability state.",
     group: null,
+    tier: "daily",
   },
   {
     label: "Requirements",
@@ -80,6 +94,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: ListChecks,
     description: "Author requirements, manage their lifecycle and trace them.",
     group: "define",
+    tier: "daily",
   },
   {
     label: "Stakeholder needs",
@@ -87,6 +102,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: Users,
     description: "The originating needs requirements derive from.",
     group: "define",
+    tier: "occasional",
   },
   {
     label: "Design items",
@@ -94,6 +110,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: Boxes,
     description: "Product structure that requirements are allocated to.",
     group: "define",
+    tier: "weekly",
   },
   {
     label: "Verification",
@@ -101,6 +118,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: ShieldCheck,
     description: "How requirements are shown to be met.",
     group: "prove",
+    tier: "weekly",
   },
   {
     label: "Evidence",
@@ -108,6 +126,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: FileText,
     description: "Controlled engineering evidence: what it is, where it came from, and what depends on it.",
     group: "prove",
+    tier: "weekly",
   },
   {
     label: "Decisions",
@@ -115,6 +134,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: Scale,
     description: "What was decided, why, and what it depended on.",
     group: "decide",
+    tier: "daily",
   },
   {
     label: "Changes",
@@ -122,6 +142,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: GitBranch,
     description: "Proposed changes and what each one declares it affects.",
     group: "change",
+    tier: "weekly",
   },
   {
     label: "Risks",
@@ -129,6 +150,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: ShieldAlert,
     description: "What could go wrong, why, and what is being done about it.",
     group: "change",
+    tier: "daily",
   },
   {
     label: "Issues",
@@ -136,6 +158,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: CircleAlert,
     description: "Problems actually found, their owners, and their disposition.",
     group: "change",
+    tier: "daily",
   },
   {
     label: "Suppliers",
@@ -143,6 +166,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: Factory,
     description: "Supplier engineering dependencies, and what the product relies on them for.",
     group: null,
+    tier: "occasional",
   },
   {
     label: "Baselines",
@@ -150,6 +174,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: Layers,
     description: "The approved engineering basis that drift is measured against.",
     group: "understand",
+    tier: "occasional",
   },
   {
     label: "Observations",
@@ -157,6 +182,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: Radar,
     description: "What has actually been observed in operation.",
     group: "understand",
+    tier: "occasional",
   },
   {
     label: "Drift",
@@ -164,6 +190,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: Activity,
     description: "Where operational reality no longer matches the approved basis.",
     group: "understand",
+    tier: "weekly",
   },
   {
     label: "Certification",
@@ -171,6 +198,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: FileCheck,
     description: "Certification obligations, traced to the engineering evidence that supports them.",
     group: "certify",
+    tier: "occasional",
   },
   {
     label: "Decision Sentinel",
@@ -178,6 +206,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: Eye,
     description: "Surveillance signals for engineering changes that may need re-review.",
     group: "understand",
+    tier: "weekly",
   },
   {
     label: "Traceability",
@@ -185,6 +214,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: Waypoints,
     description: "Trace real relationships across the engineering graph, hop by hop.",
     group: "understand",
+    tier: "weekly",
   },
   {
     label: "Engineering History",
@@ -192,6 +222,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: History,
     description: "The chronological record of what happened, and when, across this project.",
     group: "understand",
+    tier: "occasional",
   },
   {
     label: "Members",
@@ -199,5 +230,6 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     icon: UserCog,
     description: "Who can access this project, and in what role.",
     group: null,
+    tier: "occasional",
   },
 ] as const;

@@ -35,11 +35,60 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
+  /// Nullable, and deliberately so: an existing or newly-created organization
+  /// has no industry until an owner explicitly sets one. There is no default
+  /// — silently inventing "AEROSPACE_DEFENSE" for every org just because
+  /// this product's own domain vocabulary skews that way would be exactly
+  /// the kind of fabrication this codebase does not do. This field is a
+  /// selection only: it identifies which real-world engineering discipline
+  /// the organization works in. It does not, on its own, change any
+  /// engineering computation, readiness verdict, or Sentinel/impact
+  /// finding — those stay identical regardless of industry.
+  industry EngineeringIndustry?
+
+  /// Free-text detail, meaningful only when `industry` is `OTHER_ENGINEERING`
+  /// — enforced by the request schema, not a DB constraint (Postgres CHECK
+  /// constraints referencing a sibling column plus an enum comparison are
+  /// exactly the kind of business rule this codebase keeps in the service
+  /// layer; see the other DB-enforced CHECKs in this file for the pattern
+  /// this deliberately does not extend to this case).
+  industryOtherDetail String?
+  industrySetAt        DateTime?
+
+  industrySetById String?
+  industrySetBy   User? @relation("OrganizationIndustrySetter", fields: [industrySetById], references: [id], onDelete: SetNull)
+
+  users     User[]      @relation("OrganizationUsers")
   auditLogs AuditLog[]
   projects  Project[]
 
   @@map("organizations")
+}
+
+/// The engineering disciplines this product recognizes as a concrete,
+/// selectable identity for an organization — not an open-ended taxonomy.
+/// `OTHER_ENGINEERING` (with `industryOtherDetail`) is the honest escape
+/// hatch for anything outside this list, rather than forcing a bad fit or
+/// inventing a 16th value nobody asked for. Deliberately engineering-only:
+/// this is a product-development control system, not a general CRM, so
+/// "which engineering discipline" is the only classification that matters
+/// here.
+enum EngineeringIndustry {
+  AEROSPACE_DEFENSE
+  AUTOMOTIVE
+  MEDICAL_DEVICES
+  INDUSTRIAL_EQUIPMENT
+  ENERGY_POWER
+  RAIL_TRANSIT
+  MARITIME_SHIPBUILDING
+  CONSTRUCTION_INFRASTRUCTURE
+  ELECTRONICS_SEMICONDUCTOR
+  TELECOMMUNICATIONS
+  ROBOTICS_AUTOMATION
+  CONSUMER_PRODUCTS
+  CHEMICAL_PROCESS
+  AGRICULTURAL_EQUIPMENT
+  OTHER_ENGINEERING
 }
 
 /// Role a user holds within their organization. Deliberately coarse —
@@ -80,7 +129,14 @@ model User {
   updatedAt        DateTime         @updatedAt
 
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation("OrganizationUsers", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// The organization(s) whose industry this user set — realistically zero
+  /// or one, since a user belongs to exactly one organization, but Prisma
+  /// still models the FK's owning side as a list here. Named to disambiguate
+  /// from the `organization` membership relation above, which is a
+  /// different relationship between the same two models.
+  industriesSet Organization[] @relation("OrganizationIndustrySetter")
 
   auditLogs AuditLog[]
 

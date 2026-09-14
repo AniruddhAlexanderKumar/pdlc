@@ -224,6 +224,7 @@ export function TraceabilityGraphView({
           key={`${graphNodeKey(root)}:${direction}:${maxDepth}`}
           result={state.data}
           onNavigate={onNavigate}
+          onNarrow={maxDepth > 1 ? () => setMaxDepth((depth) => depth - 1) : null}
         />
       )}
     </div>
@@ -233,9 +234,12 @@ export function TraceabilityGraphView({
 function GraphCanvas({
   result,
   onNavigate,
+  onNarrow,
 }: {
   result: TraversalResultDto;
   onNavigate: (node: GraphNodeDto) => void;
+  /** Reduce the depth by one hop and re-run, or null when already at the minimum. */
+  onNarrow: (() => void) | null;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const svgRef = React.useRef<SVGSVGElement>(null);
@@ -390,11 +394,25 @@ function GraphCanvas({
       {result.limits.truncated && result.limits.truncatedBy && (
         <p
           role="status"
-          className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
+          className="flex flex-wrap items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
         >
-          Stopped early at a traversal limit (
-          {result.limits.truncatedBy.replace(/_/g, " ").toLowerCase()}). Not every relationship
-          within this depth is drawn.
+          <span>
+            Refused rather than guessed: this traversal hit a real limit (
+            {result.limits.truncatedBy.replace(/_/g, " ").toLowerCase()}) and stopped. Not every
+            relationship within this depth is drawn — this is a smaller, honest answer, not a
+            silently incomplete one.
+          </span>
+          {onNarrow && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={onNarrow}
+            >
+              Narrow by one hop
+            </Button>
+          )}
         </p>
       )}
 

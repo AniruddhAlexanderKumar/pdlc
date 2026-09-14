@@ -174,9 +174,7 @@ export function ImpactAnalysisPanel({
               busy={isRunning}
               onRun={run}
               openFindingId={openFindingId}
-              onToggleFinding={(id) =>
-                setOpenFindingId((current) => (current === id ? null : id))
-              }
+              onToggleFinding={(id) => setOpenFindingId((current) => (current === id ? null : id))}
             />
           ) : (
             <div className="flex flex-col items-start gap-3">
@@ -275,7 +273,8 @@ function AnalysisResult({
         >
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>
-            This analysis stopped at its {analysis.limits.truncatedBy === "MAX_DEPTH"
+            This analysis stopped at its{" "}
+            {analysis.limits.truncatedBy === "MAX_DEPTH"
               ? `depth limit of ${analysis.limits.maxDepth}`
               : "size limit"}
             , so the result is partial. Objects beyond that point were not examined.
@@ -301,65 +300,75 @@ function AnalysisResult({
           This analysis reached nothing beyond the change&apos;s declared scope.
         </p>
       ) : (
-        <Table>
-          <TableCaption className="sr-only">
-            Objects this analysis reached, strongest classification first.
-          </TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Object</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Classification</TableHead>
-              <TableHead>Depth</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Why</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {findings.map((finding) => (
-              <React.Fragment key={finding.id}>
-                <TableRow>
-                  <TableCell className="font-mono">
-                    <FindingLink projectId={projectId} finding={finding} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {nodeTypeLabel(finding.node.type)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={CLASSIFICATION_VARIANTS[finding.classification]}>
-                      {CLASSIFICATION_LABELS[finding.classification]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-muted-foreground">
-                    {finding.depth}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {STATUS_LABELS[finding.status] ?? finding.status}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-expanded={openFindingId === finding.id}
-                      onClick={() => onToggleFinding(finding.id)}
-                    >
-                      <ChevronRight aria-hidden="true" />
-                      {finding.depth === 0 ? "Declared" : `${finding.path.length} hop path`}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-
-                {openFindingId === finding.id && (
+        <>
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              No fabricated number appears anywhere on this page — no score, no 1–10 rating, no
+              percentage. Classification and the real path below are what the engine actually
+              knows; anything more precise than that would be invented.
+            </span>
+          </p>
+          <Table>
+            <TableCaption className="sr-only">
+              Objects this analysis reached, strongest classification first.
+            </TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Object</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Classification</TableHead>
+                <TableHead>Depth</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Why</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {findings.map((finding) => (
+                <React.Fragment key={finding.id}>
                   <TableRow>
-                    <TableCell colSpan={6} className="bg-muted/30">
-                      <FindingProvenance finding={finding} />
+                    <TableCell className="font-mono">
+                      <FindingLink projectId={projectId} finding={finding} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {nodeTypeLabel(finding.node.type)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={CLASSIFICATION_VARIANTS[finding.classification]}>
+                        {CLASSIFICATION_LABELS[finding.classification]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {finding.depth}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {STATUS_LABELS[finding.status] ?? finding.status}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-expanded={openFindingId === finding.id}
+                        onClick={() => onToggleFinding(finding.id)}
+                      >
+                        <ChevronRight aria-hidden="true" />
+                        {finding.depth === 0 ? "Declared" : `${finding.path.length} hop path`}
+                      </Button>
                     </TableCell>
                   </TableRow>
-                )}
-              </React.Fragment>
-            ))}
-          </TableBody>
-        </Table>
+
+                  {openFindingId === finding.id && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="bg-muted/30">
+                        <FindingProvenance finding={finding} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              ))}
+            </TableBody>
+          </Table>
+        </>
       )}
     </div>
   );
@@ -375,13 +384,7 @@ function SummaryTile({ label, value }: { label: string; value: number }) {
 }
 
 /** Links to the affected object where the workspace has a page for its type. */
-function FindingLink({
-  projectId,
-  finding,
-}: {
-  projectId: string;
-  finding: ImpactFindingDto;
-}) {
+function FindingLink({ projectId, finding }: { projectId: string; finding: ImpactFindingDto }) {
   const segment = NODE_ROUTES[finding.node.type];
   const text = finding.identifier ?? finding.label;
 
@@ -408,17 +411,16 @@ function FindingProvenance({ finding }: { finding: ImpactFindingDto }) {
   return (
     <div className="flex flex-col gap-3 py-2">
       <div className="flex flex-col gap-1.5">
-        <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Path
-        </h4>
+        <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Path</h4>
         {finding.path.length === 0 ? (
-          <p className="text-sm">
-            Declared directly on this change. No traversal was involved.
-          </p>
+          <p className="text-sm">Declared directly on this change. No traversal was involved.</p>
         ) : (
           <ol className="flex flex-col gap-1 text-sm">
             {finding.path.map((step, index) => (
-              <li key={`${step.relationshipId}-${index}`} className="flex flex-wrap items-center gap-2">
+              <li
+                key={`${step.relationshipId}-${index}`}
+                className="flex flex-wrap items-center gap-2"
+              >
                 <span className="text-muted-foreground">{index + 1}.</span>
                 <span>{nodeTypeLabel(step.from.type)}</span>
                 <ChevronRight className="size-3 text-muted-foreground" aria-hidden="true" />
@@ -441,9 +443,7 @@ function FindingProvenance({ finding }: { finding: ImpactFindingDto }) {
       )}
 
       <div className="flex flex-col gap-1.5">
-        <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Basis
-        </h4>
+        <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Basis</h4>
         <ul className="flex flex-wrap gap-1.5">
           {finding.basis.map((marker) => (
             <li key={marker}>
