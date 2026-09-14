@@ -51,6 +51,7 @@ yarn-error.log*
 *.tsbuildinfo
 
 /src/generated/prisma
-
+.neon
 .vercel
 .env*
+
