@@ -5142,6 +5142,137 @@ up the tenancy shell a test runs inside is infrastructure, not engineering
 content, and both are one raw call each — never a substitute for calling
 the actual service under test.
 
+## Full V1 integration and acceptance pass
+
+A system-wide audit, not a rebuild — verifying the twenty-plus capabilities
+built across this project's history genuinely behave as one product, not
+twenty independently-correct ones. Three real defects found and fixed;
+everything else inspected (module inventory, graph consistency, change
+impact/readiness/evidence/certification/baseline-drift/history/Command
+Center/traceability cross-module behavior, the access-control and
+cross-tenant matrices, lifecycle and immutability matrices, dev-artifact
+and documentation sweeps) held up and is recorded below as confirmed, not
+silently assumed.
+
+**A real architectural layering violation, found and fixed.**
+`decision-sentinel.service.ts` was the one file in the entire codebase that
+imported `@/lib/db`'s `prisma` handle and called Prisma model methods
+directly — seventeen call sites across content-change detection, the
+relationship-audit scan, and four of six dependency-resolution branches —
+bypassing the repository layer every other service in this codebase goes
+through without exception (confirmed by grep: zero other service files
+call a Prisma model method outside `prisma.$transaction`). Fixed by adding
+a new `sentinel-candidate.repository.ts` (modeled on `graph-repository.ts`'s
+own "owns no tables of its own" precedent, since Sentinel's content scan
+genuinely spans a dozen otherwise-unrelated tables for one narrow,
+Sentinel-specific projection) plus two focused additions to the repositories
+that already own the tables in question (`audit-log.repository.ts` gained
+a batched, multi-entity read; `impact-analysis.repository.ts` gained a
+batched root/finding citation lookup) and one reused existing function
+(`decisionAssumptionRepository.findAssumptionsByIds`, already built for
+exactly this shape). The service now contains a single `prisma` reference
+— `$transaction`, the same transaction-boundary pattern every other service
+uses. All 63 of the service's own unit tests were rewritten against the new
+repository-level mocks (not merely re-pointed) and pass; the full suite is
+unaffected (2617/2617).
+
+**A real Sentinel dependency-registry audit, per-row, against the actual
+basis-construction code — not the reason text.** Section 12's explicit
+mandate: for every one of the registry's rows, confirm the _target engine's
+own code_ actually places that _source type_ somewhere the engine's real
+`basisContains`/citation check can find it — not merely that the row's
+prose sounds plausible. Read every target engine's own basis/scope
+construction (`TechnicalReadinessService`'s persisted `scope.objects`,
+`CertificationReviewService`'s `basis.objects`, `AssumptionMonitoringService`'s
+documented two-hop `ASSUMPTION_BASIS_POLICY` walk, `DriftDetectionService`'s
+`BASELINE_MEMBER_TYPES`) end to end rather than trusting the registry's own
+prose. Found eight rows unreachable by construction — the exact defect
+class an earlier build of this registry already had once, for
+RISK/ISSUE → CERTIFICATION_REVIEW (documented in the file itself); this
+pass found the remaining instances that earlier fix didn't:
+
+- `SUPPLIER`/`SUPPLIER_QUALIFICATION`/`OPERATIONAL_OBSERVATION` →
+  `TECHNICAL_READINESS`: no gate's persisted scope snapshot has ever
+  included a supplier-domain or observation node, despite the observation
+  row's own reason text claiming a gate "consumes drift for the object it
+  concerns" — nothing in `TechnicalReadinessService` does.
+- `SUPPLIER`/`SUPPLIED_ITEM` → `CERTIFICATION_REVIEW`: `COMPLIANCE_LINK_TYPES`
+  (domain/certification.ts) never includes either as a linkable type — only
+  `SUPPLIER_QUALIFICATION` — so neither can ever appear in a review's
+  `basis.objects`, regardless of what changes.
+- `DECISION_ASSUMPTION` → `CERTIFICATION_REVIEW`: assumption-monitoring
+  state is read into the review's read-only `consumed.assumptions` display
+  field only, never into `basis.objects` itself.
+- `OPERATIONAL_OBSERVATION` → `ASSUMPTION_MONITORING`: the basis walk's own
+  edge policy doc comment already says observations are "deliberately
+  absent" — the registry row contradicted the policy it was supposed to
+  track.
+- `OPERATIONAL_OBSERVATION` → `CERTIFICATION_REVIEW`: the review does
+  consult the active baseline's latest drift assessment, but only to
+  populate the read-only `consumed.drift` display field, for the identical
+  reason as the technical-readiness case above.
+
+And one row missing that should exist: `CHANGE_REQUEST` → `TECHNICAL_READINESS`
+— a gate's persisted scope snapshot genuinely does include every change
+request in its `refs`/`objects` construction (stamped with its own
+revision, the same as every other scope member), so a change request's
+content changing after a gate assessment scoped it in is exactly the kind
+of signal Sentinel exists to catch, and no row previously caught it. Net:
+48 rows → 41 (eight removed, one added), every removal and addition
+justified by a comment naming the exact function read to confirm it,
+`sentinel.test.ts`'s existing structural tests (no duplicates, every source
+has a rule, every target reachable from at least one source, the
+RISK/ISSUE and now-extended negative assertions) all still pass unchanged,
+and `decision-sentinel.service.test.ts`'s 63 tests are unaffected — none of
+them exercised the eight removed pairings in the first place, which is
+itself further evidence they were dead.
+
+**A real stale-navigation defect, found and fixed.** The top-level
+`/risks` sidebar entry (`nav-items.ts`) rendered `ModuleStubPage`, a
+leftover from early scaffolding claiming "Module not yet implemented" —
+false: Risk management has been fully built (`/projects/[id]/risks`) for
+many prompts. Its six siblings (Requirements, Decisions, Changes,
+Suppliers, Traceability, Verification) had already been migrated to the
+real `ModuleProjectPicker` pattern (list real projects, link into the real
+module); `/risks` was the one nav entry left behind, misleading a user into
+believing a fully-working module didn't exist. Fixed by migrating it to
+the same pattern its siblings already use. `ModuleStubPage`/`module-stub.tsx`
+had zero other references after the fix (confirmed by grep) and was
+deleted as genuinely dead code, not archived speculatively.
+
+**Confirmed correct, not merely assumed** — architecture: no domain file
+imports Prisma (already self-enforced by `project.test.ts`'s own recursive
+scan, confirmed still passing); the one intentional exception to "API
+handlers never touch Prisma directly" is `/api/health`'s readiness probe,
+documented since Prompt 28; every declared graph edge type has exactly one
+resolver and vice versa (already self-enforced by
+`graph-edge-resolvers.test.ts`, confirmed still passing); `AuditLog` and
+every other documented-immutable table have zero `update`/`delete` call
+sites anywhere in the codebase except `ImpactAnalysis`'s own documented
+single RUNNING → COMPLETED/FAILED close transition. Module inventory: every
+`IMPLEMENTED_MODULES` entry on the project overview page resolves to a real
+route; the top-level nav's other eight entries (now including the fixed
+Risks) all resolve to real project-picker pages; `supplied-items` and
+`supplier-qualifications` are deliberately reached only by drill-down from
+Suppliers, not given their own top-level entry, which is correct — they
+have no project-wide list view to be one. Dev artifacts: no `console.log`/
+`console.debug` outside the logger's own wrapper, no `TODO`/`FIXME`, no
+debug or dev-bypass routes, no hardcoded credentials outside seed scripts,
+no mock/fake data reachable from non-test code. Documentation: every
+command README.md documents resolves to a real `package.json` script.
+
+**Verification.** `prisma format`/`validate` clean; `tsc --noEmit` clean;
+`eslint .` clean; full unit suite 2617/2617 (one pre-existing, load-only
+timeout in `technical-readiness.route.test.ts` under full-suite parallel
+run, passing standalone — the same disclosed environmental pattern already
+documented for `decisions-ui.test.tsx`/`evidence-ui.test.tsx`/
+`members-ui.test.tsx`, now confirmed a fourth time on an unrelated file,
+strengthening rather than weakening the case that it is environmental);
+integration suite honestly skips all 388 tests across 18 files (no
+reachable PostgreSQL in this environment — the standing, disclosed
+limitation); Playwright discovers all 190 tests across 22 files; production
+build succeeds.
+
 ## Directory structure
 
 ```
@@ -5185,11 +5316,15 @@ src/domain/                 Entities, enums, identifiers, link + input validatio
                               explicit-never-derived applicability/method/
                               status/disposition contract, review fingerprint
                               + freshness
-  sentinel.ts                  THE surveillance dependency registry (48
+  sentinel.ts                  THE surveillance dependency registry (41
                               rows — REQUIREMENT/ENGINEERING_DECISION/
                               VERIFICATION_ACTIVITY -> DRIFT_ASSESSMENT
                               added for baseline integrity, closing a real
-                              gap found by inspection), event/target types
+                              gap found by inspection; eight further rows
+                              later found unreachable by construction were
+                              removed and one genuinely missing row added,
+                              see "Full V1 integration and acceptance
+                              pass"), event/target types
                               + status transitions, detection-vs-membership
                               distinction (Prisma-free, no AI, no
                               autonomous decisions)

@@ -352,6 +352,33 @@ export async function findLatestForChanges(
   return latest;
 }
 
+/**
+ * Which of these analyses cite a node as a root or a finding — Decision
+ * Sentinel's own question, answered in two queries across the whole batch
+ * rather than two per analysis.
+ */
+export async function findAnalysisIdsCitingNode(
+  analysisIds: readonly string[],
+  nodeType: string,
+  nodeId: string,
+  client: DbClient = prisma,
+): Promise<Set<string>> {
+  if (analysisIds.length === 0) return new Set();
+
+  const [rootHits, findingHits] = await Promise.all([
+    client.impactAnalysisRoot.findMany({
+      where: { analysisId: { in: [...analysisIds] }, nodeType, nodeId },
+      select: { analysisId: true },
+    }),
+    client.impactFinding.findMany({
+      where: { analysisId: { in: [...analysisIds] }, nodeType, nodeId },
+      select: { analysisId: true },
+    }),
+  ]);
+
+  return new Set([...rootHits.map((r) => r.analysisId), ...findingHits.map((f) => f.analysisId)]);
+}
+
 /** Every run for a change, newest first. History is never overwritten. */
 export async function listAnalyses(
   projectId: string,
@@ -440,12 +467,7 @@ export async function listFindings(
 ): Promise<ImpactFinding[]> {
   const rows = await client.impactFinding.findMany({
     where: { analysisId },
-    orderBy: [
-      { classification: "asc" },
-      { depth: "asc" },
-      { nodeType: "asc" },
-      { nodeId: "asc" },
-    ],
+    orderBy: [{ classification: "asc" }, { depth: "asc" }, { nodeType: "asc" }, { nodeId: "asc" }],
     select: {
       id: true,
       analysisId: true,

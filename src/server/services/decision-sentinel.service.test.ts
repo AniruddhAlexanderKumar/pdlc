@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { dependencyRulesFor } from "@/domain";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 import type { SurveillanceTargetWithSource } from "@/server/repositories/surveillance-target.repository";
+import type { ContentChangeCandidateRows } from "@/server/repositories/sentinel-candidate.repository";
 
 /**
  * The Decision Sentinel, against fake repositories and fake engine services:
@@ -50,26 +51,32 @@ const ISSUE_ID = "issue1aaaaaaaaaaaaaaaa";
 const T0 = new Date("2026-01-01T00:00:00.000Z");
 const T1 = new Date("2026-02-01T00:00:00.000Z");
 
+/** Every field defaults to "nothing here" — a test overrides only what it needs. */
+function emptyContentRows(): ContentChangeCandidateRows {
+  return {
+    requirements: [],
+    designItems: [],
+    decisions: [],
+    assumptions: [],
+    activities: [],
+    suppliers: [],
+    suppliedItems: [],
+    qualifications: [],
+    changes: [],
+    bases: [],
+    risks: [],
+    issues: [],
+    evidence: [],
+  };
+}
+
+function contentRows(overrides: Partial<ContentChangeCandidateRows>): ContentChangeCandidateRows {
+  return { ...emptyContentRows(), ...overrides };
+}
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(TX)),
-    requirement: { findMany: vi.fn() },
-    designItem: { findMany: vi.fn() },
-    engineeringDecision: { findMany: vi.fn() },
-    decisionAssumption: { findMany: vi.fn(), findUnique: vi.fn() },
-    verificationActivity: { findMany: vi.fn() },
-    supplier: { findMany: vi.fn() },
-    suppliedItem: { findMany: vi.fn() },
-    supplierQualification: { findMany: vi.fn() },
-    changeRequest: { findMany: vi.fn() },
-    certificationBasis: { findMany: vi.fn() },
-    operationalObservation: { findMany: vi.fn() },
-    risk: { findMany: vi.fn() },
-    issue: { findMany: vi.fn() },
-    evidence: { findMany: vi.fn() },
-    auditLog: { findMany: vi.fn(), findFirst: vi.fn() },
-    impactAnalysisRoot: { findMany: vi.fn() },
-    impactFinding: { findMany: vi.fn() },
   },
 }));
 
@@ -86,6 +93,8 @@ vi.mock("@/server/repositories/project-membership.repository", () => ({ findMemb
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
   recordAuditEvent: vi.fn(),
+  listAuditEventsForEntities: vi.fn(),
+  findLatestActorForEntity: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/engineering-baseline.repository", () => ({
@@ -96,8 +105,13 @@ vi.mock("@/server/repositories/baseline-member.repository", () => ({
   listMembers: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/decision-assumption.repository", () => ({
+  findAssumptionsByIds: vi.fn(),
+}));
+
 vi.mock("@/server/repositories/impact-analysis.repository", () => ({
   findLatestForChanges: vi.fn(),
+  findAnalysisIdsCitingNode: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/assumption-monitoring.repository", () => ({
@@ -124,6 +138,14 @@ vi.mock("@/server/repositories/verification-readiness.repository", () => ({
 
 vi.mock("@/server/repositories/technical-readiness.repository", () => ({
   findLatestScopeForGates: vi.fn(),
+}));
+
+vi.mock("@/server/repositories/sentinel-candidate.repository", () => ({
+  findContentChangeCandidateRows: vi.fn(),
+  findObservationCandidateRows: vi.fn(),
+  findRequirementAndDecisionMinimalRows: vi.fn(),
+  findMinimalVerificationActivities: vi.fn(),
+  findMinimalActiveChangeRequests: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/sentinel-event.repository", () => ({
@@ -163,34 +185,31 @@ vi.mock("./verification-readiness.service", () => ({
   verificationReadinessService: { evaluateVerificationReadiness: vi.fn() },
 }));
 
-const { prisma } = await import("@/lib/db");
 const projectRepository = await import("@/server/repositories/project.repository");
 const userRepository = await import("@/server/repositories/user.repository");
 const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
 const baselineRepository = await import("@/server/repositories/engineering-baseline.repository");
 const baselineMemberRepository = await import("@/server/repositories/baseline-member.repository");
+const decisionAssumptionRepository =
+  await import("@/server/repositories/decision-assumption.repository");
 const impactAnalysisRepository = await import("@/server/repositories/impact-analysis.repository");
 const monitoringRepository = await import("@/server/repositories/assumption-monitoring.repository");
-const certificationProgramRepository = await import(
-  "@/server/repositories/certification-program.repository"
-);
-const certificationBasisRepository = await import(
-  "@/server/repositories/certification-basis.repository"
-);
-const certificationReviewRepository = await import(
-  "@/server/repositories/certification-review.repository"
-);
-const verificationReadinessRepository = await import(
-  "@/server/repositories/verification-readiness.repository"
-);
-const technicalReadinessRepository = await import(
-  "@/server/repositories/technical-readiness.repository"
-);
+const certificationProgramRepository =
+  await import("@/server/repositories/certification-program.repository");
+const certificationBasisRepository =
+  await import("@/server/repositories/certification-basis.repository");
+const certificationReviewRepository =
+  await import("@/server/repositories/certification-review.repository");
+const verificationReadinessRepository =
+  await import("@/server/repositories/verification-readiness.repository");
+const technicalReadinessRepository =
+  await import("@/server/repositories/technical-readiness.repository");
+const sentinelCandidateRepository =
+  await import("@/server/repositories/sentinel-candidate.repository");
 const sentinelEventRepository = await import("@/server/repositories/sentinel-event.repository");
-const surveillanceTargetRepository = await import(
-  "@/server/repositories/surveillance-target.repository"
-);
+const surveillanceTargetRepository =
+  await import("@/server/repositories/surveillance-target.repository");
 const { assumptionMonitoringService } = await import("./assumption-monitoring.service");
 const { certificationReviewService } = await import("./certification-review.service");
 const { changeImpactAnalysisService } = await import("./change-impact-analysis.service");
@@ -203,7 +222,9 @@ const { DecisionSentinelService } = await import("./decision-sentinel.service");
 let service: InstanceType<typeof DecisionSentinelService>;
 let eventCounter: number;
 
-function target(overrides: Partial<SurveillanceTargetWithSource> = {}): SurveillanceTargetWithSource {
+function target(
+  overrides: Partial<SurveillanceTargetWithSource> = {},
+): SurveillanceTargetWithSource {
   return {
     id: TARGET_ID,
     projectId: PROJECT_ID,
@@ -211,7 +232,8 @@ function target(overrides: Partial<SurveillanceTargetWithSource> = {}): Surveill
     targetId: VA_ID,
     targetIdentifier: "VA-001",
     targetLabel: "Hot fire test",
-    reason: "The requirement changed after a verification readiness assessment included it in its basis.",
+    reason:
+      "The requirement changed after a verification readiness assessment included it in its basis.",
     sourceEventId: "evt1",
     sourceType: "REQUIREMENT",
     sourceId: REQ_ID,
@@ -250,34 +272,36 @@ beforeEach(() => {
     role: "MANAGER",
     createdAt: T0,
     updatedAt: T0,
-    user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+    user: {
+      id: CONTEXT.actorId,
+      name: "Ada",
+      email: "ada@example.test",
+      organizationRole: "MEMBER",
+    },
   } as never);
   vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
 
   // Content-change sources: nothing exists by default, so nothing has changed.
-  vi.mocked(prisma.requirement.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.designItem.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.engineeringDecision.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.decisionAssumption.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.decisionAssumption.findUnique).mockResolvedValue(null);
-  vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.supplier.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.suppliedItem.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.supplierQualification.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.changeRequest.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.certificationBasis.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.operationalObservation.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.risk.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.issue.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.evidence.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.auditLog.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
-  vi.mocked(prisma.impactAnalysisRoot.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.impactFinding.findMany).mockResolvedValue([]);
+  vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+    emptyContentRows(),
+  );
+  vi.mocked(sentinelCandidateRepository.findObservationCandidateRows).mockResolvedValue([]);
+  vi.mocked(sentinelCandidateRepository.findRequirementAndDecisionMinimalRows).mockResolvedValue({
+    requirements: [],
+    decisions: [],
+  });
+  vi.mocked(sentinelCandidateRepository.findMinimalVerificationActivities).mockResolvedValue([]);
+  vi.mocked(sentinelCandidateRepository.findMinimalActiveChangeRequests).mockResolvedValue([]);
+  vi.mocked(auditLogRepository.listAuditEventsForEntities).mockResolvedValue([]);
+  vi.mocked(auditLogRepository.findLatestActorForEntity).mockResolvedValue(null);
+  vi.mocked(decisionAssumptionRepository.findAssumptionsByIds).mockResolvedValue(new Map());
+  vi.mocked(impactAnalysisRepository.findAnalysisIdsCitingNode).mockResolvedValue(new Set());
 
   // Every dependent domain: nothing to consult by default, so no membership
   // check can ever pass. Each test that wants a specific target opts in.
-  vi.mocked(verificationReadinessRepository.findLatestBasisForActivities).mockResolvedValue(new Map());
+  vi.mocked(verificationReadinessRepository.findLatestBasisForActivities).mockResolvedValue(
+    new Map(),
+  );
   vi.mocked(technicalReadinessRepository.findLatestScopeForGates).mockResolvedValue(new Map());
   vi.mocked(impactAnalysisRepository.findLatestForChanges).mockResolvedValue(new Map());
   vi.mocked(monitoringRepository.listProjectAssumptions).mockResolvedValue([]);
@@ -313,9 +337,19 @@ beforeEach(() => {
 
 describe("detection: content changes", () => {
   it("records an event for a requirement whose updatedAt has moved", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -334,9 +368,19 @@ describe("detection: content changes", () => {
   });
 
   it("records no event for a requirement never edited", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T0 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T0,
+          },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -344,76 +388,142 @@ describe("detection: content changes", () => {
   });
 
   it("records an event for a changed design item", async () => {
-    vi.mocked(prisma.designItem.findMany).mockResolvedValue([
-      { id: DI_ID, identifier: "DI-001", name: "Combustion chamber", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        designItems: [
+          {
+            id: DI_ID,
+            identifier: "DI-001",
+            label: "Combustion chamber",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
     expect(summary.eventsCreated).toBe(1);
   });
 
   it("records an event for a changed engineering decision", async () => {
-    vi.mocked(prisma.engineeringDecision.findMany).mockResolvedValue([
-      { id: ED_ID, identifier: "ED-001", title: "Use titanium liner", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        decisions: [
+          {
+            id: ED_ID,
+            identifier: "ED-001",
+            label: "Use titanium liner",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
     expect(summary.eventsCreated).toBe(1);
   });
 
   it("records an event for a changed decision assumption", async () => {
-    vi.mocked(prisma.decisionAssumption.findMany).mockResolvedValue([
-      { id: ASM_ID, statement: "Supplier ships on schedule", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        assumptions: [
+          {
+            id: ASM_ID,
+            identifier: null,
+            label: "Supplier ships on schedule",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
     expect(summary.eventsCreated).toBe(1);
   });
 
   it("records an event for a changed verification activity", async () => {
-    vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([
-      { id: VA_ID, identifier: "VA-001", title: "Hot fire test", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        activities: [
+          { id: VA_ID, identifier: "VA-001", label: "Hot fire test", createdAt: T0, updatedAt: T1 },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
     expect(summary.eventsCreated).toBe(1);
   });
 
   it("records an event for a changed supplier", async () => {
-    vi.mocked(prisma.supplier.findMany).mockResolvedValue([
-      { id: SUP_ID, identifier: "SUP-001", name: "Acme Alloys", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        suppliers: [
+          { id: SUP_ID, identifier: "SUP-001", label: "Acme Alloys", createdAt: T0, updatedAt: T1 },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
     expect(summary.eventsCreated).toBe(1);
   });
 
   it("records an event for a changed risk", async () => {
-    vi.mocked(prisma.risk.findMany).mockResolvedValue([
-      { id: RISK_ID, identifier: "RSK-001", title: "Coolant supply interruption", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        risks: [
+          {
+            id: RISK_ID,
+            identifier: "RSK-001",
+            label: "Coolant supply interruption",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
     expect(summary.eventsCreated).toBe(1);
     expect(sentinelEventRepository.createEvents).toHaveBeenCalledWith(
       PROJECT_ID,
       expect.arrayContaining([
-        expect.objectContaining({ sourceType: "RISK", sourceId: RISK_ID, eventType: "ENGINEERING_OBJECT_CHANGED" }),
+        expect.objectContaining({
+          sourceType: "RISK",
+          sourceId: RISK_ID,
+          eventType: "ENGINEERING_OBJECT_CHANGED",
+        }),
       ]),
     );
   });
 
   it("records an event for a changed issue", async () => {
-    vi.mocked(prisma.issue.findMany).mockResolvedValue([
-      { id: ISSUE_ID, identifier: "ISS-001", title: "Chamber wall crack found", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        issues: [
+          {
+            id: ISSUE_ID,
+            identifier: "ISS-001",
+            label: "Chamber wall crack found",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
     expect(summary.eventsCreated).toBe(1);
     expect(sentinelEventRepository.createEvents).toHaveBeenCalledWith(
       PROJECT_ID,
       expect.arrayContaining([
-        expect.objectContaining({ sourceType: "ISSUE", sourceId: ISSUE_ID, eventType: "ENGINEERING_OBJECT_CHANGED" }),
+        expect.objectContaining({
+          sourceType: "ISSUE",
+          sourceId: ISSUE_ID,
+          eventType: "ENGINEERING_OBJECT_CHANGED",
+        }),
       ]),
     );
   });
@@ -423,10 +533,10 @@ describe("detection: content changes", () => {
 
 describe("detection: observations", () => {
   it("records an event for every recorded observation, changed or not", async () => {
-    vi.mocked(prisma.operationalObservation.findMany).mockResolvedValue([
+    vi.mocked(sentinelCandidateRepository.findObservationCandidateRows).mockResolvedValue([
       { id: "obs1", identifier: "OBS-001", title: "Peak wall temperature", updatedAt: T1 },
       { id: "obs2", identifier: "OBS-002", title: "Vibration spectrum", updatedAt: T1 },
-    ] as never);
+    ]);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -442,10 +552,11 @@ describe("detection: observations", () => {
 
 describe("detection: relationship changes", () => {
   it("records a relationship-change event from a recognized audit action", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T0 },
-    ] as never);
-    vi.mocked(prisma.auditLog.findMany).mockResolvedValue([
+    vi.mocked(sentinelCandidateRepository.findRequirementAndDecisionMinimalRows).mockResolvedValue({
+      requirements: [{ id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure" }],
+      decisions: [],
+    });
+    vi.mocked(auditLogRepository.listAuditEventsForEntities).mockResolvedValue([
       {
         id: "al1",
         action: "requirement.link_added",
@@ -453,7 +564,7 @@ describe("detection: relationship changes", () => {
         entityId: REQ_ID,
         createdAt: T1,
       },
-    ] as never);
+    ]);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -471,22 +582,30 @@ describe("detection: relationship changes", () => {
   });
 
   it("ignores an audit row whose action is not a recognized relationship change", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T0 },
-    ] as never);
-    vi.mocked(prisma.auditLog.findMany).mockResolvedValue([
-      { id: "al1", action: "requirement.renamed", entityType: "Requirement", entityId: REQ_ID, createdAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findRequirementAndDecisionMinimalRows).mockResolvedValue({
+      requirements: [{ id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure" }],
+      decisions: [],
+    });
+    vi.mocked(auditLogRepository.listAuditEventsForEntities).mockResolvedValue([
+      {
+        id: "al1",
+        action: "requirement.renamed",
+        entityType: "Requirement",
+        entityId: REQ_ID,
+        createdAt: T1,
+      },
+    ]);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
     expect(summary.eventsCreated).toBe(0);
   });
 
   it("skips an audit row for an entity this project does not own, without throwing", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T0 },
-    ] as never);
-    vi.mocked(prisma.auditLog.findMany).mockResolvedValue([
+    vi.mocked(sentinelCandidateRepository.findRequirementAndDecisionMinimalRows).mockResolvedValue({
+      requirements: [{ id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure" }],
+      decisions: [],
+    });
+    vi.mocked(auditLogRepository.listAuditEventsForEntities).mockResolvedValue([
       {
         id: "al1",
         action: "requirement.link_added",
@@ -494,7 +613,7 @@ describe("detection: relationship changes", () => {
         entityId: "req-elsewhere",
         createdAt: T1,
       },
-    ] as never);
+    ]);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
     expect(summary.eventsCreated).toBe(0);
@@ -502,7 +621,7 @@ describe("detection: relationship changes", () => {
 
   it("never scans the audit log when the project has no requirements or decisions", async () => {
     await service.detectProjectChanges(CONTEXT, PROJECT_ID);
-    expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
+    expect(auditLogRepository.listAuditEventsForEntities).not.toHaveBeenCalled();
   });
 });
 
@@ -517,18 +636,30 @@ describe("detection: audit trail", () => {
   });
 
   it("records exactly one detection-run audit event, however many events were found", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
-    ] as never);
-    vi.mocked(prisma.designItem.findMany).mockResolvedValue([
-      { id: DI_ID, identifier: "DI-001", name: "Liner", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+        designItems: [
+          { id: DI_ID, identifier: "DI-001", label: "Liner", createdAt: T0, updatedAt: T1 },
+        ],
+      }),
+    );
 
     await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
     const detectionRuns = vi
       .mocked(auditLogRepository.recordAuditEvent)
-      .mock.calls.filter(([event]) => (event as { action: string }).action === "sentinel.detection_run");
+      .mock.calls.filter(
+        ([event]) => (event as { action: string }).action === "sentinel.detection_run",
+      );
     expect(detectionRuns).toHaveLength(1);
   });
 
@@ -548,14 +679,26 @@ describe("dependency resolution", () => {
     // The registry allows REQUIREMENT -> IMPACT_ANALYSIS/VERIFICATION_READINESS/
     // TECHNICAL_READINESS/CERTIFICATION_REVIEW, but nothing downstream actually
     // references this requirement, so none of the four should fire.
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
-    ] as never);
-    vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([
-      { id: VA_ID, identifier: "VA-001", title: "Hot fire test", createdAt: T0, updatedAt: T0 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
+    vi.mocked(sentinelCandidateRepository.findMinimalVerificationActivities).mockResolvedValue([
+      { id: VA_ID, identifier: "VA-001", title: "Hot fire test" },
+    ]);
     vi.mocked(verificationReadinessRepository.findLatestBasisForActivities).mockResolvedValue(
-      new Map([[VA_ID, { objects: [{ type: "DESIGN_ITEM", id: "some-other-design-item" }] }]]) as never,
+      new Map([
+        [VA_ID, { objects: [{ type: "DESIGN_ITEM", id: "some-other-design-item" }] }],
+      ]) as never,
     );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
@@ -565,12 +708,22 @@ describe("dependency resolution", () => {
   });
 
   it("opens a VERIFICATION_READINESS target when the assessment's basis references the changed object", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
-    ] as never);
-    vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([
-      { id: VA_ID, identifier: "VA-001", title: "Hot fire test", createdAt: T0, updatedAt: T0 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
+    vi.mocked(sentinelCandidateRepository.findMinimalVerificationActivities).mockResolvedValue([
+      { id: VA_ID, identifier: "VA-001", title: "Hot fire test" },
+    ]);
     vi.mocked(verificationReadinessRepository.findLatestBasisForActivities).mockResolvedValue(
       new Map([[VA_ID, { objects: [{ type: "REQUIREMENT", id: REQ_ID }] }]]) as never,
     );
@@ -590,9 +743,19 @@ describe("dependency resolution", () => {
   });
 
   it("opens a DRIFT_ASSESSMENT target for a design item baselined as a member", async () => {
-    vi.mocked(prisma.designItem.findMany).mockResolvedValue([
-      { id: DI_ID, identifier: "DI-001", name: "Combustion chamber", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        designItems: [
+          {
+            id: DI_ID,
+            identifier: "DI-001",
+            label: "Combustion chamber",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
     vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue({
       id: BL_ID,
       identifier: "BL-001",
@@ -612,9 +775,19 @@ describe("dependency resolution", () => {
   });
 
   it("opens no drift target for a design item that is not a baseline member", async () => {
-    vi.mocked(prisma.designItem.findMany).mockResolvedValue([
-      { id: DI_ID, identifier: "DI-001", name: "Combustion chamber", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        designItems: [
+          {
+            id: DI_ID,
+            identifier: "DI-001",
+            label: "Combustion chamber",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
     vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue({
       id: BL_ID,
       identifier: "BL-001",
@@ -634,9 +807,19 @@ describe("dependency resolution", () => {
   // for DESIGN_ITEM above, now reachable for these three too via the three
   // dependency rows added to SURVEILLANCE_DEPENDENCY_RULES.
   it("opens a DRIFT_ASSESSMENT target for a requirement baselined as a member", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
     vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue({
       id: BL_ID,
       identifier: "BL-001",
@@ -656,9 +839,19 @@ describe("dependency resolution", () => {
   });
 
   it("opens a DRIFT_ASSESSMENT target for a decision baselined as a member", async () => {
-    vi.mocked(prisma.engineeringDecision.findMany).mockResolvedValue([
-      { id: ED_ID, identifier: "ED-001", title: "Use regenerative cooling", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        decisions: [
+          {
+            id: ED_ID,
+            identifier: "ED-001",
+            label: "Use regenerative cooling",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
     vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue({
       id: BL_ID,
       identifier: "BL-001",
@@ -678,9 +871,13 @@ describe("dependency resolution", () => {
   });
 
   it("opens a DRIFT_ASSESSMENT target for a verification activity baselined as a member", async () => {
-    vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([
-      { id: VA_ID, identifier: "VA-001", title: "Hot fire test", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        activities: [
+          { id: VA_ID, identifier: "VA-001", label: "Hot fire test", createdAt: T0, updatedAt: T1 },
+        ],
+      }),
+    );
     vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue({
       id: BL_ID,
       identifier: "BL-001",
@@ -700,9 +897,9 @@ describe("dependency resolution", () => {
   });
 
   it("opens a drift target for a new observation whenever an active baseline exists", async () => {
-    vi.mocked(prisma.operationalObservation.findMany).mockResolvedValue([
+    vi.mocked(sentinelCandidateRepository.findObservationCandidateRows).mockResolvedValue([
       { id: "obs1", identifier: "OBS-001", title: "Peak wall temperature", updatedAt: T1 },
-    ] as never);
+    ]);
     vi.mocked(baselineRepository.findActiveBaseline).mockResolvedValue({
       id: BL_ID,
       identifier: "BL-001",
@@ -719,16 +916,28 @@ describe("dependency resolution", () => {
   });
 
   it("opens an IMPACT_ANALYSIS target when a completed analysis actually reached the changed object", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
-    ] as never);
-    vi.mocked(prisma.changeRequest.findMany).mockResolvedValue([
-      { id: CR_ID, identifier: "CR-001", title: "Reduce wall thickness", createdAt: T0, updatedAt: T0 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
+    vi.mocked(sentinelCandidateRepository.findMinimalActiveChangeRequests).mockResolvedValue([
+      { id: CR_ID, identifier: "CR-001", title: "Reduce wall thickness" },
+    ]);
     vi.mocked(impactAnalysisRepository.findLatestForChanges).mockResolvedValue(
       new Map([[CR_ID, { id: "ia1", status: "COMPLETED" }]]) as never,
     );
-    vi.mocked(prisma.impactAnalysisRoot.findMany).mockResolvedValue([{ analysisId: "ia1" }] as never);
+    vi.mocked(impactAnalysisRepository.findAnalysisIdsCitingNode).mockResolvedValue(
+      new Set(["ia1"]),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -740,12 +949,22 @@ describe("dependency resolution", () => {
   });
 
   it("**never consults an impact analysis that has not completed**", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
-    ] as never);
-    vi.mocked(prisma.changeRequest.findMany).mockResolvedValue([
-      { id: CR_ID, identifier: "CR-001", title: "Reduce wall thickness", createdAt: T0, updatedAt: T0 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
+    vi.mocked(sentinelCandidateRepository.findMinimalActiveChangeRequests).mockResolvedValue([
+      { id: CR_ID, identifier: "CR-001", title: "Reduce wall thickness" },
+    ]);
     vi.mocked(impactAnalysisRepository.findLatestForChanges).mockResolvedValue(
       new Map([[CR_ID, { id: "ia1", status: "RUNNING" }]]) as never,
     );
@@ -753,15 +972,31 @@ describe("dependency resolution", () => {
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
     expect(summary.targetsOpened).toBe(0);
-    expect(prisma.impactAnalysisRoot.findMany).not.toHaveBeenCalled();
+    expect(impactAnalysisRepository.findAnalysisIdsCitingNode).not.toHaveBeenCalled();
   });
 
   it("opens ASSUMPTION_MONITORING for the assumption's own change", async () => {
-    vi.mocked(prisma.decisionAssumption.findMany).mockResolvedValue([
-      { id: ASM_ID, statement: "Supplier ships on schedule", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        assumptions: [
+          {
+            id: ASM_ID,
+            identifier: null,
+            label: "Supplier ships on schedule",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
     vi.mocked(monitoringRepository.listProjectAssumptions).mockResolvedValue([
-      { id: ASM_ID, statement: "Supplier ships on schedule", status: "ACTIVE", engineeringDecisionId: ED_ID, decisionIdentifier: "ED-001" },
+      {
+        id: ASM_ID,
+        statement: "Supplier ships on schedule",
+        status: "ACTIVE",
+        engineeringDecisionId: ED_ID,
+        decisionIdentifier: "ED-001",
+      },
     ] as never);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
@@ -774,14 +1009,32 @@ describe("dependency resolution", () => {
   });
 
   it("opens ASSUMPTION_MONITORING when a decision behind an assumption's own basis changed", async () => {
-    vi.mocked(prisma.engineeringDecision.findMany).mockResolvedValue([
-      { id: ED_ID, identifier: "ED-001", title: "Use titanium liner", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        decisions: [
+          {
+            id: ED_ID,
+            identifier: "ED-001",
+            label: "Use titanium liner",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
     vi.mocked(monitoringRepository.listProjectAssumptions).mockResolvedValue([
-      { id: ASM_ID, statement: "Supplier ships on schedule", status: "ACTIVE", engineeringDecisionId: ED_ID, decisionIdentifier: "ED-001" },
+      {
+        id: ASM_ID,
+        statement: "Supplier ships on schedule",
+        status: "ACTIVE",
+        engineeringDecisionId: ED_ID,
+        decisionIdentifier: "ED-001",
+      },
     ] as never);
     vi.mocked(monitoringRepository.findLatestForAssumptions).mockResolvedValue(
-      new Map([[ASM_ID, { basisSnapshot: [{ type: "ENGINEERING_DECISION", id: ED_ID }] }]]) as never,
+      new Map([
+        [ASM_ID, { basisSnapshot: [{ type: "ENGINEERING_DECISION", id: ED_ID }] }],
+      ]) as never,
     );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
@@ -794,15 +1047,21 @@ describe("dependency resolution", () => {
   });
 
   it("opens CERTIFICATION_REVIEW when the ACTIVE certification basis changes", async () => {
-    vi.mocked(prisma.certificationBasis.findMany).mockResolvedValue([
-      { id: CB_ID, identifier: "CB-001", title: "Basis rev A", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        bases: [
+          { id: CB_ID, identifier: "CB-001", label: "Basis rev A", createdAt: T0, updatedAt: T1 },
+        ],
+      }),
+    );
     vi.mocked(certificationProgramRepository.findProgramInProject).mockResolvedValue({
       id: PROG_ID,
       identifier: "CERT-001",
       name: "Type certification",
     } as never);
-    vi.mocked(certificationBasisRepository.findActiveBasis).mockResolvedValue({ id: CB_ID } as never);
+    vi.mocked(certificationBasisRepository.findActiveBasis).mockResolvedValue({
+      id: CB_ID,
+    } as never);
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -814,9 +1073,13 @@ describe("dependency resolution", () => {
   });
 
   it("**does not open CERTIFICATION_REVIEW for a superseded (non-active) basis**", async () => {
-    vi.mocked(prisma.certificationBasis.findMany).mockResolvedValue([
-      { id: CB_ID, identifier: "CB-001", title: "Basis rev A", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        bases: [
+          { id: CB_ID, identifier: "CB-001", label: "Basis rev A", createdAt: T0, updatedAt: T1 },
+        ],
+      }),
+    );
     vi.mocked(certificationProgramRepository.findProgramInProject).mockResolvedValue({
       id: PROG_ID,
       identifier: "CERT-001",
@@ -831,15 +1094,27 @@ describe("dependency resolution", () => {
   });
 
   it("opens CERTIFICATION_REVIEW when the latest review's basis references the changed requirement", async () => {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
     vi.mocked(certificationProgramRepository.findProgramInProject).mockResolvedValue({
       id: PROG_ID,
       identifier: "CERT-001",
       name: "Type certification",
     } as never);
-    vi.mocked(certificationReviewRepository.findLatestReview).mockResolvedValue({ id: "rev1" } as never);
+    vi.mocked(certificationReviewRepository.findLatestReview).mockResolvedValue({
+      id: "rev1",
+    } as never);
     vi.mocked(certificationReviewRepository.readReviewBasis).mockResolvedValue({
       objects: [{ type: "REQUIREMENT", id: REQ_ID }],
     } as never);
@@ -854,16 +1129,28 @@ describe("dependency resolution", () => {
   });
 
   it("opens IMPACT_ANALYSIS when a changed risk was reached by a completed analysis", async () => {
-    vi.mocked(prisma.risk.findMany).mockResolvedValue([
-      { id: RISK_ID, identifier: "RSK-001", title: "Coolant supply interruption", createdAt: T0, updatedAt: T1 },
-    ] as never);
-    vi.mocked(prisma.changeRequest.findMany).mockResolvedValue([
-      { id: CR_ID, identifier: "CR-001", title: "Reduce wall thickness", createdAt: T0, updatedAt: T0 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        risks: [
+          {
+            id: RISK_ID,
+            identifier: "RSK-001",
+            label: "Coolant supply interruption",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
+    vi.mocked(sentinelCandidateRepository.findMinimalActiveChangeRequests).mockResolvedValue([
+      { id: CR_ID, identifier: "CR-001", title: "Reduce wall thickness" },
+    ]);
     vi.mocked(impactAnalysisRepository.findLatestForChanges).mockResolvedValue(
       new Map([[CR_ID, { id: "ia1", status: "COMPLETED" }]]) as never,
     );
-    vi.mocked(prisma.impactAnalysisRoot.findMany).mockResolvedValue([{ analysisId: "ia1" }] as never);
+    vi.mocked(impactAnalysisRepository.findAnalysisIdsCitingNode).mockResolvedValue(
+      new Set(["ia1"]),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -881,13 +1168,25 @@ describe("dependency resolution", () => {
     // review stale. A row here would be unreachable by construction.
     const targetTypes = dependencyRulesFor("RISK").map((rule) => rule.targetType);
     expect(targetTypes).not.toContain("CERTIFICATION_REVIEW");
-    expect(dependencyRulesFor("ISSUE").map((rule) => rule.targetType)).not.toContain("CERTIFICATION_REVIEW");
+    expect(dependencyRulesFor("ISSUE").map((rule) => rule.targetType)).not.toContain(
+      "CERTIFICATION_REVIEW",
+    );
   });
 
   it("opens TECHNICAL_READINESS when a changed issue is counted in a gate assessment's scope", async () => {
-    vi.mocked(prisma.issue.findMany).mockResolvedValue([
-      { id: ISSUE_ID, identifier: "ISS-001", title: "Chamber wall crack found", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        issues: [
+          {
+            id: ISSUE_ID,
+            identifier: "ISS-001",
+            label: "Chamber wall crack found",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
     vi.mocked(technicalReadinessRepository.findLatestScopeForGates).mockResolvedValue(
       new Map([["SYSTEM_DEFINITION", { objects: [{ type: "ISSUE", id: ISSUE_ID }] }]]) as never,
     );
@@ -902,9 +1201,19 @@ describe("dependency resolution", () => {
   });
 
   it("**opens no target for a risk that no consulted basis references**", async () => {
-    vi.mocked(prisma.risk.findMany).mockResolvedValue([
-      { id: RISK_ID, identifier: "RSK-001", title: "Coolant supply interruption", createdAt: T0, updatedAt: T1 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        risks: [
+          {
+            id: RISK_ID,
+            identifier: "RSK-001",
+            label: "Coolant supply interruption",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
 
     const summary = await service.detectProjectChanges(CONTEXT, PROJECT_ID);
 
@@ -917,12 +1226,22 @@ describe("dependency resolution", () => {
 
 describe("duplicate suppression", () => {
   async function requirementChangedIntoVerificationReadiness() {
-    vi.mocked(prisma.requirement.findMany).mockResolvedValue([
-      { id: REQ_ID, identifier: "REQ-001", title: "Chamber pressure", createdAt: T0, updatedAt: T1 },
-    ] as never);
-    vi.mocked(prisma.verificationActivity.findMany).mockResolvedValue([
-      { id: VA_ID, identifier: "VA-001", title: "Hot fire test", createdAt: T0, updatedAt: T0 },
-    ] as never);
+    vi.mocked(sentinelCandidateRepository.findContentChangeCandidateRows).mockResolvedValue(
+      contentRows({
+        requirements: [
+          {
+            id: REQ_ID,
+            identifier: "REQ-001",
+            label: "Chamber pressure",
+            createdAt: T0,
+            updatedAt: T1,
+          },
+        ],
+      }),
+    );
+    vi.mocked(sentinelCandidateRepository.findMinimalVerificationActivities).mockResolvedValue([
+      { id: VA_ID, identifier: "VA-001", title: "Hot fire test" },
+    ]);
     vi.mocked(verificationReadinessRepository.findLatestBasisForActivities).mockResolvedValue(
       new Map([[VA_ID, { objects: [{ type: "REQUIREMENT", id: REQ_ID }] }]]) as never,
     );
@@ -975,9 +1294,9 @@ describe("duplicate suppression", () => {
 
     await requirementChangedIntoVerificationReadiness();
 
-    const actions = vi.mocked(auditLogRepository.recordAuditEvent).mock.calls.map(
-      ([event]) => (event as { action: string }).action,
-    );
+    const actions = vi
+      .mocked(auditLogRepository.recordAuditEvent)
+      .mock.calls.map(([event]) => (event as { action: string }).action);
     expect(actions).toContain("sentinel.target_updated");
     expect(actions).not.toContain("sentinel.target_acknowledged");
   });
@@ -1048,7 +1367,9 @@ describe("reading surveillance state", () => {
 
 describe("acknowledge", () => {
   it("acknowledges an OPEN target, recording the actor and note", async () => {
-    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(target({ status: "OPEN" }));
+    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
+      target({ status: "OPEN" }),
+    );
     vi.mocked(surveillanceTargetRepository.acknowledgeTarget).mockResolvedValue(
       target({ status: "ACKNOWLEDGED" }),
     );
@@ -1084,11 +1405,13 @@ describe("acknowledge", () => {
 
 describe("resolve", () => {
   it("**refuses to resolve without a note**", async () => {
-    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(target({ status: "OPEN" }));
-
-    await expect(service.resolveSurveillance(CONTEXT, PROJECT_ID, TARGET_ID, {})).rejects.toBeInstanceOf(
-      ValidationError,
+    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
+      target({ status: "OPEN" }),
     );
+
+    await expect(
+      service.resolveSurveillance(CONTEXT, PROJECT_ID, TARGET_ID, {}),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(surveillanceTargetRepository.resolveTarget).not.toHaveBeenCalled();
   });
 
@@ -1158,7 +1481,9 @@ describe("reevaluation dispatch", () => {
     vi.mocked(verificationReadinessService.evaluateVerificationReadiness).mockResolvedValue(
       undefined as never,
     );
-    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(target({ status: "RESOLVED" }));
+    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(
+      target({ status: "RESOLVED" }),
+    );
 
     await service.reEvaluateTarget(CONTEXT, PROJECT_ID, TARGET_ID);
 
@@ -1174,8 +1499,12 @@ describe("reevaluation dispatch", () => {
     vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
       target({ status: "OPEN", targetType: "TECHNICAL_READINESS", targetId: "SYSTEM_DEFINITION" }),
     );
-    vi.mocked(technicalReadinessService.evaluateTechnicalReadiness).mockResolvedValue(undefined as never);
-    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(target({ status: "RESOLVED" }));
+    vi.mocked(technicalReadinessService.evaluateTechnicalReadiness).mockResolvedValue(
+      undefined as never,
+    );
+    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(
+      target({ status: "RESOLVED" }),
+    );
 
     await service.reEvaluateTarget(CONTEXT, PROJECT_ID, TARGET_ID);
 
@@ -1191,7 +1520,9 @@ describe("reevaluation dispatch", () => {
       target({ status: "OPEN", targetType: "DRIFT_ASSESSMENT", targetId: BL_ID }),
     );
     vi.mocked(driftDetectionService.evaluateDrift).mockResolvedValue(undefined as never);
-    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(target({ status: "RESOLVED" }));
+    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(
+      target({ status: "RESOLVED" }),
+    );
 
     await service.reEvaluateTarget(CONTEXT, PROJECT_ID, TARGET_ID);
 
@@ -1206,8 +1537,12 @@ describe("reevaluation dispatch", () => {
     vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
       target({ status: "OPEN", targetType: "CERTIFICATION_REVIEW", targetId: PROG_ID }),
     );
-    vi.mocked(certificationReviewService.evaluateCertificationReview).mockResolvedValue(undefined as never);
-    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(target({ status: "RESOLVED" }));
+    vi.mocked(certificationReviewService.evaluateCertificationReview).mockResolvedValue(
+      undefined as never,
+    );
+    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(
+      target({ status: "RESOLVED" }),
+    );
 
     await service.reEvaluateTarget(CONTEXT, PROJECT_ID, TARGET_ID);
 
@@ -1222,11 +1557,13 @@ describe("reevaluation dispatch", () => {
     vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
       target({ status: "OPEN", targetType: "ASSUMPTION_MONITORING", targetId: ASM_ID }),
     );
-    vi.mocked(prisma.decisionAssumption.findUnique).mockResolvedValue({
-      engineeringDecisionId: ED_ID,
-    } as never);
+    vi.mocked(decisionAssumptionRepository.findAssumptionsByIds).mockResolvedValue(
+      new Map([[ASM_ID, { id: ASM_ID, engineeringDecisionId: ED_ID } as never]]),
+    );
     vi.mocked(assumptionMonitoringService.evaluateAssumption).mockResolvedValue(undefined as never);
-    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(target({ status: "RESOLVED" }));
+    vi.mocked(surveillanceTargetRepository.resolveTarget).mockResolvedValue(
+      target({ status: "RESOLVED" }),
+    );
 
     await service.reEvaluateTarget(CONTEXT, PROJECT_ID, TARGET_ID);
 
@@ -1242,7 +1579,7 @@ describe("reevaluation dispatch", () => {
     vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
       target({ status: "OPEN", targetType: "ASSUMPTION_MONITORING", targetId: ASM_ID }),
     );
-    vi.mocked(prisma.decisionAssumption.findUnique).mockResolvedValue(null);
+    vi.mocked(decisionAssumptionRepository.findAssumptionsByIds).mockResolvedValue(new Map());
 
     await expect(service.reEvaluateTarget(CONTEXT, PROJECT_ID, TARGET_ID)).rejects.toBeInstanceOf(
       NotFoundError,
@@ -1285,13 +1622,20 @@ describe("project role authorization", () => {
       role,
       createdAt: T0,
       updatedAt: T0,
-      user: { id: CONTEXT.actorId, name: "Ada", email: "ada@example.test", organizationRole: "MEMBER" },
+      user: {
+        id: CONTEXT.actorId,
+        name: "Ada",
+        email: "ada@example.test",
+        organizationRole: "MEMBER",
+      },
     } as never);
   }
 
   it("refuses a VIEWER acknowledging a surveillance target", async () => {
     asRole("VIEWER");
-    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(target({ status: "OPEN" }));
+    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
+      target({ status: "OPEN" }),
+    );
 
     await expect(
       service.acknowledgeSurveillance(CONTEXT, PROJECT_ID, TARGET_ID, { note: "seen it" }),
@@ -1301,7 +1645,9 @@ describe("project role authorization", () => {
 
   it("allows an ENGINEER to acknowledge a target but refuses them resolving it — acknowledgement is not resolution authority", async () => {
     asRole("ENGINEER");
-    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(target({ status: "OPEN" }));
+    vi.mocked(surveillanceTargetRepository.findTargetInProject).mockResolvedValue(
+      target({ status: "OPEN" }),
+    );
     vi.mocked(surveillanceTargetRepository.acknowledgeTarget).mockResolvedValue(
       target({ status: "ACKNOWLEDGED" }),
     );
@@ -1339,17 +1685,17 @@ describe("project role authorization", () => {
       target({ status: "RESOLVED" }),
     );
 
-    await expect(
-      service.reEvaluateTarget(CONTEXT, PROJECT_ID, TARGET_ID),
-    ).resolves.toMatchObject({ status: "RESOLVED" });
+    await expect(service.reEvaluateTarget(CONTEXT, PROJECT_ID, TARGET_ID)).resolves.toMatchObject({
+      status: "RESOLVED",
+    });
     expect(surveillanceTargetRepository.resolveTarget).toHaveBeenCalled();
   });
 
   it("refuses a VIEWER running detection", async () => {
     asRole("VIEWER");
 
-    await expect(
-      service.detectProjectChanges(CONTEXT, PROJECT_ID),
-    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(service.detectProjectChanges(CONTEXT, PROJECT_ID)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
   });
 });

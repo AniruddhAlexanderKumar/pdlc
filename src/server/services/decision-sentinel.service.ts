@@ -25,11 +25,13 @@ import { ConflictError, NotFoundError } from "@/server/errors";
 import * as auditLogRepository from "@/server/repositories/audit-log.repository";
 import * as baselineRepository from "@/server/repositories/engineering-baseline.repository";
 import * as baselineMemberRepository from "@/server/repositories/baseline-member.repository";
+import * as decisionAssumptionRepository from "@/server/repositories/decision-assumption.repository";
 import * as impactAnalysisRepository from "@/server/repositories/impact-analysis.repository";
 import * as monitoringRepository from "@/server/repositories/assumption-monitoring.repository";
 import * as certificationProgramRepository from "@/server/repositories/certification-program.repository";
 import * as certificationBasisRepository from "@/server/repositories/certification-basis.repository";
 import * as certificationReviewRepository from "@/server/repositories/certification-review.repository";
+import * as sentinelCandidateRepository from "@/server/repositories/sentinel-candidate.repository";
 import * as verificationReadinessRepository from "@/server/repositories/verification-readiness.repository";
 import * as technicalReadinessRepository from "@/server/repositories/technical-readiness.repository";
 import * as sentinelEventRepository from "@/server/repositories/sentinel-event.repository";
@@ -101,7 +103,11 @@ interface BasisObjectLike {
   id: string;
 }
 
-function basisContains(objects: readonly BasisObjectLike[] | undefined, sourceType: string, sourceId: string): boolean {
+function basisContains(
+  objects: readonly BasisObjectLike[] | undefined,
+  sourceType: string,
+  sourceId: string,
+): boolean {
   if (!objects) return false;
   return objects.some((object) => object.type === sourceType && object.id === sourceId);
 }
@@ -134,12 +140,36 @@ const RELATIONSHIP_AUDIT_ACTIONS: ReadonlyArray<{
 }> = [
   { action: "requirement.link_added", entityType: "Requirement", sourceType: "REQUIREMENT" },
   { action: "requirement.link_removed", entityType: "Requirement", sourceType: "REQUIREMENT" },
-  { action: "decision.link_added", entityType: "EngineeringDecision", sourceType: "ENGINEERING_DECISION" },
-  { action: "decision.link_removed", entityType: "EngineeringDecision", sourceType: "ENGINEERING_DECISION" },
-  { action: "decision.assumption_added", entityType: "EngineeringDecision", sourceType: "ENGINEERING_DECISION" },
-  { action: "decision.assumption_updated", entityType: "EngineeringDecision", sourceType: "ENGINEERING_DECISION" },
-  { action: "decision.expectation_set", entityType: "EngineeringDecision", sourceType: "ENGINEERING_DECISION" },
-  { action: "decision.expectation_cleared", entityType: "EngineeringDecision", sourceType: "ENGINEERING_DECISION" },
+  {
+    action: "decision.link_added",
+    entityType: "EngineeringDecision",
+    sourceType: "ENGINEERING_DECISION",
+  },
+  {
+    action: "decision.link_removed",
+    entityType: "EngineeringDecision",
+    sourceType: "ENGINEERING_DECISION",
+  },
+  {
+    action: "decision.assumption_added",
+    entityType: "EngineeringDecision",
+    sourceType: "ENGINEERING_DECISION",
+  },
+  {
+    action: "decision.assumption_updated",
+    entityType: "EngineeringDecision",
+    sourceType: "ENGINEERING_DECISION",
+  },
+  {
+    action: "decision.expectation_set",
+    entityType: "EngineeringDecision",
+    sourceType: "ENGINEERING_DECISION",
+  },
+  {
+    action: "decision.expectation_cleared",
+    entityType: "EngineeringDecision",
+    sourceType: "ENGINEERING_DECISION",
+  },
 ];
 
 export class DecisionSentinelService {
@@ -190,11 +220,17 @@ export class DecisionSentinelService {
 
     if (events.length > 0) {
       await auditLogRepository.recordAuditEvent(
-        artifactAuditEvent(context, SENTINEL_AUDIT_ACTIONS.detectionRun, "Project", scopedProjectId, {
-          eventsCreated: events.length,
-          targetsOpened,
-          targetsUpdated,
-        }),
+        artifactAuditEvent(
+          context,
+          SENTINEL_AUDIT_ACTIONS.detectionRun,
+          "Project",
+          scopedProjectId,
+          {
+            eventsCreated: events.length,
+            targetsOpened,
+            targetsUpdated,
+          },
+        ),
       );
     }
 
@@ -219,7 +255,10 @@ export class DecisionSentinelService {
     });
   }
 
-  async getSurveillanceCounts(context: OrganizationContext, projectId: unknown): Promise<SurveillanceCounts> {
+  async getSurveillanceCounts(
+    context: OrganizationContext,
+    projectId: unknown,
+  ): Promise<SurveillanceCounts> {
     const scopedProjectId = await requireProjectInOrganization(context, projectId);
     return surveillanceTargetRepository.countByStatus(scopedProjectId);
   }
@@ -240,7 +279,11 @@ export class DecisionSentinelService {
     input: unknown,
   ): Promise<SurveillanceTarget> {
     const scopedProjectId = await requireProjectWriteAccess(context, projectId);
-    const data = parseOrThrow(acknowledgeSurveillanceRequestSchema, input ?? {}, "Invalid acknowledgement");
+    const data = parseOrThrow(
+      acknowledgeSurveillanceRequestSchema,
+      input ?? {},
+      "Invalid acknowledgement",
+    );
 
     return prisma.$transaction(async (tx) => {
       const existing = await this.requireTarget(scopedProjectId, id, tx);
@@ -259,10 +302,16 @@ export class DecisionSentinelService {
       );
 
       await auditLogRepository.recordAuditEvent(
-        artifactAuditEvent(context, SENTINEL_AUDIT_ACTIONS.targetAcknowledged, SURVEILLANCE_TARGET_ENTITY_TYPE, target.id, {
-          targetType: target.targetType,
-          targetId: target.targetId,
-        }),
+        artifactAuditEvent(
+          context,
+          SENTINEL_AUDIT_ACTIONS.targetAcknowledged,
+          SURVEILLANCE_TARGET_ENTITY_TYPE,
+          target.id,
+          {
+            targetType: target.targetType,
+            targetId: target.targetId,
+          },
+        ),
         tx,
       );
 
@@ -310,10 +359,16 @@ export class DecisionSentinelService {
       );
 
       await auditLogRepository.recordAuditEvent(
-        artifactAuditEvent(context, SENTINEL_AUDIT_ACTIONS.targetResolved, SURVEILLANCE_TARGET_ENTITY_TYPE, target.id, {
-          targetType: target.targetType,
-          targetId: target.targetId,
-        }),
+        artifactAuditEvent(
+          context,
+          SENTINEL_AUDIT_ACTIONS.targetResolved,
+          SURVEILLANCE_TARGET_ENTITY_TYPE,
+          target.id,
+          {
+            targetType: target.targetType,
+            targetId: target.targetId,
+          },
+        ),
         tx,
       );
 
@@ -346,7 +401,12 @@ export class DecisionSentinelService {
       throw new ConflictError(`This surveillance target is already ${existing.status}.`);
     }
 
-    await this.dispatchReevaluation(context, scopedProjectId, existing.targetType, existing.targetId);
+    await this.dispatchReevaluation(
+      context,
+      scopedProjectId,
+      existing.targetType,
+      existing.targetId,
+    );
 
     return this.completeResolution(
       context,
@@ -359,93 +419,37 @@ export class DecisionSentinelService {
   // --- Detection: content-change candidates ----------------------------------
 
   private async loadContentChangeCandidates(projectId: string): Promise<CandidateEvent[]> {
-    const [requirements, designItems, decisions, assumptions, activities, suppliers, suppliedItems, qualifications, changes, bases, risks, issues, evidence] =
-      await Promise.all([
-        prisma.requirement.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.designItem.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, name: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.engineeringDecision.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.decisionAssumption.findMany({
-          where: { engineeringDecision: { projectId } },
-          select: { id: true, statement: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.verificationActivity.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.supplier.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, name: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.suppliedItem.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, name: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.supplierQualification.findMany({
-          where: { projectId },
-          select: { id: true, title: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.changeRequest.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.certificationBasis.findMany({
-          where: { certificationProgram: { projectId } },
-          select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.risk.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.issue.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
-        }),
-        prisma.evidence.findMany({
-          where: { projectId },
-          select: { id: true, identifier: true, title: true, createdAt: true, updatedAt: true },
-        }),
-      ]);
+    const rows = await sentinelCandidateRepository.findContentChangeCandidateRows(projectId);
 
-    const changed = <T extends { id: string; createdAt: Date; updatedAt: Date }>(
-      rows: T[],
+    const changed = (
+      candidateRows: sentinelCandidateRepository.RevisionCandidateRow[],
       sourceType: SurveillanceSourceType,
-      identifierOf: (row: T) => string | null,
-      labelOf: (row: T) => string,
     ): CandidateEvent[] =>
-      rows
+      candidateRows
         .filter((row) => row.updatedAt.getTime() !== row.createdAt.getTime())
         .map((row) => ({
           eventType: eventTypeForSource(sourceType),
           sourceType,
           sourceId: row.id,
-          sourceIdentifier: identifierOf(row),
-          sourceLabel: labelOf(row),
+          sourceIdentifier: row.identifier,
+          sourceLabel: row.label,
           sourceRevision: row.updatedAt.toISOString(),
         }));
 
     return [
-      ...changed(requirements, "REQUIREMENT", (r) => r.identifier, (r) => r.title),
-      ...changed(designItems, "DESIGN_ITEM", (r) => r.identifier, (r) => r.name),
-      ...changed(decisions, "ENGINEERING_DECISION", (r) => r.identifier, (r) => r.title),
-      ...changed(assumptions, "DECISION_ASSUMPTION", () => null, (r) => r.statement),
-      ...changed(activities, "VERIFICATION_ACTIVITY", (r) => r.identifier, (r) => r.title),
-      ...changed(suppliers, "SUPPLIER", (r) => r.identifier, (r) => r.name),
-      ...changed(suppliedItems, "SUPPLIED_ITEM", (r) => r.identifier, (r) => r.name),
-      ...changed(qualifications, "SUPPLIER_QUALIFICATION", () => null, (r) => r.title),
-      ...changed(changes, "CHANGE_REQUEST", (r) => r.identifier, (r) => r.title),
-      ...changed(bases, "CERTIFICATION_BASIS", (r) => r.identifier, (r) => r.title),
-      ...changed(risks, "RISK", (r) => r.identifier, (r) => r.title),
-      ...changed(issues, "ISSUE", (r) => r.identifier, (r) => r.title),
-      ...changed(evidence, "EVIDENCE", (r) => r.identifier, (r) => r.title),
+      ...changed(rows.requirements, "REQUIREMENT"),
+      ...changed(rows.designItems, "DESIGN_ITEM"),
+      ...changed(rows.decisions, "ENGINEERING_DECISION"),
+      ...changed(rows.assumptions, "DECISION_ASSUMPTION"),
+      ...changed(rows.activities, "VERIFICATION_ACTIVITY"),
+      ...changed(rows.suppliers, "SUPPLIER"),
+      ...changed(rows.suppliedItems, "SUPPLIED_ITEM"),
+      ...changed(rows.qualifications, "SUPPLIER_QUALIFICATION"),
+      ...changed(rows.changes, "CHANGE_REQUEST"),
+      ...changed(rows.bases, "CERTIFICATION_BASIS"),
+      ...changed(rows.risks, "RISK"),
+      ...changed(rows.issues, "ISSUE"),
+      ...changed(rows.evidence, "EVIDENCE"),
     ];
   }
 
@@ -455,10 +459,7 @@ export class DecisionSentinelService {
    * surveillance-worthy act — recording it is what matters, not editing it.
    */
   private async loadObservationCandidates(projectId: string): Promise<CandidateEvent[]> {
-    const observations = await prisma.operationalObservation.findMany({
-      where: { projectId },
-      select: { id: true, identifier: true, title: true, updatedAt: true },
-    });
+    const observations = await sentinelCandidateRepository.findObservationCandidateRows(projectId);
     return observations.map((row) => ({
       eventType: "OBSERVATION_RECORDED" as const,
       sourceType: "OPERATIONAL_OBSERVATION" as const,
@@ -480,10 +481,8 @@ export class DecisionSentinelService {
     context: OrganizationContext,
     projectId: string,
   ): Promise<CandidateEvent[]> {
-    const [requirementIds, decisionRows] = await Promise.all([
-      prisma.requirement.findMany({ where: { projectId }, select: { id: true, identifier: true, title: true } }),
-      prisma.engineeringDecision.findMany({ where: { projectId }, select: { id: true, identifier: true, title: true } }),
-    ]);
+    const { requirements: requirementIds, decisions: decisionRows } =
+      await sentinelCandidateRepository.findRequirementAndDecisionMinimalRows(projectId);
     const requirementById = new Map(requirementIds.map((r) => [r.id, r]));
     const decisionById = new Map(decisionRows.map((d) => [d.id, d]));
 
@@ -493,20 +492,18 @@ export class DecisionSentinelService {
     // organizationId scoping is defense in depth: entityIds are already
     // narrowed to this project's own requirement/decision rows above, so this
     // query cannot reach another tenant's audit rows regardless.
-    const rows = await prisma.auditLog.findMany({
-      where: {
-        organizationId: context.organizationId,
-        entityId: { in: entityIds },
-        action: { in: RELATIONSHIP_AUDIT_ACTIONS.map((a) => a.action) },
-      },
-      select: { id: true, action: true, entityType: true, entityId: true, createdAt: true },
-      orderBy: [{ createdAt: "desc" }],
-      take: 500,
+    const rows = await auditLogRepository.listAuditEventsForEntities({
+      organizationId: context.organizationId,
+      entityIds,
+      actions: RELATIONSHIP_AUDIT_ACTIONS.map((a) => a.action),
+      limit: 500,
     });
 
     const candidates: CandidateEvent[] = [];
     for (const row of rows) {
-      const rule = RELATIONSHIP_AUDIT_ACTIONS.find((a) => a.action === row.action && a.entityType === row.entityType);
+      const rule = RELATIONSHIP_AUDIT_ACTIONS.find(
+        (a) => a.action === row.action && a.entityType === row.entityType,
+      );
       if (!rule) continue;
       const label =
         rule.sourceType === "REQUIREMENT"
@@ -530,12 +527,7 @@ export class DecisionSentinelService {
     sourceType: SurveillanceSourceType,
     sourceId: string,
   ): Promise<string | null> {
-    const latest = await prisma.auditLog.findFirst({
-      where: { organizationId: context.organizationId, entityId: sourceId },
-      orderBy: [{ createdAt: "desc" }],
-      select: { actorId: true },
-    });
-    return latest?.actorId ?? null;
+    return auditLogRepository.findLatestActorForEntity(context.organizationId, sourceId);
   }
 
   // --- Dependency resolution ---------------------------------------------
@@ -593,10 +585,16 @@ export class DecisionSentinelService {
           await auditLogRepository.recordAuditEvent(
             artifactAuditEvent(
               context,
-              result.inserted ? SENTINEL_AUDIT_ACTIONS.targetDetected : SENTINEL_AUDIT_ACTIONS.targetUpdated,
+              result.inserted
+                ? SENTINEL_AUDIT_ACTIONS.targetDetected
+                : SENTINEL_AUDIT_ACTIONS.targetUpdated,
               SURVEILLANCE_TARGET_ENTITY_TYPE,
               result.id,
-              { targetType: rule.targetType, targetId: candidate.targetId, sourceEventId: event.id },
+              {
+                targetType: rule.targetType,
+                targetId: candidate.targetId,
+                sourceEventId: event.id,
+              },
             ),
             tx,
           );
@@ -634,10 +632,8 @@ export class DecisionSentinelService {
   }
 
   private async candidatesFromVerificationReadiness(projectId: string, event: SentinelEvent) {
-    const activities = await prisma.verificationActivity.findMany({
-      where: { projectId },
-      select: { id: true, identifier: true, title: true },
-    });
+    const activities =
+      await sentinelCandidateRepository.findMinimalVerificationActivities(projectId);
     // One query for every activity's latest basis, not one per activity —
     // see findLatestBasisForActivities's own doc comment.
     const basisByActivity = await verificationReadinessRepository.findLatestBasisForActivities(
@@ -645,12 +641,20 @@ export class DecisionSentinelService {
       activities.map((a) => a.id),
     );
 
-    const results: Array<{ targetId: string; targetIdentifier: string | null; targetLabel: string }> = [];
+    const results: Array<{
+      targetId: string;
+      targetIdentifier: string | null;
+      targetLabel: string;
+    }> = [];
     for (const activity of activities) {
       const basis = basisByActivity.get(activity.id);
       if (!basis) continue;
       if (basisContains(basis.objects, event.sourceType, event.sourceId)) {
-        results.push({ targetId: activity.id, targetIdentifier: activity.identifier, targetLabel: activity.title });
+        results.push({
+          targetId: activity.id,
+          targetIdentifier: activity.identifier,
+          targetLabel: activity.title,
+        });
       }
     }
     return results;
@@ -660,22 +664,30 @@ export class DecisionSentinelService {
     // One query for every gate's latest scope, not one per gate — see
     // findLatestScopeForGates's own doc comment.
     const scopeByGate = await technicalReadinessRepository.findLatestScopeForGates(projectId);
-    const results: Array<{ targetId: string; targetIdentifier: string | null; targetLabel: string }> = [];
+    const results: Array<{
+      targetId: string;
+      targetIdentifier: string | null;
+      targetLabel: string;
+    }> = [];
     for (const gate of TECHNICAL_READINESS_GATES) {
       const scope = scopeByGate.get(gate);
       if (!scope) continue;
       if (basisContains(scope.objects, event.sourceType, event.sourceId)) {
-        results.push({ targetId: gate, targetIdentifier: null, targetLabel: gate.replaceAll("_", " ") });
+        results.push({
+          targetId: gate,
+          targetIdentifier: null,
+          targetLabel: gate.replaceAll("_", " "),
+        });
       }
     }
     return results;
   }
 
   private async candidatesFromImpactAnalysis(projectId: string, event: SentinelEvent) {
-    const changes = await prisma.changeRequest.findMany({
-      where: { projectId, status: { in: [...ACTIVE_CHANGE_REQUEST_STATUSES] } },
-      select: { id: true, identifier: true, title: true },
-    });
+    const changes = await sentinelCandidateRepository.findMinimalActiveChangeRequests(
+      projectId,
+      ACTIVE_CHANGE_REQUEST_STATUSES,
+    );
 
     // One query for every active change's latest run, not one per change —
     // the same batched read the Command Center already relies on.
@@ -686,35 +698,38 @@ export class DecisionSentinelService {
     const completed = changes
       .map((change) => ({ change, analysis: latestByChange.get(change.id) }))
       .filter(
-        (entry): entry is { change: (typeof changes)[number]; analysis: NonNullable<typeof entry.analysis> } =>
-          entry.analysis !== undefined && entry.analysis.status === "COMPLETED",
+        (
+          entry,
+        ): entry is {
+          change: (typeof changes)[number];
+          analysis: NonNullable<typeof entry.analysis>;
+        } => entry.analysis !== undefined && entry.analysis.status === "COMPLETED",
       );
     if (completed.length === 0) return [];
 
     const nodeType = event.sourceType;
     const analysisIds = completed.map((entry) => entry.analysis.id);
-    // Two queries total for every completed analysis, not two per analysis:
+    // One repository call for every completed analysis, not one per analysis:
     // which analyses cite this node as a root or a finding, across the whole
     // batch at once.
-    const [rootHits, findingHits] = await Promise.all([
-      prisma.impactAnalysisRoot.findMany({
-        where: { analysisId: { in: analysisIds }, nodeType, nodeId: event.sourceId },
-        select: { analysisId: true },
-      }),
-      prisma.impactFinding.findMany({
-        where: { analysisId: { in: analysisIds }, nodeType, nodeId: event.sourceId },
-        select: { analysisId: true },
-      }),
-    ]);
-    const hitAnalysisIds = new Set([
-      ...rootHits.map((r) => r.analysisId),
-      ...findingHits.map((f) => f.analysisId),
-    ]);
+    const hitAnalysisIds = await impactAnalysisRepository.findAnalysisIdsCitingNode(
+      analysisIds,
+      nodeType,
+      event.sourceId,
+    );
 
-    const results: Array<{ targetId: string; targetIdentifier: string | null; targetLabel: string }> = [];
+    const results: Array<{
+      targetId: string;
+      targetIdentifier: string | null;
+      targetLabel: string;
+    }> = [];
     for (const { change, analysis } of completed) {
       if (hitAnalysisIds.has(analysis.id)) {
-        results.push({ targetId: change.id, targetIdentifier: change.identifier, targetLabel: change.title });
+        results.push({
+          targetId: change.id,
+          targetIdentifier: change.identifier,
+          targetLabel: change.title,
+        });
       }
     }
     return results;
@@ -727,7 +742,11 @@ export class DecisionSentinelService {
       assumptions.map((a) => a.id),
     );
 
-    const results: Array<{ targetId: string; targetIdentifier: string | null; targetLabel: string }> = [];
+    const results: Array<{
+      targetId: string;
+      targetIdentifier: string | null;
+      targetLabel: string;
+    }> = [];
     for (const assumption of assumptions) {
       // The assumption's own change always concerns its own monitoring.
       if (event.sourceType === "DECISION_ASSUMPTION" && event.sourceId === assumption.id) {
@@ -756,13 +775,23 @@ export class DecisionSentinelService {
 
     // A new observation is inherently drift-relevant by definition.
     if (event.sourceType === "OPERATIONAL_OBSERVATION") {
-      return [{ targetId: baseline.id, targetIdentifier: baseline.identifier, targetLabel: baseline.name }];
+      return [
+        {
+          targetId: baseline.id,
+          targetIdentifier: baseline.identifier,
+          targetLabel: baseline.name,
+        },
+      ];
     }
 
     const members = await baselineMemberRepository.listMembers(baseline.id);
-    const isMember = members.some((member) => member.nodeType === event.sourceType && member.nodeId === event.sourceId);
+    const isMember = members.some(
+      (member) => member.nodeType === event.sourceType && member.nodeId === event.sourceId,
+    );
     if (!isMember) return [];
-    return [{ targetId: baseline.id, targetIdentifier: baseline.identifier, targetLabel: baseline.name }];
+    return [
+      { targetId: baseline.id, targetIdentifier: baseline.identifier, targetLabel: baseline.name },
+    ];
   }
 
   private async candidatesFromCertification(projectId: string, event: SentinelEvent) {
@@ -772,7 +801,9 @@ export class DecisionSentinelService {
     if (event.sourceType === "CERTIFICATION_BASIS") {
       const activeBasis = await certificationBasisRepository.findActiveBasis(program.id);
       if (activeBasis && activeBasis.id === event.sourceId) {
-        return [{ targetId: program.id, targetIdentifier: program.identifier, targetLabel: program.name }];
+        return [
+          { targetId: program.id, targetIdentifier: program.identifier, targetLabel: program.name },
+        ];
       }
       return [];
     }
@@ -781,7 +812,9 @@ export class DecisionSentinelService {
     if (!latestReview) return [];
     const basis = await certificationReviewRepository.readReviewBasis(latestReview);
     if (basisContains(basis.objects, event.sourceType, event.sourceId)) {
-      return [{ targetId: program.id, targetIdentifier: program.identifier, targetLabel: program.name }];
+      return [
+        { targetId: program.id, targetIdentifier: program.identifier, targetLabel: program.name },
+      ];
     }
     return [];
   }
@@ -804,10 +837,17 @@ export class DecisionSentinelService {
         await changeImpactAnalysisService.runImpactAnalysis(context, projectId, targetId, {});
         return;
       case "VERIFICATION_READINESS":
-        await verificationReadinessService.evaluateVerificationReadiness(context, projectId, targetId, {});
+        await verificationReadinessService.evaluateVerificationReadiness(
+          context,
+          projectId,
+          targetId,
+          {},
+        );
         return;
       case "TECHNICAL_READINESS":
-        await technicalReadinessService.evaluateTechnicalReadiness(context, projectId, { gate: targetId });
+        await technicalReadinessService.evaluateTechnicalReadiness(context, projectId, {
+          gate: targetId,
+        });
         return;
       case "DRIFT_ASSESSMENT":
         await driftDetectionService.evaluateDrift(context, projectId, { baselineId: targetId });
@@ -816,10 +856,9 @@ export class DecisionSentinelService {
         await certificationReviewService.evaluateCertificationReview(context, projectId, {});
         return;
       case "ASSUMPTION_MONITORING": {
-        const assumption = await prisma.decisionAssumption.findUnique({
-          where: { id: targetId },
-          select: { engineeringDecisionId: true },
-        });
+        const assumption = (
+          await decisionAssumptionRepository.findAssumptionsByIds([targetId])
+        ).get(targetId);
         if (!assumption) {
           throw new NotFoundError(`Assumption ${targetId} was not found.`);
         }
@@ -842,7 +881,11 @@ export class DecisionSentinelService {
     client?: Parameters<typeof surveillanceTargetRepository.findTargetInProject>[2],
   ): Promise<SurveillanceTargetWithSource> {
     const parsedId = parseOrThrow(entityIdSchema, id, "Invalid surveillance target id");
-    const target = await surveillanceTargetRepository.findTargetInProject(projectId, parsedId, client);
+    const target = await surveillanceTargetRepository.findTargetInProject(
+      projectId,
+      parsedId,
+      client,
+    );
     if (!target) {
       throw new NotFoundError(`Surveillance target ${parsedId} was not found.`);
     }

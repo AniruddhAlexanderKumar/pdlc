@@ -1,11 +1,15 @@
-import { ShieldAlert } from "lucide-react";
-import { ModuleStubPage } from "../_components/module-stub";
+"use client";
 
-export default function RisksPage() {
+import { ShieldAlert } from "lucide-react";
+import { ModuleProjectPicker } from "../_components/module-project-picker";
+
+export default function RisksProjectPicker() {
   return (
-    <ModuleStubPage
+    <ModuleProjectPicker
       title="Risks"
-      description="Program and engineering risk register."
+      description="Risks belong to a project. Choose one to open its risk register."
+      modulePath="/risks"
+      actionLabel="Open risks"
       icon={ShieldAlert}
     />
   );

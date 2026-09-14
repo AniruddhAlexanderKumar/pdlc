@@ -67,6 +67,56 @@ export async function listAuditEventsForEntity(
   }));
 }
 
+export interface RelationshipAuditRow {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  createdAt: Date;
+}
+
+/**
+ * Every matching audit row across a batch of entity ids at once — Decision
+ * Sentinel's relationship-change scan, which otherwise has no single owning
+ * entity to read from. Organization-scoped like every other read here.
+ */
+export async function listAuditEventsForEntities(
+  input: {
+    organizationId: string;
+    entityIds: readonly string[];
+    actions: readonly string[];
+    limit?: number;
+  },
+  client: DbClient = prisma,
+): Promise<RelationshipAuditRow[]> {
+  if (input.entityIds.length === 0) return [];
+
+  return client.auditLog.findMany({
+    where: {
+      organizationId: input.organizationId,
+      entityId: { in: [...input.entityIds] },
+      action: { in: [...input.actions] },
+    },
+    select: { id: true, action: true, entityType: true, entityId: true, createdAt: true },
+    orderBy: [{ createdAt: "desc" }],
+    take: input.limit ?? 500,
+  });
+}
+
+/** The most recent actor to touch this entity, for attributing a detected change to whoever made it. */
+export async function findLatestActorForEntity(
+  organizationId: string,
+  entityId: string,
+  client: DbClient = prisma,
+): Promise<string | null> {
+  const latest = await client.auditLog.findFirst({
+    where: { organizationId, entityId },
+    orderBy: [{ createdAt: "desc" }],
+    select: { actorId: true },
+  });
+  return latest?.actorId ?? null;
+}
+
 export async function recordAuditEvent(
   input: RecordAuditEventInput,
   client: DbClient = prisma,

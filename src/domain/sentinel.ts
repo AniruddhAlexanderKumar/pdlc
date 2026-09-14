@@ -196,7 +196,12 @@ export type SurveillanceTargetId = string;
  * resolved. `RESOLVED` and `SUPERSEDED` are both terminal: nothing
  * transitions out of them.
  */
-export const SURVEILLANCE_TARGET_STATUSES = ["OPEN", "ACKNOWLEDGED", "SUPERSEDED", "RESOLVED"] as const;
+export const SURVEILLANCE_TARGET_STATUSES = [
+  "OPEN",
+  "ACKNOWLEDGED",
+  "SUPERSEDED",
+  "RESOLVED",
+] as const;
 export type SurveillanceTargetStatus = (typeof SURVEILLANCE_TARGET_STATUSES)[number];
 export const surveillanceTargetStatusSchema = z.enum(SURVEILLANCE_TARGET_STATUSES);
 
@@ -285,17 +290,20 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "REQUIREMENT",
     targetType: "IMPACT_ANALYSIS",
-    reason: "The requirement's statement or lifecycle state changed after an impact analysis reached it.",
+    reason:
+      "The requirement's statement or lifecycle state changed after an impact analysis reached it.",
   },
   {
     sourceType: "REQUIREMENT",
     targetType: "VERIFICATION_READINESS",
-    reason: "The requirement changed after a verification readiness assessment included it in its basis.",
+    reason:
+      "The requirement changed after a verification readiness assessment included it in its basis.",
   },
   {
     sourceType: "REQUIREMENT",
     targetType: "TECHNICAL_READINESS",
-    reason: "The requirement changed after a technical readiness gate assessment included it in its scope.",
+    reason:
+      "The requirement changed after a technical readiness gate assessment included it in its scope.",
   },
   {
     sourceType: "REQUIREMENT",
@@ -305,7 +313,8 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "REQUIREMENT",
     targetType: "DRIFT_ASSESSMENT",
-    reason: "The requirement changed after it was baselined — the divergence drift exists to report.",
+    reason:
+      "The requirement changed after it was baselined — the divergence drift exists to report.",
   },
   // --- Design item ---
   {
@@ -316,17 +325,20 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "DESIGN_ITEM",
     targetType: "VERIFICATION_READINESS",
-    reason: "The design item changed after a verification readiness assessment included it in its basis.",
+    reason:
+      "The design item changed after a verification readiness assessment included it in its basis.",
   },
   {
     sourceType: "DESIGN_ITEM",
     targetType: "TECHNICAL_READINESS",
-    reason: "The design item changed after a technical readiness gate assessment included it in its scope.",
+    reason:
+      "The design item changed after a technical readiness gate assessment included it in its scope.",
   },
   {
     sourceType: "DESIGN_ITEM",
     targetType: "DRIFT_ASSESSMENT",
-    reason: "The design item changed after it was baselined — the divergence drift exists to report.",
+    reason:
+      "The design item changed after it was baselined — the divergence drift exists to report.",
   },
   {
     sourceType: "DESIGN_ITEM",
@@ -342,17 +354,20 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "ENGINEERING_DECISION",
     targetType: "ASSUMPTION_MONITORING",
-    reason: "The decision changed, and its recorded assumptions may no longer rest on the same basis.",
+    reason:
+      "The decision changed, and its recorded assumptions may no longer rest on the same basis.",
   },
   {
     sourceType: "ENGINEERING_DECISION",
     targetType: "VERIFICATION_READINESS",
-    reason: "The decision changed after a verification readiness assessment included it in its basis.",
+    reason:
+      "The decision changed after a verification readiness assessment included it in its basis.",
   },
   {
     sourceType: "ENGINEERING_DECISION",
     targetType: "TECHNICAL_READINESS",
-    reason: "The decision changed after a technical readiness gate assessment included it in its scope.",
+    reason:
+      "The decision changed after a technical readiness gate assessment included it in its scope.",
   },
   {
     sourceType: "ENGINEERING_DECISION",
@@ -373,18 +388,23 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "DECISION_ASSUMPTION",
     targetType: "VERIFICATION_READINESS",
-    reason: "The assumption changed after a verification readiness assessment included it in its basis.",
+    reason:
+      "The assumption changed after a verification readiness assessment included it in its basis.",
   },
   {
     sourceType: "DECISION_ASSUMPTION",
     targetType: "TECHNICAL_READINESS",
-    reason: "The assumption changed after a technical readiness gate assessment included it in its scope.",
+    reason:
+      "The assumption changed after a technical readiness gate assessment included it in its scope.",
   },
-  {
-    sourceType: "DECISION_ASSUMPTION",
-    targetType: "CERTIFICATION_REVIEW",
-    reason: "The assumption changed behind a decision a certification review's compliance item links to.",
-  },
+  // Deliberately no DECISION_ASSUMPTION -> CERTIFICATION_REVIEW row:
+  // `CertificationReviewService.resolveBasis` reads assumption-monitoring
+  // state only into the read-only `consumed.assumptions` display field
+  // (`assumptionBasisRepository.loadAssumptionContext`) — never into
+  // `basis.objects`, so no assumption id can ever satisfy Sentinel's
+  // `basisContains` check for this target. Only the owning
+  // ENGINEERING_DECISION is actually a basis object (via `engineeringRowsByType`),
+  // which the row above already covers correctly.
   // --- Verification activity ---
   {
     sourceType: "VERIFICATION_ACTIVITY",
@@ -394,17 +414,20 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "VERIFICATION_ACTIVITY",
     targetType: "TECHNICAL_READINESS",
-    reason: "The verification activity changed after a technical readiness gate assessment included it in its scope.",
+    reason:
+      "The verification activity changed after a technical readiness gate assessment included it in its scope.",
   },
   {
     sourceType: "VERIFICATION_ACTIVITY",
     targetType: "CERTIFICATION_REVIEW",
-    reason: "The verification activity changed after a certification review linked a compliance item to it.",
+    reason:
+      "The verification activity changed after a certification review linked a compliance item to it.",
   },
   {
     sourceType: "VERIFICATION_ACTIVITY",
     targetType: "DRIFT_ASSESSMENT",
-    reason: "The verification activity changed after it was baselined — the divergence drift exists to report.",
+    reason:
+      "The verification activity changed after it was baselined — the divergence drift exists to report.",
   },
   // --- Supplier / supplied item / supplier qualification ---
   {
@@ -412,16 +435,18 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
     targetType: "IMPACT_ANALYSIS",
     reason: "The supplier's status changed, reaching what it supplies.",
   },
-  {
-    sourceType: "SUPPLIER",
-    targetType: "TECHNICAL_READINESS",
-    reason: "The supplier changed after a technical readiness gate assessment included it in its scope.",
-  },
-  {
-    sourceType: "SUPPLIER",
-    targetType: "CERTIFICATION_REVIEW",
-    reason: "The supplier changed after a certification review linked a compliance item to its qualification.",
-  },
+  // Deliberately no SUPPLIER -> TECHNICAL_READINESS row: no gate's persisted
+  // scope snapshot (`TechnicalReadinessService`'s own `refs`/`objects`
+  // construction) ever includes a raw SUPPLIER node — only qualifications
+  // ever entered a compliance item's engineering links, and even that
+  // (see below) is not part of this engine's scope. A row here would be
+  // unreachable by construction.
+  //
+  // Deliberately no SUPPLIER -> CERTIFICATION_REVIEW row either:
+  // `COMPLIANCE_LINK_TYPES` (domain/certification.ts) never includes
+  // SUPPLIER as a linkable type — only SUPPLIER_QUALIFICATION — so a
+  // compliance item can never actually link to a raw supplier, and
+  // `basis.objects` can never contain one.
   {
     sourceType: "SUPPLIED_ITEM",
     targetType: "IMPACT_ANALYSIS",
@@ -430,13 +455,12 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "SUPPLIED_ITEM",
     targetType: "DRIFT_ASSESSMENT",
-    reason: "The supplied item changed after it was baselined — the divergence drift exists to report.",
+    reason:
+      "The supplied item changed after it was baselined — the divergence drift exists to report.",
   },
-  {
-    sourceType: "SUPPLIED_ITEM",
-    targetType: "CERTIFICATION_REVIEW",
-    reason: "The supplied item changed after a certification review linked a compliance item to its qualification.",
-  },
+  // Deliberately no SUPPLIED_ITEM -> CERTIFICATION_REVIEW row, for the
+  // identical reason as SUPPLIER above — `COMPLIANCE_LINK_TYPES` never
+  // includes SUPPLIED_ITEM either.
   {
     sourceType: "SUPPLIER_QUALIFICATION",
     targetType: "IMPACT_ANALYSIS",
@@ -445,17 +469,16 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "SUPPLIER_QUALIFICATION",
     targetType: "DRIFT_ASSESSMENT",
-    reason: "The supplier qualification changed after it was baselined — the divergence drift exists to report.",
+    reason:
+      "The supplier qualification changed after it was baselined — the divergence drift exists to report.",
   },
-  {
-    sourceType: "SUPPLIER_QUALIFICATION",
-    targetType: "TECHNICAL_READINESS",
-    reason: "The supplier qualification changed after a technical readiness gate assessment included it in its scope.",
-  },
+  // Deliberately no SUPPLIER_QUALIFICATION -> TECHNICAL_READINESS row, for
+  // the same structural reason as SUPPLIER above.
   {
     sourceType: "SUPPLIER_QUALIFICATION",
     targetType: "CERTIFICATION_REVIEW",
-    reason: "The supplier qualification changed after a certification review linked a compliance item to it.",
+    reason:
+      "The supplier qualification changed after a certification review linked a compliance item to it.",
   },
   // --- Operational observation ---
   {
@@ -463,26 +486,38 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
     targetType: "DRIFT_ASSESSMENT",
     reason: "A new or changed observation was recorded against a baselined object.",
   },
-  {
-    sourceType: "OPERATIONAL_OBSERVATION",
-    targetType: "ASSUMPTION_MONITORING",
-    reason: "The observation concerns an object a recorded assumption's basis depends on.",
-  },
-  {
-    sourceType: "OPERATIONAL_OBSERVATION",
-    targetType: "TECHNICAL_READINESS",
-    reason: "The observation was recorded, and a technical readiness gate consumes drift for the object it concerns.",
-  },
-  {
-    sourceType: "OPERATIONAL_OBSERVATION",
-    targetType: "CERTIFICATION_REVIEW",
-    reason: "The observation was recorded, and a certification review consumes drift for the object it concerns.",
-  },
+  // Deliberately no OPERATIONAL_OBSERVATION -> ASSUMPTION_MONITORING row:
+  // `AssumptionMonitoringService.resolveBasis` walks a fixed, documented
+  // two-hop edge policy (`ASSUMPTION_BASIS_POLICY`) out of the owning
+  // decision and, at most, its basis requirements — OPERATIONAL_OBSERVATION
+  // is never a node that walk can reach, and the policy's own doc comment
+  // says so explicitly ("deliberately absent... anything reachable only
+  // from a design item or verification activity"). A row here would be
+  // unreachable by construction.
+  //
+  // Deliberately no OPERATIONAL_OBSERVATION -> TECHNICAL_READINESS row
+  // either: the same gap as SUPPLIER above — no gate's persisted scope ever
+  // references an observation, despite an earlier version of this reason
+  // claiming a gate "consumes drift for the object it concerns"; nothing in
+  // `TechnicalReadinessService` ever did.
+  //
+  // Deliberately no OPERATIONAL_OBSERVATION -> CERTIFICATION_REVIEW row
+  // either, for the identical reason: `CertificationReviewService.resolveBasis`
+  // does consult the active baseline's latest drift assessment, but only to
+  // populate the read-only `consumed.drift` display field — that data is
+  // never folded into `basis.objects`, the only structure Sentinel's own
+  // `basisContains` check reads.
   // --- Change request ---
   {
     sourceType: "CHANGE_REQUEST",
     targetType: "IMPACT_ANALYSIS",
     reason: "The change request's scope or status changed after an impact analysis was run for it.",
+  },
+  {
+    sourceType: "CHANGE_REQUEST",
+    targetType: "TECHNICAL_READINESS",
+    reason:
+      "The change request changed after a technical readiness gate assessment included it in its scope.",
   },
   // --- Certification basis ---
   {
@@ -512,12 +547,14 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "ISSUE",
     targetType: "IMPACT_ANALYSIS",
-    reason: "The issue's status, severity or content changed after an impact analysis declared it affected.",
+    reason:
+      "The issue's status, severity or content changed after an impact analysis declared it affected.",
   },
   {
     sourceType: "ISSUE",
     targetType: "TECHNICAL_READINESS",
-    reason: "The issue changed after a technical readiness gate assessment counted it in its scope.",
+    reason:
+      "The issue changed after a technical readiness gate assessment counted it in its scope.",
   },
   // Deliberately no ISSUE -> CERTIFICATION_REVIEW row, for the same reason.
   // --- Evidence ---
@@ -538,32 +575,38 @@ export const SURVEILLANCE_DEPENDENCY_RULES: readonly SurveillanceDependencyRule[
   {
     sourceType: "EVIDENCE",
     targetType: "TECHNICAL_READINESS",
-    reason: "The evidence changed after a technical readiness gate assessment counted it in its scope (the release gate's evidence-per-activity check).",
+    reason:
+      "The evidence changed after a technical readiness gate assessment counted it in its scope (the release gate's evidence-per-activity check).",
   },
   {
     sourceType: "EVIDENCE",
     targetType: "VERIFICATION_READINESS",
-    reason: "The evidence changed after a verification readiness assessment included it in its basis.",
+    reason:
+      "The evidence changed after a verification readiness assessment included it in its basis.",
   },
   {
     sourceType: "EVIDENCE",
     targetType: "CERTIFICATION_REVIEW",
-    reason: "The evidence changed after a certification review's basis included it as linked supporting evidence for a compliance item.",
+    reason:
+      "The evidence changed after a certification review's basis included it as linked supporting evidence for a compliance item.",
   },
 ] as const;
 
-const DEPENDENCY_INDEX: ReadonlyMap<SurveillanceSourceType, readonly SurveillanceDependencyRule[]> = (() => {
-  const index = new Map<SurveillanceSourceType, SurveillanceDependencyRule[]>();
-  for (const rule of SURVEILLANCE_DEPENDENCY_RULES) {
-    const list = index.get(rule.sourceType) ?? [];
-    list.push(rule);
-    index.set(rule.sourceType, list);
-  }
-  return index;
-})();
+const DEPENDENCY_INDEX: ReadonlyMap<SurveillanceSourceType, readonly SurveillanceDependencyRule[]> =
+  (() => {
+    const index = new Map<SurveillanceSourceType, SurveillanceDependencyRule[]>();
+    for (const rule of SURVEILLANCE_DEPENDENCY_RULES) {
+      const list = index.get(rule.sourceType) ?? [];
+      list.push(rule);
+      index.set(rule.sourceType, list);
+    }
+    return index;
+  })();
 
 /** Candidate target domains for a changed source type, in registry order. */
-export function dependencyRulesFor(sourceType: SurveillanceSourceType): readonly SurveillanceDependencyRule[] {
+export function dependencyRulesFor(
+  sourceType: SurveillanceSourceType,
+): readonly SurveillanceDependencyRule[] {
   return DEPENDENCY_INDEX.get(sourceType) ?? [];
 }
 
@@ -571,7 +614,9 @@ export function dependencyReason(
   sourceType: SurveillanceSourceType,
   targetType: SurveillanceTargetType,
 ): string | null {
-  return dependencyRulesFor(sourceType).find((rule) => rule.targetType === targetType)?.reason ?? null;
+  return (
+    dependencyRulesFor(sourceType).find((rule) => rule.targetType === targetType)?.reason ?? null
+  );
 }
 
 // ---------------------------------------------------------------------------
