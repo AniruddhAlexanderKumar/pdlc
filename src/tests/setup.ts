@@ -22,3 +22,22 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {}
   };
 }
+
+// jsdom does not implement matchMedia either — real browsers all do, and
+// `useMediaQuery` (the sidebar's responsive collapse, and any future
+// consumer) reads it directly. Reporting "not matched" unconditionally is
+// correct here for the same reason `getServerSnapshot` in that hook does the
+// same: no test in this project asserts on live viewport-resize behavior, so
+// components using it should just render at their non-collapsed default.
+if (typeof window !== "undefined" && typeof window.matchMedia === "undefined") {
+  window.matchMedia = (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  });
+}

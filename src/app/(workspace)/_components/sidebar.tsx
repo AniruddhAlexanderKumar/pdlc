@@ -8,6 +8,22 @@ import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { NAV_ITEMS } from "./nav-items";
 
+/** Matches `/projects/{id}` at the start of a path and captures the id. */
+const CURRENT_PROJECT_PATTERN = /^\/projects\/([^/]+)(?:\/|$)/;
+
+/**
+ * A module nav item (Requirements, Risks, ...) always points at the global
+ * project picker (`/requirements`) by default, because outside a project
+ * there is nowhere else for it to go. But while the user is already inside
+ * a project, following that same link re-prompts them to pick a project
+ * they are already in — a real, measured navigation defect. While inside a
+ * project, rewrite it straight to that project's module instead.
+ */
+function resolveHref(href: string, currentProjectId: string | null): string {
+  if (!currentProjectId || href === "/dashboard" || href === "/projects") return href;
+  return `/projects/${currentProjectId}${href}`;
+}
+
 /**
  * Collapsible primary navigation for the authenticated workspace shell.
  *
@@ -22,6 +38,7 @@ function Sidebar() {
   const isNarrowViewport = useMediaQuery("(max-width: 767px)");
   const [manualCollapsed, setManualCollapsed] = React.useState<boolean | null>(null);
   const collapsed = manualCollapsed ?? isNarrowViewport;
+  const currentProjectId = pathname.match(CURRENT_PROJECT_PATTERN)?.[1] ?? null;
 
   return (
     <aside
@@ -43,12 +60,13 @@ function Sidebar() {
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2" aria-label="Primary">
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const href = resolveHref(item.href, currentProjectId);
+          const isActive = pathname === href || pathname.startsWith(`${href}/`);
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={href}
               title={collapsed ? item.label : undefined}
               aria-current={isActive ? "page" : undefined}
               className={cn(

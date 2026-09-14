@@ -2,31 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  Activity,
-  AlertTriangle,
-  Archive,
-  ArrowLeft,
-  Boxes,
-  CircleAlert,
-  Eye,
-  Factory,
-  FileCheck,
-  FileText,
-  GitBranch,
-  History,
-  Layers,
-  LayoutDashboard,
-  ListChecks,
-  Pencil,
-  Radar,
-  Scale,
-  ShieldAlert,
-  ShieldCheck,
-  UserCog,
-  Users,
-  Waypoints,
-} from "lucide-react";
+import { AlertTriangle, Archive, ArrowLeft, LayoutDashboard, Pencil, UserCog } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { ProjectStatusBadge } from "@/components/common/project-status-badge";
 import { Button } from "@/components/ui/button";
@@ -35,125 +11,18 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
 import { formatIsoDate } from "@/lib/utils";
+import { PROJECT_MODULES } from "./project-modules";
 import { ProjectArchiveDialog } from "./project-archive-dialog";
 import { ProjectFormDialog } from "./project-form-dialog";
 import { SentinelSummaryCard } from "./sentinel-summary-card";
 import { TechnicalReadinessPanel } from "./technical-readiness-panel";
 
 /**
- * The artifact modules that actually exist. Nothing is listed here that a
- * user cannot open — unbuilt modules are named in the empty state instead.
+ * The overview grid shows every module except Members — Members has its own
+ * dedicated header button here (and its own tab in the project-scoped tab
+ * bar), so listing it twice in the same grid would be redundant.
  */
-const IMPLEMENTED_MODULES = [
-  {
-    label: "Command Center",
-    href: "/command-center",
-    icon: LayoutDashboard,
-    description: "One view of what needs attention and the current readiness/traceability state.",
-  },
-  {
-    label: "Requirements",
-    href: "/requirements",
-    icon: ListChecks,
-    description: "Author requirements, manage their lifecycle and trace them.",
-  },
-  {
-    label: "Stakeholder needs",
-    href: "/stakeholder-needs",
-    icon: Users,
-    description: "The originating needs requirements derive from.",
-  },
-  {
-    label: "Design items",
-    href: "/design-items",
-    icon: Boxes,
-    description: "Product structure that requirements are allocated to.",
-  },
-  {
-    label: "Verification",
-    href: "/verification",
-    icon: ShieldCheck,
-    description: "How requirements are shown to be met.",
-  },
-  {
-    label: "Evidence",
-    href: "/evidence",
-    icon: FileText,
-    description: "Controlled engineering evidence: what it is, where it came from, and what depends on it.",
-  },
-  {
-    label: "Decisions",
-    href: "/decisions",
-    icon: Scale,
-    description: "What was decided, why, and what it depended on.",
-  },
-  {
-    label: "Changes",
-    href: "/changes",
-    icon: GitBranch,
-    description: "Proposed changes and what each one declares it affects.",
-  },
-  {
-    label: "Risks",
-    href: "/risks",
-    icon: ShieldAlert,
-    description: "What could go wrong, why, and what is being done about it.",
-  },
-  {
-    label: "Issues",
-    href: "/issues",
-    icon: CircleAlert,
-    description: "Problems actually found, their owners, and their disposition.",
-  },
-  {
-    label: "Suppliers",
-    href: "/suppliers",
-    icon: Factory,
-    description: "Supplier engineering dependencies, and what the product relies on them for.",
-  },
-  {
-    label: "Baselines",
-    href: "/baselines",
-    icon: Layers,
-    description: "The approved engineering basis that drift is measured against.",
-  },
-  {
-    label: "Observations",
-    href: "/observations",
-    icon: Radar,
-    description: "What has actually been observed in operation.",
-  },
-  {
-    label: "Drift",
-    href: "/drift",
-    icon: Activity,
-    description: "Where operational reality no longer matches the approved basis.",
-  },
-  {
-    label: "Certification",
-    href: "/certification",
-    icon: FileCheck,
-    description: "Certification obligations, traced to the engineering evidence that supports them.",
-  },
-  {
-    label: "Decision Sentinel",
-    href: "/sentinel",
-    icon: Eye,
-    description: "Surveillance signals for engineering changes that may need re-review.",
-  },
-  {
-    label: "Traceability",
-    href: "/traceability",
-    icon: Waypoints,
-    description: "Trace real relationships across the engineering graph, hop by hop.",
-  },
-  {
-    label: "Engineering History",
-    href: "/history",
-    icon: History,
-    description: "The chronological record of what happened, and when, across this project.",
-  },
-] as const;
+const OVERVIEW_MODULES = PROJECT_MODULES.filter((module) => module.href !== "/members");
 
 /**
  * Project detail.
@@ -296,7 +165,7 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {IMPLEMENTED_MODULES.map((module) => {
+            {OVERVIEW_MODULES.map((module) => {
               const Icon = module.icon;
               return (
                 <div
