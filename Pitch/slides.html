@@ -193,8 +193,8 @@
             <p class="text-slate-400 text-xs leading-relaxed">Capture trade-offs, alternatives considered, assumptions, and sign-offs as first-class citizens. Zero lost knowledge when senior talent retires.</p>
           </div>
           <div class="glass-card p-5 rounded-xl">
-            <h4 class="text-base font-semibold text-cyan-300 mb-2">📋 Instant Regulatory Matrices</h4>
-            <p class="text-slate-400 text-xs leading-relaxed">Generate DO-178C, DO-254, ARP4754A, and AS9100 matrices with zero manual compilation, supported by cryptographic audit logs.</p>
+            <h4 class="text-base font-semibold text-cyan-300 mb-2">📋 Standard-Agnostic Compliance Tracking</h4>
+            <p class="text-slate-400 text-xs leading-relaxed">Define your own certification basis and compliance items against whatever standard your program answers to — no manual matrix compilation, backed by an immutable, append-only audit log.</p>
           </div>
         </div>
       </div>
@@ -220,7 +220,7 @@
             </div>
             <div class="flex items-start gap-3 text-xs text-slate-300">
               <span class="w-2 h-2 rounded-full bg-cyan-400 mt-1 flex-shrink-0"></span>
-              <span><strong>Audit Enforced:</strong> All changes preserve historical state with complete cryptographic audit trails.</span>
+              <span><strong>Audit Enforced:</strong> Every change is preserved in an immutable, append-only audit log — no update or delete path exists for it in the application at all.</span>
             </div>
           </div>
         </div>
@@ -320,7 +320,7 @@
                 <td class="p-4 text-center text-emerald-400">✅ On-Prem Desktop</td>
                 <td class="p-4 text-center text-yellow-400">⚠️ Heavy Enterprise</td>
                 <td class="p-4 text-center text-red-400">❌ Sunsetting Server</td>
-                <td class="p-4 text-center bg-cyan-950/30 text-cyan-300 font-bold">✅ Lightweight Docker/K8s</td>
+                <td class="p-4 text-center bg-cyan-950/30 text-cyan-300 font-bold">✅ Lightweight Docker Compose</td>
               </tr>
               <tr>
                 <td class="p-4 font-semibold text-slate-300">Data Portability / No Lock-In</td>
@@ -343,9 +343,9 @@
         <p class="text-slate-400 text-sm mb-6 max-w-3xl">Strict multi-tenant scoping, cryptographic audit trails, and zero external cloud phone-home requirements.</p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="glass-card p-6 rounded-xl border border-cyan-500/20">
-            <h3 class="text-lg font-semibold text-cyan-300 mb-2">Air-Gapped & SCIF Ready</h3>
-            <p class="text-xs text-slate-300 leading-relaxed">Runs 100% disconnected inside classified defense enclaves, submarines, or secure facilities with zero cloud dependencies.</p>
-            <div class="mt-4 text-xs font-mono text-slate-400 bg-slate-900 p-2 rounded">AWS GovCloud • Azure Secret • On-Prem</div>
+            <h3 class="text-lg font-semibold text-cyan-300 mb-2">Self-Hosted, No External Dependencies</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">Runs disconnected on infrastructure you control — no managed database, no managed auth provider, no external API call to do its job.</p>
+            <div class="mt-4 text-xs font-mono text-slate-400 bg-slate-900 p-2 rounded">Docker / Podman • Any self-hosted PostgreSQL 17</div>
           </div>
           <div class="glass-card p-6 rounded-xl border border-cyan-500/20">
             <h3 class="text-lg font-semibold text-cyan-300 mb-2">Composite Tenancy Guard</h3>
@@ -354,8 +354,8 @@
           </div>
           <div class="glass-card p-6 rounded-xl border border-cyan-500/20">
             <h3 class="text-lg font-semibold text-cyan-300 mb-2">Immutable Audit Ledger</h3>
-            <p class="text-xs text-slate-300 leading-relaxed">Every requirement alteration, test result submission, and approval is logged with non-repudiable audit logs.</p>
-            <div class="mt-4 text-xs font-mono text-slate-400 bg-slate-900 p-2 rounded">FAA / DoD Audit Package Export</div>
+            <p class="text-xs text-slate-300 leading-relaxed">Every requirement alteration, test result submission, and approval is written to an append-only log with no application code path to edit or delete it.</p>
+            <div class="mt-4 text-xs font-mono text-slate-400 bg-slate-900 p-2 rounded">Full traceable history, per object and per project</div>
           </div>
         </div>
       </div>
@@ -411,13 +411,17 @@
         <h2 class="text-4xl font-bold mb-6">Strategic Product Roadmap</h2>
         <div class="grid grid-cols-3 gap-6">
           <div class="glass-card p-6 rounded-xl border border-cyan-500/40">
-            <span class="px-2 py-1 rounded bg-cyan-950 text-cyan-300 text-xs font-mono">PHASE 1 (CURRENT)</span>
-            <h3 class="text-lg font-bold text-white mt-3 mb-2">Core Digital Thread</h3>
+            <span class="px-2 py-1 rounded bg-cyan-950 text-cyan-300 text-xs font-mono">PHASE 1 (SHIPPED, V1)</span>
+            <h3 class="text-lg font-bold text-white mt-3 mb-2">The Full Engineering Lifecycle</h3>
             <ul class="text-xs text-slate-300 space-y-2">
-              <li>✅ Complete entity graph (Need $\rightarrow$ Evidence)</li>
-              <li>✅ Automated blast radius impact engine</li>
-              <li>✅ Decision memory & trade-study rationale</li>
-              <li>✅ Self-hosted PostgreSQL & Argon2id auth</li>
+              <li>✅ Requirements, design items, decisions & verification, each with a real lifecycle</li>
+              <li>✅ Real change-impact analysis, not a hard-coded result</li>
+              <li>✅ Engineering baselines, drift detection & configuration comparison</li>
+              <li>✅ Certification workspace: basis, compliance items, findings, review</li>
+              <li>✅ Decision Sentinel: continuous surveillance for stale analyses</li>
+              <li>✅ Supplier, risk, issue & evidence tracking, fully traceable</li>
+              <li>✅ Command Center, Engineering History & full traceability graph</li>
+              <li>✅ Self-hosted PostgreSQL 17 & Argon2id auth, no third-party dependency</li>
             </ul>
           </div>
           <div class="glass-card p-6 rounded-xl border border-slate-800">
@@ -432,12 +436,12 @@
           </div>
           <div class="glass-card p-6 rounded-xl border border-slate-800">
             <span class="px-2 py-1 rounded bg-slate-900 text-slate-400 text-xs font-mono">PHASE 3 (H2)</span>
-            <h3 class="text-lg font-bold text-white mt-3 mb-2">AI Systems Engineer</h3>
+            <h3 class="text-lg font-bold text-white mt-3 mb-2">Deeper Program Operations</h3>
             <ul class="text-xs text-slate-300 space-y-2">
-              <li>• INCOSE-compliant AI requirements checker</li>
-              <li>• Automated test procedure synthesis</li>
-              <li>• Ambiguity and conflict detection in specs</li>
-              <li>• Offline localized LLMs for air-gapped SCIFs</li>
+              <li>• Multi-project and cross-program rollups</li>
+              <li>• Exportable, formatted compliance and traceability reports</li>
+              <li>• Bulk import/export tooling for legacy migration</li>
+              <li>• Deeper CI/CD and PLM connector coverage</li>
             </ul>
           </div>
         </div>
