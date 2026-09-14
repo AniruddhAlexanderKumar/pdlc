@@ -28,7 +28,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Select } from "@/components/ui/select";
-import { formatIsoDate } from "@/lib/utils";
+import { cn, formatIsoDate } from "@/lib/utils";
 
 /**
  * The Engineering Command Center.
@@ -92,6 +92,8 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
 
       <ProjectHeaderCard project={data.project} />
 
+      <AtAGlanceStrip data={data} />
+
       <AttentionSection items={data.attentionItems} />
 
       <ReadinessSection projectId={projectId} data={data} />
@@ -140,6 +142,69 @@ function ProjectHeaderCard({ project }: { project: CommandCenterDto["project"] }
   );
 }
 
+type Severity = "neutral" | "warning" | "destructive";
+
+const STRIP_COLOR: Record<Severity, string> = {
+  neutral: "border-l-border",
+  warning: "border-l-warning",
+  destructive: "border-l-destructive",
+};
+
+/** One count, sourced straight from data already shown in the sections below — never a new computation. */
+function StatTile({ label, value, severity }: { label: string; value: number; severity: Severity }) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-0.5 rounded-sm border border-l-4 border-border bg-card px-3 py-2.5",
+        STRIP_COLOR[severity],
+      )}
+    >
+      <span className="font-mono text-2xl leading-none font-semibold text-foreground">{value}</span>
+      <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</span>
+    </div>
+  );
+}
+
+/**
+ * Five real, already-computed counts as one scannable row, ahead of the
+ * detail cards below — the same "surface the summary before the detail"
+ * reasoning Attention required already uses, extended to the rest of the
+ * page. Every number here is read straight off `data`; nothing is
+ * aggregated, weighted or ranked into it, and there is deliberately no
+ * sixth "overall" tile that would imply one exists.
+ */
+function AtAGlanceStrip({ data }: { data: CommandCenterDto }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <StatTile
+        label="Needs attention"
+        value={data.attentionItems.length}
+        severity={data.attentionItems.length > 0 ? "warning" : "neutral"}
+      />
+      <StatTile
+        label="Open risks"
+        value={data.risks.open}
+        severity={data.risks.open > 0 ? "warning" : "neutral"}
+      />
+      <StatTile
+        label="Open issues"
+        value={data.issues.open}
+        severity={data.issues.attentionCount > 0 ? "destructive" : data.issues.open > 0 ? "warning" : "neutral"}
+      />
+      <StatTile
+        label="Sentinel open"
+        value={data.sentinel.openCount}
+        severity={data.sentinel.openCount > 0 ? "warning" : "neutral"}
+      />
+      <StatTile
+        label="Evidence draft"
+        value={data.evidence.draftCount}
+        severity="neutral"
+      />
+    </div>
+  );
+}
+
 const SOURCE_MODULE_LABELS: Record<string, string> = {
   SENTINEL: "Decision Sentinel",
   TECHNICAL_READINESS: "Technical Readiness",
@@ -163,7 +228,7 @@ function AttentionSection({ items }: { items: AttentionItemDto[] }) {
   const filtered = moduleFilter ? items.filter((item) => item.sourceModule === moduleFilter) : items;
 
   return (
-    <Card className="border-warning/30">
+    <Card className={cn("border-l-4", items.length > 0 ? "border-l-warning" : "border-l-border")}>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col gap-1.5">
@@ -245,7 +310,11 @@ const NEUTRAL_STATES = new Set(["UNKNOWN", "UNDER_REVIEW", "REVIEW_REQUIRED", "B
 
 function StateBadge({ state }: { state: string }) {
   const variant = BAD_STATES.has(state) ? "destructive" : NEUTRAL_STATES.has(state) ? "warning" : "outline";
-  return <Badge variant={variant}>{state}</Badge>;
+  return (
+    <Badge variant={variant} dot={variant !== "outline"}>
+      {state}
+    </Badge>
+  );
 }
 
 function Detail({ term, children }: { term: string; children: React.ReactNode }) {

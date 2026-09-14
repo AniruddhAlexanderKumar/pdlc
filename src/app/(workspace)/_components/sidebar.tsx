@@ -9,6 +9,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   SlidersHorizontal,
+  Waypoints,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -129,12 +130,18 @@ function Sidebar() {
       )}
     >
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-3">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary font-mono text-xs font-bold text-primary-foreground">
-          P
+        {/*
+          The mark is the same Waypoints glyph "Open Traceability" uses
+          elsewhere in this shell, not an invented logo — traceability
+          across the lifecycle is this product's one central claim, so its
+          mark is the thing it actually draws, not a monogram in a box.
+        */}
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-primary text-primary-foreground">
+          <Waypoints className="size-4" aria-hidden="true" />
         </div>
         {!collapsed && (
-          <span className="truncate text-sm font-semibold tracking-tight text-foreground">
-            PDLC Platform
+          <span className="truncate font-mono text-sm font-semibold tracking-tight text-foreground">
+            PDLC
           </span>
         )}
       </div>

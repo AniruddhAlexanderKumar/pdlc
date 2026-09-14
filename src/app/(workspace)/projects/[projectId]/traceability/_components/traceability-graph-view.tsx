@@ -99,7 +99,7 @@ const CATEGORY_COLOR: Record<NodeCategory, string> = {
   verification: "var(--success)",
   attention: "var(--destructive)",
   supplier: "#7c6fd6",
-  configuration: "#64748b",
+  configuration: "#5b6472",
   certification: "#0d9488",
 };
 
