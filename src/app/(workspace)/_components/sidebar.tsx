@@ -5,12 +5,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { NAV_ITEMS } from "./nav-items";
 
-/** Collapsible primary navigation for the authenticated workspace shell. */
+/**
+ * Collapsible primary navigation for the authenticated workspace shell.
+ *
+ * Collapses to the icon rail by default on a narrow viewport — a desktop
+ * engineering tool does not need a full mobile drawer pattern, but it must
+ * not permanently spend 240px of a ~375px phone viewport on navigation —
+ * and stays reactive to the viewport until the user explicitly toggles it,
+ * at which point their own choice wins regardless of width.
+ */
 function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = React.useState(false);
+  const isNarrowViewport = useMediaQuery("(max-width: 767px)");
+  const [manualCollapsed, setManualCollapsed] = React.useState<boolean | null>(null);
+  const collapsed = manualCollapsed ?? isNarrowViewport;
 
   return (
     <aside
@@ -42,6 +53,8 @@ function Sidebar() {
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 isActive
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground",
@@ -57,8 +70,13 @@ function Sidebar() {
       <div className="border-t border-border p-2">
         <button
           type="button"
-          onClick={() => setCollapsed((value) => !value)}
-          className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          onClick={() => setManualCollapsed(!collapsed)}
+          className={cn(
+            "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors",
+            "hover:bg-secondary hover:text-foreground",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          )}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (

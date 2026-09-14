@@ -1,9 +1,12 @@
 import Link from "next/link";
-import { FolderGit2, GitBranch, ListChecks, ShieldCheck } from "lucide-react";
+import { GitBranch, ListChecks, ShieldCheck, Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shell } from "@/components/common/shell";
 
+// Four real, load-bearing capabilities — not a marketing feature list. Each
+// icon matches the one the same module uses in the authenticated workspace
+// nav (`nav-items.ts`), so a visitor who signs in recognizes it.
 const PILLARS = [
   {
     title: "Requirements",
@@ -11,9 +14,10 @@ const PILLARS = [
     icon: ListChecks,
   },
   {
-    title: "Architecture",
-    description: "Model system and component architecture alongside requirements.",
-    icon: FolderGit2,
+    title: "Traceability",
+    description:
+      "Trace every requirement forward and backward through design, decisions, and verification.",
+    icon: Waypoints,
   },
   {
     title: "Verification",
@@ -22,7 +26,7 @@ const PILLARS = [
   },
   {
     title: "Changes",
-    description: "Manage change requests and their downstream impact.",
+    description: "Manage change requests and their real, computed downstream impact.",
     icon: GitBranch,
   },
 ] as const;
@@ -38,8 +42,9 @@ export default function MarketingHomePage() {
           A product development platform built for aerospace rigor.
         </h1>
         <p className="max-w-xl text-base text-muted-foreground">
-          PDLC Platform is the application shell and technical foundation for managing
-          requirements, architecture, verification, and change across an aerospace program.
+          PDLC Platform records the engineering lifecycle of an aerospace program — requirements,
+          design, decisions, verification, certification, and change — as one traceable, auditable
+          record.
         </p>
         <div className="flex items-center gap-3">
           <Button asChild>

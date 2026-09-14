@@ -31,8 +31,18 @@ function Breadcrumbs() {
   const segments = pathname.split("/").filter(Boolean);
 
   return (
-    <nav aria-label="Breadcrumb" className="flex min-w-0 items-center text-sm text-muted-foreground">
-      <Link href="/dashboard" className="flex items-center hover:text-foreground" aria-label="Dashboard home">
+    <nav
+      aria-label="Breadcrumb"
+      className="flex min-w-0 items-center text-sm text-muted-foreground"
+    >
+      <Link
+        href="/dashboard"
+        className={cn(
+          "flex items-center rounded-sm hover:text-foreground",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        )}
+        aria-label="Dashboard home"
+      >
         <Home className="size-3.5" aria-hidden="true" />
       </Link>
       {segments.map((segment, index) => {
@@ -46,7 +56,13 @@ function Breadcrumbs() {
                 {labelForSegment(segment)}
               </span>
             ) : (
-              <Link href={href} className="truncate hover:text-foreground">
+              <Link
+                href={href}
+                className={cn(
+                  "truncate rounded-sm hover:text-foreground",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                )}
+              >
                 {labelForSegment(segment)}
               </Link>
             )}

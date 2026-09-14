@@ -1,5 +1,6 @@
 import type { SurveillanceTargetStatus, SurveillanceTargetType } from "@/domain";
 import { Badge } from "@/components/ui/badge";
+import { titleCase } from "@/lib/utils";
 
 /**
  * Status indicators for the Decision Sentinel.
@@ -9,14 +10,10 @@ import { Badge } from "@/components/ui/badge";
  * ("this changed, and this analysis may depend on it"), not a risk rating.
  */
 
-function titleCase(value: string): string {
-  return value
-    .split("_")
-    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-    .join(" ");
-}
-
-const STATUS_VARIANTS: Record<SurveillanceTargetStatus, "warning" | "default" | "success" | "outline"> = {
+const STATUS_VARIANTS: Record<
+  SurveillanceTargetStatus,
+  "warning" | "default" | "success" | "outline"
+> = {
   OPEN: "warning",
   ACKNOWLEDGED: "default",
   RESOLVED: "success",
@@ -27,7 +24,11 @@ export function SurveillanceStatusBadge({ status }: { status: SurveillanceTarget
   return <Badge variant={STATUS_VARIANTS[status]}>{titleCase(status)}</Badge>;
 }
 
-export function SurveillanceTargetTypeBadge({ targetType }: { targetType: SurveillanceTargetType }) {
+export function SurveillanceTargetTypeBadge({
+  targetType,
+}: {
+  targetType: SurveillanceTargetType;
+}) {
   return <Badge variant="outline">{titleCase(targetType)}</Badge>;
 }
 

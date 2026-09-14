@@ -6,6 +6,7 @@ import type {
   VerificationStatus,
 } from "@/domain";
 import { Badge } from "@/components/ui/badge";
+import { titleCase } from "@/lib/utils";
 
 /**
  * Status and type indicators for the foundational artifacts.
@@ -13,13 +14,6 @@ import { Badge } from "@/components/ui/badge";
  * As elsewhere, meaning lives in the label rather than the colour, so these
  * remain readable without relying on hue.
  */
-
-function titleCase(value: string): string {
-  return value
-    .split("_")
-    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-    .join(" ");
-}
 
 const NEED_STATUS_VARIANTS: Record<
   StakeholderNeedStatus,

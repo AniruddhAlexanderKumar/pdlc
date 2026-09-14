@@ -94,11 +94,9 @@
    * throughout for identifiers, serials, hashes, and revision codes.
    */
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono:
-    ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, "Liberation Mono",
-    monospace;
+    ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 @layer base {
@@ -117,5 +115,20 @@
   ::selection {
     background-color: var(--accent);
     color: var(--accent-foreground);
+  }
+
+  /*
+   * A visible keyboard-focus indicator on every link, by default. Every
+   * interactive primitive in src/components/ui already carries its own
+   * `focus-visible:ring-*` utility classes (which win here — utility
+   * classes sit in a later cascade layer than this `base` rule) — this is
+   * the backstop for the many bare `<Link>` usages throughout the app
+   * (table rows, traceability panels, breadcrumbs) that render a real
+   * anchor tag without going through a styled primitive. Never applies on
+   * mouse/touch interaction, only real keyboard focus.
+   */
+  a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }

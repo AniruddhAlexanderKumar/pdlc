@@ -11,6 +11,18 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 /**
+ * `"UNDER_REVIEW"` → `"Under review"`. The shared label-casing rule every
+ * status/type badge in `src/components/common/*-badges.tsx` uses — was five
+ * byte-identical copies before being consolidated here.
+ */
+export function titleCase(value: string): string {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/**
  * Formats an ISO timestamp as a plain ISO date (2026-01-15).
  *
  * Locale-independent on purpose: engineering records are read across sites,

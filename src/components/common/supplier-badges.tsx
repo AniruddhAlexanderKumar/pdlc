@@ -6,6 +6,7 @@ import type {
   SupplierStatus,
 } from "@/domain";
 import { Badge } from "@/components/ui/badge";
+import { titleCase } from "@/lib/utils";
 
 /**
  * Status and type indicators for supplier engineering.
@@ -19,17 +20,7 @@ import { Badge } from "@/components/ui/badge";
  * would be a judgement the system has no basis to make.
  */
 
-function titleCase(value: string): string {
-  return value
-    .split("_")
-    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-    .join(" ");
-}
-
-const SUPPLIER_STATUS_VARIANTS: Record<
-  SupplierStatus,
-  "success" | "outline" | "info"
-> = {
+const SUPPLIER_STATUS_VARIANTS: Record<SupplierStatus, "success" | "outline" | "info"> = {
   ACTIVE: "success",
   INACTIVE: "outline",
   UNDER_REVIEW: "info",
@@ -39,10 +30,7 @@ export function SupplierStatusBadge({ status }: { status: SupplierStatus }) {
   return <Badge variant={SUPPLIER_STATUS_VARIANTS[status]}>{titleCase(status)}</Badge>;
 }
 
-const SUPPLIED_ITEM_STATUS_VARIANTS: Record<
-  SuppliedItemStatus,
-  "success" | "outline" | "info"
-> = {
+const SUPPLIED_ITEM_STATUS_VARIANTS: Record<SuppliedItemStatus, "success" | "outline" | "info"> = {
   ACTIVE: "success",
   OBSOLETE: "outline",
   UNDER_REVIEW: "info",
@@ -74,11 +62,7 @@ const QUALIFICATION_STATUS_VARIANTS: Record<
   WITHDRAWN: "outline",
 };
 
-export function QualificationStatusBadge({
-  status,
-}: {
-  status: SupplierQualificationStatus;
-}) {
+export function QualificationStatusBadge({ status }: { status: SupplierQualificationStatus }) {
   return <Badge variant={QUALIFICATION_STATUS_VARIANTS[status]}>{titleCase(status)}</Badge>;
 }
 

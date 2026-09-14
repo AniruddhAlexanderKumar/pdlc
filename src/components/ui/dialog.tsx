@@ -31,7 +31,16 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
+        "fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2",
+        // A baseline viewport-height safety net: most dialogs already cap
+        // their own body's height (see e.g. requirement-form-dialog.tsx's
+        // `max-h-[60vh] overflow-y-auto` around its fields), so this rarely
+        // engages for them — header + a 60vh body + footer sits comfortably
+        // under 90vh. It exists for the dialogs that don't add their own
+        // (a short form has no reason to), and as a hard backstop so no
+        // dialog can ever render with its footer/submit button pushed off
+        // screen on a short viewport.
+        "max-h-[90vh] overflow-y-auto",
         "rounded-lg border border-border bg-card p-6 text-card-foreground shadow-lg",
         className,
       )}

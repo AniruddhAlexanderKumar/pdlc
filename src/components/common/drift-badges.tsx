@@ -8,6 +8,7 @@ import type {
   ObservationType,
 } from "@/domain";
 import { Badge } from "@/components/ui/badge";
+import { titleCase } from "@/lib/utils";
 
 /**
  * Status indicators for baselines, observations and drift.
@@ -19,13 +20,6 @@ import { Badge } from "@/components/ui/badge";
  * verdict is one of three words, and a finding either asks for review or does
  * not. A number here would suggest a measurement nobody made.
  */
-
-function titleCase(value: string): string {
-  return value
-    .split("_")
-    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-    .join(" ");
-}
 
 /**
  * `BASELINE_CHANGED` → `Baseline changed`.
@@ -50,14 +44,12 @@ export function BaselineStatusBadge({ status }: { status: BaselineStatus }) {
   return <Badge variant={BASELINE_STATUS_VARIANTS[status]}>{titleCase(status)}</Badge>;
 }
 
-const OBSERVATION_STATUS_VARIANTS: Record<
-  ObservationStatus,
-  "secondary" | "success" | "outline"
-> = {
-  RECORDED: "secondary",
-  REVIEWED: "success",
-  REJECTED: "outline",
-};
+const OBSERVATION_STATUS_VARIANTS: Record<ObservationStatus, "secondary" | "success" | "outline"> =
+  {
+    RECORDED: "secondary",
+    REVIEWED: "success",
+    REJECTED: "outline",
+  };
 
 export function ObservationStatusBadge({ status }: { status: ObservationStatus }) {
   return <Badge variant={OBSERVATION_STATUS_VARIANTS[status]}>{titleCase(status)}</Badge>;
