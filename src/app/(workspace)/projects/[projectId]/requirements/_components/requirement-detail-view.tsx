@@ -19,6 +19,7 @@ import {
   RequirementStatusBadge,
   requirementStatusLabel,
 } from "@/components/common/requirement-badges";
+import { TraceLink } from "@/components/common/trace-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -148,6 +149,13 @@ export function RequirementDetailView({
                 History
               </Link>
             </Button>
+            <TraceLink
+              projectId={projectId}
+              type="REQUIREMENT"
+              id={requirement.id}
+              identifier={requirement.identifier}
+              label={requirement.title}
+            />
           </>
         }
       />

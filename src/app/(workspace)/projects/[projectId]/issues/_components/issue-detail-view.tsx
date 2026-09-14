@@ -14,6 +14,7 @@ import {
   IssueStatusBadge,
   issueStatusLabel,
 } from "@/components/common/risk-issue-badges";
+import { TraceLink } from "@/components/common/trace-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -135,6 +136,13 @@ export function IssueDetailView({ projectId, issueId }: { projectId: string; iss
                 History
               </Link>
             </Button>
+            <TraceLink
+              projectId={projectId}
+              type="ISSUE"
+              id={issue.id}
+              identifier={issue.identifier}
+              label={issue.title}
+            />
           </>
         }
       />

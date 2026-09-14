@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, ChevronRight, RefreshCw, Waypoints } from "lucide-react";
 import {
   TRACEABILITY_SELECTABLE_NODE_TYPES,
@@ -28,6 +29,34 @@ export interface VisitedNode {
   label: string;
 }
 
+const SELECTABLE_TYPE_SET = new Set<string>(TRACEABILITY_SELECTABLE_NODE_TYPES);
+
+/**
+ * Every other module's detail pages link here with `?type=&id=` (and
+ * `identifier=`/`label=` so this view never has to make a second fetch just
+ * to resolve what the caller already had in hand) — "one interaction away"
+ * from any object to its place in the graph. `type` is re-validated against
+ * the same selectable-root list the picker itself offers, since it is a raw
+ * query string a link could get wrong; an unrecognized or missing type
+ * simply falls back to the ordinary empty state rather than opening
+ * something unvalidated. `searchParams` itself is nullable — `useSearchParams()`
+ * returns `null` outside a router context (every render in this project's
+ * own test suite, for one), and this must degrade to the ordinary "nothing
+ * open yet" state there too, not throw.
+ */
+function readLinkedRoot(searchParams: URLSearchParams | null): VisitedNode | null {
+  if (!searchParams) return null;
+  const type = searchParams.get("type");
+  const id = searchParams.get("id");
+  if (!type || !id || !SELECTABLE_TYPE_SET.has(type)) return null;
+  return {
+    type: type as GraphNodeType,
+    id,
+    identifier: searchParams.get("identifier"),
+    label: searchParams.get("label") ?? id,
+  };
+}
+
 /**
  * The Traceability workspace.
  *
@@ -40,10 +69,11 @@ export interface VisitedNode {
 export function TraceabilityView({ projectId }: { projectId: string }) {
   const project = useProject(projectId);
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
+  const searchParams = useSearchParams();
 
   const [nodeType, setNodeType] = React.useState<TraceabilitySelectableNodeType | "">("");
   const [pendingObjectId, setPendingObjectId] = React.useState("");
-  const [current, setCurrent] = React.useState<VisitedNode | null>(null);
+  const [current, setCurrent] = React.useState<VisitedNode | null>(() => readLinkedRoot(searchParams));
   const [history, setHistory] = React.useState<VisitedNode[]>([]);
 
   const roots = useTraceabilityRoots(projectId, nodeType);

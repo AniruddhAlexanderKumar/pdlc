@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/evidence";
 import { PageHeader } from "@/components/common/page-header";
 import { EvidenceStatusBadge } from "@/components/common/evidence-badges";
+import { TraceLink } from "@/components/common/trace-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -127,6 +128,13 @@ export function EvidenceDetailView({ projectId, evidenceId }: { projectId: strin
                 History
               </Link>
             </Button>
+            <TraceLink
+              projectId={projectId}
+              type="EVIDENCE"
+              id={evidence.id}
+              identifier={evidence.identifier}
+              label={evidence.title}
+            />
           </>
         }
       />

@@ -12,7 +12,14 @@ import {
 import type { ProjectDto } from "@/lib/api/projects";
 import { formatIsoDate } from "@/lib/utils";
 
-/** Dense project listing. The name is the navigation target for the detail page. */
+/**
+ * Dense project listing. The name is the navigation target — straight into
+ * Command Center, not the project overview page. Command Center is the
+ * front door: it composes what needs attention across the whole project and
+ * computes nothing itself, which is exactly the shape a landing surface
+ * should have. The overview page (module grid, archive/edit) stays one
+ * click away from there, not the first thing shown.
+ */
 export function ProjectTable({ projects }: { projects: ProjectDto[] }) {
   return (
     <Table>
@@ -32,7 +39,7 @@ export function ProjectTable({ projects }: { projects: ProjectDto[] }) {
           <TableRow key={project.id}>
             <TableCell className="max-w-md whitespace-normal">
               <Link
-                href={`/projects/${project.id}`}
+                href={`/projects/${project.id}/command-center`}
                 className="font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {project.name}

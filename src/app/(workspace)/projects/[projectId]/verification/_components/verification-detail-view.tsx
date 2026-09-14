@@ -23,6 +23,7 @@ import {
   OwnerPanel,
 } from "@/components/common/artifact-panels";
 import { PageHeader } from "@/components/common/page-header";
+import { TraceLink } from "@/components/common/trace-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -130,6 +131,13 @@ export function VerificationDetailView({
                 History
               </Link>
             </Button>
+            <TraceLink
+              projectId={projectId}
+              type="VERIFICATION_ACTIVITY"
+              id={activity.id}
+              identifier={activity.identifier}
+              label={activity.title}
+            />
           </>
         }
       />

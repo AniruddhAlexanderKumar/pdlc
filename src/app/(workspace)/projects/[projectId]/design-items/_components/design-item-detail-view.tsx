@@ -14,6 +14,7 @@ import {
   OwnerPanel,
 } from "@/components/common/artifact-panels";
 import { PageHeader } from "@/components/common/page-header";
+import { TraceLink } from "@/components/common/trace-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -98,6 +99,13 @@ export function DesignItemDetailView({
                 History
               </Link>
             </Button>
+            <TraceLink
+              projectId={projectId}
+              type="DESIGN_ITEM"
+              id={item.id}
+              identifier={item.identifier}
+              label={item.name}
+            />
           </>
         }
       />

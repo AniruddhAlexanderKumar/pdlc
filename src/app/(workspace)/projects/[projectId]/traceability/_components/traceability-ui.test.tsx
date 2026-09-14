@@ -10,6 +10,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * responses, exactly as the real API returns them.
  */
 
+/**
+ * `useSearchParams()` is `null` in every one of this file's other tests
+ * (there is no router context under a bare `render()`, matching what the
+ * real hook returns outside one) — deliberately left that way so the
+ * default suite keeps proving the linked-root feature degrades to the
+ * ordinary empty state rather than throwing. Only the one test that opts in
+ * via `linkedSearchParams` exercises the deep-link path itself.
+ */
+let linkedSearchParams: URLSearchParams | null = null;
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => linkedSearchParams,
+}));
+
 const { TraceabilityView } = await import("./traceability-view");
 
 const PROJECT_ID = "proj1aaaaaaaaaaaaaaaaaaa";
@@ -152,6 +165,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  linkedSearchParams = null;
 });
 
 async function openRequirement(user: ReturnType<typeof userEvent.setup>) {
@@ -270,5 +284,32 @@ describe("TraceabilityView", () => {
     await switchToList(user);
 
     expect(await screen.findByText("No relationships")).toBeInTheDocument();
+  });
+
+  it("opens straight to the object a detail page linked in via ?type=&id=, with no picker interaction", async () => {
+    routeGets({ "REQUIREMENT:req1": REQUIREMENT_NEIGHBORHOOD });
+    linkedSearchParams = new URLSearchParams({
+      type: "REQUIREMENT",
+      id: REQUIREMENT.id,
+      identifier: REQUIREMENT.identifier,
+      label: REQUIREMENT.label,
+    });
+    const user = userEvent.setup();
+    render(<TraceabilityView projectId={PROJECT_ID} />);
+    await switchToList(user);
+
+    expect(await screen.findByText("Currently inspecting")).toBeInTheDocument();
+    // The linked-in object is the *current* node, not a breadcrumb step back
+    // to it — it renders as the trail's plain current-location text, not a
+    // clickable button (that's only true for steps behind it in history).
+    expect(screen.getByText("REQ-001", { selector: '[aria-current="location"]' })).toBeInTheDocument();
+  });
+
+  it("ignores a linked type outside the selectable-root list rather than opening something unvalidated", async () => {
+    routeGets();
+    linkedSearchParams = new URLSearchParams({ type: "DECISION_ALTERNATIVE", id: "alt1" });
+    render(<TraceabilityView projectId={PROJECT_ID} />);
+
+    expect(await screen.findByText("Nothing open yet")).toBeInTheDocument();
   });
 });

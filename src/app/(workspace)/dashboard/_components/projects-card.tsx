@@ -69,7 +69,7 @@ export function ProjectsCard() {
               {state.data.slice(0, PREVIEW_LIMIT).map((project) => (
                 <li key={project.id} className="flex items-center justify-between gap-3 py-2.5">
                   <Link
-                    href={`/projects/${project.id}`}
+                    href={`/projects/${project.id}/command-center`}
                     className="min-w-0 truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
                   >
                     {project.name}

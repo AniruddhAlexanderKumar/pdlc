@@ -23,6 +23,7 @@ import { useOrganizationMembers } from "@/lib/api/requirements";
 import { ArtifactHistory, DetailField, OwnerPanel } from "@/components/common/artifact-panels";
 import { DecisionStatusBadge, decisionStatusLabel } from "@/components/common/decision-badges";
 import { PageHeader } from "@/components/common/page-header";
+import { TraceLink } from "@/components/common/trace-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -142,6 +143,13 @@ export function DecisionDetailView({
                 History
               </Link>
             </Button>
+            <TraceLink
+              projectId={projectId}
+              type="ENGINEERING_DECISION"
+              id={decision.id}
+              identifier={decision.identifier}
+              label={decision.title}
+            />
           </>
         }
       />

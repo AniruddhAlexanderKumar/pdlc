@@ -10,6 +10,7 @@ import { useOrganizationMembers } from "@/lib/api/requirements";
 import { type RiskLinkDto, assignRiskOwner, transitionRisk, useRisk } from "@/lib/api/risks";
 import { PageHeader } from "@/components/common/page-header";
 import { RiskStatusBadge, riskStatusLabel } from "@/components/common/risk-issue-badges";
+import { TraceLink } from "@/components/common/trace-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -127,6 +128,13 @@ export function RiskDetailView({ projectId, riskId }: { projectId: string; riskI
                 History
               </Link>
             </Button>
+            <TraceLink
+              projectId={projectId}
+              type="RISK"
+              id={risk.id}
+              identifier={risk.identifier}
+              label={risk.title}
+            />
           </>
         }
       />
