@@ -73,8 +73,41 @@ function ok(body: unknown): Response {
 
 const fetchMock = vi.fn();
 
+/**
+ * Both the list view (`/graph/node/.../neighbors`) and the default graph
+ * view (`POST /graph/traverse`) read the same underlying relationships —
+ * this derives a valid `TraversalResultDto` from the same `neighborhoods`
+ * fixture the list-mode handler already uses, rather than inventing a
+ * second, separate graph fixture. Depth-1 only, which is all these tests
+ * need: they assert on direct relationships, never on multi-hop traversal.
+ */
+function traversalFor(rootType: string, rootId: string, neighborhoods: Record<string, unknown>) {
+  const key = `${rootType}:${rootId}`;
+  const neighborhood = neighborhoods[key] as
+    | {
+        node: unknown;
+        connections: Array<{
+          edge: unknown;
+          neighbor: { type: string; id: string };
+          direction: string;
+        }>;
+      }
+    | undefined;
+  const rootNode = neighborhood?.node ?? node(rootType, rootId, "", "");
+  const connections = neighborhood?.connections ?? [];
+  return {
+    root: rootNode,
+    nodes: [
+      { node: rootNode, depth: 0, path: [] },
+      ...connections.map((c) => ({ node: c.neighbor, depth: 1, path: [] })),
+    ],
+    edges: connections.map((c) => c.edge),
+    limits: { maxDepth: 3, maxNodes: 200, maxEdges: 1000, truncated: false, truncatedBy: null },
+  };
+}
+
 function routeGets(neighborhoods: Record<string, unknown> = {}) {
-  fetchMock.mockImplementation(async (input: string) => {
+  fetchMock.mockImplementation(async (input: string, init?: RequestInit) => {
     const url = new URL(String(input), "http://localhost");
     const path = url.pathname;
 
@@ -83,7 +116,11 @@ function routeGets(neighborhoods: Record<string, unknown> = {}) {
     if (path === `/api/projects/${PROJECT_ID}/traceability/objects`) {
       const type = url.searchParams.get("type");
       if (type === "REQUIREMENT") {
-        return ok({ objects: [{ id: REQUIREMENT.id, identifier: REQUIREMENT.identifier, label: REQUIREMENT.label }] });
+        return ok({
+          objects: [
+            { id: REQUIREMENT.id, identifier: REQUIREMENT.identifier, label: REQUIREMENT.label },
+          ],
+        });
       }
       return ok({ objects: [] });
     }
@@ -97,6 +134,11 @@ function routeGets(neighborhoods: Record<string, unknown> = {}) {
       const result = neighborhoods[key];
       if (result) return ok(result);
       return ok({ node: node(matchedType!, matchedId!, "", ""), connections: [] });
+    }
+
+    if (path === `/api/projects/${PROJECT_ID}/graph/traverse` && init?.body) {
+      const body = JSON.parse(String(init.body)) as { root: { type: string; id: string } };
+      return ok(traversalFor(body.root.type, body.root.id, neighborhoods));
     }
 
     return ok({});
@@ -116,6 +158,14 @@ async function openRequirement(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByLabelText("Object type"), "REQUIREMENT");
   await user.selectOptions(await screen.findByLabelText("Object"), REQUIREMENT.id);
   await user.click(screen.getByRole("button", { name: "Open" }));
+}
+
+/** The list view is what these tests assert precise relationship text
+ * against — the graph view (now the default) renders the same underlying
+ * data as positioned SVG circles, which is what the dedicated graph-view
+ * test file below asserts against instead. */
+async function switchToList(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "List" }));
 }
 
 describe("TraceabilityView", () => {
@@ -151,6 +201,7 @@ describe("TraceabilityView", () => {
     render(<TraceabilityView projectId={PROJECT_ID} />);
 
     await openRequirement(user);
+    await switchToList(user);
 
     expect(await screen.findByText("Currently inspecting")).toBeInTheDocument();
     const outboundSection = screen.getByText("Outbound — what this affects").closest("section")!;
@@ -174,6 +225,7 @@ describe("TraceabilityView", () => {
     render(<TraceabilityView projectId={PROJECT_ID} />);
 
     await openRequirement(user);
+    await switchToList(user);
     await screen.findByText("Currently inspecting");
 
     await user.click(screen.getByRole("button", { name: /DI-001/ }));
@@ -197,14 +249,15 @@ describe("TraceabilityView", () => {
     render(<TraceabilityView projectId={PROJECT_ID} />);
 
     await openRequirement(user);
+    await switchToList(user);
     await screen.findByText("Currently inspecting");
 
     await user.click(screen.getByRole("button", { name: "Outbound" }));
 
     await waitFor(() => {
-      expect(
-        fetchMock.mock.calls.some(([url]) => String(url).includes("direction=OUTBOUND")),
-      ).toBe(true);
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes("direction=OUTBOUND"))).toBe(
+        true,
+      );
     });
   });
 
@@ -214,6 +267,7 @@ describe("TraceabilityView", () => {
     render(<TraceabilityView projectId={PROJECT_ID} />);
 
     await openRequirement(user);
+    await switchToList(user);
 
     expect(await screen.findByText("No relationships")).toBeInTheDocument();
   });

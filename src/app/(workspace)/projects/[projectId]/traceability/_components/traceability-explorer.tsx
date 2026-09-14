@@ -16,7 +16,11 @@ import {
   type GraphNodeType,
 } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
-import { type GraphConnectionDto, type GraphNodeDto, useGraphNeighborhood } from "@/lib/api/traceability";
+import {
+  type GraphConnectionDto,
+  type GraphNodeDto,
+  useGraphNeighborhood,
+} from "@/lib/api/traceability";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,6 +30,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { Select } from "@/components/ui/select";
 import { formatIsoDate } from "@/lib/utils";
 import type { VisitedNode } from "./traceability-view";
+import { TraceabilityGraphView } from "./traceability-graph-view";
 import { TraceabilityPathExplorer } from "./traceability-path-explorer";
 
 const DIRECTION_LABELS: Record<GraphDirection, string> = {
@@ -54,13 +59,24 @@ export function TraceabilityExplorer({
   onNavigate: (node: GraphNodeDto) => void;
   onBack: () => void;
 }) {
+  const [viewMode, setViewMode] = React.useState<"graph" | "list">("graph");
   const [direction, setDirection] = React.useState<GraphDirection>("BOTH");
   const [edgeTypeFilter, setEdgeTypeFilter] = React.useState<GraphEdgeType | "">("");
   const [neighborTypeFilter, setNeighborTypeFilter] = React.useState<GraphNodeType | "">("");
 
-  const ref = React.useMemo(() => ({ type: current.type, id: current.id }), [current.type, current.id]);
+  const ref = React.useMemo(
+    () => ({ type: current.type, id: current.id }),
+    [current.type, current.id],
+  );
   const edgeTypes = edgeTypeFilter ? [edgeTypeFilter] : undefined;
-  const { state, reload } = useGraphNeighborhood(projectId, ref, direction, edgeTypes);
+  // Skipped entirely in graph mode — no point loading a neighborhood list
+  // nobody is about to look at.
+  const { state, reload } = useGraphNeighborhood(
+    projectId,
+    viewMode === "list" ? ref : null,
+    direction,
+    edgeTypes,
+  );
 
   const edgeOptions = availableEdgeTypes(current.type, direction);
 
@@ -94,7 +110,9 @@ export function TraceabilityExplorer({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <Badge variant="default">{graphNodeTypeLabel(current.type)}</Badge>
-              <span className="text-xs uppercase tracking-wide text-muted-foreground">Currently inspecting</span>
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                Currently inspecting
+              </span>
             </div>
             <CardTitle className="text-base">
               {current.identifier ? (
@@ -120,130 +138,180 @@ export function TraceabilityExplorer({
         </CardHeader>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Direct relationships</CardTitle>
-          <CardDescription>
-            One hop from this object, read straight from the engineering graph.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Direction</Label>
-              <div className="flex gap-1" role="group" aria-label="Direction">
-                {GRAPH_DIRECTIONS.map((value) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    size="sm"
-                    variant={direction === value ? "default" : "outline"}
-                    onClick={() => changeDirection(value)}
-                    aria-pressed={direction === value}
-                  >
-                    {DIRECTION_LABELS[value]}
-                  </Button>
-                ))}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-foreground">Digital thread</h2>
+        <div className="flex gap-1" role="group" aria-label="View">
+          <Button
+            type="button"
+            size="sm"
+            variant={viewMode === "graph" ? "default" : "outline"}
+            onClick={() => setViewMode("graph")}
+            aria-pressed={viewMode === "graph"}
+          >
+            Graph
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={viewMode === "list" ? "default" : "outline"}
+            onClick={() => setViewMode("list")}
+            aria-pressed={viewMode === "list"}
+          >
+            List
+          </Button>
+        </div>
+      </div>
+
+      {viewMode === "graph" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Digital thread graph</CardTitle>
+            <CardDescription>
+              A real, interactive layout of this object&apos;s traced relationships — the same
+              bounded traversal the list view reads, drawn spatially instead of listed as text.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TraceabilityGraphView
+              key={`${current.type}:${current.id}`}
+              projectId={projectId}
+              root={ref}
+              onNavigate={onNavigate}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {viewMode === "list" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Direct relationships</CardTitle>
+            <CardDescription>
+              One hop from this object, read straight from the engineering graph.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label>Direction</Label>
+                <div className="flex gap-1" role="group" aria-label="Direction">
+                  {GRAPH_DIRECTIONS.map((value) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      size="sm"
+                      variant={direction === value ? "default" : "outline"}
+                      onClick={() => changeDirection(value)}
+                      aria-pressed={direction === value}
+                    >
+                      {DIRECTION_LABELS[value]}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="traceability-edge-filter">Relationship type</Label>
+                <Select
+                  id="traceability-edge-filter"
+                  className="w-64"
+                  value={edgeTypeFilter}
+                  onChange={(event) => setEdgeTypeFilter(event.target.value as GraphEdgeType | "")}
+                >
+                  <option value="">All relationship types</option>
+                  {edgeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {graphEdgeTypeLabel(type)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="traceability-neighbor-filter">Connected object type</Label>
+                <Select
+                  id="traceability-neighbor-filter"
+                  className="w-56"
+                  value={neighborTypeFilter}
+                  onChange={(event) =>
+                    setNeighborTypeFilter(event.target.value as GraphNodeType | "")
+                  }
+                  disabled={neighborTypeOptions.length === 0}
+                >
+                  <option value="">All object types</option>
+                  {neighborTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {graphNodeTypeLabel(type)}
+                    </option>
+                  ))}
+                </Select>
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="traceability-edge-filter">Relationship type</Label>
-              <Select
-                id="traceability-edge-filter"
-                className="w-64"
-                value={edgeTypeFilter}
-                onChange={(event) => setEdgeTypeFilter(event.target.value as GraphEdgeType | "")}
+            {state.phase === "loading" && <LoadingState label="Loading relationships…" />}
+
+            {state.phase === "error" && (
+              <div
+                role="alert"
+                className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4"
               >
-                <option value="">All relationship types</option>
-                {edgeOptions.map((type) => (
-                  <option key={type} value={type}>
-                    {graphEdgeTypeLabel(type)}
-                  </option>
-                ))}
-              </Select>
-            </div>
+                <p className="flex items-start gap-2 text-sm text-destructive">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <span>{describeApiError(state.error)}</span>
+                </p>
+                <Button variant="outline" size="sm" onClick={reload}>
+                  <RefreshCw aria-hidden="true" />
+                  Try again
+                </Button>
+              </div>
+            )}
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="traceability-neighbor-filter">Connected object type</Label>
-              <Select
-                id="traceability-neighbor-filter"
-                className="w-56"
-                value={neighborTypeFilter}
-                onChange={(event) => setNeighborTypeFilter(event.target.value as GraphNodeType | "")}
-                disabled={neighborTypeOptions.length === 0}
-              >
-                <option value="">All object types</option>
-                {neighborTypeOptions.map((type) => (
-                  <option key={type} value={type}>
-                    {graphNodeTypeLabel(type)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
+            {state.phase === "ready" && filtered.length === 0 && (
+              <EmptyState
+                icon={<ArrowRightLeft aria-hidden="true" />}
+                title="No relationships"
+                description={
+                  edgeTypeFilter || neighborTypeFilter
+                    ? "Nothing matches this filter. Clear it to see this object's other relationships."
+                    : "This object has no direct relationships recorded in this project."
+                }
+              />
+            )}
 
-          {state.phase === "loading" && <LoadingState label="Loading relationships…" />}
+            {state.phase === "ready" && filtered.length > 0 && (
+              <div className="flex flex-col gap-5">
+                {direction !== "INBOUND" && (
+                  <ConnectionGroup
+                    title="Outbound — what this affects"
+                    connections={outbound}
+                    projectId={projectId}
+                    onNavigate={onNavigate}
+                    emptyLabel={direction === "BOTH" ? "Nothing outbound." : undefined}
+                  />
+                )}
+                {direction !== "OUTBOUND" && (
+                  <ConnectionGroup
+                    title="Inbound — what affects this"
+                    connections={inbound}
+                    projectId={projectId}
+                    onNavigate={onNavigate}
+                    emptyLabel={direction === "BOTH" ? "Nothing inbound." : undefined}
+                  />
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          {state.phase === "error" && (
-            <div
-              role="alert"
-              className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4"
-            >
-              <p className="flex items-start gap-2 text-sm text-destructive">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                <span>{describeApiError(state.error)}</span>
-              </p>
-              <Button variant="outline" size="sm" onClick={reload}>
-                <RefreshCw aria-hidden="true" />
-                Try again
-              </Button>
-            </div>
-          )}
-
-          {state.phase === "ready" && filtered.length === 0 && (
-            <EmptyState
-              icon={<ArrowRightLeft aria-hidden="true" />}
-              title="No relationships"
-              description={
-                edgeTypeFilter || neighborTypeFilter
-                  ? "Nothing matches this filter. Clear it to see this object's other relationships."
-                  : "This object has no direct relationships recorded in this project."
-              }
-            />
-          )}
-
-          {state.phase === "ready" && filtered.length > 0 && (
-            <div className="flex flex-col gap-5">
-              {direction !== "INBOUND" && (
-                <ConnectionGroup
-                  title="Outbound — what this affects"
-                  connections={outbound}
-                  projectId={projectId}
-                  onNavigate={onNavigate}
-                  emptyLabel={direction === "BOTH" ? "Nothing outbound." : undefined}
-                />
-              )}
-              {direction !== "OUTBOUND" && (
-                <ConnectionGroup
-                  title="Inbound — what affects this"
-                  connections={inbound}
-                  projectId={projectId}
-                  onNavigate={onNavigate}
-                  emptyLabel={direction === "BOTH" ? "Nothing inbound." : undefined}
-                />
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <TraceabilityPathExplorer
-        key={`${current.type}:${current.id}`}
-        projectId={projectId}
-        root={ref}
-        onNavigate={onNavigate}
-      />
+      {viewMode === "list" && (
+        <TraceabilityPathExplorer
+          key={`${current.type}:${current.id}`}
+          projectId={projectId}
+          root={ref}
+          onNavigate={onNavigate}
+        />
+      )}
     </div>
   );
 }
@@ -265,7 +333,9 @@ function ConnectionGroup({
     if (!emptyLabel) return null;
     return (
       <section className="flex flex-col gap-2">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {title}
+        </h3>
         <p className="text-sm text-muted-foreground">{emptyLabel}</p>
       </section>
     );
@@ -276,7 +346,10 @@ function ConnectionGroup({
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</h3>
       <ul className="flex flex-col divide-y divide-border rounded-md border border-border">
         {connections.map((connection) => (
-          <li key={`${connection.edge.type}:${connection.edge.relationshipId}:${connection.direction}`} className="flex flex-col gap-1.5 p-3">
+          <li
+            key={`${connection.edge.type}:${connection.edge.relationshipId}:${connection.direction}`}
+            className="flex flex-col gap-1.5 p-3"
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Badge variant="outline">{graphNodeTypeLabel(connection.neighbor.type)}</Badge>
@@ -295,13 +368,23 @@ function ConnectionGroup({
                   )}
                 </button>
                 {connection.direction === "OUTBOUND" ? (
-                  <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <ArrowRight
+                    className="size-3.5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 ) : (
-                  <ArrowLeft className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <ArrowLeft
+                    className="size-3.5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 )}
               </div>
               {(() => {
-                const route = traceabilityDetailRoute(connection.neighbor.type, projectId, connection.neighbor.id);
+                const route = traceabilityDetailRoute(
+                  connection.neighbor.type,
+                  projectId,
+                  connection.neighbor.id,
+                );
                 return route ? (
                   <Button asChild variant="ghost" size="sm">
                     <Link href={route}>Open in module</Link>
@@ -311,7 +394,9 @@ function ConnectionGroup({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{graphEdgeTypeLabel(connection.edge.type)}</span>
+              <span className="font-medium text-foreground">
+                {graphEdgeTypeLabel(connection.edge.type)}
+              </span>
               {connection.edge.linkType && ` (${connection.edge.linkType})`} —{" "}
               {GRAPH_EDGE_DEFINITIONS[connection.edge.type].meaning}
             </p>
@@ -322,7 +407,10 @@ function ConnectionGroup({
               </p>
             )}
 
-            <p className="font-mono text-[11px] text-muted-foreground" title={connection.edge.createdAt}>
+            <p
+              className="font-mono text-[11px] text-muted-foreground"
+              title={connection.edge.createdAt}
+            >
               Recorded {formatIsoDate(connection.edge.createdAt)}
             </p>
           </li>

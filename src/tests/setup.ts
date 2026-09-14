@@ -9,3 +9,16 @@ import { afterEach } from "vitest";
 afterEach(() => {
   cleanup();
 });
+
+// jsdom does not implement ResizeObserver — real browsers all do, but any
+// component that measures its own container (the traceability graph view's
+// responsive sizing, and any future one) needs this to exist at all in a
+// jsdom test. A no-op is correct here: layout measurement itself is not
+// under test in a jsdom environment with no real rendering engine.
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}

@@ -48,12 +48,18 @@ const nextConfig: NextConfig = {
   // A self-contained `.next/standalone` output (server + only the
   // dependencies actually traced from the code that runs) — what the
   // production Dockerfile copies into its runtime stage, instead of shipping
-  // the full node_modules tree.
-  output: "standalone",
+  // the full node_modules tree. Skipped when building on Vercel (which sets
+  // `VERCEL=1` in every build environment automatically): Vercel has its own
+  // serverless output format and packages the app itself — `standalone`
+  // mode there makes the build fail with a missing `.nft.json` trace file,
+  // a known incompatibility, not a configuration Vercel's own pipeline
+  // supports. This is the only deployment-target-conditional line in this
+  // file; every other setting (headers, external packages) applies equally
+  // to both paths.
+  output: process.env.VERCEL ? undefined : "standalone",
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
 };
 
 export default nextConfig;
-
