@@ -1,4 +1,5 @@
 import type { GraphEdgeType, GraphNodeRef, GraphNodeType } from "@/domain";
+import { BaselineMemberType } from "@/generated/prisma/client";
 import type { DbClient } from "@/lib/db";
 
 /**
@@ -2714,6 +2715,22 @@ function memberTargetType(nodeType: string): GraphNodeType {
   return nodeType as GraphNodeType;
 }
 
+/**
+ * `EngineeringBaselineMember.nodeType` is the narrower `BaselineMemberType`
+ * enum (7 values) — only some graph node types can ever be baselined, unlike
+ * `GraphNodeType` (28 values). A BFS frontier can legitimately contain node
+ * types baselines never reference (e.g. `PROJECT`, `RISK`, `EVIDENCE`), and
+ * Prisma rejects an `OR` branch whose `nodeType` isn't a valid
+ * `BaselineMemberType` value outright rather than matching zero rows — so
+ * the frontier must be filtered down to baseline-able types before it is
+ * used to build a query, not just passed through.
+ */
+const BASELINE_MEMBER_TYPES: ReadonlySet<string> = new Set(Object.values(BaselineMemberType));
+
+function isBaselineMemberType(nodeType: string): boolean {
+  return BASELINE_MEMBER_TYPES.has(nodeType);
+}
+
 const baselineHasMember: EdgeResolver = {
   type: "BASELINE_HAS_MEMBER",
   async outgoing(projectId, refs, client) {
@@ -2799,9 +2816,11 @@ const baselineMemberReferencesObject: EdgeResolver = {
   },
   async incoming(projectId, refs, client) {
     // The member's target is a (type, id) pair rather than a foreign key, so
-    // the frontier is matched on both columns.
+    // the frontier is matched on both columns. Only frontier nodes whose
+    // type is actually a valid BaselineMemberType can ever match a row —
+    // see isBaselineMemberType.
     const branches = refs
-      .filter((candidate) => candidate.type !== "BASELINE_MEMBER")
+      .filter((candidate) => isBaselineMemberType(candidate.type))
       .map((candidate) => ({ nodeType: candidate.type, nodeId: candidate.id }));
     if (branches.length === 0) return [];
 

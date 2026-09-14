@@ -97,6 +97,27 @@ export async function createTestTenant(label: string): Promise<TestTenant> {
 export async function destroyTestTenant(tenant: TestTenant): Promise<void> {
   const prisma = integrationPrisma;
   if (!prisma) return;
+
+  // ChangeRequest.requestedById and Approval.approverId both use
+  // `onDelete: Restrict` against User — deliberately: an engineering record
+  // must always retain an attributable requester/approver, never silently
+  // lose it to a user deletion (see the schema comments on those fields).
+  // Postgres enforces RESTRICT immediately, not deferred, so a single
+  // cascading `organization.delete` can fail if it happens to process a
+  // User row's cascade before the ChangeRequest/Approval rows that
+  // reference it — cascade ordering across unrelated FK paths from the same
+  // delete isn't guaranteed. Deleting both explicitly first, scoped to
+  // every project this tenant owns, avoids depending on that ordering.
+  const projects = await prisma.project.findMany({
+    where: { organizationId: tenant.organizationId },
+    select: { id: true },
+  });
+  const projectIds = projects.map((p) => p.id);
+  if (projectIds.length > 0) {
+    await prisma.approval.deleteMany({ where: { projectId: { in: projectIds } } });
+    await prisma.changeRequest.deleteMany({ where: { projectId: { in: projectIds } } });
+  }
+
   await prisma.organization.deleteMany({ where: { id: tenant.organizationId } });
 }
 
