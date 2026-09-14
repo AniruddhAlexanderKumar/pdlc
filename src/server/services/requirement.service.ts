@@ -25,7 +25,7 @@ import * as projectArtifactsRepository from "@/server/repositories/project-artif
 import { requireAssignableOwner } from "./authorization.service";
 import {
   requireProjectApproveAccess,
-  requireProjectInOrganization,
+  requireProjectReadAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
 import * as requirementRepository from "@/server/repositories/requirement.repository";
@@ -41,9 +41,12 @@ import { parseOrThrow } from "@/server/validation";
  * Everything an engineer can do to a requirement passes through here, and
  * three rules hold for all of it:
  *
- *  - **Tenancy.** The organization comes from the session and the project must
- *    belong to it. A requirement in someone else's project reads as "not
- *    found", never "forbidden".
+ *  - **Access.** Every entry point requires a real `ProjectMembership` row
+ *    (or organization `OWNER`) at the tier the action needs — read, write, or
+ *    approve — never organization membership alone. A project the caller
+ *    cannot read (whether it belongs to another organization or simply one
+ *    they have not been added to) reads as "not found", never "forbidden":
+ *    this API does not confirm the existence of a project it will not show.
  *  - **Lifecycle.** Status changes only through {@link transitionRequirementStatus},
  *    validated against the domain's transition table. A generic update can
  *    never move a requirement through its lifecycle.
@@ -72,15 +75,6 @@ export interface RequirementDetail extends Requirement {
   editable: { content: boolean; owner: boolean; links: boolean };
   history: AuditEventSummary[];
 }
-
-/**
- * Proves the project exists inside the caller's organization.
- *
- * Every operation starts here, so no requirement query ever runs against a
- * project the caller has not been shown to own. Shared with the other
- * artifact services so this security boundary has one implementation.
- */
-const requireProject = requireProjectInOrganization;
 
 /**
  * Which transitions are the domain's own "approval" moment — APPROVED and
@@ -167,7 +161,7 @@ export async function listRequirements(
   projectId: unknown,
   filter: { status?: unknown } = {},
 ): Promise<RequirementListItem[]> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
 
   const status =
     filter.status === undefined || filter.status === null || filter.status === ""
@@ -186,7 +180,7 @@ export async function getRequirement(
   projectId: unknown,
   requirementId: unknown,
 ): Promise<RequirementDetail> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const requirement = await requireRequirement(scopedProjectId, requirementId);
 
   const [owner, links, history] = await Promise.all([
@@ -374,7 +368,7 @@ export async function listRequirementLinks(
   projectId: unknown,
   requirementId: unknown,
 ): Promise<RequirementLinkSummary[]> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const requirement = await requireRequirement(scopedProjectId, requirementId);
   return requirementRepository.listRequirementLinks(requirement.id);
 }
@@ -393,7 +387,7 @@ export async function linkRequirement(
   requirementId: unknown,
   input: unknown,
 ): Promise<RequirementLinkSummary[]> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(requirementLinkRequestSchema, input, "Invalid traceability link");
 
   return prisma.$transaction(async (tx) => {
@@ -449,7 +443,7 @@ export async function unlinkRequirement(
   requirementId: unknown,
   input: unknown,
 ): Promise<RequirementLinkSummary[]> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const request = parseOrThrow(requirementUnlinkRequestSchema, input, "Invalid unlink request");
 
   return prisma.$transaction(async (tx) => {
@@ -492,6 +486,6 @@ export async function listLinkTargets(
   context: OrganizationContext,
   projectId: unknown,
 ): Promise<projectArtifactsRepository.LinkTargetOptions> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   return projectArtifactsRepository.listLinkTargets(scopedProjectId);
 }

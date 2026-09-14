@@ -117,10 +117,20 @@ export class CertificationProgramService {
         throw new NotFoundError("This project has no certification program yet.");
       }
 
-      if (data.status && data.status !== existing.status && !canTransitionCertificationProgram(existing.status, data.status)) {
-        throw new ConflictError(
-          `A certification program cannot move from ${existing.status} to ${data.status}.`,
-        );
+      if (data.status) {
+        if (data.status === existing.status) {
+          // Same shape as Risk's transitionRisk: a request to move to the
+          // status it's already at is a stale-caller conflict, not a free
+          // no-op — silently allowing it is exactly the gap that let a
+          // sequential-after-commit racer "succeed" at a redundant write
+          // instead of being told someone else already moved it there.
+          throw new ConflictError(`This certification program is already ${data.status}.`);
+        }
+        if (!canTransitionCertificationProgram(existing.status, data.status)) {
+          throw new ConflictError(
+            `A certification program cannot move from ${existing.status} to ${data.status}.`,
+          );
+        }
       }
 
       const program = data.status

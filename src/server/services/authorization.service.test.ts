@@ -22,9 +22,13 @@ vi.mock("@/server/repositories/user.repository", () => ({
   getOrganizationRole: vi.fn(),
   isMemberOfOrganization: vi.fn(),
 }));
+vi.mock("@/server/repositories/project.repository", () => ({
+  findProjectInOrganization: vi.fn(),
+}));
 
 const membershipRepository = await import("@/server/repositories/project-membership.repository");
 const userRepository = await import("@/server/repositories/user.repository");
+const projectRepository = await import("@/server/repositories/project.repository");
 const service = await import("./authorization.service");
 
 const CONTEXT: OrganizationContext = {
@@ -38,6 +42,18 @@ const SYSTEM_CONTEXT: OrganizationContext = {
 };
 
 const PROJECT_ID = "proj1aaaaaaaaaaaaaaaaaaa";
+
+function projectRow(organizationId = CONTEXT.organizationId) {
+  return {
+    id: PROJECT_ID,
+    organizationId,
+    name: "Test project",
+    description: null,
+    status: "ACTIVE",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
 
 function membershipRow(role: "MANAGER" | "ENGINEER" | "REVIEWER" | "VIEWER") {
   return {
@@ -55,6 +71,11 @@ beforeEach(() => {
   vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
   vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
   vi.mocked(userRepository.isMemberOfOrganization).mockResolvedValue(true);
+  // In-organization by default — every existing test below is about the
+  // membership/ownership axis, not tenancy, so it assumes PROJECT_ID already
+  // belongs to CONTEXT.organizationId. The cross-organization case gets its
+  // own test, overriding this per-call.
+  vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(projectRow() as never);
 });
 
 describe("isOrganizationOwner / requireOrganizationOwner", () => {
@@ -109,6 +130,17 @@ describe("getProjectRole", () => {
 
   it("returns null for a context with no actor, without touching either repository", async () => {
     await expect(service.getProjectRole(SYSTEM_CONTEXT, PROJECT_ID)).resolves.toBeNull();
+    expect(membershipRepository.findMembership).not.toHaveBeenCalled();
+    expect(userRepository.getOrganizationRole).not.toHaveBeenCalled();
+  });
+
+  it("returns null for a project belonging to a different organization, even for that organization's own owner — the implicit-MANAGER fallback does not cross the organization boundary", async () => {
+    vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
+
+    await expect(service.getProjectRole(CONTEXT, PROJECT_ID)).resolves.toBeNull();
+    // Short-circuits before either check even runs: there is nothing here
+    // for membership or ownership to be checked against.
     expect(membershipRepository.findMembership).not.toHaveBeenCalled();
     expect(userRepository.getOrganizationRole).not.toHaveBeenCalled();
   });

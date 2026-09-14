@@ -24,7 +24,7 @@ import type { AuditEventSummary } from "@/server/repositories/audit-log.reposito
 import * as projectArtifactsRepository from "@/server/repositories/project-artifacts.repository";
 import { requireAssignableOwner } from "./authorization.service";
 import {
-  requireProjectInOrganization,
+  requireProjectReadAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
 import * as riskRepository from "@/server/repositories/risk.repository";
@@ -37,9 +37,10 @@ import { parseOrThrow } from "@/server/validation";
  * Everything an engineer can do to a risk passes through here, and three
  * rules hold for all of it:
  *
- *  - **Tenancy.** The organization comes from the session and the project must
- *    belong to it. A risk in someone else's project reads as "not found",
- *    never "forbidden".
+ *  - **Access.** Reads require real project membership (`requireProjectReadAccess`);
+ *    writes require it too (`requireProjectWriteAccess`) — not just that the
+ *    project belongs to the caller's organization. A risk in a project the
+ *    caller cannot reach reads as "not found", never "forbidden".
  *  - **Lifecycle.** Status changes only through {@link transitionRisk},
  *    validated against the domain's transition table. A generic update can
  *    never move a risk through its lifecycle.
@@ -71,8 +72,6 @@ export interface RiskDetail extends Risk {
   editable: { content: boolean; owner: boolean; links: boolean };
   history: AuditEventSummary[];
 }
-
-const requireProject = requireProjectInOrganization;
 
 async function requireRisk(
   projectId: string,
@@ -140,7 +139,7 @@ export async function listRisks(
   projectId: unknown,
   filter: { status?: unknown } = {},
 ): Promise<RiskListItem[]> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
 
   const status =
     filter.status === undefined || filter.status === null || filter.status === ""
@@ -156,7 +155,7 @@ export async function getRisk(
   projectId: unknown,
   riskId: unknown,
 ): Promise<RiskDetail> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const risk = await requireRisk(scopedProjectId, riskId);
 
   const [owner, links, history] = await Promise.all([
@@ -301,7 +300,7 @@ export async function listRiskLinks(
   projectId: unknown,
   riskId: unknown,
 ): Promise<RiskLinkSummary[]> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   const risk = await requireRisk(scopedProjectId, riskId);
   return riskRepository.listRiskLinks(risk.id);
 }
@@ -400,6 +399,6 @@ export async function listLinkTargets(
   context: OrganizationContext,
   projectId: unknown,
 ): Promise<projectArtifactsRepository.RiskLinkTargetOptions> {
-  const scopedProjectId = await requireProject(context, projectId);
+  const scopedProjectId = await requireProjectReadAccess(context, projectId);
   return projectArtifactsRepository.listRiskLinkTargets(scopedProjectId);
 }

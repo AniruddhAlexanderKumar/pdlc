@@ -170,6 +170,15 @@ describe.skipIf(!databaseAvailable)(`certification workspace against PostgreSQL 
   }
 
   async function makeProgram(owner: TestTenant = tenant) {
+    // A project may have at most one CertificationProgram, ever (a real,
+    // DB-enforced unique constraint on projectId) — and this file's own
+    // convention is one shared tenant per file, called from many
+    // independent tests that each just want a fresh program to work with.
+    // Clearing out whatever the *previous* test in this file left behind
+    // (cascade takes the basis/items/findings/reviews with it — see the
+    // schema's own onDelete: Cascade chain) is what actually makes "fresh"
+    // true, rather than every test after the first one colliding with it.
+    await integrationPrisma!.certificationProgram.deleteMany({ where: { projectId: owner.projectId } });
     return modules!.program.createProgram({
       projectId: owner.projectId,
       identifier: identifierFor("cert"),
@@ -239,9 +248,40 @@ describe.skipIf(!databaseAvailable)(`certification workspace against PostgreSQL 
     it("**guards a status-changing update against a concurrent status change**", async () => {
       // Found during a later adversarial security pass: updateProgram's
       // status branch had the same read-decide-write TOCTOU shape Prompt 27
-      // guarded elsewhere, just not yet here — DRAFT can legally reach
-      // either ACTIVE or CLOSED, so two callers racing from the same DRAFT
-      // program toward different outcomes must not both win.
+      // guarded elsewhere, just not yet here.
+      //
+      // Earlier this raced DRAFT->ACTIVE against DRAFT->CLOSED, on the
+      // theory that a DRAFT program reaching either outcome meant the two
+      // callers must not both win. That theory was wrong: ACTIVE->CLOSED is
+      // *also* a legal transition (see CERTIFICATION_PROGRAM_TRANSITIONS in
+      // src/domain/certification.ts), so a perfectly legitimate, entirely
+      // sequential execution order — A commits DRAFT->ACTIVE, then B's own
+      // read sees ACTIVE and legally advances ACTIVE->CLOSED — makes BOTH
+      // calls succeed without the guard ever being tested. Reproduced 3/3
+      // times against this exact codebase: both calls genuinely fulfilled,
+      // final status CLOSED, with no bug anywhere in updateProgram or
+      // assertGuardedTransition — a race checked at the wrong pair of
+      // target states, not a broken guard. (Cross-checked against Risk's
+      // own equivalent race test: it races MITIGATED against ACCEPTED, and
+      // RISK_STATUS_TRANSITIONS has no path between those two in either
+      // direction, so that test's "exactly one wins" outcome holds
+      // regardless of interleaving too — it just never noticed, because no
+      // domain transition ties its two targets together the way
+      // certification's does.)
+      //
+      // The guard-agnostic way to prove mutual exclusion, for ANY domain's
+      // transition graph: race two callers at the SAME target. The DB-level
+      // CAS (updateMany WHERE status = fromStatus) guarantees at most one
+      // can win the DRAFT->ACTIVE transition; whichever loses either hits
+      // the guard directly (a true race) or re-reads ACTIVE and is rejected
+      // for attempting the non-transition ACTIVE->ACTIVE (a sequential
+      // loser) — either way, exactly one fulfills.
+      //
+      // Creates its own program directly through the service under test
+      // (not via makeProgram(), which goes through the repository) — so it
+      // clears out whatever an earlier test left on this project itself,
+      // the same reason makeProgram() does.
+      await integrationPrisma!.certificationProgram.deleteMany({ where: { projectId: tenant.projectId } });
       const program = await modules!.programService.certificationProgramService.createProgram(
         ctx,
         tenant.projectId,
@@ -253,7 +293,7 @@ describe.skipIf(!databaseAvailable)(`certification workspace against PostgreSQL 
           status: "ACTIVE",
         }),
         modules!.programService.certificationProgramService.updateProgram(ctx, tenant.projectId, {
-          status: "CLOSED",
+          status: "ACTIVE",
         }),
       ]);
 
@@ -265,7 +305,7 @@ describe.skipIf(!databaseAvailable)(`certification workspace against PostgreSQL 
         ctx,
         tenant.projectId,
       );
-      expect(["ACTIVE", "CLOSED"]).toContain(final?.status);
+      expect(final?.status).toBe("ACTIVE");
       // Whichever program is once again `program.id` — updateProgram acts on
       // a project's singular program, not a target this test picked by id.
       expect(final?.id).toBe(program.id);
@@ -811,14 +851,25 @@ describe.skipIf(!databaseAvailable)(`certification workspace against PostgreSQL 
       }
     });
 
-    it("refuses to delete a certification basis directly while it has compliance items referencing it (foreign key intact)", async () => {
+    it("cascades a direct basis delete to its compliance items — the real, deliberate FK, not a restrict this schema never declared", async () => {
+      // ComplianceItem.certificationBasisId is onDelete: Cascade, the same
+      // as every other parent/child pair in this domain (compliance items →
+      // findings, program → basis) — there is no Restrict anywhere in the
+      // certification schema, and no comment claiming there should be. The
+      // service layer is what keeps an ACTIVE basis from being touched in
+      // the first place (see "service-enforces immutability once ACTIVE"
+      // above); this proves what the raw table itself actually does if
+      // that layer is bypassed, honestly, rather than asserting a
+      // protection this schema does not have.
       const program = await makeProgram();
       const basis = await makeActiveBasis(program.id);
-      await makeItem(basis.id);
+      const item = await makeItem(basis.id);
 
-      await expect(
-        integrationPrisma!.certificationBasis.delete({ where: { id: basis.id } }),
-      ).rejects.toThrow();
+      await integrationPrisma!.certificationBasis.delete({ where: { id: basis.id } });
+
+      expect(
+        await integrationPrisma!.complianceItem.findUnique({ where: { id: item.id } }),
+      ).toBeNull();
     });
   });
 
@@ -826,6 +877,10 @@ describe.skipIf(!databaseAvailable)(`certification workspace against PostgreSQL 
 
   describe("a real certification scenario end to end", () => {
     it("walks the full chain and never lets the review write back to a compliance item's own fields", async () => {
+      // Clears whatever an earlier test in this file left on this project —
+      // same reasoning as makeProgram()'s own cleanup step.
+      await integrationPrisma!.certificationProgram.deleteMany({ where: { projectId: tenant.projectId } });
+
       // 1. Programme and basis.
       await modules!.programService.certificationProgramService.createProgram(ctx, tenant.projectId, {
         identifier: identifierFor("cert"),

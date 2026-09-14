@@ -433,8 +433,16 @@ describe.skipIf(!databaseAvailable)(
       });
 
       it("says NOT_EVALUATED for a gate nobody has assessed", async () => {
+        // A real, accessible project (otherTenant's own) that genuinely never
+        // gets a technical-readiness evaluation anywhere in this file — read
+        // with otherTenant's own context, not tenant's. Mixing tenant's
+        // context with otherTenant's project is a cross-organization read,
+        // which is rejected outright (see "project and organization
+        // scoping" below); this test is about an in-scope, simply-unassessed
+        // gate, a different question entirely.
+        const otherContext = { organizationId: otherTenant.organizationId, actorId: otherTenant.userId };
         const latest = await service.getLatestTechnicalReadiness(
-          context,
+          otherContext,
           otherTenant.projectId,
           "RELEASE_READY",
         );
@@ -886,6 +894,13 @@ describe.skipIf(!databaseAvailable)(
             name: "Temporary Evaluator",
             organizationId: tenant.organizationId,
           },
+        });
+        // A plain org MEMBER (the default, unlike the tenant's own OWNER
+        // user) has no access to any project without a real membership row
+        // — the same rule production enforces. Without this, evaluating as
+        // `evaluator` is rejected before it ever reaches the engine.
+        await prisma.projectMembership.create({
+          data: { projectId: tenant.projectId, userId: evaluator.id, role: "ENGINEER" },
         });
 
         const report = await service.evaluateTechnicalReadiness(

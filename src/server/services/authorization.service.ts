@@ -8,6 +8,7 @@ import {
 import type { OrganizationContext } from "@/server/context/organization-context";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 import * as membershipRepository from "@/server/repositories/project-membership.repository";
+import * as projectRepository from "@/server/repositories/project.repository";
 import * as userRepository from "@/server/repositories/user.repository";
 
 /**
@@ -61,6 +62,19 @@ export async function getProjectRole(
   projectId: string,
 ): Promise<ProjectRole | null> {
   if (!context.actorId) return null;
+
+  // Every project-scoped service call site currently reaches this only after
+  // its own `requireProjectInOrganization` has already confirmed the project
+  // belongs to `context.organizationId` — so this re-check is defense in
+  // depth for those. It is not redundant for this function's *own*, directly
+  // exported contract: called standalone (as `project.service.ts`'s own
+  // wrapper and this file's tests both do), the organization-owner fallback
+  // below has no other guard against a project belonging to a *different*
+  // organization entirely. An owner of Org A is full-access only within Org
+  // A, per this module's own doc comment — never elsewhere by virtue of
+  // owning something.
+  const project = await projectRepository.findProjectInOrganization(context.organizationId, projectId);
+  if (!project) return null;
 
   const membership = await membershipRepository.findMembership(projectId, context.actorId);
   if (membership) return membership.role;

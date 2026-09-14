@@ -548,8 +548,13 @@ describe.skipIf(!databaseAvailable)(`Evidence against PostgreSQL (${SKIP_REASON}
 
   describe("certification compatibility", () => {
     it("links evidence to a compliance item, and the review reads it back without a broadened basis rule", async () => {
+      // otherTenant, not tenant: a project may have at most one
+      // CertificationProgram (a real, DB-enforced unique constraint on
+      // projectId), and an earlier test in this file already created one
+      // for tenant.projectId — reusing it here would collide, not exercise
+      // anything new.
       const program = await modules!.programRepo.createProgram({
-        projectId: tenant.projectId,
+        projectId: otherTenant.projectId,
         identifier: identifierFor("cert"),
         name: "Avionics certification effort",
         description: null,
@@ -562,28 +567,30 @@ describe.skipIf(!databaseAvailable)(`Evidence against PostgreSQL (${SKIP_REASON}
         description: null,
         revision: "Amdt 1",
         sourceReference: "14 CFR Part 25",
-        createdById: tenant.userId,
+        createdById: otherTenant.userId,
       });
-      const basis = await modules!.basisRepo.activateBasis(draftBasis.id, tenant.userId);
-      const item = await modules!.complianceItemService.createItem(ctx, tenant.projectId, basis.id, {
-        identifier: identifierFor("ci"),
-        title: "EMI shielding",
-      });
-      const evidence = await modules!.evidenceService.createEvidence(ctx, tenant.projectId, {
+      const basis = await modules!.basisRepo.activateBasis(draftBasis.id, otherTenant.userId);
+      const item = await modules!.complianceItemService.createItem(
+        otherCtx,
+        otherTenant.projectId,
+        basis.id,
+        { identifier: identifierFor("ci"), title: "EMI shielding" },
+      );
+      const evidence = await modules!.evidenceService.createEvidence(otherCtx, otherTenant.projectId, {
         identifier: identifierFor("ev"),
         title: "EMI test report",
         evidenceType: "TEST_RESULT",
         sourceReference: "d",
       });
 
-      await modules!.evidenceService.linkEvidence(ctx, tenant.projectId, evidence.id, {
+      await modules!.evidenceService.linkEvidence(otherCtx, otherTenant.projectId, evidence.id, {
         relation: "COMPLIANCE_ITEM",
         targetId: item.id,
       });
 
       const review = await modules!.certificationReviewService.evaluateCertificationReview(
-        ctx,
-        tenant.projectId,
+        otherCtx,
+        otherTenant.projectId,
         {},
       );
       expect(JSON.stringify(review)).not.toMatch(/\bcertified\b|FAA compliant|EASA approved/i);
@@ -592,6 +599,25 @@ describe.skipIf(!databaseAvailable)(`Evidence against PostgreSQL (${SKIP_REASON}
 
   describe("sentinel compatibility", () => {
     it("opens TECHNICAL_READINESS when a changed piece of evidence is counted in a gate assessment's scope", async () => {
+      // Flush whatever earlier tests in this file left pending first — many
+      // change objects without ever calling detection themselves, so real,
+      // undetected history accumulates in this shared project. Only one
+      // OPEN row can exist per (targetType, targetId); if this test's own
+      // evidence change and some other, earlier, unrelated pending change
+      // both reach the same RELEASE_READY target in the same detection
+      // pass, whichever is processed last wins the recorded source — a
+      // race this test should not be exposed to for a cause it did not
+      // create.
+      await modules!.sentinel.decisionSentinelService.detectProjectChanges(ctx, tenant.projectId);
+
+      // The RELEASE_READY scope walk reaches evidence only via
+      // requirement → verification activity → evidence (see
+      // technical-readiness.service.ts's resolveScope doc comment: Hop 2
+      // then Hop 4) — a verification activity with no requirement link is
+      // never reached by any hop, so its evidence never enters scope
+      // either. A real requirement + REQUIREMENT_VERIFIED_BY link is what
+      // makes this activity (and therefore its evidence) actually count.
+      const requirement = await makeRequirement();
       const activity = await prisma.verificationActivity.create({
         data: {
           projectId: tenant.projectId,
@@ -600,6 +626,9 @@ describe.skipIf(!databaseAvailable)(`Evidence against PostgreSQL (${SKIP_REASON}
           method: "TEST",
           status: "PASSED",
         },
+      });
+      await prisma.requirementVerificationLink.create({
+        data: { requirementId: requirement.id, verificationActivityId: activity.id, createdById: tenant.userId },
       });
       const evidence = await modules!.evidenceService.createEvidence(ctx, tenant.projectId, {
         identifier: identifierFor("ev"),

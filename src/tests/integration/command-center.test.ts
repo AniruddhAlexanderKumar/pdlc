@@ -281,7 +281,14 @@ describe.skipIf(!databaseAvailable)(`Engineering Command Center against PostgreS
       const activeChange = view.readiness.changeImpact.activeChanges.find((c) => c.id === change.id);
       expect(activeChange).toBeDefined();
       expect(activeChange!.latestAnalysis.status).toBe("COMPLETED");
-      expect(activeChange!.latestAnalysis.freshness).toBe("CURRENT");
+      // STALE, correctly: `requirement` is both this change's declared
+      // impact target and, below, the configuration baseline's member — the
+      // same real updateRequirement() edit that must stale the baseline
+      // also genuinely changes the fingerprint runImpactAnalysis captured,
+      // by the identical CURRENT/STALE mechanism freshnessOf() uses for
+      // both. Honestly reporting that is the feature, not a bug to paper
+      // over by asserting CURRENT here.
+      expect(activeChange!.latestAnalysis.freshness).toBe("STALE");
 
       // --- Configuration baseline: a real, live comparison, and a real Sentinel signal ---
       expect(view.configuration).toEqual({

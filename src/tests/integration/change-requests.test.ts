@@ -449,7 +449,7 @@ describe.skipIf(!databaseAvailable)(`change requests against PostgreSQL (${SKIP_
   });
 
   describe("the impact target selector", () => {
-    it("offers only artifacts from this project, in the six supported categories", async () => {
+    it("offers only artifacts from this project, in the eight supported categories", async () => {
       const targets = await repos!.artifacts.listChangeImpactTargets(tenant.projectId);
 
       expect(Object.keys(targets).sort()).toEqual([
@@ -458,6 +458,8 @@ describe.skipIf(!databaseAvailable)(`change requests against PostgreSQL (${SKIP_
         "ISSUE",
         "REQUIREMENT",
         "RISK",
+        "SUPPLIED_ITEM",
+        "SUPPLIER",
         "VERIFICATION_ACTIVITY",
       ]);
       expect(targets.REQUIREMENT.map((option) => option.id)).toContain(ids.requirement);

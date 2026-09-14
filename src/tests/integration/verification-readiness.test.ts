@@ -830,6 +830,13 @@ describe.skipIf(!databaseAvailable)(
             organizationId: tenant.organizationId,
           },
         });
+        // A plain org MEMBER (the default, unlike the tenant's own OWNER
+        // user) has no access to any project without a real membership row
+        // — the same rule production enforces. Without this, evaluating as
+        // `evaluator` is rejected before it ever reaches the engine.
+        await prisma.projectMembership.create({
+          data: { projectId: tenant.projectId, userId: evaluator.id, role: "ENGINEER" },
+        });
 
         const report = await service.evaluateVerificationReadiness(
           { organizationId: tenant.organizationId, actorId: evaluator.id },

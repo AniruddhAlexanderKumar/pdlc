@@ -149,7 +149,19 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
     });
   }
 
-  /** A DRAFT baseline with one DESIGN_ITEM member, activated through the service. */
+  /**
+   * A DRAFT baseline with one DESIGN_ITEM member, activated through the
+   * service.
+   *
+   * `supersedeActive: true` because this project's "at most one ACTIVE
+   * baseline" is real and project-wide (see
+   * `engineering_baselines_active_unique`) — an earlier test in this same
+   * file may well have left one active on `owner`'s project already. That's
+   * fine and expected: `supersedeActive` is the actual, designed way to
+   * activate a new baseline over an existing one (see "supersedes a
+   * baseline" above), not a workaround. A truly fresh project (nothing
+   * active yet) takes the same path with no other baseline to supersede.
+   */
   async function makeActivatedBaseline(owner: TestTenant, label = "bas") {
     const localCtx = contextFor(owner);
     const baseline = await modules!.drift.driftDetectionService.createBaseline(
@@ -168,7 +180,7 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       localCtx,
       owner.projectId,
       baseline.id,
-      {},
+      { supersedeActive: true },
     );
     return { baseline: activated, design, ctx: localCtx };
   }
@@ -334,11 +346,16 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
         baseline.id,
         { nodeType: "DESIGN_ITEM", nodeId: design.id },
       );
+      // supersedeActive: true — an earlier test in this file may already
+      // have left a baseline ACTIVE on this shared project; this test's
+      // subject is member-immutability once ACTIVE, not the "already
+      // active" conflict, so it tolerates (and supersedes) whatever came
+      // before rather than depending on running first.
       await modules!.drift.driftDetectionService.activateBaseline(
         ctx,
         tenant.projectId,
         baseline.id,
-        {},
+        { supersedeActive: true },
       );
 
       const other = await makeDesignItem();
@@ -378,11 +395,15 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
         first.id,
         { nodeType: "DESIGN_ITEM", nodeId: design1.id },
       );
+      // supersedeActive: true for the same reason as the previous test — an
+      // earlier test may have left a baseline ACTIVE on this shared project
+      // already. `first` becomes this test's own known-ACTIVE baseline
+      // either way, which is all the rest of the test depends on.
       await modules!.drift.driftDetectionService.activateBaseline(
         ctx,
         tenant.projectId,
         first.id,
-        {},
+        { supersedeActive: true },
       );
 
       const second = await modules!.drift.driftDetectionService.createBaseline(
@@ -432,46 +453,61 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       // index `engineering_baselines_active_unique` — not from the check
       // itself. Two callers activating two *different*, currently-inactive
       // baselines is exactly the race that check cannot defend against.
-      const raceA = await modules!.drift.driftDetectionService.createBaseline(
-        ctx,
-        tenant.projectId,
-        { identifier: identifierFor("race-a"), name: "Race baseline A" },
-      );
-      const designA = await makeDesignItem();
-      await modules!.drift.driftDetectionService.addBaselineMember(
-        ctx,
-        tenant.projectId,
-        raceA.id,
-        { nodeType: "DESIGN_ITEM", nodeId: designA.id },
-      );
+      //
+      // Needs its own tenant, not `tenant`: the service-level "is one
+      // already active?" check (the one this race is specifically bypassing)
+      // would otherwise fire deterministically against whatever an earlier
+      // test in this file left ACTIVE on the shared project, rejecting both
+      // racers outright before the real DB-level race is ever exercised —
+      // and there is no way back to "nothing active" on an existing project,
+      // since BASELINE_TRANSITIONS only allows ACTIVE -> SUPERSEDED via
+      // activating a replacement, never back to null.
+      const raceTenant = await createTestTenant("drift-baseline-race");
+      const raceCtx = contextFor(raceTenant);
+      try {
+        const raceA = await modules!.drift.driftDetectionService.createBaseline(
+          raceCtx,
+          raceTenant.projectId,
+          { identifier: identifierFor("race-a"), name: "Race baseline A" },
+        );
+        const designA = await makeDesignItem(raceTenant.projectId);
+        await modules!.drift.driftDetectionService.addBaselineMember(
+          raceCtx,
+          raceTenant.projectId,
+          raceA.id,
+          { nodeType: "DESIGN_ITEM", nodeId: designA.id },
+        );
 
-      const raceB = await modules!.drift.driftDetectionService.createBaseline(
-        ctx,
-        tenant.projectId,
-        { identifier: identifierFor("race-b"), name: "Race baseline B" },
-      );
-      const designB = await makeDesignItem();
-      await modules!.drift.driftDetectionService.addBaselineMember(
-        ctx,
-        tenant.projectId,
-        raceB.id,
-        { nodeType: "DESIGN_ITEM", nodeId: designB.id },
-      );
+        const raceB = await modules!.drift.driftDetectionService.createBaseline(
+          raceCtx,
+          raceTenant.projectId,
+          { identifier: identifierFor("race-b"), name: "Race baseline B" },
+        );
+        const designB = await makeDesignItem(raceTenant.projectId);
+        await modules!.drift.driftDetectionService.addBaselineMember(
+          raceCtx,
+          raceTenant.projectId,
+          raceB.id,
+          { nodeType: "DESIGN_ITEM", nodeId: designB.id },
+        );
 
-      const results = await Promise.allSettled([
-        modules!.drift.driftDetectionService.activateBaseline(ctx, tenant.projectId, raceA.id, {}),
-        modules!.drift.driftDetectionService.activateBaseline(ctx, tenant.projectId, raceB.id, {}),
-      ]);
+        const results = await Promise.allSettled([
+          modules!.drift.driftDetectionService.activateBaseline(raceCtx, raceTenant.projectId, raceA.id, {}),
+          modules!.drift.driftDetectionService.activateBaseline(raceCtx, raceTenant.projectId, raceB.id, {}),
+        ]);
 
-      const fulfilled = results.filter((r) => r.status === "fulfilled");
-      const rejected = results.filter((r) => r.status === "rejected");
-      expect(fulfilled).toHaveLength(1);
-      expect(rejected).toHaveLength(1);
+        const fulfilled = results.filter((r) => r.status === "fulfilled");
+        const rejected = results.filter((r) => r.status === "rejected");
+        expect(fulfilled).toHaveLength(1);
+        expect(rejected).toHaveLength(1);
 
-      const activeRows = await integrationPrisma!.engineeringBaseline.findMany({
-        where: { projectId: tenant.projectId, status: "ACTIVE" },
-      });
-      expect(activeRows).toHaveLength(1);
+        const activeRows = await integrationPrisma!.engineeringBaseline.findMany({
+          where: { projectId: raceTenant.projectId, status: "ACTIVE" },
+        });
+        expect(activeRows).toHaveLength(1);
+      } finally {
+        await destroyTestTenant(raceTenant);
+      }
     });
 
     it("does not resolve another project's baseline by id or in a listing", async () => {
@@ -546,11 +582,14 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
           { nodeType, nodeId },
         );
       }
+      // supersedeActive: true — see makeActivatedBaseline's comment; this
+      // shared project may already have an ACTIVE baseline from an earlier
+      // test.
       const activated = await modules!.drift.driftDetectionService.activateBaseline(
         localCtx,
         tenant.projectId,
         draft.id,
-        {},
+        { supersedeActive: true },
       );
       const capturedFingerprints = (
         await modules!.member.listMembers(activated.id)
@@ -616,11 +655,14 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
         draft.id,
         { nodeType: "SUPPLIED_ITEM", nodeId: suppliedItem.id },
       );
+      // supersedeActive: true — see makeActivatedBaseline's comment; this
+      // shared project may already have an ACTIVE baseline from an earlier
+      // test.
       const activated = await modules!.drift.driftDetectionService.activateBaseline(
         localCtx,
         tenant.projectId,
         draft.id,
-        {},
+        { supersedeActive: true },
       );
 
       // Supplied items are never hard-deleted in this system's own domain
@@ -1267,12 +1309,25 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
 
   describe("a real drift scenario end to end", () => {
     it("tracks a design item and an expectation through baseline, matching observations, a design change and a breach", async () => {
-      const localCtx = contextFor(tenant);
+      // Its own tenant, not `tenant`: this scenario's whole point is a
+      // *clean* NO_DRIFT verdict at step 4, and DR-OBS-001 ("observations
+      // exist that nobody has reviewed") and DR-CFG-002 ("a reviewed
+      // configuration observation outside the evaluated baseline") are both
+      // deliberately project-wide checks (see their rationale in
+      // src/domain/drift.ts), not scoped to this baseline's membership. On
+      // the heavily-shared `tenant.projectId` — dozens of other tests in
+      // this file leave observations RECORDED or reviewed against other
+      // design items — that honest, by-design scan can never come back
+      // clean, no matter what this test itself does right.
+      const scenarioTenant = await createTestTenant("drift-scenario");
+      const localCtx = contextFor(scenarioTenant);
+      const scenarioProjectId = scenarioTenant.projectId;
 
+      try {
       // 1. A real DesignItem and a real EngineeringDecision with a
       // DecisionExpectation carrying an explicit comparison.
-      const design = await makeDesignItem(tenant.projectId, { status: "DRAFT" });
-      const decision = await makeDecision();
+      const design = await makeDesignItem(scenarioProjectId, { status: "DRAFT" });
+      const decision = await makeDecision(scenarioProjectId);
       const expectation = await makeExpectation(decision.id, {
         comparisonOperator: "LESS_THAN_OR_EQUAL",
         expectedValue: "800",
@@ -1282,33 +1337,36 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       // 2. DRAFT baseline, both as members, activate.
       const baseline = await modules!.drift.driftDetectionService.createBaseline(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         { identifier: identifierFor("scn"), name: "V1 chamber basis" },
       );
       await modules!.drift.driftDetectionService.addBaselineMember(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         baseline.id,
         { nodeType: "DESIGN_ITEM", nodeId: design.id },
       );
       await modules!.drift.driftDetectionService.addBaselineMember(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         baseline.id,
         { nodeType: "DECISION_EXPECTATION", nodeId: expectation.id },
       );
+      // supersedeActive: true — see makeActivatedBaseline's comment; this
+      // shared project may already have an ACTIVE baseline from an earlier
+      // test.
       await modules!.drift.driftDetectionService.activateBaseline(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         baseline.id,
-        {},
+        { supersedeActive: true },
       );
 
       // 3. A configuration observation of the design item, and a matching
       // measurement of the expectation. Both reviewed.
       const configObservation = await modules!.drift.driftDetectionService.recordObservation(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         {
           identifier: identifierFor("obs"),
           title: "As-built configuration",
@@ -1321,7 +1379,7 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       );
       const matchingMeasurement = await modules!.drift.driftDetectionService.recordObservation(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         {
           identifier: identifierFor("obs"),
           title: "Wall temperature reading",
@@ -1335,13 +1393,13 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       );
       await modules!.drift.driftDetectionService.reviewObservation(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         configObservation.id,
         {},
       );
       await modules!.drift.driftDetectionService.reviewObservation(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         matchingMeasurement.id,
         {},
       );
@@ -1350,7 +1408,7 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       // either the baseline or the expectation.
       const firstReport = await modules!.drift.driftDetectionService.evaluateDrift(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         { baselineId: baseline.id },
       );
 
@@ -1365,7 +1423,7 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
 
       const currentAfterFirst = await modules!.drift.driftDetectionService.getLatestDriftAssessment(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         baseline.id,
       );
       if (!hasDriftAssessment(currentAfterFirst)) throw new Error("expected a drift report");
@@ -1380,7 +1438,7 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       // The prior assessment is now stale: the baselined design item moved.
       const staleCheck = await modules!.drift.driftDetectionService.getLatestDriftAssessment(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         baseline.id,
       );
       if (!hasDriftAssessment(staleCheck)) throw new Error("expected a drift report");
@@ -1389,7 +1447,7 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       // 6. Evaluate again -> a new assessment with a DR-BAS-002 finding naming the design item.
       const secondReport = await modules!.drift.driftDetectionService.evaluateDrift(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         { baselineId: baseline.id },
       );
       expect(secondReport.assessment.id).not.toBe(firstReport.assessment.id);
@@ -1405,7 +1463,7 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       // 7. A breaching observation of the expectation.
       const breachingMeasurement = await modules!.drift.driftDetectionService.recordObservation(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         {
           identifier: identifierFor("obs"),
           title: "Wall temperature reading, hot case",
@@ -1419,14 +1477,14 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       );
       await modules!.drift.driftDetectionService.reviewObservation(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         breachingMeasurement.id,
         {},
       );
 
       const thirdReport = await modules!.drift.driftDetectionService.evaluateDrift(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         { baselineId: baseline.id },
       );
 
@@ -1452,7 +1510,7 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
 
       const finalCheck = await modules!.drift.driftDetectionService.getLatestDriftAssessment(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         baseline.id,
       );
       if (!hasDriftAssessment(finalCheck)) throw new Error("expected a drift report");
@@ -1462,7 +1520,7 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
       // Immutable history: all three evaluations survive, newest first.
       const history = await modules!.drift.driftDetectionService.listDriftHistory(
         localCtx,
-        tenant.projectId,
+        scenarioProjectId,
         baseline.id,
       );
       expect(history.map((a) => a.id)).toEqual([
@@ -1470,6 +1528,9 @@ describe.skipIf(!databaseAvailable)(`design / operations drift against PostgreSQ
         secondReport.assessment.id,
         firstReport.assessment.id,
       ]);
+      } finally {
+        await destroyTestTenant(scenarioTenant);
+      }
     });
   });
 });

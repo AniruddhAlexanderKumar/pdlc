@@ -366,7 +366,7 @@ describe.skipIf(!databaseAvailable)(`Decision Sentinel against PostgreSQL (${SKI
 
     it("never lists another project's targets as open", async () => {
       const event = await makeSentinelEvent(otherTenant.projectId);
-      await modules!.targetRepo.upsertOpenTarget({
+      const created = await modules!.targetRepo.upsertOpenTarget({
         projectId: otherTenant.projectId,
         targetType: "VERIFICATION_READINESS",
         targetId: `va-${uniqueSuffix("iso")}`,
@@ -376,8 +376,17 @@ describe.skipIf(!databaseAvailable)(`Decision Sentinel against PostgreSQL (${SKI
         sourceEventId: event.id,
       });
 
-      const mine = await modules!.targetRepo.listOpenTargets(tenant.projectId);
-      expect(mine.every((t) => t.projectId === tenant.projectId)).toBe(true);
+      try {
+        const mine = await modules!.targetRepo.listOpenTargets(tenant.projectId);
+        expect(mine.every((t) => t.projectId === tenant.projectId)).toBe(true);
+      } finally {
+        // This row is otherTenant's, real and deliberately left OPEN to prove
+        // the point above — but otherTenant is shared for the rest of this
+        // file (one tenant per file, not per test), so leaving it here would
+        // make every later "otherTenant has nothing open" assertion in this
+        // file false for a reason those tests did not create.
+        await integrationPrisma!.surveillanceTarget.delete({ where: { id: created.id } });
+      }
     });
   });
 

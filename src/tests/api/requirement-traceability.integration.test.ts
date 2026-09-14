@@ -85,7 +85,17 @@ vi.mock("@/server/repositories/project-artifacts.repository", () => ({
   listLinkTargets: vi.fn(),
 }));
 
+// requirement.service.ts's reads and links go through requireProjectReadAccess
+// / requireProjectWriteAccess (real ProjectMembership-tiered, not just
+// tenancy), which needs this repository too — CONTEXT's actor is modeled as
+// a real MANAGER on PROJECT below, matching the read+write access every test
+// here actually exercises.
+vi.mock("@/server/repositories/project-membership.repository", () => ({
+  findMembership: vi.fn(),
+}));
+
 const projectRepository = await import("@/server/repositories/project.repository");
+const projectMembershipRepository = await import("@/server/repositories/project-membership.repository");
 const requirementRepository = await import("@/server/repositories/requirement.repository");
 const projectArtifacts = await import("@/server/repositories/project-artifacts.repository");
 const auditLogRepository = await import("@/server/repositories/audit-log.repository");
@@ -109,6 +119,14 @@ const REQUIREMENT: Requirement = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(PROJECT);
+  vi.mocked(projectMembershipRepository.findMembership).mockResolvedValue({
+    id: "mem1aaaaaaaaaaaaaaaaaaa",
+    projectId: PROJECT.id,
+    role: "MANAGER",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    user: { id: CONTEXT.actorId, name: "Test Engineer", email: "engineer@test.invalid", organizationRole: "MEMBER" },
+  });
   vi.mocked(requirementRepository.findRequirementInProject).mockResolvedValue(REQUIREMENT);
   vi.mocked(requirementRepository.listRequirementLinks).mockResolvedValue([]);
 });

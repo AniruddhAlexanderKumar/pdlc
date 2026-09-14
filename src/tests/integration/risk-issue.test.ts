@@ -149,8 +149,13 @@ describe.skipIf(!databaseAvailable)(`Risks and Issues against PostgreSQL (${SKIP
         }),
       ).rejects.toThrow(/already exists/i);
 
-      // The same identifier is free in a different project.
-      const elsewhere = await modules!.riskService.createRisk(ctx, otherTenant.projectId, {
+      // The same identifier is free in a different project — otherTenant is
+      // a different organization too, so it needs its own context; creating
+      // with `ctx` (tenant's) against otherTenant.projectId would be a
+      // cross-organization write, rejected outright before ever reaching
+      // the uniqueness check this test is actually about.
+      const otherCtx = { organizationId: otherTenant.organizationId, actorId: otherTenant.userId };
+      const elsewhere = await modules!.riskService.createRisk(otherCtx, otherTenant.projectId, {
         identifier,
         title: "Theirs",
         description: "d",
@@ -636,6 +641,19 @@ describe.skipIf(!databaseAvailable)(`Risks and Issues against PostgreSQL (${SKIP
 
   describe("sentinel compatibility", () => {
     it("detects a real risk change and opens a real surveillance target for the technical readiness gate it reaches", async () => {
+      // Flush whatever earlier tests in this file left pending first. Many
+      // of them change objects without ever calling detection themselves,
+      // so by the time this test runs there is real, accumulated, undetected
+      // history sitting in the same shared project — sweeping it now means
+      // this test's own risk change is the only *new* thing detection sees
+      // next, rather than one of several candidates all racing to be the
+      // last write to the same (TECHNICAL_READINESS, SYSTEM_DEFINITION)
+      // target (only one OPEN row can exist per target; whichever candidate
+      // a detection pass processes last wins that row's recorded source —
+      // correct, real behavior, just not something this test should be
+      // exposed to for a cause it did not create).
+      await modules!.sentinel.decisionSentinelService.detectProjectChanges(ctx, tenant.projectId);
+
       const risk = await modules!.riskService.createRisk(ctx, tenant.projectId, {
         identifier: identifierFor("rsk"),
         title: "Sentinel test",
@@ -673,8 +691,15 @@ describe.skipIf(!databaseAvailable)(`Risks and Issues against PostgreSQL (${SKIP
       // link is excluded from the review's own basis and fingerprint, so a
       // risk change can never make a review stale — the registry correctly
       // has no such row, and this proves detection never invents the target.
+      //
+      // Uses otherTenant, not tenant: a project may have at most one
+      // CertificationProgram (a real, DB-enforced unique constraint), and
+      // the "certification compatibility" describe block above already
+      // created one for tenant.projectId — reusing it here would collide,
+      // not exercise anything new.
+      const otherCtx = { organizationId: otherTenant.organizationId, actorId: otherTenant.userId };
       const program = await modules!.programRepo.createProgram({
-        projectId: tenant.projectId,
+        projectId: otherTenant.projectId,
         identifier: identifierFor("cert"),
         name: "No-op certification test",
         description: null,
@@ -687,32 +712,38 @@ describe.skipIf(!databaseAvailable)(`Risks and Issues against PostgreSQL (${SKIP
         description: null,
         revision: "1",
         sourceReference: "ref",
-        createdById: tenant.userId,
+        createdById: otherTenant.userId,
       });
-      const basis = await modules!.basisRepo.activateBasis(draftBasis.id, tenant.userId);
+      const basis = await modules!.basisRepo.activateBasis(draftBasis.id, otherTenant.userId);
       const item = await modules!.itemService.complianceItemService.createItem(
-        ctx,
-        tenant.projectId,
+        otherCtx,
+        otherTenant.projectId,
         basis.id,
         { identifier: identifierFor("ci"), title: "Risk-linked item" },
       );
-      const risk = await modules!.riskService.createRisk(ctx, tenant.projectId, {
+      const risk = await modules!.riskService.createRisk(otherCtx, otherTenant.projectId, {
         identifier: identifierFor("rsk"),
         title: "No-op test",
         description: "d",
       });
-      await modules!.itemService.complianceItemService.addLink(ctx, tenant.projectId, item.id, {
+      await modules!.itemService.complianceItemService.addLink(otherCtx, otherTenant.projectId, item.id, {
         linkType: "RISK",
         targetId: risk.id,
       });
-      await modules!.review.certificationReviewService.evaluateCertificationReview(ctx, tenant.projectId, {});
+      await modules!.review.certificationReviewService.evaluateCertificationReview(
+        otherCtx,
+        otherTenant.projectId,
+        {},
+      );
 
-      await modules!.riskService.updateRisk(ctx, tenant.projectId, risk.id, { title: "No-op test (revised)" });
-      await modules!.sentinel.decisionSentinelService.detectProjectChanges(ctx, tenant.projectId);
+      await modules!.riskService.updateRisk(otherCtx, otherTenant.projectId, risk.id, {
+        title: "No-op test (revised)",
+      });
+      await modules!.sentinel.decisionSentinelService.detectProjectChanges(otherCtx, otherTenant.projectId);
 
       const open = await modules!.sentinel.decisionSentinelService.listOpenSurveillance(
-        ctx,
-        tenant.projectId,
+        otherCtx,
+        otherTenant.projectId,
       );
       expect(open.some((t) => t.targetType === "CERTIFICATION_REVIEW" && t.sourceId === risk.id)).toBe(
         false,

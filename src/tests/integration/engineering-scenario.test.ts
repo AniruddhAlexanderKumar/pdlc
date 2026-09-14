@@ -319,9 +319,15 @@ describe.skipIf(!databaseAvailable)(
 
       it("a MANAGER can administer — add and remove a project member", async () => {
         const membership = await import("@/server/services/project-membership.service");
+        // No `.slice()` here: createProjectRoleUsers only folds this prefix
+        // into an email address and a password (see engineering-scenario.ts),
+        // never a length-capped identifier — truncating to a fixed width
+        // used to cut the prefix off before uniqueSuffix's own timestamp/
+        // random digits, making every run produce the exact same prefix and
+        // colliding with any earlier run's still-present accounts.
         const extra = await modules!.fixtures.createProjectRoleUsers(
           { ...tenant, projectId: tenant.projectId },
-          { prefix: uniqueSuffix("mgr-test").toUpperCase().slice(0, 10) },
+          { prefix: uniqueSuffix("mgr-test").toUpperCase() },
         );
         // createProjectRoleUsers already added `extra.viewer` — a MANAGER
         // removing a membership it did not create is still real administration.
@@ -443,13 +449,21 @@ describe.skipIf(!databaseAvailable)(
         expect(program!.name).toMatch(/fictional/i);
       });
 
-      it("nothing in this suite ran prisma.impactAnalysis.create / prisma.sentinelEvent.create / prisma.certificationReview.create directly — proven structurally, not just by convention", () => {
+      it("nothing in this suite wrote an impact analysis, a sentinel event, a surveillance target or a certification review directly — proven structurally, not just by convention", () => {
         // This test file imports no `@/lib/db` prisma client at all — grep its
-        // own imports rather than assert on runtime behavior a mock could fake.
+        // own imports rather than assert on runtime behavior a mock could
+        // fake. Assembled from parts at runtime, deliberately, so this
+        // assertion's own source can never itself match the pattern it
+        // checks for — a literal `it(...)` description containing it,
+        // exactly as unsafe as the direct calls it forbids, is precisely
+        // the kind of self-defeating check this regex existing to catch
+        // would otherwise miss silently.
+        const forbidden = ["impactAnalysis", "sentinelEvent", "surveillanceTarget", "certificationReview"]
+          .map((model) => `prisma.${model}.`)
+          .join("|");
+        const pattern = new RegExp(`(${forbidden})(create|createMany)`);
         const source = readFileSync(new URL(import.meta.url), "utf8");
-        expect(source).not.toMatch(
-          /prisma\.(impactAnalysis|sentinelEvent|surveillanceTarget|certificationReview)\.(create|createMany)/,
-        );
+        expect(source).not.toMatch(pattern);
       });
     });
   },

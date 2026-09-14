@@ -660,8 +660,12 @@ describe.skipIf(!databaseAvailable)(`the engineering graph against PostgreSQL ($
 
       expect(report.checkedEdgeTypes).toHaveLength(GRAPH_EDGE_TYPES.length);
       expect(report.projectId).toBe(tenant.projectId);
-      // Fourteen sound relationships plus the deliberate cross-project one.
-      expect(report.edgesChecked).toBe(15);
+      // Fifteen sound relationships (the eleven *Link/*Impact join-table
+      // rows, plus DecisionAlternative, DecisionAssumption,
+      // DecisionExpectation and Approval, each a direct FK rather than a
+      // join table but still a real registered edge) plus the one
+      // deliberate cross-project row.
+      expect(report.edgesChecked).toBe(16);
     });
 
     it("finds nothing wrong with the sound half of the graph", async () => {

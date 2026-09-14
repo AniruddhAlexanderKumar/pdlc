@@ -116,6 +116,27 @@ export async function destroyTestTenant(tenant: TestTenant): Promise<void> {
   if (projectIds.length > 0) {
     await prisma.approval.deleteMany({ where: { projectId: { in: projectIds } } });
     await prisma.changeRequest.deleteMany({ where: { projectId: { in: projectIds } } });
+
+    // CertificationBasis/CertificationProgram are both plain onDelete:Cascade
+    // (nothing Restrict-guarded here) but the same underlying issue bites
+    // anyway: Postgres does not guarantee it processes this cascade path to
+    // completion before the User-row cascade elsewhere in the same delete,
+    // and CertificationBasis carries SetNull FKs back to User
+    // (createdById/activatedById) that can be reached mid-cascade in either
+    // order. Deleting both explicitly, child before parent, removes the
+    // ordering question entirely rather than depending on it resolving one
+    // particular way.
+    const programs = await prisma.certificationProgram.findMany({
+      where: { projectId: { in: projectIds } },
+      select: { id: true },
+    });
+    const programIds = programs.map((p) => p.id);
+    if (programIds.length > 0) {
+      await prisma.certificationBasis.deleteMany({
+        where: { certificationProgramId: { in: programIds } },
+      });
+      await prisma.certificationProgram.deleteMany({ where: { id: { in: programIds } } });
+    }
   }
 
   await prisma.organization.deleteMany({ where: { id: tenant.organizationId } });

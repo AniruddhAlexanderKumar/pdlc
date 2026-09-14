@@ -458,9 +458,13 @@ describe.skipIf(!databaseAvailable)(`repositories against PostgreSQL (${SKIP_REA
     it("enumerates link targets for a project", async () => {
       const targets = await repos!.artifacts.listLinkTargets(tenant.projectId);
 
+      // listLinkTargets always returns all five keys unconditionally (each an
+      // empty array when the project has no instances of that type) — this
+      // is the object's fixed shape, not a function of what data exists.
       expect(Object.keys(targets).sort()).toEqual([
         "DESIGN_ITEM",
         "ENGINEERING_DECISION",
+        "EVIDENCE",
         "STAKEHOLDER_NEED",
         "VERIFICATION_ACTIVITY",
       ]);

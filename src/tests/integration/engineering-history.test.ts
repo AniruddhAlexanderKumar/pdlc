@@ -227,7 +227,13 @@ describe.skipIf(!databaseAvailable)(`Engineering History against PostgreSQL (${S
     });
 
     it("404s an object that belongs to another project", async () => {
-      const theirs = await modules!.requirementService.createRequirement(ctx, otherTenant.projectId, {
+      // Created through otherTenant's own actor, not `ctx` — tenant's actor
+      // has no membership in otherTenant's project (a different
+      // organization entirely; createTestTenant never shares one), so
+      // createRequirement would 404 that write before "theirs" ever existed
+      // to test the read-side isolation this test is actually about.
+      const otherCtx = { organizationId: otherTenant.organizationId, actorId: otherTenant.userId };
+      const theirs = await modules!.requirementService.createRequirement(otherCtx, otherTenant.projectId, {
         identifier: identifierFor("req3"),
         title: "Their requirement",
         statement: "Not visible from this project.",
