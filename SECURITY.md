@@ -277,6 +277,13 @@ responsibility this codebase does not and cannot discharge for you.
   operator track about *their own* certification process — it is not a
   claim that this software itself has been certified against any standard
   (DO-178C, AS9100, SOC 2, ISO 27001, or otherwise).
+- **Organization terminology overrides are display-only, and only cover
+  primary navigation and each module's own page title** — not every string
+  in the product. An organization that renames "Risk" to "Hazard" will
+  still see "Risk" in some column headers, filters, and empty-state text.
+  This product also does not auto-apply an industry's own conventional
+  vocabulary; an organization always types its own word. See
+  ARCHITECTURE.md's "Organization personalization" section.
 
 ## Reporting a vulnerability
 

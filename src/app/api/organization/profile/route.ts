@@ -4,7 +4,7 @@ import * as organizationService from "@/server/services/organization.service";
 
 export const dynamic = "force-dynamic";
 
-/** GET — the organization's profile (currently: its industry). Any authenticated member may read. */
+/** GET — the organization's profile: industry and terminology overrides. Any authenticated member may read. */
 export async function GET() {
   try {
     const context = await requireAuthenticatedContext();

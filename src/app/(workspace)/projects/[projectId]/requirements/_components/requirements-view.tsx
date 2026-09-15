@@ -9,6 +9,7 @@ import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
 import { type RequirementListItemDto, useRequirements } from "@/lib/api/requirements";
 import { PageHeader } from "@/components/common/page-header";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import {
   RequirementPriorityBadge,
   RequirementStatusBadge,
@@ -55,6 +56,7 @@ const FILTER_DEFAULTS: RequirementFilters = { status: "", q: "" };
 
 export function RequirementsView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("requirement", "Requirements");
   const [filters, setFilters] = useUrlFilterState<RequirementFilters>(FILTER_DEFAULTS);
   const { state, reload } = useRequirements(projectId, filters.status);
   const project = useProject(projectId);
@@ -195,7 +197,7 @@ export function RequirementsView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Requirements"
+        title={title}
         description={
           projectName
             ? `Formal engineering requirements for ${projectName}.`

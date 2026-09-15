@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { IssueFormDialog } from "./issue-form-dialog";
 
 /**
@@ -41,6 +42,7 @@ import { IssueFormDialog } from "./issue-form-dialog";
  */
 export function IssuesView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("issue", "Issues");
   const [status, setStatus] = React.useState<IssueStatus | "">("");
   const [severity, setSeverity] = React.useState<IssueSeverity | "">("");
   const { state, reload } = useIssues(projectId, status, severity);
@@ -53,7 +55,7 @@ export function IssuesView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Issues"
+        title={title}
         description={
           projectName
             ? `Problems actually found on ${projectName}, their owners, and their disposition.`

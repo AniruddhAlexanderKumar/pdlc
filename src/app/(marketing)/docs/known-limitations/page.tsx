@@ -38,6 +38,11 @@ const LIMITATIONS = [
     title: "No compliance certification held",
     body: "DO-178C, AS9100, ISO 26262, SOC 2 — none are held. Aerospace terminology in this product describes what it helps an operator track about their own process, not a claim about this software's own certification status.",
   },
+  {
+    id: "terminology-scope",
+    title: "Organization terminology overrides only cover navigation and page titles",
+    body: "An organization can rename fourteen core nouns (Requirements, Risks, Design items, and so on) in the sidebar and on each module's own page — not every string in the product. Column headers, filters, and empty-state text still show this product's own default word. There is also no auto-applied per-industry vocabulary: an organization always types its own word, never a mapping this product asserts on a regulatory framework's behalf.",
+  },
 ];
 
 export default function KnownLimitationsPage() {

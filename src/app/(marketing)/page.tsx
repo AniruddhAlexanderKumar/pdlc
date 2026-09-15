@@ -9,7 +9,7 @@ import { TraversalLimitsSimulator } from "./docs/_components/traversal-limits-si
 export const metadata: Metadata = {
   title: "PDLC Platform",
   description:
-    "A self-hosted product development lifecycle system for aerospace engineering — one real graph, deterministic engines, no AI.",
+    "A self-hosted, multi-industry product development lifecycle system — one real graph, deterministic engines, no AI.",
 };
 
 const DIFFERENTIATORS = [

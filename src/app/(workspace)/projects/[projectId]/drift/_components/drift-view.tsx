@@ -47,6 +47,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 
 /**
  * The drift workspace.
@@ -61,6 +62,7 @@ import { formatIsoDate } from "@/lib/utils";
  * values it compared.
  */
 export function DriftView({ projectId }: { projectId: string }) {
+  const title = useModuleLabel("drift", "Design / operations drift");
   const baselines = useBaselines(projectId);
   // `null` means the reader has not chosen; the active baseline is then used.
   // Derived rather than synced into state by an effect, so there is no render
@@ -118,7 +120,7 @@ export function DriftView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Design / operations drift"
+        title={title}
         description="Where the operational state that has since been recorded no longer matches the engineering basis that was approved."
       />
 

@@ -26,11 +26,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { VerificationFormDialog } from "./verification-form-dialog";
 
 /** Verification activities for one project. Everything shown comes from the API. */
 export function VerificationView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("verificationActivity", "Verification");
   const { state, reload } = useVerificationActivities(projectId);
   const project = useProject(projectId);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
@@ -40,7 +42,7 @@ export function VerificationView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Verification"
+        title={title}
         description={
           projectName
             ? `How ${projectName}'s requirements will be shown to be met, and whether each activity is ready to be performed.`

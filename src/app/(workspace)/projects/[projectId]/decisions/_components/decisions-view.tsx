@@ -25,11 +25,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { DecisionFormDialog } from "./decision-form-dialog";
 
 /** Decisions for one project. Everything shown comes from the API. */
 export function DecisionsView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("decision", "Decisions");
   const [status, setStatus] = React.useState<DecisionStatus | "">("");
   const { state, reload } = useDecisions(projectId, status);
   const project = useProject(projectId);
@@ -40,7 +42,7 @@ export function DecisionsView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Decisions"
+        title={title}
         description={
           projectName
             ? `Engineering decisions for ${projectName}, with the reasoning behind them.`

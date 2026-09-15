@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { BaselineFormDialog } from "./baseline-form-dialog";
 
 /**
@@ -33,6 +34,7 @@ import { BaselineFormDialog } from "./baseline-form-dialog";
  */
 export function BaselinesView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("baseline", "Engineering baselines");
   const { state, reload } = useBaselines(projectId);
   const project = useProject(projectId);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
@@ -42,7 +44,7 @@ export function BaselinesView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Engineering baselines"
+        title={title}
         description={
           projectName
             ? `The approved engineering basis for ${projectName}, as a reference for drift detection.`

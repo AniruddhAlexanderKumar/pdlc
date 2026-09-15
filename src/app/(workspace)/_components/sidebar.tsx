@@ -11,16 +11,19 @@ import {
   SlidersHorizontal,
   Waypoints,
 } from "lucide-react";
+import type { TerminologyLabelKey } from "@/domain";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useStoredFlag } from "@/lib/use-stored-flag";
 import { MODULE_GROUPS, PROJECT_MODULES } from "../projects/_components/project-modules";
 import { NAV_ITEMS } from "./nav-items";
+import { useModuleLabel } from "./terminology-context";
 
 /** Matches `/projects/{id}` at the start of a path and captures the id. */
 const CURRENT_PROJECT_PATTERN = /^\/projects\/([^/]+)(?:\/|$)/;
 
-const SIMPLIFY_STORAGE_KEY = "pdlc:nav-simplified";
+/** Exported so the Settings page (`/settings`) can surface and control the same preference — one key, one source of truth, two places to reach it. */
+export const SIMPLIFY_STORAGE_KEY = "pdlc:nav-simplified";
 
 /** Dashboard and Projects are global anchors — always shown, never rewritten. */
 const GLOBAL_ITEMS = NAV_ITEMS.filter((item) => item.href === "/dashboard" || item.href === "/projects");
@@ -32,6 +35,7 @@ interface Entry {
   label: string;
   href: string;
   icon: (typeof NAV_ITEMS)[number]["icon"];
+  labelKey?: TerminologyLabelKey;
 }
 
 function NavLink({
@@ -46,10 +50,11 @@ function NavLink({
   emphasized?: boolean;
 }) {
   const Icon = entry.icon;
+  const label = useModuleLabel(entry.labelKey, entry.label);
   return (
     <Link
       href={entry.href}
-      title={collapsed ? entry.label : undefined}
+      title={collapsed ? label : undefined}
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
@@ -62,7 +67,7 @@ function NavLink({
       )}
     >
       <Icon className="size-4 shrink-0" aria-hidden="true" />
-      {!collapsed && <span className="truncate">{entry.label}</span>}
+      {!collapsed && <span className="truncate">{label}</span>}
     </Link>
   );
 }
@@ -156,7 +161,7 @@ function Sidebar() {
           return (
             <NavLink
               key={item.href}
-              entry={{ key: item.href, label: item.label, href: item.href, icon: item.icon }}
+              entry={{ key: item.href, label: item.label, href: item.href, icon: item.icon, labelKey: item.labelKey }}
               collapsed={collapsed}
               isActive={isActiveEntry(item.href, exact)}
             />
@@ -227,7 +232,7 @@ function Sidebar() {
                     return (
                       <NavLink
                         key={module.href}
-                        entry={{ key: module.href, label: module.label, href, icon: module.icon }}
+                        entry={{ key: module.href, label: module.label, href, icon: module.icon, labelKey: module.labelKey }}
                         collapsed={collapsed}
                         isActive={isActiveEntry(href, false)}
                       />
@@ -247,7 +252,7 @@ function Sidebar() {
             {PICKER_ITEMS.map((item) => (
               <NavLink
                 key={item.href}
-                entry={{ key: item.href, label: item.label, href: item.href, icon: item.icon }}
+                entry={{ key: item.href, label: item.label, href: item.href, icon: item.icon, labelKey: item.labelKey }}
                 collapsed={collapsed}
                 isActive={isActiveEntry(item.href, false)}
               />

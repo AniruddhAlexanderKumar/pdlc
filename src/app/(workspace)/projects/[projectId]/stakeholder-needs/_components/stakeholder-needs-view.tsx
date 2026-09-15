@@ -24,11 +24,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { StakeholderNeedFormDialog } from "./stakeholder-need-form-dialog";
 
 /** Stakeholder needs for one project. Everything shown comes from the API. */
 export function StakeholderNeedsView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("stakeholderNeed", "Stakeholder needs");
   const { state, reload } = useStakeholderNeeds(projectId);
   const project = useProject(projectId);
   const access = useMyProjectAccess(projectId);
@@ -42,7 +44,7 @@ export function StakeholderNeedsView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Stakeholder needs"
+        title={title}
         description={
           projectName
             ? `Originating needs for ${projectName}. Requirements derive from these.`

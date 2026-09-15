@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { SupplierFormDialog } from "./supplier-form-dialog";
 
 /**
@@ -35,6 +36,7 @@ import { SupplierFormDialog } from "./supplier-form-dialog";
  */
 export function SuppliersView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("supplier", "Suppliers");
   const [status, setStatus] = React.useState<SupplierStatus | "">("");
   const { state, reload } = useSuppliers(projectId, status);
   const project = useProject(projectId);
@@ -49,7 +51,7 @@ export function SuppliersView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Suppliers"
+        title={title}
         description={
           projectName
             ? `Supplier engineering dependencies for ${projectName}. Not a procurement record.`

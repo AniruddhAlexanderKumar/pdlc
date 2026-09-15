@@ -93,6 +93,101 @@ export const setOrganizationIndustryRequestSchema = z
   });
 export type SetOrganizationIndustryRequest = z.infer<typeof setOrganizationIndustryRequestSchema>;
 
+/**
+ * The core engineering nouns an organization may rename app-wide — its
+ * sidebar navigation and each module's own page header, specifically (see
+ * `resolveTerminologyLabel` below for exactly what reads this; it is a
+ * deliberately small, high-visibility surface, not every string in the
+ * product — see KNOWN_LIMITATIONS for the honest scope of what is not
+ * retrofitted).
+ *
+ * Fixed set, not open-ended: these are the fourteen artifact modules that
+ * read as an industry-flavored noun ("Risk", "Design item") rather than a
+ * system feature or process name ("Command Center", "Decision Sentinel",
+ * "Traceability", "Engineering History", "Members" stay fixed — renaming
+ * those would rename the product's own capabilities, not the vocabulary
+ * describing an organization's engineering work).
+ */
+export const TERMINOLOGY_LABEL_KEYS = [
+  "stakeholderNeed",
+  "requirement",
+  "designItem",
+  "verificationActivity",
+  "evidence",
+  "decision",
+  "changeRequest",
+  "risk",
+  "issue",
+  "supplier",
+  "baseline",
+  "observation",
+  "drift",
+  "certification",
+] as const;
+
+export type TerminologyLabelKey = (typeof TERMINOLOGY_LABEL_KEYS)[number];
+
+/**
+ * This product's own default label for each key — exactly the strings
+ * already shown throughout the app before any organization customizes
+ * anything. `resolveTerminologyLabel` falls back to these, so a key
+ * missing from an organization's `labelOverrides` (the common case: most
+ * organizations override nothing, or only one or two nouns) renders
+ * identically to today.
+ */
+export const TERMINOLOGY_LABEL_DEFAULTS: Readonly<Record<TerminologyLabelKey, string>> = {
+  stakeholderNeed: "Stakeholder needs",
+  requirement: "Requirements",
+  designItem: "Design items",
+  verificationActivity: "Verification",
+  evidence: "Evidence",
+  decision: "Decisions",
+  changeRequest: "Changes",
+  risk: "Risks",
+  issue: "Issues",
+  supplier: "Suppliers",
+  baseline: "Baselines",
+  observation: "Observations",
+  drift: "Drift",
+  certification: "Certification",
+};
+
+export type TerminologyLabelOverrides = Partial<Record<TerminologyLabelKey, string>>;
+
+/**
+ * What actually renders for one label key: the organization's own override
+ * when it set one, this product's default otherwise. The one function every
+ * consumer (sidebar navigation, a module's page header) calls — so there is
+ * exactly one place "what does an org's customization actually change"
+ * could ever disagree with itself.
+ */
+export function resolveTerminologyLabel(
+  key: TerminologyLabelKey,
+  overrides: TerminologyLabelOverrides | null | undefined,
+): string {
+  const override = overrides?.[key]?.trim();
+  return override ? override : TERMINOLOGY_LABEL_DEFAULTS[key];
+}
+
+const terminologyLabelKeySchema = z.enum(
+  TERMINOLOGY_LABEL_KEYS as unknown as [TerminologyLabelKey, ...TerminologyLabelKey[]],
+);
+
+/**
+ * Setting an organization's terminology overrides. A full replacement of
+ * the map, not a patch — the same "one request, one clear resulting state"
+ * shape `setOrganizationIndustryRequestSchema` uses, and simpler for a
+ * form that always shows every key at once. An empty or whitespace-only
+ * value for a key means "use the default" (filtered out server-side, in
+ * `organization.service.ts`, rather than stored as a meaningless override)
+ * — the honest way to let someone clear a field back to default without a
+ * separate "reset" action per field.
+ */
+export const setOrganizationTerminologyRequestSchema = z.strictObject({
+  overrides: z.partialRecord(terminologyLabelKeySchema, z.string().trim().max(60)),
+});
+export type SetOrganizationTerminologyRequest = z.infer<typeof setOrganizationTerminologyRequestSchema>;
+
 /** What the profile endpoint returns — read access for any authenticated member of the organization. */
 export interface OrganizationProfile {
   id: string;
@@ -101,4 +196,7 @@ export interface OrganizationProfile {
   industryOtherDetail: string | null;
   industrySetAt: string | null;
   industrySetBy: { id: string; name: string } | null;
+  labelOverrides: TerminologyLabelOverrides;
+  labelOverridesSetAt: string | null;
+  labelOverridesSetBy: { id: string; name: string } | null;
 }

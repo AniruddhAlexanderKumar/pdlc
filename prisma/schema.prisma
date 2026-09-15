@@ -58,6 +58,23 @@ model Organization {
   industrySetById String?
   industrySetBy   User? @relation("OrganizationIndustrySetter", fields: [industrySetById], references: [id], onDelete: SetNull)
 
+  /// Org-wide display-label overrides — e.g. renaming "Risk" to "Hazard".
+  /// A sparse map, `TerminologyLabelKey -> custom label`; a key absent from
+  /// the map renders this product's own default label. Free-text and
+  /// entirely organization-chosen: there is no built-in per-industry preset
+  /// silently applied here. This codebase does not assert which word a
+  /// given regulatory framework actually uses (see `industry` above for the
+  /// same restraint applied to industry selection itself) — an org that
+  /// wants "Hazard" instead of "Risk" says so itself, in its own words.
+  /// Same reasoning as `industry`: a label change is cosmetic only, read
+  /// by navigation and page headers, never by an engineering computation.
+  labelOverrides Json?
+
+  labelOverridesSetAt DateTime?
+
+  labelOverridesSetById String?
+  labelOverridesSetBy   User? @relation("OrganizationTerminologySetter", fields: [labelOverridesSetById], references: [id], onDelete: SetNull)
+
   users     User[]      @relation("OrganizationUsers")
   auditLogs AuditLog[]
   projects  Project[]
@@ -137,6 +154,10 @@ model User {
   /// from the `organization` membership relation above, which is a
   /// different relationship between the same two models.
   industriesSet Organization[] @relation("OrganizationIndustrySetter")
+
+  /// Same shape as `industriesSet` above, for whichever organization's
+  /// terminology (custom display labels) this user last set.
+  terminologySet Organization[] @relation("OrganizationTerminologySetter")
 
   auditLogs AuditLog[]
 

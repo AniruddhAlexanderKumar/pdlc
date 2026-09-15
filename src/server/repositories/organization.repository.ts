@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import type { EngineeringIndustry } from "@/domain";
 import { type DbClient, prisma } from "@/lib/db";
 
@@ -10,6 +11,9 @@ const PROFILE_SELECT = {
   industryOtherDetail: true,
   industrySetAt: true,
   industrySetBy: { select: { id: true, name: true } },
+  labelOverrides: true,
+  labelOverridesSetAt: true,
+  labelOverridesSetBy: { select: { id: true, name: true } },
 } as const;
 
 export interface OrganizationProfileRow {
@@ -19,6 +23,10 @@ export interface OrganizationProfileRow {
   industryOtherDetail: string | null;
   industrySetAt: Date | null;
   industrySetBy: { id: string; name: string } | null;
+  /** Raw JSON column — validated and typed in `organization.service.ts`, not here (see its own comment). */
+  labelOverrides: Prisma.JsonValue | null;
+  labelOverridesSetAt: Date | null;
+  labelOverridesSetBy: { id: string; name: string } | null;
 }
 
 export async function getOrganizationProfile(
@@ -45,6 +53,33 @@ export async function updateOrganizationIndustry(
       industryOtherDetail: input.otherDetail,
       industrySetAt: input.setAt,
       industrySetById: input.setById,
+    },
+    select: PROFILE_SELECT,
+  });
+}
+
+/**
+ * `overrides` is stored exactly as given — an empty object clears every
+ * override back to this product's defaults, never `null`, so the column's
+ * presence always means "an owner has visited this form at least once"
+ * versus never-set. `organization.service.ts` is what actually filters out
+ * blank-string entries before this is called.
+ */
+export async function updateOrganizationTerminology(
+  input: {
+    organizationId: string;
+    overrides: Prisma.InputJsonObject;
+    setById: string;
+    setAt: Date;
+  },
+  client: DbClient = prisma,
+): Promise<OrganizationProfileRow> {
+  return client.organization.update({
+    where: { id: input.organizationId },
+    data: {
+      labelOverrides: input.overrides,
+      labelOverridesSetAt: input.setAt,
+      labelOverridesSetById: input.setById,
     },
     select: PROFILE_SELECT,
   });

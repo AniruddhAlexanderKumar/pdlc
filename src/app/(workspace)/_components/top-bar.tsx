@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CircleHelp } from "lucide-react";
+import { CircleHelp, Settings } from "lucide-react";
 import type { AuthenticatedIdentity } from "@/domain";
 import { Breadcrumbs } from "./breadcrumbs";
 import { UserMenu } from "./user-menu";
@@ -26,6 +26,14 @@ export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
       <Breadcrumbs />
 
       <div className="ml-auto flex items-center gap-1">
+        <Link
+          href="/settings"
+          aria-label="Settings"
+          title="Settings"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <Settings className="size-4" aria-hidden="true" />
+        </Link>
         <Link
           href="/help"
           aria-label="Help"

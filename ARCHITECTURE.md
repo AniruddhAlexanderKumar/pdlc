@@ -48,6 +48,43 @@ lists. The canonical entities are:
 Artifacts carry a human-facing `identifier` ("REQ-001") that is unique **per
 project** — identity is the (project, identifier) pair, never the string alone.
 
+## Organization personalization: industry and terminology
+
+Two fields on `Organization` — `industry` (an `EngineeringIndustry` enum
+selection, owner-set) and `labelOverrides` (a JSON map of
+`TerminologyLabelKey -> custom display label`, also owner-set) — exist to let
+this product serve more than one engineering discipline without rewriting
+its vocabulary for each one. Both share the same deliberate boundary,
+documented at its source in `src/domain/organization.ts` and
+`src/server/services/organization.service.ts`: **a display-layer choice, not
+an engineering input.** No readiness engine, no Sentinel rule, no
+Change-Impact propagation rule, no certification finding reads either
+field — an organization's industry or its chosen word for "Risk" changes
+what a sidebar link or a page header says, never what any computation
+produces. `resolveTerminologyLabel` (`src/domain/organization.ts`) is the
+one function every consumer calls, so there is exactly one place "what does
+a rename actually change" could ever disagree with itself.
+
+`labelOverrides` is deliberately **not** an auto-applied per-industry preset
+— an organization types its own word for one of fourteen fixed nouns
+(`TERMINOLOGY_LABEL_KEYS`), or leaves the product's own default. This
+product does not assert which term a given regulatory framework actually
+uses; inventing that mapping would be exactly the kind of unverified claim
+this codebase avoids elsewhere (see SECURITY.md and KNOWN_LIMITATIONS on
+fabrication).
+
+`TerminologyProvider` (`src/app/(workspace)/_components/terminology-context.tsx`)
+seeds these overrides server-side, once, in `WorkspaceLayout` — not fetched
+client-side — so the sidebar and every module's page header have the
+organization's own words on first paint. The retrofit's scope is
+deliberately bounded to those two surfaces (primary navigation and each of
+the fourteen modules' own list-page title) — column headers, empty-state
+copy, and form labels throughout the rest of the product still show this
+product's own default nouns regardless of an organization's overrides. That
+boundary is a scope decision, not an oversight: retrofitting every string
+in the product was judged too large and too easy to get subtly wrong to
+attempt in one pass.
+
 ## Relationship strategy
 
 Traceability lives in explicit relationship tables, so every edge is queryable

@@ -11,7 +11,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
 import { formatIsoDate } from "@/lib/utils";
-import { PROJECT_MODULES } from "./project-modules";
+import { useModuleLabel } from "../../_components/terminology-context";
+import { PROJECT_MODULES, type ProjectModule } from "./project-modules";
 import { ProjectArchiveDialog } from "./project-archive-dialog";
 import { ProjectFormDialog } from "./project-form-dialog";
 import { SentinelSummaryCard } from "./sentinel-summary-card";
@@ -165,28 +166,9 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {OVERVIEW_MODULES.map((module) => {
-              const Icon = module.icon;
-              return (
-                <div
-                  key={module.href}
-                  className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
-                    <div className="flex min-w-0 flex-col">
-                      <span className="text-sm font-medium text-foreground">{module.label}</span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {module.description}
-                      </span>
-                    </div>
-                  </div>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/projects/${project.id}${module.href}`}>Open</Link>
-                  </Button>
-                </div>
-              );
-            })}
+            {OVERVIEW_MODULES.map((module) => (
+              <ModuleCard key={module.href} module={module} projectId={project.id} />
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -209,6 +191,31 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         onOpenChange={setIsArchiveOpen}
         onArchived={set}
       />
+    </div>
+  );
+}
+
+/**
+ * One module tile on the overview grid — its own component (not rendered
+ * inline in `OVERVIEW_MODULES.map`) specifically so `useModuleLabel` has a
+ * stable place to be called from; a hook cannot be called from inside a
+ * `.map()` callback directly without risking the Rules of Hooks.
+ */
+function ModuleCard({ module, projectId }: { module: ProjectModule; projectId: string }) {
+  const Icon = module.icon;
+  const label = useModuleLabel(module.labelKey, module.label);
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
+        <div className="flex min-w-0 flex-col">
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          <span className="truncate text-xs text-muted-foreground">{module.description}</span>
+        </div>
+      </div>
+      <Button asChild variant="outline" size="sm">
+        <Link href={`/projects/${projectId}${module.href}`}>Open</Link>
+      </Button>
     </div>
   );
 }

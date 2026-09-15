@@ -10,9 +10,10 @@ import {
 } from "./setup";
 
 /**
- * Real PostgreSQL exercise of the organization-industry repository layer:
- * the actual enum column, the actual nullable FK to the setting user, and
- * what really happens to that FK when the user is later removed.
+ * Real PostgreSQL exercise of the organization-industry and
+ * organization-terminology repository layers: the actual enum column, the
+ * actual JSON column, the actual nullable FKs to the setting user, and what
+ * really happens to those FKs when the user is later removed.
  */
 
 const repo = databaseAvailable
@@ -100,5 +101,69 @@ describe.skipIf(!databaseAvailable)(`organization profile against PostgreSQL (${
     const profile = await repo!.getOrganizationProfile(tenant.organizationId);
     expect(profile!.industry).toBe("MEDICAL_DEVICES");
     expect(profile!.industrySetBy).toBeNull();
+  });
+
+  // `labelOverrides` is a column of its own, untouched by every test above —
+  // still genuinely fresh here, the same "no silently invented default"
+  // property the very first test in this file checks for `industry`.
+  it("a fresh organization has no terminology overrides set", async () => {
+    const profile = await repo!.getOrganizationProfile(tenant.organizationId);
+
+    expect(profile!.labelOverrides).toBeNull();
+    expect(profile!.labelOverridesSetAt).toBeNull();
+    expect(profile!.labelOverridesSetBy).toBeNull();
+  });
+
+  it("round-trips a real JSON object and the setting user through Postgres", async () => {
+    const setAt = new Date("2026-02-01T00:00:00.000Z");
+
+    const updated = await repo!.updateOrganizationTerminology({
+      organizationId: tenant.organizationId,
+      overrides: { risk: "Hazard", issue: "Nonconformance" },
+      setById: tenant.userId,
+      setAt,
+    });
+
+    expect(updated.labelOverrides).toEqual({ risk: "Hazard", issue: "Nonconformance" });
+    expect(updated.labelOverridesSetAt?.toISOString()).toBe(setAt.toISOString());
+    expect(updated.labelOverridesSetBy).toEqual({ id: tenant.userId, name: "Integration Test User" });
+
+    const reread = await repo!.getOrganizationProfile(tenant.organizationId);
+    expect(reread!.labelOverrides).toEqual({ risk: "Hazard", issue: "Nonconformance" });
+  });
+
+  it("an empty object clears every override back to this product's defaults", async () => {
+    const updated = await repo!.updateOrganizationTerminology({
+      organizationId: tenant.organizationId,
+      overrides: {},
+      setById: tenant.userId,
+      setAt: new Date(),
+    });
+
+    expect(updated.labelOverrides).toEqual({});
+  });
+
+  it("deleting the setting user clears the FK (SetNull) without touching the overrides themselves", async () => {
+    const prisma = integrationPrisma!;
+    const disposableUser = await prisma.user.create({
+      data: {
+        email: `terminology-setter-${Date.now()}@test.invalid`,
+        name: "Disposable Setter",
+        organizationId: tenant.organizationId,
+      },
+    });
+
+    await repo!.updateOrganizationTerminology({
+      organizationId: tenant.organizationId,
+      overrides: { requirement: "Specification" },
+      setById: disposableUser.id,
+      setAt: new Date(),
+    });
+
+    await prisma.user.delete({ where: { id: disposableUser.id } });
+
+    const profile = await repo!.getOrganizationProfile(tenant.organizationId);
+    expect(profile!.labelOverrides).toEqual({ requirement: "Specification" });
+    expect(profile!.labelOverridesSetBy).toBeNull();
   });
 });

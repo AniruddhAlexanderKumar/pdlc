@@ -22,6 +22,7 @@ vi.mock("@/server/repositories/user.repository", () => ({
 vi.mock("@/server/repositories/organization.repository", () => ({
   getOrganizationProfile: vi.fn(),
   updateOrganizationIndustry: vi.fn(),
+  updateOrganizationTerminology: vi.fn(),
 }));
 
 vi.mock("@/server/repositories/audit-log.repository", () => ({
@@ -45,6 +46,9 @@ const PROFILE_ROW = {
   industryOtherDetail: null,
   industrySetAt: null,
   industrySetBy: null,
+  labelOverrides: null,
+  labelOverridesSetAt: null,
+  labelOverridesSetBy: null,
 };
 
 beforeEach(() => {
@@ -60,6 +64,7 @@ describe("getOrganizationProfile", () => {
     const profile = await service.getOrganizationProfile(CONTEXT);
 
     expect(profile.industry).toBeNull();
+    expect(profile.labelOverrides).toEqual({});
     expect(userRepository.getOrganizationRole).not.toHaveBeenCalled();
   });
 
@@ -172,5 +177,102 @@ describe("setOrganizationIndustry", () => {
       }),
     ).rejects.toBeInstanceOf(ValidationError);
     expect(organizationRepository.updateOrganizationIndustry).not.toHaveBeenCalled();
+  });
+});
+
+describe("setOrganizationTerminology", () => {
+  const SET_ROW = {
+    ...PROFILE_ROW,
+    labelOverrides: { risk: "Hazard" },
+    labelOverridesSetAt: new Date("2026-01-01T00:00:00.000Z"),
+    labelOverridesSetBy: { id: CONTEXT.actorId, name: "Ada Lovelace" },
+  };
+
+  it("refuses a non-owner outright, never touching the repository", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    await expect(
+      service.setOrganizationTerminology(CONTEXT, { overrides: { risk: "Hazard" } }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(organizationRepository.updateOrganizationTerminology).not.toHaveBeenCalled();
+  });
+
+  it("an owner renames a term", async () => {
+    vi.mocked(organizationRepository.updateOrganizationTerminology).mockResolvedValue(SET_ROW as never);
+
+    const profile = await service.setOrganizationTerminology(CONTEXT, {
+      overrides: { risk: "Hazard" },
+    });
+
+    expect(profile.labelOverrides).toEqual({ risk: "Hazard" });
+    expect(organizationRepository.updateOrganizationTerminology).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: CONTEXT.organizationId,
+        overrides: { risk: "Hazard" },
+        setById: CONTEXT.actorId,
+      }),
+      TX,
+    );
+  });
+
+  it("audits the change inside the same transaction, attributed to the actor", async () => {
+    vi.mocked(organizationRepository.updateOrganizationTerminology).mockResolvedValue(SET_ROW as never);
+
+    await service.setOrganizationTerminology(CONTEXT, { overrides: { risk: "Hazard" } });
+
+    expect(auditLogRepository.recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "organization.terminology_set",
+        organizationId: CONTEXT.organizationId,
+        actorId: CONTEXT.actorId,
+        entityId: CONTEXT.organizationId,
+        metadata: { overrides: { risk: "Hazard" } },
+      }),
+      TX,
+    );
+  });
+
+  it("drops a blank value rather than storing a meaningless override", async () => {
+    vi.mocked(organizationRepository.updateOrganizationTerminology).mockResolvedValue({
+      ...PROFILE_ROW,
+      labelOverrides: {},
+    } as never);
+
+    await service.setOrganizationTerminology(CONTEXT, {
+      overrides: { risk: "Hazard", issue: "   " },
+    });
+
+    expect(organizationRepository.updateOrganizationTerminology).toHaveBeenCalledWith(
+      expect.objectContaining({ overrides: { risk: "Hazard" } }),
+      TX,
+    );
+  });
+
+  it("trims a value before storing it", async () => {
+    vi.mocked(organizationRepository.updateOrganizationTerminology).mockResolvedValue(SET_ROW as never);
+
+    await service.setOrganizationTerminology(CONTEXT, { overrides: { risk: "  Hazard  " } });
+
+    expect(organizationRepository.updateOrganizationTerminology).toHaveBeenCalledWith(
+      expect.objectContaining({ overrides: { risk: "Hazard" } }),
+      TX,
+    );
+  });
+
+  it("rejects a key outside the fixed set — the enum is closed", async () => {
+    await expect(
+      service.setOrganizationTerminology(CONTEXT, { overrides: { traceability: "Renamed" } }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(organizationRepository.updateOrganizationTerminology).not.toHaveBeenCalled();
+  });
+
+  it("rejects a request naming an unknown top-level field — the schema is strict", async () => {
+    await expect(
+      service.setOrganizationTerminology(CONTEXT, {
+        overrides: { risk: "Hazard" },
+        industry: "AUTOMOTIVE",
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(organizationRepository.updateOrganizationTerminology).not.toHaveBeenCalled();
   });
 });

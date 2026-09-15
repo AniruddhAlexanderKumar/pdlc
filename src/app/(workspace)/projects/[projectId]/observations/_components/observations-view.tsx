@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { ObservationFormDialog } from "./observation-form-dialog";
 
 /**
@@ -41,6 +42,7 @@ import { ObservationFormDialog } from "./observation-form-dialog";
  * observations are compared by the drift engine, and the page says so.
  */
 export function ObservationsView({ projectId }: { projectId: string }) {
+  const title = useModuleLabel("observation", "Operational observations");
   const [status, setStatus] = React.useState<ObservationStatus | "">("");
   const { state, reload } = useObservations(projectId, status);
   const project = useProject(projectId);
@@ -68,7 +70,7 @@ export function ObservationsView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Operational observations"
+        title={title}
         description={
           projectName
             ? `What has actually been observed in operation for ${projectName}. Recorded by people — there is no telemetry ingestion.`

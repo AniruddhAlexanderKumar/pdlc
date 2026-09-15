@@ -22,11 +22,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { DesignItemFormDialog } from "./design-item-form-dialog";
 
 /** Design items for one project. Everything shown comes from the API. */
 export function DesignItemsView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("designItem", "Design items");
   const { state, reload } = useDesignItems(projectId);
   const project = useProject(projectId);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
@@ -36,7 +38,7 @@ export function DesignItemsView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Design items"
+        title={title}
         description={
           projectName
             ? `Product structure for ${projectName}. Requirements are allocated to these.`

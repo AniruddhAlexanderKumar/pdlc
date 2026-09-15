@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { BasisFormDialog, ProgramFormDialog } from "./certification-form-dialogs";
 import { BasisActionsMenu } from "./basis-actions";
 
@@ -32,6 +33,7 @@ import { BasisActionsMenu } from "./basis-actions";
  * on this page.
  */
 export function CertificationView({ projectId }: { projectId: string }) {
+  const title = useModuleLabel("certification", "Certification workspace");
   const program = useProgram(projectId);
   const bases = useBases(projectId);
   const project = useProject(projectId);
@@ -47,7 +49,7 @@ export function CertificationView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Certification workspace"
+        title={title}
         description={
           projectName
             ? `Internal certification review for ${projectName}. This is not a claim of regulatory approval.`

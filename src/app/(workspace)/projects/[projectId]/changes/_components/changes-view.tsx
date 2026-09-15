@@ -25,11 +25,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { ChangeFormDialog } from "./change-form-dialog";
 
 /** Change requests for one project. Everything shown comes from the API. */
 export function ChangesView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("changeRequest", "Changes");
   const [status, setStatus] = React.useState<ChangeRequestStatus | "">("");
   const { state, reload } = useChangeRequests(projectId, status);
   const project = useProject(projectId);
@@ -40,7 +42,7 @@ export function ChangesView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Changes"
+        title={title}
         description={
           projectName
             ? `Proposed engineering changes for ${projectName}, and what each one declares it affects.`

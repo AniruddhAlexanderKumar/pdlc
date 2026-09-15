@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { TerminologyLabelKey } from "@/domain";
 import {
   Activity,
   Boxes,
@@ -57,6 +58,16 @@ export interface ProjectModule {
   icon: LucideIcon;
   description: string;
   /**
+   * Which organization-customizable noun this module's `label` is the
+   * default text for — `resolveTerminologyLabel` (see `@/domain`) reads
+   * this key against the organization's own overrides wherever this
+   * module's name is shown. `undefined` for a module that names a system
+   * capability rather than an industry noun (Command Center, Decision
+   * Sentinel, Traceability, Engineering History, Members) — those are not
+   * overridable, and `label` always renders unchanged for them.
+   */
+  labelKey?: TerminologyLabelKey;
+  /**
    * Which of the six work-groups this belongs to in navigation, or `null`
    * for a module that does not get permanent sidebar residency — reached
    * instead through the project overview page, Command Center's own
@@ -95,6 +106,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "Author requirements, manage their lifecycle and trace them.",
     group: "define",
     tier: "daily",
+    labelKey: "requirement",
   },
   {
     label: "Stakeholder needs",
@@ -103,6 +115,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "The originating needs requirements derive from.",
     group: "define",
     tier: "occasional",
+    labelKey: "stakeholderNeed",
   },
   {
     label: "Design items",
@@ -111,6 +124,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "Product structure that requirements are allocated to.",
     group: "define",
     tier: "weekly",
+    labelKey: "designItem",
   },
   {
     label: "Verification",
@@ -119,6 +133,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "How requirements are shown to be met.",
     group: "prove",
     tier: "weekly",
+    labelKey: "verificationActivity",
   },
   {
     label: "Evidence",
@@ -127,6 +142,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "Controlled engineering evidence: what it is, where it came from, and what depends on it.",
     group: "prove",
     tier: "weekly",
+    labelKey: "evidence",
   },
   {
     label: "Decisions",
@@ -135,6 +151,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "What was decided, why, and what it depended on.",
     group: "decide",
     tier: "daily",
+    labelKey: "decision",
   },
   {
     label: "Changes",
@@ -143,6 +160,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "Proposed changes and what each one declares it affects.",
     group: "change",
     tier: "weekly",
+    labelKey: "changeRequest",
   },
   {
     label: "Risks",
@@ -151,6 +169,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "What could go wrong, why, and what is being done about it.",
     group: "change",
     tier: "daily",
+    labelKey: "risk",
   },
   {
     label: "Issues",
@@ -159,6 +178,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "Problems actually found, their owners, and their disposition.",
     group: "change",
     tier: "daily",
+    labelKey: "issue",
   },
   {
     label: "Suppliers",
@@ -167,6 +187,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "Supplier engineering dependencies, and what the product relies on them for.",
     group: null,
     tier: "occasional",
+    labelKey: "supplier",
   },
   {
     label: "Baselines",
@@ -175,6 +196,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "The approved engineering basis that drift is measured against.",
     group: "understand",
     tier: "occasional",
+    labelKey: "baseline",
   },
   {
     label: "Observations",
@@ -183,6 +205,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "What has actually been observed in operation.",
     group: "understand",
     tier: "occasional",
+    labelKey: "observation",
   },
   {
     label: "Drift",
@@ -191,6 +214,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "Where operational reality no longer matches the approved basis.",
     group: "understand",
     tier: "weekly",
+    labelKey: "drift",
   },
   {
     label: "Certification",
@@ -199,6 +223,7 @@ export const PROJECT_MODULES: readonly ProjectModule[] = [
     description: "Certification obligations, traced to the engineering evidence that supports them.",
     group: "certify",
     tier: "occasional",
+    labelKey: "certification",
   },
   {
     label: "Decision Sentinel",

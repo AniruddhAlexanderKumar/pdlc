@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { EvidenceFormDialog } from "./evidence-form-dialog";
 
 const STATUS_LABELS: Record<EvidenceStatus, string> = {
@@ -43,6 +44,7 @@ const STATUS_LABELS: Record<EvidenceStatus, string> = {
  */
 export function EvidenceView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("evidence", "Evidence");
   const [status, setStatus] = React.useState<EvidenceStatus | "">("");
   const [evidenceType, setEvidenceType] = React.useState<EvidenceType | "">("");
   const { state, reload } = useEvidenceList(projectId, status, evidenceType);
@@ -55,7 +57,7 @@ export function EvidenceView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Evidence"
+        title={title}
         description={
           projectName
             ? `Controlled engineering evidence for ${projectName}.`

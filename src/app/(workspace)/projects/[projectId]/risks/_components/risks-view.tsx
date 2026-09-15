@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatIsoDate } from "@/lib/utils";
+import { useModuleLabel } from "../../../../_components/terminology-context";
 import { RiskFormDialog } from "./risk-form-dialog";
 
 /**
@@ -36,6 +37,7 @@ import { RiskFormDialog } from "./risk-form-dialog";
  */
 export function RisksView({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const title = useModuleLabel("risk", "Risks");
   const [status, setStatus] = React.useState<RiskStatus | "">("");
   const { state, reload } = useRisks(projectId, status);
   const project = useProject(projectId);
@@ -46,7 +48,7 @@ export function RisksView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Risks"
+        title={title}
         description={
           projectName
             ? `What could go wrong on ${projectName}, why, and what is being done about it.`
