@@ -54,4 +54,10 @@ yarn-error.log*
 .neon
 .vercel
 .env*
+# The self-hosted bundle's env template is a real, checked-in deployment
+# artifact (empty/placeholder values, same as the top-level .env.example
+# this is copied from) — not a secret the blanket .env* rule above should
+# catch. Path-qualified so this doesn't un-ignore any other .env.production
+# a developer might create locally.
+!deploy/self-hosted-bundle/.env.production.example
 

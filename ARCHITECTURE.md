@@ -5363,6 +5363,57 @@ reachable PostgreSQL in this environment — the standing, disclosed
 limitation); Playwright discovers all 190 tests across 22 files; production
 build succeeds.
 
+## Marketing, docs, and download
+
+The public, zero-auth surface — `(marketing)` route group, statically
+generated (`○` in the build output), reusing the application's own design
+tokens rather than a second design system. Chosen over a separate site for
+two reasons that converge on the same answer: the public docs have to ship
+*inside* the self-hosted bundle for an air-gapped install to have complete
+documentation with no internet — only possible if docs live in the same
+codebase that builds that bundle — and it reuses the real component
+library automatically. `next.config.ts`'s existing
+`output: process.env.VERCEL ? undefined : "standalone"` already
+accommodates deploying this same app to Vercel for public-internet
+visibility of just these pages, alongside the disclosed, verified
+production path (Docker, self-hosted) for the product itself — not a
+conflict to resolve, an existing accommodation.
+
+- **`/`** — the landing page. Every factual claim is sourced to either a
+  live domain export (`GRAPH_NODE_TYPES.length`, `GRAPH_EDGE_TYPES.length`,
+  `GRAPH_LIMITS`) or `SECURITY.md`, never a number typed once and left to
+  drift. "Show the product" is a live, interactive component
+  (`EdgeRegistryExplorer`) reading the real edge registry, not a
+  screenshot — this environment cannot currently capture one (a Chromium
+  download for Playwright silently fails here), and a real interactive
+  component beats a static image of a feature claim regardless.
+- **`/docs`** — public documentation. Not `/help`: the existing in-app,
+  authenticated help page (`(workspace)/help`) already owns that path, and
+  Next.js correctly refuses to build two route groups resolving to the
+  same URL — found and fixed as a real build error while wiring this up,
+  not designed around from the start.
+  `EdgeRegistryExplorer`/`LifecycleExplorer` (`docs/_components/`) are the
+  same "browse the real registry/transition table" pattern as the landing
+  page, reused rather than restated as prose on the Concepts page. Written
+  so far: Getting started, Concepts, Deployment, Security, Known
+  limitations, Release notes. Not yet written: a page per module, a page
+  per engine, an administration guide, troubleshooting — the docs index
+  page says so explicitly rather than linking to pages that do not exist.
+  Search is a small hand-built client-side index (`docs-search.ts`), no
+  third-party search service.
+- **`/download`** — real artifact, not a placeholder. `deploy/self-hosted-bundle/`
+  (`docker-compose.prod.yml`, `.env.production.example`, `setup.sh`,
+  `README.md`) is the source; `public/downloads/pdlc-self-hosted-bundle-v<version>.zip`
+  is the built artifact the button actually links to, with its real
+  SHA-256 stated on the page. Labelled "self-hosted bundle," never
+  "Download for Windows" — no Windows-native installer (signed
+  MSI/EXE, registered Windows Service, bundled PostgreSQL) exists yet, and
+  the page says exactly that rather than implying otherwise. The bundle's
+  `setup.sh` clones the application source from GitHub if not already
+  present — the one network call in the whole flow, stated in both the
+  bundle's own `README.md` and on `/download` itself, not left for an
+  operator to discover.
+
 ## Directory structure
 
 ```
