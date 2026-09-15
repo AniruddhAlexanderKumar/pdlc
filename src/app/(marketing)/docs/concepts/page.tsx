@@ -4,10 +4,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { DocsPage } from "../_components/docs-page";
 import { EdgeRegistryExplorer } from "../_components/edge-registry-explorer";
 import { LifecycleExplorer } from "../_components/lifecycle-explorer";
+import { TraversalLimitsSimulator } from "../_components/traversal-limits-simulator";
 
 export const metadata: Metadata = {
   title: "Concepts",
-  description: "The graph, determinism, and why the product carries no scores — with two live explorers over real data.",
+  description: "The graph, determinism, and why the product carries no scores — with three live, interactive tools over real data.",
 };
 
 export default function ConceptsPage() {
@@ -43,8 +44,9 @@ export default function ConceptsPage() {
           The same discipline extends to traversal: a request to walk the graph outward from an object is
           capped at {GRAPH_LIMITS.maxMaxDepth} hops, {GRAPH_LIMITS.maxMaxNodes} objects, or{" "}
           {GRAPH_LIMITS.maxMaxEdges} relationships. Asking for more is refused outright with a stated reason
-          — never silently clamped and returned as if it were complete.
+          — never silently clamped and returned as if it were complete. Try it:
         </p>
+        <TraversalLimitsSimulator />
       </section>
 
       <section className="flex flex-col gap-3">

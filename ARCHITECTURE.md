@@ -5392,15 +5392,26 @@ conflict to resolve, an existing accommodation.
   Next.js correctly refuses to build two route groups resolving to the
   same URL — found and fixed as a real build error while wiring this up,
   not designed around from the start.
-  `EdgeRegistryExplorer`/`LifecycleExplorer` (`docs/_components/`) are the
-  same "browse the real registry/transition table" pattern as the landing
-  page, reused rather than restated as prose on the Concepts page. Written
-  so far: Getting started, Concepts, Deployment, Security, Known
-  limitations, Release notes. Not yet written: a page per module, a page
-  per engine, an administration guide, troubleshooting — the docs index
-  page says so explicitly rather than linking to pages that do not exist.
-  Search is a small hand-built client-side index (`docs-search.ts`), no
-  third-party search service.
+  `EdgeRegistryExplorer`/`LifecycleExplorer`/`TraversalLimitsSimulator`
+  (`docs/_components/`) are the same "browse/exercise the real thing"
+  pattern as the landing page, reused rather than restated as prose on the
+  Concepts page — the simulator mirrors `graphTraversalRequestSchema`'s
+  own bound exactly, so moving a slider past a cap shows a real refusal,
+  not a mocked one. `EdgeRegistryExplorer` also draws `NodeRadialDiagram`,
+  a small deterministic SVG (positions computed once from a sorted,
+  deduplicated node list — no physics, no simulation) that discloses when
+  it has cut a long connected-node list down rather than silently
+  dropping entries, the same "state the limit, don't hide it" rule the
+  product itself follows. Search is `Ctrl`/`Cmd`+`K` from anywhere in the
+  docs (`command-palette.tsx`, a real overlay with keyboard navigation
+  built on the same Radix Dialog primitive `dialog.tsx` uses) over a small
+  hand-built client-side index (`docs-search.ts`) — no third-party search
+  service. Written so far: Getting started, Concepts, Deployment,
+  Security, Troubleshooting (sourced directly from `src/server/errors.ts`'s
+  real error types), Known limitations, Release notes. Not yet written: a
+  page per module, a page per engine, an administration guide — the docs
+  index page says so explicitly rather than linking to pages that do not
+  exist.
 - **`/download`** — real artifact, not a placeholder. `deploy/self-hosted-bundle/`
   (`docker-compose.prod.yml`, `.env.production.example`, `setup.sh`,
   `README.md`) is the source; `public/downloads/pdlc-self-hosted-bundle-v<version>.zip`

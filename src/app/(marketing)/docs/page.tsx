@@ -10,9 +10,10 @@ export const metadata: Metadata = {
 
 const DESCRIPTIONS: Record<string, string> = {
   "Getting started": "Install, first sign-in, creating a project, the seeded demo.",
-  Concepts: "The graph, determinism, why there are no scores — with two live, interactive explorers over real product data.",
+  Concepts: "The graph, determinism, why there are no scores — with three live, interactive tools over real product data.",
   Deployment: "Docker, the self-hosted bundle, environment variables, backups.",
   Security: "Auth model, session handling, authorization, audit logging.",
+  Troubleshooting: "Real errors, sourced directly from the application's own error types.",
   "Known limitations": "Stated plainly, sourced from the same document engineering reads.",
   "Release notes": "What changed, by version.",
 };
@@ -45,9 +46,9 @@ export default function DocsIndexPage() {
       </div>
 
       <p className="max-w-2xl text-xs text-muted-foreground">
-        Not yet written: a page per module and per engine, an administration guide, and a troubleshooting
-        section. Concepts and Deployment cover the same ground at a summary level in the meantime — this line
-        stays here until those pages exist, rather than linking to pages that are not there.
+        Not yet written: a page per module and per engine, and an administration guide. Concepts and
+        Deployment cover the same ground at a summary level in the meantime — this line stays here until
+        those pages exist, rather than linking to pages that are not there.
       </p>
     </div>
   );

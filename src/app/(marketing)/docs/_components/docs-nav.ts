@@ -16,6 +16,7 @@ export const DOCS_NAV: DocsNavItem[] = [
   { title: "Concepts", href: "/docs/concepts" },
   { title: "Deployment", href: "/docs/deployment" },
   { title: "Security", href: "/docs/security" },
+  { title: "Troubleshooting", href: "/docs/troubleshooting" },
   { title: "Known limitations", href: "/docs/known-limitations" },
   { title: "Release notes", href: "/docs/release-notes" },
 ];

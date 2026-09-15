@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { GRAPH_EDGE_TYPES, GRAPH_NODE_TYPES } from "@/domain";
+import { GRAPH_EDGE_TYPES, GRAPH_LIMITS, GRAPH_NODE_TYPES } from "@/domain";
 import { Button } from "@/components/ui/button";
 import { Shell } from "@/components/common/shell";
 import { EdgeRegistryExplorer } from "./docs/_components/edge-registry-explorer";
+import { TraversalLimitsSimulator } from "./docs/_components/traversal-limits-simulator";
 
 export const metadata: Metadata = {
   title: "PDLC Platform",
@@ -49,6 +50,13 @@ const DEPLOYMENT_MODES = [
   },
 ] as const;
 
+const STATS = [
+  { value: GRAPH_NODE_TYPES.length, label: "Node types" },
+  { value: GRAPH_EDGE_TYPES.length, label: "Edge types" },
+  { value: GRAPH_LIMITS.maxMaxDepth, label: "Max traversal hops" },
+  { value: 0, label: "Third-party services required" },
+] as const;
+
 const AUDIENCES = [
   { role: "Engineer", cares: "A real trace from a requirement to what verifies it, and what a change actually touches.", href: "/docs/concepts" },
   { role: "Engineering manager", cares: "Who was asked to review, what's outstanding, what's blocking a baseline.", href: "/docs/concepts" },
@@ -80,6 +88,16 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
+      {/* Real numbers — read live off the same domain exports the product itself runs on, not typed once and left to drift. */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {STATS.map((stat) => (
+          <div key={stat.label} className="flex flex-col gap-0.5 rounded-md border border-border bg-card p-4">
+            <span className="font-mono text-3xl font-semibold tabular-nums text-foreground">{stat.value}</span>
+            <span className="text-xs text-muted-foreground">{stat.label}</span>
+          </div>
+        ))}
+      </section>
+
       {/* What makes it different */}
       <section className="flex flex-col gap-6">
         <h2 className="text-xl font-semibold tracking-tight text-foreground">What makes it different</h2>
@@ -103,6 +121,17 @@ export default function MarketingHomePage() {
           </p>
         </div>
         <EdgeRegistryExplorer />
+      </section>
+
+      {/* A real refusal, not a claim of one */}
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">A traversal that asks for too much is refused, not truncated</h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Move the sliders past a cap and watch the same check the real API runs reject the request outright.
+          </p>
+        </div>
+        <TraversalLimitsSimulator />
       </section>
 
       {/* Deployment modes */}

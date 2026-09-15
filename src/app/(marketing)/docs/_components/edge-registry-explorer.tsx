@@ -13,6 +13,7 @@ import {
 } from "@/domain";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
+import { NodeRadialDiagram } from "./node-radial-diagram";
 
 /**
  * Every relationship type in and out of a chosen node — read live from
@@ -48,6 +49,8 @@ export function EdgeRegistryExplorer() {
           ))}
         </Select>
       </div>
+
+      <NodeRadialDiagram nodeType={nodeType} outgoing={outgoing} incoming={incoming} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <EdgeList

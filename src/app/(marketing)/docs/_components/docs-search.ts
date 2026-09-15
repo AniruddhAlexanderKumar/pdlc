@@ -40,6 +40,12 @@ export const DOCS_SEARCH_INDEX: DocsSearchEntry[] = [
     keywords: "argon2id session authentication authorization idor audit log csp encryption threat model",
   },
   {
+    title: "Troubleshooting",
+    href: "/docs/troubleshooting",
+    section: "Troubleshooting",
+    keywords: "error 404 403 409 400 401 not found forbidden conflict validation unauthorized traversal refused request id",
+  },
+  {
     title: "Known limitations",
     href: "/docs/known-limitations",
     section: "Known limitations",
