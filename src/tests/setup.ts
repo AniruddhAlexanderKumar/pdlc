@@ -23,6 +23,21 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   };
 }
 
+// jsdom has no real layout engine — every element's offsetHeight/offsetWidth
+// is 0 by default. `@tanstack/react-virtual` (the data grid's row
+// virtualization) measures its scroll container through exactly those two
+// properties (`getRect()` in `@tanstack/virtual-core` — not
+// `getBoundingClientRect()`, which jsdom *does* implement, just also always
+// zeroed), so a real value is required here or every virtualized row renders
+// as if permanently scrolled out of view. Same reasoning as the
+// ResizeObserver polyfill above: layout measurement itself is not under
+// test, a plausible fixed size just needs to exist so a virtualizer has
+// something to compute a visible range from.
+if (typeof HTMLElement !== "undefined") {
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, value: 600 });
+  Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, value: 800 });
+}
+
 // jsdom does not implement matchMedia either — real browsers all do, and
 // `useMediaQuery` (the sidebar's responsive collapse, and any future
 // consumer) reads it directly. Reporting "not matched" unconditionally is

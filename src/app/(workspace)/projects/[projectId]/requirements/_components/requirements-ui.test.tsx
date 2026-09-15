@@ -1,3 +1,4 @@
+import * as React from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,8 +10,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 const push = vi.fn();
+
+// The list view's filters live in the URL (see use-url-filter-state.ts):
+// `router.replace(url)` is what actually changes them, and `useSearchParams`
+// has to reflect that change back — a static mock would leave `filters`
+// permanently frozen at its initial value, silently defeating every test
+// that changes a filter. A tiny external store, read through
+// `useSyncExternalStore`, is the minimum needed to make `replace` and
+// `useSearchParams` actually agree with each other the way the real router
+// does.
+let currentSearch = new URLSearchParams();
+const searchListeners = new Set<() => void>();
+function replace(url: string) {
+  const query = url.split("?")[1] ?? "";
+  currentSearch = new URLSearchParams(query);
+  searchListeners.forEach((listener) => listener());
+}
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push, replace, refresh: vi.fn() }),
+  usePathname: () => "/projects/proj1aaaaaaaaaaaaaaaaaaa/requirements",
+  useSearchParams: () =>
+    React.useSyncExternalStore(
+      (onChange) => {
+        searchListeners.add(onChange);
+        return () => searchListeners.delete(onChange);
+      },
+      () => currentSearch,
+    ),
 }));
 
 const { RequirementsView } = await import("./requirements-view");
@@ -102,6 +129,11 @@ function routeGets(overrides: { requirements?: unknown[]; detail?: unknown } = {
 beforeEach(() => {
   fetchMock.mockReset();
   push.mockReset();
+  currentSearch = new URLSearchParams();
+  // The data grid persists column layout and saved views to localStorage
+  // (see use-data-grid-state.ts / use-saved-views.ts) — cleared so one
+  // test's grid state never leaks into the next.
+  window.localStorage.clear();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -117,6 +149,7 @@ describe("RequirementsView", () => {
 
     expect(await screen.findByText("No requirements yet")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("grid")).not.toBeInTheDocument();
   });
 
   it("renders fetched requirements with status, priority and owner", async () => {
@@ -128,7 +161,9 @@ describe("RequirementsView", () => {
 
     render(<RequirementsView projectId={PROJECT_ID} />);
 
-    const row = (await screen.findByRole("link", { name: "REQ-001" })).closest("tr")!;
+    // Not a real <tr> — the grid is a virtualized ARIA grid (role="row" on a
+    // div), not a native table (see DataGrid.tsx).
+    const row = (await screen.findByRole("link", { name: "REQ-001" })).closest('[role="row"]') as HTMLElement;
     expect(within(row).getByText("Maximum chamber pressure")).toBeInTheDocument();
     expect(within(row).getByText("Draft")).toBeInTheDocument();
     expect(within(row).getByText("High")).toBeInTheDocument();
