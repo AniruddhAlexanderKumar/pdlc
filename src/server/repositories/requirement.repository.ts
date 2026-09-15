@@ -555,3 +555,41 @@ export async function listRequirementLinks(
     })),
   ];
 }
+
+/** One requirement-to-verification-activity edge, for the traceability matrix. */
+export interface RequirementVerificationLinkRow {
+  id: string;
+  requirementId: string;
+  verificationActivityId: string;
+  note: string | null;
+  createdAt: Date;
+  createdById: string | null;
+}
+
+/**
+ * Every REQUIREMENT_VERIFIED_BY edge in a project, in one query — the
+ * traceability matrix's coverage read needs the whole set at once, not one
+ * requirement's links at a time (Master Prompt 4 §4).
+ *
+ * The link table itself carries no `projectId` — both endpoints belong to
+ * the same project by construction (`linkTargetExistsInProject` enforces
+ * that at write time), so filtering through the requirement relation scopes
+ * correctly without a redundant column.
+ */
+export async function listRequirementVerificationLinksInProject(
+  projectId: string,
+  client: DbClient = prisma,
+): Promise<RequirementVerificationLinkRow[]> {
+  const rows = await client.requirementVerificationLink.findMany({
+    where: { requirement: { projectId } },
+    select: {
+      id: true,
+      requirementId: true,
+      verificationActivityId: true,
+      note: true,
+      createdAt: true,
+      createdById: true,
+    },
+  });
+  return rows;
+}

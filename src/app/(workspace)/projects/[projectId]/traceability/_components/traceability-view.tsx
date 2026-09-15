@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, ChevronRight, RefreshCw, Waypoints } from "lucide-react";
+import { AlertTriangle, ChevronRight, RefreshCw, Table2, Waypoints } from "lucide-react";
 import {
   TRACEABILITY_SELECTABLE_NODE_TYPES,
   graphNodeTypeLabel,
@@ -145,6 +146,14 @@ export function TraceabilityView({ projectId }: { projectId: string }) {
           projectName
             ? `Trace real relationships across ${projectName}'s engineering objects.`
             : "Trace real relationships between this project's engineering objects."
+        }
+        actions={
+          <Button asChild variant="outline">
+            <Link href={`/projects/${projectId}/traceability/matrix`}>
+              <Table2 aria-hidden="true" />
+              Verification Coverage Matrix
+            </Link>
+          </Button>
         }
       />
 

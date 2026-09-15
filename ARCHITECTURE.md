@@ -747,6 +747,50 @@ link add/remove each write an `AuditLog` row in the same transaction as the
 mutation, attributed to the session actor and organization. The detail endpoint
 returns that history, organization-scoped, for the requirement's History panel.
 
+### The shared data grid
+
+Requirements' list view (`requirements-view.tsx`) is the reference
+implementation of `src/components/data-grid/` — one virtualized,
+keyboard-navigable data primitive every module's list view is meant to
+converge on, replacing what had been an independent, non-virtualized
+`<Table>` per module. Deliberately a real ARIA `grid` (`role="grid"` /
+`"row"` / `"columnheader"` / `"gridcell"` on plain divs), not a native
+`<table>`: row virtualization via `@tanstack/react-virtual`
+(translateY-positioned rows so 10,000 rows do not mean 10,000 DOM nodes)
+does not compose with native table layout, and a real ARIA grid is the
+correct accessibility pattern for something this interactive in the first
+place — sortable, resizable, keyboard-navigable — where the traceability
+matrix a few sections above, needing none of that interactivity or scale,
+correctly uses a plain `<table>` instead.
+
+Column order, visibility, width and density, plus sort, persist to
+`localStorage` per browser per grid (`use-data-grid-state.ts`) — the same
+tradeoff `useStoredFlag`'s sidebar "Simplify" toggle already makes for this
+class of preference, not a server-backed per-user setting. Filters live in
+the URL (`use-url-filter-state.ts`), so a filtered view is a plain
+shareable link; named, reusable presets on top of that
+(`use-saved-views.ts`) are also per-browser for the same reason. Sort is
+multi-column with an always-on deterministic tie-break by identifier
+(`data-grid-sort.ts`) — two rows with an identical sort key land in the
+same relative order on every render, not merely "whatever order the
+browser's sort happened to leave them in." CSV export and copy-as-TSV both
+read each column's `accessor`, never its rendered `cell`, so a badge or
+link cell exports as real text.
+
+Row click opens a `Sheet` (`components/ui/sheet.tsx` — the same Radix
+Dialog primitive `dialog.tsx` already uses, styled to slide from the
+right edge) with a quick-look summary and a link to the full record,
+rather than a full-page navigation away from the list; the row's
+identifier cell is separately a real `<Link>` (a sibling of its copy
+button, never a wrapper around it — a `<button>` nested inside an `<a>`
+is invalid HTML and would fold the copy button's own label into the
+link's accessible name), so keyboard `Tab`+`Enter` and ctrl/middle-click
+still reach the full page directly.
+
+Only Requirements has migrated to this grid so far. The remaining list
+views (Risks, Issues, Evidence, and the rest) still render their original
+plain `<Table>`, pending the same migration.
+
 ## Foundational artifact modules
 
 Stakeholder needs, design items and verification activities — the three things
@@ -3514,6 +3558,52 @@ object, inspect both directions, narrow by direction, traverse into a
 connected object and back, run the bounded extended-neighborhood traversal
 and find a real two-hop object, and confirm project isolation through both
 the real API and the real UI's error state.
+
+### Verification Coverage Matrix
+
+A second, project-wide view alongside the object-by-object explorer above
+(`/projects/:projectId/traceability/matrix`), answering a different
+question: not "what does this one object connect to," but "which
+requirements are verified by what, and where are the holes?" — a real,
+industry-standard traceability matrix, one row per requirement and one
+column per verification activity.
+
+Deliberately does not reuse the graph traversal engine. The explorer's
+neighbor/traverse endpoints answer "starting from this object, what is
+near it" one hop or several at a time; the matrix needs the *entire*
+Requirement × Verification Activity relationship set for a project at
+once, which is a single project-scoped query — one new repository function,
+`listRequirementVerificationLinksInProject`
+(`src/server/repositories/requirement.repository.ts`), reading the same
+`RequirementVerificationLink` rows `RequirementService.linkRequirement`
+already writes (there is no second link table). `TraceabilityMatrixService`
+(`src/server/services/traceability-matrix.service.ts`) composes that with
+the project's requirements and verification activities and places each
+link as a sparse cell — an absent cell is a real, present fact (no
+relationship recorded), not missing data.
+
+**No coverage percentage is computed anywhere in this path.** The service
+returns `uncoveredRowIds`/`uncoveredColumnIds` — the actual ids of
+requirements nothing verifies and verification activities that verify
+nothing recorded — and the UI's primary read is that count in plain
+language ("2 of 9 requirements have no recorded verification activity at
+all"), not a fraction or a percentage. A link whose requirement or
+verification activity id no longer resolves against the project's current
+axis lists (rather than trusting the link row blindly) is dropped from the
+cell set rather than crashing the view.
+
+Rendered as a real semantic `<table>` (`scope="row"`/`scope="col"`
+headers), not the ARIA-grid data primitive the rest of this pass uses
+([The shared data grid](#the-shared-data-grid) below) — this view does not
+need row virtualization at any realistic project scale, and a native table
+is the more accessible, more keyboard-navigable, and far more
+print-friendly choice for this specific shape (native table page-breaks
+correctly; a `role="grid"` full of absolutely-positioned virtualized rows
+does not). A dense/readable density toggle, CSV export, and
+`window.print()` (with `print:` utility classes hiding the toolbar and
+un-scrolling the table) cover the export and print-package requirement
+without a new PDF-generation dependency — the browser's own "Print to PDF"
+is the export path.
 
 ## Evidence
 

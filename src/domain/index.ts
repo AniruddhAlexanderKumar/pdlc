@@ -16,6 +16,7 @@ export * from "./baseline-comparison";
 export * from "./certification";
 export * from "./change-request";
 export * from "./command-center";
+export * from "./traceability-matrix";
 export * from "./decision-memory";
 export * from "./design-item";
 export * from "./drift";
