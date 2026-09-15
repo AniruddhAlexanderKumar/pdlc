@@ -344,7 +344,7 @@ function SuppliedItemLinks({
               value={targetId}
               onChange={(event) => setTargetId(event.target.value)}
               disabled={busy || options.length === 0}
-              className="w-72"
+              className="w-full sm:w-72"
             >
               <option value="">
                 {options.length === 0 ? "None recorded in this project" : "Select…"}
@@ -369,7 +369,7 @@ function SuppliedItemLinks({
               value={note}
               onChange={(event) => setNote(event.target.value)}
               disabled={busy}
-              className="w-64"
+              className="w-full sm:w-64"
               placeholder="Optional"
             />
           </div>

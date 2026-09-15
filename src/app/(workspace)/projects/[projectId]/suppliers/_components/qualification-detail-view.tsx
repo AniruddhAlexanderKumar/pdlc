@@ -296,7 +296,7 @@ function QualificationEvidence({
               value={evidenceId}
               onChange={(event) => setEvidenceId(event.target.value)}
               disabled={busy || options.length === 0}
-              className="w-72"
+              className="w-full sm:w-72"
             >
               <option value="">
                 {options.length === 0 ? "None recorded in this project" : "Select…"}

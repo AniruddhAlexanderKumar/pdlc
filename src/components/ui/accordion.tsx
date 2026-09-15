@@ -29,8 +29,22 @@ const AccordionTrigger = React.forwardRef<
       )}
       {...props}
     >
-      {children}
+      {/*
+        Explicit keys on both children: when `children` is a React element
+        built in a Server Component (Troubleshooting's two-line trigger,
+        built as JSX handed over as data — see print-expanding-accordion.tsx)
+        rather than authored inline here, React can't always tell this two-
+        item list apart from a dynamically-constructed array once it crosses
+        the RSC boundary, and warns about a missing key even though nothing
+        is actually unkeyed at the list-reconciliation level (there's only
+        ever one trigger per item, already keyed by item.id on AccordionItem).
+        Found via a real console warning, not assumed — plain-string titles
+        never triggered it. Naming the two positions removes the ambiguity
+        for every accordion in the app, not just this one page.
+      */}
+      <React.Fragment key="trigger-content">{children}</React.Fragment>
       <ChevronDown
+        key="trigger-chevron"
         className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
         aria-hidden="true"
       />

@@ -513,7 +513,7 @@ function BaselineMembers({
                 value={nodeId}
                 onChange={(event) => setNodeId(event.target.value)}
                 disabled={busy || options.length === 0}
-                className="w-80"
+                className="w-full sm:w-80"
               >
                 <option value="">
                   {options.length === 0 ? "None recorded in this project" : "Select…"}

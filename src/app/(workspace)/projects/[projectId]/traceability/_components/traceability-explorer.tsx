@@ -214,7 +214,7 @@ export function TraceabilityExplorer({
                 <Label htmlFor="traceability-edge-filter">Relationship type</Label>
                 <Select
                   id="traceability-edge-filter"
-                  className="w-64"
+                  className="w-full sm:w-64"
                   value={edgeTypeFilter}
                   onChange={(event) => setEdgeTypeFilter(event.target.value as GraphEdgeType | "")}
                 >

@@ -146,7 +146,7 @@ export function DriftView({ projectId }: { projectId: string }) {
                 setHistorical(null);
               }}
               disabled={busy || baselines.state.phase !== "ready"}
-              className="w-80"
+              className="w-full sm:w-80"
             >
               <option value="">
                 {baselines.state.phase === "ready" && baselines.state.data.length === 0

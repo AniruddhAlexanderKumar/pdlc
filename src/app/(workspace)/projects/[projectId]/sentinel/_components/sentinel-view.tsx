@@ -119,7 +119,7 @@ export function SentinelView({ projectId }: { projectId: string }) {
       {detectError && <p className="text-destructive text-sm">{detectError}</p>}
       {detectSummary && <p className="text-muted-foreground text-sm" role="status">{detectSummary}</p>}
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button variant={showHistory ? "outline" : "default"} size="sm" onClick={() => setShowHistory(false)}>
           <ShieldAlert aria-hidden="true" />
           Open &amp; acknowledged

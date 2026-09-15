@@ -125,7 +125,7 @@ export function ReviewView({ projectId }: { projectId: string }) {
                 <p>Version {report.review.reviewVersion}</p>
               </div>
             </CardHeader>
-            <CardContent className="flex gap-6 text-sm">
+            <CardContent className="flex flex-wrap gap-6 text-sm">
               <Stat label="Findings" value={report.review.counts.findingCount} />
               <Stat label="Blocking" value={report.review.counts.blockingCount} />
               <Stat label="Warning" value={report.review.counts.warningCount} />

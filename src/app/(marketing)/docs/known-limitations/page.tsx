@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { DocsPage } from "../_components/docs-page";
+import { PrintExpandingAccordion } from "../_components/print-expanding-accordion";
 
 export const metadata: Metadata = {
   title: "Known limitations",
@@ -48,14 +48,7 @@ export default function KnownLimitationsPage() {
       lastUpdated="2026-09-15"
       sourcePath="src/app/(marketing)/docs/known-limitations/page.tsx"
     >
-      <Accordion type="single" collapsible className="w-full">
-        {LIMITATIONS.map((item) => (
-          <AccordionItem key={item.id} value={item.id}>
-            <AccordionTrigger>{item.title}</AccordionTrigger>
-            <AccordionContent>{item.body}</AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+      <PrintExpandingAccordion items={LIMITATIONS} className="w-full" />
     </DocsPage>
   );
 }

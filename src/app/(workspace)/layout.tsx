@@ -24,7 +24,16 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar identity={toIdentity(context)} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        {/*
+          `min-w-0`: without it, `main` — a flex item of the column flex
+          above — keeps its default flex min-width of `auto`, which lets a
+          wide descendant (a data table with enough columns; found as a
+          real 50px horizontal page overflow on certification's table at a
+          390px viewport, not assumed) push `main` itself wider instead of
+          being contained by the table's own `overflow-x-auto` wrapper.
+          `min-w-0` is what lets that inner overflow actually do its job.
+        */}
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
   );

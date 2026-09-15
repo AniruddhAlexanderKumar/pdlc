@@ -22,7 +22,14 @@ function PageHeader({ title, description, actions, className, ...props }: PageHe
         <h1 className="text-lg font-semibold tracking-tight text-foreground">{title}</h1>
         {description && <p className="text-sm text-muted-foreground">{description}</p>}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {/*
+        `flex-wrap`: found as a real horizontal page overflow — two or more
+        action buttons (their own `whitespace-nowrap` base style) at a
+        narrow viewport otherwise force this row wider than the screen
+        instead of wrapping to a second line, on every page that passes
+        more than one action here.
+      */}
+      {actions && <div className="flex flex-wrap shrink-0 items-center gap-2">{actions}</div>}
     </div>
   );
 }

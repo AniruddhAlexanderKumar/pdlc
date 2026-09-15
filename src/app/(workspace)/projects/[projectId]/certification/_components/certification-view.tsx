@@ -54,7 +54,7 @@ export function CertificationView({ projectId }: { projectId: string }) {
             : "Internal certification review, built on the engineering system already recorded. This is not a claim of regulatory approval."
         }
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
               <Link href={`/projects/${projectId}/certification/items`}>
                 <ClipboardList aria-hidden="true" />

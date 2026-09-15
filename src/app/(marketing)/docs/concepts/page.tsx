@@ -1,10 +1,28 @@
 import type { Metadata } from "next";
 import { GRAPH_EDGE_TYPES, GRAPH_LIMITS, GRAPH_NODE_TYPES } from "@/domain";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { DocsPage } from "../_components/docs-page";
 import { EdgeRegistryExplorer } from "../_components/edge-registry-explorer";
 import { LifecycleExplorer } from "../_components/lifecycle-explorer";
+import { PrintExpandingAccordion } from "../_components/print-expanding-accordion";
 import { TraversalLimitsSimulator } from "../_components/traversal-limits-simulator";
+
+const MORE_BRIEFLY = [
+  {
+    id: "baselines",
+    title: "Baselines, revisions, and supersession",
+    body: "An engineering baseline is a snapshot of a set of objects at a point in time — what was approved, and exactly what state it was in. A baseline is never edited after activation; a later change either drifts from it (detected by comparison, not silently) or the baseline is explicitly superseded by a new one, which never deletes the old one.",
+  },
+  {
+    id: "lessons",
+    title: "A lesson is not a requirement",
+    body: "A requirement is a binding statement this program commits to satisfy. A lesson or a constraint carried across projects is context an engineer should see, not an obligation the system enforces on a different program's behalf — the two are kept structurally distinct so neither is mistaken for the other.",
+  },
+  {
+    id: "append-only",
+    title: "Append-only records and deletion",
+    body: "The audit log and every persisted assessment (technical readiness, verification readiness, drift, impact analysis, certification review) are never edited or deleted in place — a re-evaluation appends a new row, and a superseded one points at what replaced it and stays exactly as it was. This is enforced by the service layer having no update or delete path for these tables, not by a database permission alone.",
+  },
+];
 
 export const metadata: Metadata = {
   title: "Concepts",
@@ -62,36 +80,7 @@ export default function ConceptsPage() {
 
       <section className="flex flex-col gap-3">
         <h2>More, briefly</h2>
-        <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="baselines">
-            <AccordionTrigger>Baselines, revisions, and supersession</AccordionTrigger>
-            <AccordionContent>
-              An engineering baseline is a snapshot of a set of objects at a point in time — what was
-              approved, and exactly what state it was in. A baseline is never edited after activation; a
-              later change either drifts from it (detected by comparison, not silently) or the baseline is
-              explicitly superseded by a new one, which never deletes the old one.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="lessons">
-            <AccordionTrigger>A lesson is not a requirement</AccordionTrigger>
-            <AccordionContent>
-              A requirement is a binding statement this program commits to satisfy. A lesson or a constraint
-              carried across projects is context an engineer should see, not an obligation the system
-              enforces on a different program&apos;s behalf — the two are kept structurally distinct so
-              neither is mistaken for the other.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="append-only">
-            <AccordionTrigger>Append-only records and deletion</AccordionTrigger>
-            <AccordionContent>
-              The audit log and every persisted assessment (technical readiness, verification readiness,
-              drift, impact analysis, certification review) are never edited or deleted in place — a
-              re-evaluation appends a new row, and a superseded one points at what replaced it and stays
-              exactly as it was. This is enforced by the service layer having no update or delete path for
-              these tables, not by a database permission alone.
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        <PrintExpandingAccordion items={MORE_BRIEFLY} className="w-full" />
       </section>
     </DocsPage>
   );

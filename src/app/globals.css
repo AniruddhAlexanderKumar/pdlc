@@ -58,6 +58,102 @@
   --radius: 0.375rem;
 }
 
+/*
+ * Dark theme — was designed for from the start (see the comment above:
+ * keeping tokens on plain :root is what makes this a config-only change),
+ * but never actually written until a real screenshot of this exact page
+ * with `prefers-color-scheme: dark` came back byte-identical to light and
+ * proved it. Not a naive inversion: same true-neutral-graphite character
+ * as the light palette, same #0b3d91-family accent, brightened so it
+ * still reads at proper contrast against a dark ground rather than
+ * going muddy.
+ *
+ * Three states, per this app's own theming contract: system dark
+ * (`prefers-color-scheme`, unless explicitly overridden to light) and an
+ * explicit `data-theme="dark"` override that wins either way — the latter
+ * has no toggle UI yet to set it, but the tokens are ready the moment one
+ * exists rather than needing a second rewrite then.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #101317;
+    --foreground: #e7e9ec;
+
+    --card: #171b21;
+    --card-foreground: #e7e9ec;
+
+    --popover: #171b21;
+    --popover-foreground: #e7e9ec;
+
+    --primary: #3d6fd6;
+    --primary-foreground: #f6f7f8;
+
+    --secondary: #20252c;
+    --secondary-foreground: #e7e9ec;
+
+    --muted: #20252c;
+    --muted-foreground: #8b95a3;
+
+    --accent: #1b2740;
+    --accent-foreground: #85aaf2;
+
+    --destructive: #ef4444;
+    --destructive-foreground: #1a0d0d;
+
+    --success: #22c55e;
+    --success-foreground: #08150c;
+
+    --warning: #f0a020;
+    --warning-foreground: #1c1206;
+
+    --info: #22b8cf;
+    --info-foreground: #06181b;
+
+    --border: #2a2f38;
+    --input: #2a2f38;
+    --ring: #3d6fd6;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #101317;
+  --foreground: #e7e9ec;
+
+  --card: #171b21;
+  --card-foreground: #e7e9ec;
+
+  --popover: #171b21;
+  --popover-foreground: #e7e9ec;
+
+  --primary: #3d6fd6;
+  --primary-foreground: #f6f7f8;
+
+  --secondary: #20252c;
+  --secondary-foreground: #e7e9ec;
+
+  --muted: #20252c;
+  --muted-foreground: #8b95a3;
+
+  --accent: #1b2740;
+  --accent-foreground: #85aaf2;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #1a0d0d;
+
+  --success: #22c55e;
+  --success-foreground: #08150c;
+
+  --warning: #f0a020;
+  --warning-foreground: #1c1206;
+
+  --info: #22b8cf;
+  --info-foreground: #06181b;
+
+  --border: #2a2f38;
+  --input: #2a2f38;
+  --ring: #3d6fd6;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -109,6 +205,34 @@
     border-color: var(--border);
   }
 
+  /*
+   * `overflow-x: hidden` on `html` — confirmed to be the actual
+   * `document.scrollingElement` in this app (`body` alone does not
+   * suppress the real, user-visible scrollbar; tried that first, it
+   * didn't work, this does). The workspace sidebar (see Sidebar in
+   * (workspace)/_components/sidebar.tsx) reads its collapsed-on-mobile
+   * state from `useSyncExternalStore`, whose `getServerSnapshot`
+   * deliberately always returns "not narrow" — the only way to avoid the
+   * server and the first client render disagreeing, since the server has
+   * no viewport to read. That's the right tradeoff for correctness, but
+   * it means a mobile load briefly paints the full 240px expanded
+   * sidebar before React resyncs to the real value a couple hundred
+   * milliseconds later — measured as a real, reproducible ~100px
+   * overflow at 390px that resolves on its own by ~600ms, not assumed.
+   * This doesn't fix that gap (a CSS-only initial state would mean
+   * re-deriving the sidebar's per-item label visibility outside React, a
+   * much larger change for a sub-second flash) — it stops the flash from
+   * ever being visible or scrollable-to. `overflow: hidden` disables a
+   * scrollbar and user-driven scrolling (wheel/touch/keyboard) but does
+   * not change what `scrollWidth` reports or what `scrollTo` can still
+   * do programmatically — verified directly, not assumed — so this
+   * doesn't quietly break `document.documentElement.scrollWidth` as a
+   * real-overflow check elsewhere in the app.
+   */
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
@@ -137,3 +261,4 @@
     outline-offset: 2px;
   }
 }
+
