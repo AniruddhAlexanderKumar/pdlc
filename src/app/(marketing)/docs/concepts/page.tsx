@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { GRAPH_EDGE_TYPES, GRAPH_LIMITS, GRAPH_NODE_TYPES } from "@/domain";
+import { EdgeRegistryExplorer } from "@/components/domain-explorers/edge-registry-explorer";
+import { LifecycleExplorer } from "@/components/domain-explorers/lifecycle-explorer";
+import { TraversalLimitsSimulator } from "@/components/domain-explorers/traversal-limits-simulator";
 import { DocsPage } from "../_components/docs-page";
-import { EdgeRegistryExplorer } from "../_components/edge-registry-explorer";
-import { LifecycleExplorer } from "../_components/lifecycle-explorer";
 import { PrintExpandingAccordion } from "../_components/print-expanding-accordion";
-import { TraversalLimitsSimulator } from "../_components/traversal-limits-simulator";
 
 const MORE_BRIEFLY = [
   {

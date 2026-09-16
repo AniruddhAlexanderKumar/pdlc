@@ -3,8 +3,8 @@ import Link from "next/link";
 import { GRAPH_EDGE_TYPES, GRAPH_LIMITS, GRAPH_NODE_TYPES } from "@/domain";
 import { Button } from "@/components/ui/button";
 import { Shell } from "@/components/common/shell";
-import { EdgeRegistryExplorer } from "./docs/_components/edge-registry-explorer";
-import { TraversalLimitsSimulator } from "./docs/_components/traversal-limits-simulator";
+import { EdgeRegistryExplorer } from "@/components/domain-explorers/edge-registry-explorer";
+import { TraversalLimitsSimulator } from "@/components/domain-explorers/traversal-limits-simulator";
 
 export const metadata: Metadata = {
   title: "PDLC Platform",

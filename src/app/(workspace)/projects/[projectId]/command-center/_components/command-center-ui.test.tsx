@@ -95,6 +95,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  window.localStorage.clear();
 });
 
 describe("CommandCenterView", () => {
@@ -260,5 +261,48 @@ describe("CommandCenterView", () => {
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
+  });
+
+  it("Customize layout can remove a section, and it stays gone on a fresh mount of the same project", async () => {
+    routeGets(baseView());
+    const user = userEvent.setup();
+    const { unmount } = render(<CommandCenterView projectId={PROJECT_ID} />);
+
+    await screen.findByRole("heading", { name: "Suppliers" });
+
+    await user.click(screen.getByRole("button", { name: /customize layout/i }));
+    await user.click(screen.getByRole("checkbox", { name: "Suppliers" }));
+
+    expect(screen.queryByRole("heading", { name: "Suppliers" })).not.toBeInTheDocument();
+
+    unmount();
+    render(<CommandCenterView projectId={PROJECT_ID} />);
+    await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
+    expect(screen.queryByRole("heading", { name: "Suppliers" })).not.toBeInTheDocument();
+  });
+
+  it("re-checking a removed section brings it back", async () => {
+    routeGets(baseView());
+    const user = userEvent.setup();
+    render(<CommandCenterView projectId={PROJECT_ID} />);
+
+    await screen.findByRole("heading", { name: "Suppliers" });
+    await user.click(screen.getByRole("button", { name: /customize layout/i }));
+    await user.click(screen.getByRole("checkbox", { name: "Suppliers" }));
+    expect(screen.queryByRole("heading", { name: "Suppliers" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Suppliers" }));
+    expect(screen.getByRole("heading", { name: "Suppliers" })).toBeInTheDocument();
+  });
+
+  it("never offers to remove the page's own point — Attention required has no checkbox", async () => {
+    routeGets(baseView());
+    const user = userEvent.setup();
+    render(<CommandCenterView projectId={PROJECT_ID} />);
+
+    await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
+    await user.click(screen.getByRole("button", { name: /customize layout/i }));
+
+    expect(screen.queryByRole("checkbox", { name: /attention/i })).not.toBeInTheDocument();
   });
 });

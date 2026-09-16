@@ -9,7 +9,9 @@ import {
   FileText,
   GitBranch,
   History,
+  LayoutPanelTop,
   RefreshCw,
+  RotateCcw,
   ShieldAlert,
   ShieldCheck,
   Waypoints,
@@ -27,8 +29,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { LoadingState } from "@/components/ui/loading-state";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select } from "@/components/ui/select";
 import { cn, formatIsoDate } from "@/lib/utils";
+import { COMMAND_CENTER_SECTIONS, useCommandCenterLayout } from "./use-command-center-layout";
 
 /**
  * The Engineering Command Center.
@@ -42,6 +46,7 @@ import { cn, formatIsoDate } from "@/lib/utils";
  */
 export function CommandCenterView({ projectId }: { projectId: string }) {
   const { state, reload } = useCommandCenter(projectId);
+  const layout = useCommandCenterLayout(projectId);
 
   if (state.phase === "loading") {
     return <LoadingState label="Loading command center…" />;
@@ -74,6 +79,7 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
         description={`${data.project.name} — real, current state composed from every engine this product already runs. Nothing here is a new verdict.`}
         actions={
           <div className="flex flex-wrap gap-2">
+            <LayoutCustomizer layout={layout} />
             <Button asChild variant="outline">
               <Link href={data.historyHref}>
                 <History aria-hidden="true" />
@@ -96,18 +102,74 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
 
       <AttentionSection items={data.attentionItems} />
 
-      <ReadinessSection projectId={projectId} data={data} />
+      {!layout.hidden.has("readiness") && <ReadinessSection projectId={projectId} data={data} />}
 
-      <ConfigurationSection data={data} />
+      {!layout.hidden.has("configuration") && <ConfigurationSection data={data} />}
 
-      <RisksIssuesSection data={data} />
+      {!layout.hidden.has("risksIssues") && <RisksIssuesSection data={data} />}
 
-      <SuppliersSection data={data} />
+      {!layout.hidden.has("suppliers") && <SuppliersSection data={data} />}
 
-      <EvidenceSection projectId={projectId} data={data} />
+      {!layout.hidden.has("evidence") && <EvidenceSection projectId={projectId} data={data} />}
 
-      <SentinelSection data={data} />
+      {!layout.hidden.has("sentinel") && <SentinelSection data={data} />}
     </div>
+  );
+}
+
+/**
+ * "Customize layout" — hides or restores any of the six removable Command
+ * Center sections (see `use-command-center-layout.ts` for exactly which
+ * three are excluded, and why). A popover, not a navigation away from the
+ * page, so a reader sees the effect of a toggle immediately behind it.
+ */
+function LayoutCustomizer({ layout }: { layout: ReturnType<typeof useCommandCenterLayout> }) {
+  const hasHidden = layout.hidden.size > 0;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline">
+          <LayoutPanelTop aria-hidden="true" />
+          Customize layout
+          {hasHidden && (
+            <Badge variant="outline" className="ml-1">
+              {layout.hidden.size}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-medium text-foreground">Sections</span>
+          {hasHidden && (
+            <button
+              type="button"
+              onClick={layout.reset}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <RotateCcw className="size-3" aria-hidden="true" />
+              Reset
+            </button>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Remembered in this browser, for this project only.
+        </p>
+        <div className="mt-3 flex flex-col gap-1.5">
+          {COMMAND_CENTER_SECTIONS.map((section) => (
+            <label key={section.key} className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={!layout.hidden.has(section.key)}
+                onChange={(event) => layout.setHidden(section.key, !event.target.checked)}
+                className="size-4 rounded border-input"
+              />
+              {section.label}
+            </label>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
