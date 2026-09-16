@@ -481,7 +481,14 @@ describe("verification activities API", () => {
 describe("organization members lookup", () => {
   it("returns only safe identity fields for the session's organization", async () => {
     vi.mocked(userRepository.listOrganizationMembers).mockResolvedValue([
-      { id: "user1aaaaaaaaaaaaaaaaaaa", name: "Ada", email: "ada@example.test" },
+      {
+        id: "user1aaaaaaaaaaaaaaaaaaa",
+        name: "Ada",
+        email: "ada@example.test",
+        organizationRole: "MEMBER",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        projectCount: 0,
+      },
     ]);
 
     const response = await membersRoute.GET();
@@ -490,6 +497,19 @@ describe("organization members lookup", () => {
     expect(response.status).toBe(200);
     // The organization is taken from the session, never from the request.
     expect(userRepository.listOrganizationMembers).toHaveBeenCalledWith(CONTEXT.organizationId);
-    expect(Object.keys(body.members[0])).toEqual(["id", "name", "email"]);
+    // An exact allowlist, not a subset check, precisely so adding a field
+    // to this response is a decision someone has to make on purpose here.
+    // `organizationRole` (already carried on every session), `joinedAt`,
+    // and `projectCount` (a count within the caller's own organization)
+    // are the People page's needs; no password hash, no organization id,
+    // and no project identity crosses this boundary.
+    expect(Object.keys(body.members[0])).toEqual([
+      "id",
+      "name",
+      "email",
+      "organizationRole",
+      "joinedAt",
+      "projectCount",
+    ]);
   });
 });

@@ -1,7 +1,10 @@
 "use client";
 
+import * as React from "react";
+import type { OrganizationRole } from "@/domain";
 import { requestJson } from "./client";
 import { type OwnerSummary, useOrganizationMembers } from "./requirements";
+import { useResource } from "./use-resource";
 
 /**
  * Organization membership mutation. Listing already exists as
@@ -19,6 +22,34 @@ import { type OwnerSummary, useOrganizationMembers } from "./requirements";
 
 export type { OwnerSummary as OrganizationMemberDto };
 export { useOrganizationMembers };
+
+/**
+ * The same `GET /api/organization/members` response, read for the People
+ * page rather than an owner picker — so it keeps the fields a picker has
+ * no use for. `OwnerSummary` stays deliberately narrow (`id`/`name`/`email`)
+ * because it is embedded in every artifact DTO that carries an owner;
+ * widening that shape everywhere to serve one page would be the wrong
+ * trade.
+ */
+export interface OrganizationPersonDto {
+  id: string;
+  name: string;
+  email: string;
+  organizationRole: OrganizationRole;
+  joinedAt: string;
+  projectCount: number;
+}
+
+export async function fetchOrganizationPeople(signal?: AbortSignal): Promise<OrganizationPersonDto[]> {
+  return requestJson<OrganizationPersonDto[]>("/api/organization/members", "members", { signal });
+}
+
+export function useOrganizationPeople() {
+  return useResource<OrganizationPersonDto[]>(
+    React.useCallback((signal) => fetchOrganizationPeople(signal), []),
+    "organization-people",
+  );
+}
 
 export interface AddOrganizationMemberInput {
   name: string;

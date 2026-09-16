@@ -49,4 +49,42 @@ describe("HelpView", () => {
     render(<HelpView />);
     expect(screen.getByText(/Invent a severity score/)).toBeInTheDocument();
   });
+
+  it("leads with common tasks, not with the concepts", () => {
+    render(<HelpView />);
+    const headings = screen.getAllByRole("heading").map((h) => h.textContent);
+    expect(headings[0]).toBe("Common tasks");
+    // "What this is" is philosophy — useful, but not what someone stuck
+    // on a task opened this page for.
+    expect(headings.indexOf("Common tasks")).toBeLessThan(headings.indexOf("What this is"));
+  });
+
+  it("a task guide expands into real, ordered steps", async () => {
+    const user = userEvent.setup();
+    render(<HelpView />);
+
+    await user.click(screen.getByRole("button", { name: /how do i add someone to my organization/i }));
+
+    const steps = screen.getAllByRole("listitem").map((li) => li.textContent ?? "");
+    expect(steps.some((step) => /People tab/i.test(step))).toBe(true);
+    expect(steps.some((step) => /Add a person/i.test(step))).toBe(true);
+  });
+
+  it("warns that adding someone sends no invitation email, since there is none to wait for", async () => {
+    const user = userEvent.setup();
+    render(<HelpView />);
+
+    await user.click(screen.getByRole("button", { name: /how do i add someone to my organization/i }));
+
+    expect(screen.getByText(/no invitation email/i)).toBeInTheDocument();
+  });
+
+  it("offers a way out when the reader's question isn't covered", async () => {
+    const user = userEvent.setup();
+    render(<HelpView />);
+
+    await user.click(screen.getByRole("button", { name: /my question isn't here/i }));
+
+    expect(screen.getByRole("link", { name: /public documentation/i })).toHaveAttribute("href", "/docs");
+  });
 });

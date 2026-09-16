@@ -12,7 +12,7 @@ import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../_components/terminology-context";
-import { PROJECT_MODULES, type ProjectModule } from "./project-modules";
+import { MODULE_GROUPS, PROJECT_MODULES, type ProjectModule } from "./project-modules";
 import { ProjectArchiveDialog } from "./project-archive-dialog";
 import { ProjectFormDialog } from "./project-form-dialog";
 import { SentinelSummaryCard } from "./sentinel-summary-card";
@@ -155,27 +155,38 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Engineering workspace</CardTitle>
-          <CardDescription>
-            Requirements, needs, design, verification, evidence, decisions, changes, risks, issues,
-            suppliers, baselines, observations, drift, certification, surveillance and
-            traceability for this project.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {OVERVIEW_MODULES.map((module) => (
-              <ModuleCard key={module.href} module={module} projectId={project.id} />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
       <SentinelSummaryCard projectId={project.id} />
 
       <TechnicalReadinessPanel projectId={project.id} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All modules</CardTitle>
+          <CardDescription>
+            Everything in this project, including the modules that have no permanent place in the
+            sidebar. The sidebar is the faster way to whichever ones you use daily.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {MODULE_GROUPS.map((group) => {
+            const members = OVERVIEW_MODULES.filter((module) => module.group === group.id);
+            if (members.length === 0) return null;
+            return (
+              <ModuleLinkGroup
+                key={group.id}
+                label={group.label}
+                modules={members}
+                projectId={project.id}
+              />
+            );
+          })}
+          <ModuleLinkGroup
+            label="Elsewhere"
+            modules={OVERVIEW_MODULES.filter((module) => module.group === null)}
+            projectId={project.id}
+          />
+        </CardContent>
+      </Card>
 
       <ProjectFormDialog
         mode="edit"
@@ -196,26 +207,51 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
 }
 
 /**
- * One module tile on the overview grid — its own component (not rendered
- * inline in `OVERVIEW_MODULES.map`) specifically so `useModuleLabel` has a
- * stable place to be called from; a hook cannot be called from inside a
- * `.map()` callback directly without risking the Rules of Hooks.
+ * One work-group's modules, as plain links.
+ *
+ * This replaced a grid of eighteen bordered cards, each with its own
+ * description and its own "Open" button — which rendered the same
+ * eighteen destinations the sidebar was already showing, at far greater
+ * visual weight, directly above the two panels that carry this page's only
+ * genuinely project-specific state. A reader arriving here met a menu, not
+ * their project. Grouped links say the same thing in a fraction of the
+ * space, and the group headings match the sidebar's exactly, so the two
+ * read as one navigation rather than two competing ones.
  */
-function ModuleCard({ module, projectId }: { module: ProjectModule; projectId: string }) {
+function ModuleLinkGroup({
+  label,
+  modules,
+  projectId,
+}: {
+  label: string;
+  modules: readonly ProjectModule[];
+  projectId: string;
+}) {
+  if (modules.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</span>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {modules.map((module) => (
+          <ModuleLink key={module.href} module={module} projectId={projectId} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Its own component so `useModuleLabel` has a stable place to be called from — a hook cannot be called inside a `.map()` callback. */
+function ModuleLink({ module, projectId }: { module: ProjectModule; projectId: string }) {
   const Icon = module.icon;
   const label = useModuleLabel(module.labelKey, module.label);
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
-        <div className="flex min-w-0 flex-col">
-          <span className="text-sm font-medium text-foreground">{label}</span>
-          <span className="truncate text-xs text-muted-foreground">{module.description}</span>
-        </div>
-      </div>
-      <Button asChild variant="outline" size="sm">
-        <Link href={`/projects/${projectId}${module.href}`}>Open</Link>
-      </Button>
-    </div>
+    <Link
+      href={`/projects/${projectId}${module.href}`}
+      title={module.description}
+      className="flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+      {label}
+    </Link>
   );
 }

@@ -59,7 +59,14 @@ beforeEach(() => {
 describe("listOrganizationMembers", () => {
   it("returns every member of the caller's organization — no role check, any authenticated member reads", async () => {
     vi.mocked(userRepository.listOrganizationMembers).mockResolvedValue([
-      { id: "user1", name: "Ada", email: "ada@example.test" },
+      {
+        id: "user1",
+        name: "Ada",
+        email: "ada@example.test",
+        organizationRole: "OWNER",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        projectCount: 2,
+      },
     ]);
 
     const members = await service.listOrganizationMembers(CONTEXT);

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EdgeRegistryExplorer } from "@/components/domain-explorers/edge-registry-explorer";
 import { LifecycleExplorer } from "@/components/domain-explorers/lifecycle-explorer";
 import { TraversalLimitsSimulator } from "@/components/domain-explorers/traversal-limits-simulator";
+import { TaskGuides } from "./task-guides";
 
 const FAQ: ReadonlyArray<{ id: string; question: string; answer: string }> = [
   {
@@ -63,6 +64,43 @@ const SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
 export function HelpView() {
   return (
     <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Common tasks</CardTitle>
+          <CardDescription>
+            The clicks, in order, for the things people actually open this page to do.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TaskGuides />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Keyboard shortcuts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="flex flex-col divide-y divide-border">
+            {SHORTCUTS.map((shortcut) => (
+              <div key={shortcut.keys} className="flex items-center justify-between gap-3 py-2">
+                <dt className="text-sm text-muted-foreground">{shortcut.action}</dt>
+                <dd className="flex shrink-0 gap-1">
+                  {shortcut.keys.split(" / ").map((combo) => (
+                    <kbd
+                      key={combo}
+                      className="rounded-xs border border-border bg-secondary px-1.5 py-0.5 font-mono text-[11px] text-foreground"
+                    >
+                      {combo}
+                    </kbd>
+                  ))}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>What this is</CardTitle>
@@ -205,31 +243,6 @@ export function HelpView() {
             The point of opening it on an object is to answer &quot;why is this the way it is,&quot;
             not to browse a timeline for its own sake.
           </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Keyboard shortcuts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="flex flex-col divide-y divide-border">
-            {SHORTCUTS.map((shortcut) => (
-              <div key={shortcut.keys} className="flex items-center justify-between gap-3 py-2">
-                <dt className="text-sm text-muted-foreground">{shortcut.action}</dt>
-                <dd className="flex shrink-0 gap-1">
-                  {shortcut.keys.split(" / ").map((combo) => (
-                    <kbd
-                      key={combo}
-                      className="rounded-xs border border-border bg-secondary px-1.5 py-0.5 font-mono text-[11px] text-foreground"
-                    >
-                      {combo}
-                    </kbd>
-                  ))}
-                </dd>
-              </div>
-            ))}
-          </dl>
         </CardContent>
       </Card>
 

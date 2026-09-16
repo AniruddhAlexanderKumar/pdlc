@@ -34,6 +34,14 @@ const BASE = "http://localhost/api/organization/members";
 
 const NEW_MEMBER = { id: "user2aaaaaaaaaaaaaaaaaaa", name: "Grace Hopper", email: "grace@example.test" };
 
+/** The richer shape the *list* returns — `addOrganizationMember` still answers with only the three fields above. */
+const LISTED_MEMBER = {
+  ...NEW_MEMBER,
+  organizationRole: "MEMBER" as const,
+  joinedAt: "2026-01-01T00:00:00.000Z",
+  projectCount: 3,
+};
+
 function jsonRequest(url: string, body: unknown, method = "POST") {
   return new Request(url, {
     method,
@@ -70,13 +78,13 @@ describe("authentication", () => {
 
 describe("GET /organization/members", () => {
   it("lists every member, for any authenticated member of the organization", async () => {
-    vi.mocked(service.listOrganizationMembers).mockResolvedValue([NEW_MEMBER]);
+    vi.mocked(service.listOrganizationMembers).mockResolvedValue([LISTED_MEMBER]);
 
     const response = await route.GET();
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.members).toEqual([NEW_MEMBER]);
+    expect(body.members).toEqual([LISTED_MEMBER]);
     expect(service.listOrganizationMembers).toHaveBeenCalledWith(CONTEXT);
   });
 });

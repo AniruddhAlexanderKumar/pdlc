@@ -1,3 +1,4 @@
+import type { OrganizationRole } from "@/domain";
 import { type DbClient, prisma } from "@/lib/db";
 
 /**
@@ -77,23 +78,47 @@ export interface OrganizationMember {
   id: string;
   name: string;
   email: string;
+  organizationRole: OrganizationRole;
+  createdAt: Date;
+  /** How many projects this user holds an explicit membership row on. */
+  projectCount: number;
 }
 
 /**
- * Members of one organization, for owner selection.
+ * Members of one organization — for the People page, and for the
+ * project-member picker.
  *
- * Explicitly selects three safe fields — no credential relation, no role
- * internals, no organization id echoed back to the browser.
+ * Explicitly selects only safe fields: no credential relation and no
+ * organization id echoed back to the browser. `organizationRole` is
+ * included deliberately — "who here can administer this organization" is
+ * exactly the question the People page exists to answer, and it is already
+ * carried on every session anyway.
  */
 export async function listOrganizationMembers(
   organizationId: string,
   client: DbClient = prisma,
 ): Promise<OrganizationMember[]> {
-  return client.user.findMany({
+  const rows = await client.user.findMany({
     where: { organizationId },
-    select: { id: true, name: true, email: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      organizationRole: true,
+      createdAt: true,
+      _count: { select: { projectMemberships: true } },
+    },
     orderBy: [{ name: "asc" }, { id: "asc" }],
   });
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    organizationRole: row.organizationRole,
+    createdAt: row.createdAt,
+    projectCount: row._count.projectMemberships,
+  }));
 }
 
 /** True when the user exists *and* belongs to the given organization. */

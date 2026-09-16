@@ -1,90 +1,129 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, FolderGit2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, FolderGit2, LayoutDashboard, RefreshCw } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/common/project-status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { describeApiError } from "@/lib/api/client";
-import { useProjects } from "@/lib/api/projects";
+import { type ProjectDto, useProjects } from "@/lib/api/projects";
+import { cn } from "@/lib/utils";
 
-/** How many projects to preview before deferring to the full Projects page. */
-const PREVIEW_LIMIT = 5;
+/** How many projects to show before deferring to the full Projects page. */
+const PREVIEW_LIMIT = 6;
 
 /**
- * Dashboard entry point into Projects.
+ * The dashboard's real content: which programs you can open, and one click
+ * into each.
  *
- * Uses the same `useProjects` hook as the Projects page rather than its own
- * fetch. Every number shown is a count of rows the API actually returned —
- * with no database reachable it reports the error instead of rendering a zero.
+ * Every card's primary action is Command Center, not the project overview
+ * — Command Center is the page that actually answers "what needs me
+ * today"; the overview answers "what modules exist", which the sidebar
+ * already answers permanently. Landing a reader on the second one was a
+ * large part of why getting oriented took so many clicks.
  */
 export function ProjectsCard() {
-  const { state } = useProjects();
+  const { state, reload } = useProjects();
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-start justify-between space-y-0">
-        <div className="flex flex-col gap-1">
-          <CardTitle>Projects</CardTitle>
-          <CardDescription>
-            {state.phase === "ready"
-              ? `${state.data.length} in this organization`
-              : "Programs and products"}
-          </CardDescription>
-        </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/projects">
-            View all
-            <ArrowRight aria-hidden="true" />
-          </Link>
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {state.phase === "loading" && <LoadingState inline label="Loading projects…" />}
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          Your projects
+          {state.phase === "ready" && state.data.length > 0 && (
+            <span className="ml-2 font-mono text-sm font-normal text-muted-foreground">
+              {state.data.length}
+            </span>
+          )}
+        </h2>
+        {state.phase === "ready" && state.data.length > PREVIEW_LIMIT && (
+          <Button asChild variant="outline" size="sm">
+            <Link href="/projects">
+              View all
+              <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+        )}
+      </div>
 
-        {state.phase === "error" && (
-          <p role="alert" className="flex items-start gap-2 text-sm text-destructive">
+      {state.phase === "loading" && <LoadingState label="Loading projects…" />}
+
+      {state.phase === "error" && (
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4"
+        >
+          <p className="flex items-start gap-2 text-sm text-destructive">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <span>{describeApiError(state.error)}</span>
           </p>
-        )}
+          <Button variant="outline" size="sm" onClick={reload}>
+            <RefreshCw aria-hidden="true" />
+            Try again
+          </Button>
+        </div>
+      )}
 
-        {state.phase === "ready" &&
-          (state.data.length === 0 ? (
-            <EmptyState
-              className="border-0 py-8"
-              icon={<FolderGit2 aria-hidden="true" />}
-              title="No projects yet"
-              description="Create the first project to start building its engineering record."
-              action={
-                <Button asChild size="sm">
-                  <Link href="/projects">Go to projects</Link>
-                </Button>
-              }
-            />
-          ) : (
-            <ul className="flex flex-col divide-y divide-border">
-              {state.data.slice(0, PREVIEW_LIMIT).map((project) => (
-                <li key={project.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <Link
-                    href={`/projects/${project.id}/command-center`}
-                    className="min-w-0 truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
-                  >
-                    {project.name}
-                  </Link>
-                  <ProjectStatusBadge status={project.status} />
-                </li>
-              ))}
-              {state.data.length > PREVIEW_LIMIT && (
-                <li className="pt-2.5 text-xs text-muted-foreground">
-                  {state.data.length - PREVIEW_LIMIT} more on the Projects page.
-                </li>
-              )}
-            </ul>
-          ))}
-      </CardContent>
-    </Card>
+      {state.phase === "ready" &&
+        (state.data.length === 0 ? (
+          <EmptyState
+            icon={<FolderGit2 aria-hidden="true" />}
+            title="No projects yet"
+            description="A project is the container for everything else — requirements, decisions, verification, risk. Create one to start."
+            action={
+              <Button asChild>
+                <Link href="/projects">Create the first project</Link>
+              </Button>
+            }
+          />
+        ) : (
+          // A single project gets the full width rather than sitting in a
+          // half-width column beside dead space — the two-column grid only
+          // earns its keep once there is something to put in both.
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-3",
+              state.data.length > 1 && "lg:grid-cols-2",
+            )}
+          >
+            {state.data.slice(0, PREVIEW_LIMIT).map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        ))}
+    </section>
+  );
+}
+
+function ProjectCard({ project }: { project: ProjectDto }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <Link
+          href={`/projects/${project.id}/command-center`}
+          className="min-w-0 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          {project.name}
+        </Link>
+        <ProjectStatusBadge status={project.status} />
+      </div>
+
+      {project.description && (
+        <p className="line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
+      )}
+
+      <div className="mt-auto flex flex-wrap gap-2">
+        <Button asChild size="sm">
+          <Link href={`/projects/${project.id}/command-center`}>
+            <LayoutDashboard aria-hidden="true" />
+            Command Center
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/projects/${project.id}`}>All modules</Link>
+        </Button>
+      </div>
+    </div>
   );
 }

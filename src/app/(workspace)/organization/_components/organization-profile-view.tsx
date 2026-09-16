@@ -43,7 +43,19 @@ import { formatIsoDate } from "@/lib/utils";
  * saved, which is what makes the sidebar update immediately, on this same
  * page, without a hard reload.
  */
-export function OrganizationProfileView({ isOwner }: { isOwner: boolean }) {
+export function OrganizationProfileView({
+  isOwner,
+  section,
+}: {
+  isOwner: boolean;
+  /**
+   * Which card to render. Omitted renders both, which is what the
+   * component did before the Organization page grew tabs — kept that way
+   * so this stays usable on its own, and so its existing tests still
+   * describe a real calling shape rather than a legacy one.
+   */
+  section?: "industry" | "terminology";
+}) {
   const router = useRouter();
   const { state, set, reload } = useOrganizationProfile();
 
@@ -76,8 +88,12 @@ export function OrganizationProfileView({ isOwner }: { isOwner: boolean }) {
     router.refresh();
   }
 
+  const showIndustry = section === undefined || section === "industry";
+  const showTerminology = section === undefined || section === "terminology";
+
   return (
     <div className="flex flex-col gap-6">
+      {showIndustry && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -97,7 +113,9 @@ export function OrganizationProfileView({ isOwner }: { isOwner: boolean }) {
           )}
         </CardContent>
       </Card>
+      )}
 
+      {showTerminology && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -120,6 +138,7 @@ export function OrganizationProfileView({ isOwner }: { isOwner: boolean }) {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

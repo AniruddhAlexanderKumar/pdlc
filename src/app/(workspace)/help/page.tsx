@@ -11,7 +11,7 @@ export default function HelpPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Help"
-        description="What this system actually does, and how to read what it tells you. Nothing here is marketing copy — every claim below is something you can verify by using the product."
+        description="Start with the task you're trying to finish. The ideas behind the product are further down, for when you want them."
       />
       <HelpView />
     </div>

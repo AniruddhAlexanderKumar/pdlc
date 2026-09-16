@@ -12,7 +12,16 @@ const TabsList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
-    className={cn("inline-flex items-center gap-1 rounded-md border border-border bg-secondary/50 p-1", className)}
+    className={cn(
+      // `max-w-full` + `flex-wrap`: an `inline-flex` list sizes itself to
+      // its triggers and will otherwise push the whole page wider than the
+      // viewport once there are enough of them — found as a real 28px
+      // horizontal overflow at 390px on the Organization page's four tabs,
+      // not a hypothetical. Wrapping to a second line keeps every tab
+      // reachable, which a horizontal scroll area would not.
+      "inline-flex max-w-full flex-wrap items-center gap-1 rounded-md border border-border bg-secondary/50 p-1",
+      className,
+    )}
     {...props}
   />
 ));

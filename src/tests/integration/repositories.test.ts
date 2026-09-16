@@ -484,7 +484,22 @@ describe.skipIf(!databaseAvailable)(`repositories against PostgreSQL (${SKIP_REA
 
       const members = await repos!.user.listOrganizationMembers(tenant.organizationId);
       expect(members).toHaveLength(1);
-      expect(Object.keys(members[0]!).sort()).toEqual(["email", "id", "name"]);
+      // An exact allowlist on purpose: this is the query that decides what
+      // can reach a browser about another person, so growing it should be
+      // a deliberate edit here, never a silent consequence of a `select`
+      // change. No password hash and no organization id, then or now.
+      expect(Object.keys(members[0]!).sort()).toEqual([
+        "createdAt",
+        "email",
+        "id",
+        "name",
+        "organizationRole",
+        "projectCount",
+      ]);
+      // The real reason `projectCount` exists: it is a genuine aggregate
+      // over this tenant's own membership rows, not a placeholder.
+      expect(members[0]!.projectCount).toBe(0);
+      expect(members[0]!.organizationRole).toBe("OWNER");
     });
   });
 

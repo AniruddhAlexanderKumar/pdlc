@@ -29,11 +29,33 @@ export const ORG_MEMBERSHIP_AUDIT_ACTIONS = {
   memberAdded: "organization.member_added",
 } as const;
 
+/**
+ * What the browser is given for one organization member. `createdAt` is an
+ * ISO string here rather than the repository's `Date`, the same boundary
+ * every other DTO in this codebase draws.
+ */
+export interface OrganizationMemberDto {
+  id: string;
+  name: string;
+  email: string;
+  organizationRole: OrganizationMember["organizationRole"];
+  joinedAt: string;
+  projectCount: number;
+}
+
 /** Every user in the caller's organization. Read access only — any authenticated member of the org. */
 export async function listOrganizationMembers(
   context: OrganizationContext,
-): Promise<OrganizationMember[]> {
-  return userRepository.listOrganizationMembers(context.organizationId);
+): Promise<OrganizationMemberDto[]> {
+  const members = await userRepository.listOrganizationMembers(context.organizationId);
+  return members.map((member) => ({
+    id: member.id,
+    name: member.name,
+    email: member.email,
+    organizationRole: member.organizationRole,
+    joinedAt: member.createdAt.toISOString(),
+    projectCount: member.projectCount,
+  }));
 }
 
 /**
