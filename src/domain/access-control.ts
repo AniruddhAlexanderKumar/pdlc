@@ -7,16 +7,16 @@ import { entityIdSchema } from "./shared/identifier";
  *
  * Two independent axes, not one hierarchy:
  *
- * - **Organization role** (`OWNER` | `MEMBER`) — who administers the
- *   organization itself: its membership, and (by extension) every project
- *   in it.
+ * - **Organization role** (`OWNER` | `EXECUTIVE` | `MEMBER`) — who
+ *   administers the organization itself, and who may see across all of it.
  * - **Project role** (`MANAGER` | `ENGINEER` | `REVIEWER` | `VIEWER`) —
  *   what a specific person may do inside one specific project.
  *
  * An organization `OWNER` has full access to every project in their
  * organization without needing an explicit `ProjectMembership` row — the
  * same authority they had before this capability existed, now made
- * explicit and enforced rather than assumed. Everyone else needs a real
+ * explicit and enforced rather than assumed. An `EXECUTIVE` likewise needs
+ * no row, but reaches every project read-only. Everyone else needs a real
  * membership row; organization membership alone no longer implies project
  * access.
  *
