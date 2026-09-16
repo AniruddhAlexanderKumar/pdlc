@@ -116,4 +116,114 @@ describe("Sidebar", () => {
     expect(await screen.findByRole("button", { name: "Show all modules" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Traceability/ })).not.toBeInTheDocument();
   });
+
+  it("pinning a module moves it into its own Pinned section, and survives Simplify", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    expect(screen.queryByText("Pinned")).not.toBeInTheDocument();
+
+    // Traceability is weekly-tier — normally visible, but the first thing
+    // Simplify collapses away, which is exactly why it is a real test of
+    // "pinned survives Simplify" and not just "pinned is visible".
+    await user.click(screen.getByRole("button", { name: "Pin Traceability" }));
+
+    expect(screen.getByText("Pinned")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unpin Traceability" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Simplify" }));
+    expect(screen.getByRole("link", { name: /Traceability/ })).toBeInTheDocument();
+  });
+
+  it("unpinning removes the module from the Pinned section", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    await user.click(screen.getByRole("button", { name: "Pin Traceability" }));
+    expect(screen.getByText("Pinned")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Unpin Traceability" }));
+    expect(screen.queryByText("Pinned")).not.toBeInTheDocument();
+  });
+
+  it("a pinned module is remembered across a fresh mount", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    const user = userEvent.setup();
+    const { unmount } = render(<Sidebar />);
+
+    await user.click(screen.getByRole("button", { name: "Pin Traceability" }));
+    unmount();
+
+    render(<Sidebar />);
+    expect(await screen.findByText("Pinned")).toBeInTheDocument();
+  });
+
+  it("a module with no default sidebar residency (Suppliers — occasional tier, no group) can be pinned via stored preference (the Settings page, in practice), and then appears even under Simplify", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    window.localStorage.setItem(
+      "pdlc:nav-customization",
+      JSON.stringify({ hidden: [], pinned: ["/suppliers"] }),
+    );
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    expect(screen.getByRole("link", { name: /Suppliers/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Simplify" }));
+    expect(screen.getByRole("link", { name: /Suppliers/ })).toBeInTheDocument();
+  });
+
+  it("a module hidden via stored preference (the Settings page, in practice) is absent everywhere, including Command Center's own residency exception never applying to it", () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    window.localStorage.setItem(
+      "pdlc:nav-customization",
+      JSON.stringify({ hidden: ["/risks"], pinned: [] }),
+    );
+    render(<Sidebar />);
+
+    expect(screen.queryByRole("link", { name: /^Risks$/ })).not.toBeInTheDocument();
+  });
+
+  it("Command Center can never be hidden or pinned, even via directly-written storage", () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    window.localStorage.setItem(
+      "pdlc:nav-customization",
+      JSON.stringify({ hidden: ["/command-center"], pinned: ["/command-center"] }),
+    );
+    render(<Sidebar />);
+
+    expect(screen.getByRole("link", { name: /Command Center/ })).toBeInTheDocument();
+    // Not duplicated into a Pinned section either — it stays in its one,
+    // fixed, always-visible spot.
+    expect(screen.queryByText("Pinned")).not.toBeInTheDocument();
+  });
+
+  it("a hidden module disappears from the outside-project picker list too — one preference, everywhere the module could appear", () => {
+    pathname = "/dashboard";
+    window.localStorage.setItem(
+      "pdlc:nav-customization",
+      JSON.stringify({ hidden: ["/risks"], pinned: [] }),
+    );
+    render(<Sidebar />);
+
+    expect(screen.queryByRole("link", { name: /^Risks$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Requirements$/ })).toBeInTheDocument();
+  });
+
+  it("the pin toggle only appears once the sidebar is expanded, not on the collapsed icon rail", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    expect(screen.getByRole("button", { name: "Pin Traceability" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+
+    expect(screen.queryByRole("button", { name: "Pin Traceability" })).not.toBeInTheDocument();
+  });
 });

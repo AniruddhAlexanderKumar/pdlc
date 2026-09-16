@@ -85,6 +85,36 @@ boundary is a scope decision, not an oversight: retrofitting every string
 in the product was judged too large and too easy to get subtly wrong to
 attempt in one pass.
 
+## Personal navigation customization
+
+Layered on top of organization terminology, but a genuinely separate axis:
+`useNavCustomization` (`(workspace)/_components/nav-customization.ts`) is a
+per-browser, `useStoredJson`-backed preference — same tradeoff `useTheme`
+and the sidebar's own "Simplify" flag already make — holding two disjoint
+sets of module `href`s: `hidden` and `pinned`. A module is never in both;
+`setHidden`/`setPinned` each clear the other set's membership for that
+href on write, so the pair can never drift into a state with no coherent
+rendering.
+
+Both the sidebar (`sidebar.tsx`) and the command palette
+(`(workspace)/_components/command-palette.tsx`, `Ctrl`/`Cmd`+`K`) read the
+same hook, so "removed" means removed from every place a module could
+appear, not just one list left stale. Pinning is the more interesting
+half: it is the *only* way a `group: null` module (Suppliers, Members —
+see `project-modules.ts`'s own ranking) ever gains sidebar residency at
+all, and it survives what "Simplify" would otherwise collapse. One module,
+`/command-center`, is hard-excluded from both operations
+(`ALWAYS_VISIBLE_HREF`) — hiding the front door would strand navigation,
+and pinning something already always shown is meaningless.
+
+The command palette itself searches navigation *destinations* only
+(modules, `/settings`, `/organization`, ...), never a full-text index of
+engineering data — this product has no search endpoint for that, and the
+palette does not pretend otherwise. It resolves labels through the same
+`resolveTerminologyLabel` the sidebar uses, so a renamed module is
+findable under the name an organization actually sees, not this product's
+internal default.
+
 ## Relationship strategy
 
 Traceability lives in explicit relationship tables, so every edge is queryable

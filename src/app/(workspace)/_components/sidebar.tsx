@@ -9,6 +9,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   SlidersHorizontal,
+  Star,
   Waypoints,
 } from "lucide-react";
 import type { TerminologyLabelKey } from "@/domain";
@@ -16,11 +17,12 @@ import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useStoredFlag } from "@/lib/use-stored-flag";
 import { MODULE_GROUPS, PROJECT_MODULES } from "../projects/_components/project-modules";
+import { ALWAYS_VISIBLE_HREF, useNavCustomization } from "./nav-customization";
 import { NAV_ITEMS } from "./nav-items";
 import { useModuleLabel } from "./terminology-context";
 
-/** Matches `/projects/{id}` at the start of a path and captures the id. */
-const CURRENT_PROJECT_PATTERN = /^\/projects\/([^/]+)(?:\/|$)/;
+/** Matches `/projects/{id}` at the start of a path and captures the id. Exported so the command palette can resolve the same "which project am I in" question without a second, possibly-drifting regex. */
+export const CURRENT_PROJECT_PATTERN = /^\/projects\/([^/]+)(?:\/|$)/;
 
 /** Exported so the Settings page (`/settings`) can surface and control the same preference — one key, one source of truth, two places to reach it. */
 export const SIMPLIFY_STORAGE_KEY = "pdlc:nav-simplified";
@@ -38,37 +40,80 @@ interface Entry {
   labelKey?: TerminologyLabelKey;
 }
 
+/**
+ * One navigation destination, plus — for project modules only — a pin
+ * toggle: a small star, revealed on hover or keyboard focus so it never
+ * competes with the label at rest, that adds or removes this module from
+ * the "Pinned" section without leaving the page. Removing a module
+ * entirely (the other half of add/remove) is deliberately *not* here: that
+ * lives on the Settings page instead, as a full checklist a reader can see
+ * all of at once, rather than a click a reader could make by accident with
+ * no immediately visible undo.
+ */
 function NavLink({
   entry,
   collapsed,
   isActive,
   emphasized = false,
+  pinned,
+  onTogglePin,
 }: {
   entry: Entry;
   collapsed: boolean;
   isActive: boolean;
   emphasized?: boolean;
+  pinned?: boolean;
+  onTogglePin?: () => void;
 }) {
   const Icon = entry.icon;
   const label = useModuleLabel(entry.labelKey, entry.label);
+  const showPin = onTogglePin !== undefined && !collapsed;
   return (
-    <Link
-      href={entry.href}
-      title={collapsed ? label : undefined}
-      aria-current={isActive ? "page" : undefined}
-      className={cn(
-        "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
-        emphasized ? "font-semibold" : "font-medium",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        isActive
-          ? "bg-accent text-accent-foreground"
-          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+    <div className="group/navitem relative flex items-center">
+      <Link
+        href={entry.href}
+        title={collapsed ? label : undefined}
+        aria-current={isActive ? "page" : undefined}
+        className={cn(
+          "flex flex-1 items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+          emphasized ? "font-semibold" : "font-medium",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          showPin && "pr-7",
+          isActive
+            ? "bg-accent text-accent-foreground"
+            : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+        )}
+      >
+        <Icon className="size-4 shrink-0" aria-hidden="true" />
+        {!collapsed && <span className="truncate">{label}</span>}
+      </Link>
+      {showPin && (
+        <button
+          type="button"
+          onClick={(event) => {
+            // The button sits visually inside the link's row but is a real
+            // sibling, not a descendant — this only guards against a click
+            // also bubbling to whatever wraps both, not against navigating
+            // the link itself.
+            event.preventDefault();
+            onTogglePin();
+          }}
+          aria-pressed={pinned}
+          aria-label={pinned ? `Unpin ${label}` : `Pin ${label}`}
+          title={pinned ? "Unpin" : "Pin to sidebar"}
+          className={cn(
+            "absolute right-1 flex size-6 shrink-0 items-center justify-center rounded-sm transition-opacity",
+            "hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            pinned
+              ? "text-primary opacity-100"
+              : "text-muted-foreground opacity-0 group-hover/navitem:opacity-100 focus-visible:opacity-100",
+          )}
+        >
+          <Star className={cn("size-3.5", pinned && "fill-current")} aria-hidden="true" />
+        </button>
       )}
-    >
-      <Icon className="size-4 shrink-0" aria-hidden="true" />
-      {!collapsed && <span className="truncate">{label}</span>}
-    </Link>
+    </div>
   );
 }
 
@@ -94,15 +139,27 @@ function NavLink({
  * what an engineer is trying to do — Understand what changed, Define what's
  * required, Decide and record why, Prove it, manage Change, Certify — never
  * by which table a record lives in. Two modules (Suppliers, Members) are
- * deliberately absent here: occasional, not daily/weekly work, reachable
- * from the project overview grid and Command Center's own sections instead
- * of permanent sidebar residency (see project-modules.ts's module ranking).
+ * deliberately absent here by default: occasional, not daily/weekly work,
+ * reachable from the project overview grid and Command Center's own
+ * sections instead of permanent sidebar residency (see project-modules.ts's
+ * module ranking) — unless a reader pins one, below.
  *
  * The "Simplify" toggle applies that same ranking one step further: it
  * collapses every group down to its daily-tier members only (a handful of
  * links), for anyone who wants less to look at than the full six groups —
  * a real per-browser preference (localStorage), not a second navigation
  * mode with its own routes to keep in sync.
+ *
+ * `useNavCustomization` (see `nav-customization.ts`) layers two more
+ * per-browser choices on top of that ranking, in both directions: a reader
+ * can *remove* a module from every list here entirely (via the Settings
+ * page's full checklist — a deliberately heavier, more visible action than
+ * anything reachable from the sidebar itself), or *pin* one — including an
+ * occasional-tier module like Suppliers that has no default sidebar
+ * residency at all — into its own "Pinned" section, immune to what
+ * Simplify would otherwise collapse. Hidden and pinned are mutually
+ * exclusive by construction (see that hook), so a module rendered here is
+ * never in more than one of: its normal group, Pinned, or nowhere.
  *
  * Collapses to the icon rail by default on a narrow viewport — a desktop
  * engineering tool does not need a full mobile drawer pattern, but it must
@@ -118,10 +175,15 @@ function Sidebar() {
   const currentProjectId = pathname.match(CURRENT_PROJECT_PATTERN)?.[1] ?? null;
 
   const [simplified, setSimplified] = useStoredFlag(SIMPLIFY_STORAGE_KEY);
+  const { hidden, pinned, setPinned } = useNavCustomization();
 
   function toggleSimplified() {
     setSimplified(!simplified);
   }
+
+  const pinnedModules = PROJECT_MODULES.filter(
+    (module) => module.href !== ALWAYS_VISIBLE_HREF && pinned.has(module.href) && !hidden.has(module.href),
+  );
 
   function isActiveEntry(href: string, exact: boolean): boolean {
     return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
@@ -197,6 +259,36 @@ function Sidebar() {
               isActive={isActiveEntry(`/projects/${currentProjectId}`, true)}
             />
 
+            {pinnedModules.length > 0 && (
+              <>
+                <div className="my-1 border-t border-border" role="separator" />
+                {!collapsed && (
+                  <span className="px-2.5 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    Pinned
+                  </span>
+                )}
+                {pinnedModules.map((module) => {
+                  const href = `/projects/${currentProjectId}${module.href}`;
+                  return (
+                    <NavLink
+                      key={module.href}
+                      entry={{
+                        key: module.href,
+                        label: module.label,
+                        href,
+                        icon: module.icon,
+                        labelKey: module.labelKey,
+                      }}
+                      collapsed={collapsed}
+                      isActive={isActiveEntry(href, false)}
+                      pinned
+                      onTogglePin={() => setPinned(module.href, false)}
+                    />
+                  );
+                })}
+              </>
+            )}
+
             <button
               type="button"
               onClick={toggleSimplified}
@@ -216,7 +308,10 @@ function Sidebar() {
             {MODULE_GROUPS.map((group) => {
               const members = PROJECT_MODULES.filter(
                 (module) =>
-                  module.group === group.id && (!simplified || module.tier === "daily"),
+                  module.group === group.id &&
+                  !hidden.has(module.href) &&
+                  !pinned.has(module.href) &&
+                  (!simplified || module.tier === "daily"),
               );
               if (members.length === 0) return null;
               return (
@@ -235,6 +330,8 @@ function Sidebar() {
                         entry={{ key: module.href, label: module.label, href, icon: module.icon, labelKey: module.labelKey }}
                         collapsed={collapsed}
                         isActive={isActiveEntry(href, false)}
+                        pinned={false}
+                        onTogglePin={() => setPinned(module.href, true)}
                       />
                     );
                   })}
@@ -249,7 +346,7 @@ function Sidebar() {
                 Modules
               </span>
             )}
-            {PICKER_ITEMS.map((item) => (
+            {PICKER_ITEMS.filter((item) => !hidden.has(item.href)).map((item) => (
               <NavLink
                 key={item.href}
                 entry={{ key: item.href, label: item.label, href: item.href, icon: item.icon, labelKey: item.labelKey }}
