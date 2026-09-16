@@ -32,6 +32,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select } from "@/components/ui/select";
 import { cn, formatIsoDate } from "@/lib/utils";
+import { useLayoutDensity } from "@/lib/use-layout-density";
 import { COMMAND_CENTER_SECTIONS, useCommandCenterLayout } from "./use-command-center-layout";
 
 /**
@@ -122,6 +123,15 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
  * Center sections (see `use-command-center-layout.ts` for exactly which
  * three are excluded, and why). A popover, not a navigation away from the
  * page, so a reader sees the effect of a toggle immediately behind it.
+ *
+ * A deliberately different concern from the "Layout" density choice in
+ * Settings' Personalization section (`useLayoutDensity` — comfortable vs.
+ * compact column count, read independently by `ProjectHeaderCard`,
+ * `AtAGlanceStrip`, `ReadinessSection`, and `RisksIssuesSection` below):
+ * this popover changes *which* sections show, scoped to this one project;
+ * that preference changes how densely they're arranged, the same
+ * everywhere. Mixing the two into one control would make a global choice
+ * look like a per-project one.
  */
 function LayoutCustomizer({ layout }: { layout: ReturnType<typeof useCommandCenterLayout> }) {
   const hasHidden = layout.hidden.size > 0;
@@ -174,6 +184,7 @@ function LayoutCustomizer({ layout }: { layout: ReturnType<typeof useCommandCent
 }
 
 function ProjectHeaderCard({ project }: { project: CommandCenterDto["project"] }) {
+  const [density] = useLayoutDensity();
   return (
     <Card>
       <CardHeader>
@@ -181,7 +192,12 @@ function ProjectHeaderCard({ project }: { project: CommandCenterDto["project"] }
         {project.description && <CardDescription>{project.description}</CardDescription>}
       </CardHeader>
       <CardContent>
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+        <dl
+          className={cn(
+            "grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2",
+            density === "comfortable" && "lg:grid-cols-4",
+          )}
+        >
           <Detail term="Status">
             <Badge variant="outline">{project.status}</Badge>
           </Detail>
@@ -236,8 +252,14 @@ function StatTile({ label, value, severity }: { label: string; value: number; se
  * sixth "overall" tile that would imply one exists.
  */
 function AtAGlanceStrip({ data }: { data: CommandCenterDto }) {
+  const [density] = useLayoutDensity();
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div
+      className={cn(
+        "grid grid-cols-2 gap-3 sm:grid-cols-3",
+        density === "comfortable" && "lg:grid-cols-5",
+      )}
+    >
       <StatTile
         label="Needs attention"
         value={data.attentionItems.length}
@@ -390,12 +412,14 @@ function Detail({ term, children }: { term: string; children: React.ReactNode })
 
 function ReadinessSection({ projectId, data }: { projectId: string; data: CommandCenterDto }) {
   const { technical, verification, certification, changeImpact, assumptions, drift } = data.readiness;
+  const [density] = useLayoutDensity();
+  const gridClass = cn("grid grid-cols-1 gap-4", density === "comfortable" && "lg:grid-cols-2");
 
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Readiness</h2>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className={gridClass}>
         <Card>
           <CardHeader>
             <CardTitle>Technical readiness</CardTitle>
@@ -563,7 +587,7 @@ function ReadinessSection({ projectId, data }: { projectId: string; data: Comman
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className={gridClass}>
         <Card>
           <CardHeader>
             <CardTitle>Assumptions</CardTitle>
@@ -675,9 +699,10 @@ function ConfigurationSection({ data }: { data: CommandCenterDto }) {
 
 function RisksIssuesSection({ data }: { data: CommandCenterDto }) {
   const { risks, issues } = data;
+  const [density] = useLayoutDensity();
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className={cn("grid grid-cols-1 gap-4", density === "comfortable" && "lg:grid-cols-2")}>
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">

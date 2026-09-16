@@ -1,7 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, EyeOff, Laptop, ListTree, Moon, RotateCcw, Star, Sun } from "lucide-react";
+import {
+  Columns2,
+  Eye,
+  EyeOff,
+  Laptop,
+  ListTree,
+  Moon,
+  RectangleHorizontal,
+  RotateCcw,
+  Star,
+  Sun,
+} from "lucide-react";
+import type { Density } from "@/components/data-grid/data-grid-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +27,7 @@ import {
   type ProjectModule,
 } from "../../projects/_components/project-modules";
 import { useStoredFlag } from "@/lib/use-stored-flag";
+import { useLayoutDensity } from "@/lib/use-layout-density";
 import { type ThemePreference, useTheme } from "@/lib/use-theme";
 
 const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string; icon: typeof Sun }> = [
@@ -23,146 +36,234 @@ const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string; icon
   { value: "dark", label: "Dark", icon: Moon },
 ];
 
+const DENSITY_OPTIONS: ReadonlyArray<{
+  value: Density;
+  label: string;
+  description: string;
+  icon: typeof Columns2;
+}> = [
+  {
+    value: "comfortable",
+    label: "Comfortable",
+    description: "More columns, more breathing room — the default.",
+    icon: Columns2,
+  },
+  {
+    value: "compact",
+    label: "Compact",
+    description: "One column, tighter spacing — more fits without scrolling.",
+    icon: RectangleHorizontal,
+  },
+];
+
 /** Every customizable module, grouped the same way the sidebar itself groups them, plus an "Other" bucket for the two that have no permanent sidebar residency by default (Suppliers, Members) — pinning from here is the only way either ever appears in the sidebar at all. Command Center is excluded everywhere: it can be neither hidden nor pinned. */
 const CUSTOMIZABLE_MODULES = PROJECT_MODULES.filter((module) => module.href !== ALWAYS_VISIBLE_HREF);
 const OTHER_MODULES = CUSTOMIZABLE_MODULES.filter((module) => module.group === null);
 
 /**
- * Personal preferences — per-browser, not synced to the account (same
+ * Two sections, deliberately separated: everything under "Personalization"
+ * is a personal, per-browser preference — not synced to the account (same
  * tradeoff `use-stored-flag.ts` and `use-theme.ts` each explain on their
- * own terms). Organization-wide settings (engineering industry, terminology)
- * live on the Organization page instead — a different owner-gated,
- * account-wide concern, not a personal one, so this page only links to it
- * rather than duplicating that form here.
+ * own terms), reset to defaults on a new device. "Organization-wide" is
+ * the opposite in every respect — engineering industry and terminology
+ * are owner-set once and apply to everyone — so it only links out to
+ * where that actually lives (the Organization page) rather than
+ * duplicating that form here, where it would misleadingly read as
+ * personal too.
  */
 export function SettingsView({ isOwner }: { isOwner: boolean }) {
   const [theme, setTheme] = useTheme();
+  const [density, setDensity] = useLayoutDensity();
   const [simplified, setSimplified] = useStoredFlag(SIMPLIFY_STORAGE_KEY);
   const { hidden, pinned, setHidden, setPinned, reset: resetNavCustomization } = useNavCustomization();
   const hasCustomization = hidden.size > 0 || pinned.size > 0;
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Appearance</CardTitle>
-          <CardDescription>
-            Remembered in this browser only — sign in from another device and it starts back at
-            &ldquo;Match system&rdquo; there.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="inline-flex overflow-hidden rounded-md border border-input" role="radiogroup" aria-label="Theme">
-            {THEME_OPTIONS.map((option, index) => {
-              const Icon = option.icon;
-              const isActive = theme === option.value;
+    <div className="flex flex-col gap-8">
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">Personalization</h2>
+          <p className="text-sm text-muted-foreground">
+            How this application looks and behaves for you specifically, in this browser.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription>
+              Remembered in this browser only — sign in from another device and it starts back at
+              &ldquo;Match system&rdquo; there.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="inline-flex overflow-hidden rounded-md border border-input" role="radiogroup" aria-label="Theme">
+              {THEME_OPTIONS.map((option, index) => {
+                const Icon = option.icon;
+                const isActive = theme === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={isActive}
+                    onClick={() => setTheme(option.value)}
+                    className={cn(
+                      "flex h-9 items-center gap-2 px-3 text-sm font-medium transition-colors",
+                      index > 0 && "border-l border-input",
+                      isActive
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground hover:bg-secondary/50",
+                    )}
+                  >
+                    <Icon className="size-4" aria-hidden="true" />
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Layout</CardTitle>
+            <CardDescription>
+              How densely Command Center arranges its own sections. A grid a reader has already
+              set an explicit density on (any data table&apos;s own density toggle) keeps that
+              choice regardless of what this becomes — this only seeds a table&apos;s density the
+              first time you open it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-2 sm:flex-row" role="radiogroup" aria-label="Layout density">
+              {DENSITY_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const isActive = density === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={isActive}
+                    onClick={() => setDensity(option.value)}
+                    className={cn(
+                      "flex flex-1 items-start gap-2.5 rounded-md border p-3 text-left transition-colors",
+                      isActive
+                        ? "border-primary bg-accent"
+                        : "border-input hover:bg-secondary/50",
+                    )}
+                  >
+                    <Icon
+                      className={cn("mt-0.5 size-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")}
+                      aria-hidden="true"
+                    />
+                    <span className="flex flex-col gap-0.5">
+                      <span className={cn("text-sm font-medium", isActive ? "text-accent-foreground" : "text-foreground")}>
+                        {option.label}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ListTree className="size-4" aria-hidden="true" />
+              Navigation
+            </CardTitle>
+            <CardDescription>
+              The same &ldquo;Simplify&rdquo; control the sidebar itself has, surfaced here too —
+              collapses project navigation down to daily-tier modules only.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <label className="flex w-fit items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={simplified}
+                onChange={(event) => setSimplified(event.target.checked)}
+                className="size-4 rounded border-input"
+              />
+              Simplify project navigation
+            </label>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <div>
+              <CardTitle>Modules</CardTitle>
+              <CardDescription>
+                Remove a module from every sidebar it would otherwise appear in, or pin one — even
+                Suppliers or Members, which have no permanent sidebar spot by default — so it always
+                shows there, immune to Simplify. A module is never both at once.
+              </CardDescription>
+            </div>
+            {hasCustomization && (
+              <Button variant="outline" size="sm" onClick={resetNavCustomization} className="shrink-0">
+                <RotateCcw aria-hidden="true" />
+                Reset
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5">
+            {MODULE_GROUPS.map((group) => {
+              const members = CUSTOMIZABLE_MODULES.filter((module) => module.group === group.id);
+              if (members.length === 0) return null;
               return (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={isActive}
-                  onClick={() => setTheme(option.value)}
-                  className={cn(
-                    "flex h-9 items-center gap-2 px-3 text-sm font-medium transition-colors",
-                    index > 0 && "border-l border-input",
-                    isActive
-                      ? "bg-secondary text-foreground"
-                      : "text-muted-foreground hover:bg-secondary/50",
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden="true" />
-                  {option.label}
-                </button>
+                <ModuleGroupList
+                  key={group.id}
+                  label={group.label}
+                  modules={members}
+                  hidden={hidden}
+                  pinned={pinned}
+                  setHidden={setHidden}
+                  setPinned={setPinned}
+                />
               );
             })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ListTree className="size-4" aria-hidden="true" />
-            Navigation
-          </CardTitle>
-          <CardDescription>
-            The same &ldquo;Simplify&rdquo; control the sidebar itself has, surfaced here too —
-            collapses project navigation down to daily-tier modules only.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <label className="flex w-fit items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={simplified}
-              onChange={(event) => setSimplified(event.target.checked)}
-              className="size-4 rounded border-input"
+            <ModuleGroupList
+              label="Other — not shown by default"
+              modules={OTHER_MODULES}
+              hidden={hidden}
+              pinned={pinned}
+              setHidden={setHidden}
+              setPinned={setPinned}
             />
-            Simplify project navigation
-          </label>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </section>
 
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle>Modules</CardTitle>
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">Organization-wide</h2>
+          <p className="text-sm text-muted-foreground">
+            Set once, applied to everyone in your organization — not a personal preference.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization</CardTitle>
             <CardDescription>
-              Remove a module from every sidebar it would otherwise appear in, or pin one — even
-              Suppliers or Members, which have no permanent sidebar spot by default — so it always
-              shows there, immune to Simplify. A module is never both at once.
+              Engineering industry and terminology apply to everyone in your organization, so they
+              live on a shared page rather than here.
+              {!isOwner && " Only an organization owner can change them."}
             </CardDescription>
-          </div>
-          {hasCustomization && (
-            <Button variant="outline" size="sm" onClick={resetNavCustomization} className="shrink-0">
-              <RotateCcw aria-hidden="true" />
-              Reset
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          {MODULE_GROUPS.map((group) => {
-            const members = CUSTOMIZABLE_MODULES.filter((module) => module.group === group.id);
-            if (members.length === 0) return null;
-            return (
-              <ModuleGroupList
-                key={group.id}
-                label={group.label}
-                modules={members}
-                hidden={hidden}
-                pinned={pinned}
-                setHidden={setHidden}
-                setPinned={setPinned}
-              />
-            );
-          })}
-          <ModuleGroupList
-            label="Other — not shown by default"
-            modules={OTHER_MODULES}
-            hidden={hidden}
-            pinned={pinned}
-            setHidden={setHidden}
-            setPinned={setPinned}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Organization</CardTitle>
-          <CardDescription>
-            Engineering industry and terminology apply to everyone in your organization, so they
-            live on a shared page rather than here.
-            {!isOwner && " Only an organization owner can change them."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Link href="/organization" className="text-sm text-primary hover:underline">
-            Go to organization settings →
-          </Link>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <Link href="/organization" className="text-sm text-primary hover:underline">
+              Go to organization settings →
+            </Link>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }

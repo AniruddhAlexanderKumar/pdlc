@@ -23,10 +23,25 @@ import * as React from "react";
  * changed — `useSyncExternalStore` re-renders on every reference change, and
  * `JSON.parse` mints a new object on every call, so a naive read-and-parse
  * here would re-render on every single render (in the worst case, forever).
- * `cache` remembers the last raw string parsed per key and reuses the parsed
- * result until the raw string itself actually changes.
+ * `cache` remembers the last raw string *and fallback* per key and reuses
+ * the same value only while both are unchanged.
+ *
+ * `fallback` is part of that cache key, not just `raw` — deliberately,
+ * found necessary by a genuinely failing test rather than added
+ * speculatively: a caller whose fallback is itself derived from other
+ * state (`useDataGridState` seeding a never-touched grid's density from
+ * the reader's global preference, for instance) needs a change in that
+ * *fallback* to actually take effect while `raw` stays `null` the whole
+ * time. Comparing by reference (`===`), not deep equality — every caller
+ * either passes a primitive (trivially `===`-stable by value) or memoizes
+ * an object/array fallback (`React.useMemo`, or a module-level constant),
+ * exactly so this comparison means what it should. A caller that instead
+ * passes a fresh literal (`[]`, `{}`) inline on every render defeats this
+ * cache and risks violating `useSyncExternalStore`'s stability contract —
+ * not this module's bug to silently paper over, so it isn't; keep
+ * fallbacks stable at the call site instead.
  */
-const cache = new Map<string, { raw: string | null; value: unknown }>();
+const cache = new Map<string, { raw: string | null; fallback: unknown; value: unknown }>();
 
 function changeEventName(key: string): string {
   return `pdlc:local-json-changed:${key}`;
@@ -43,7 +58,7 @@ function readRaw(key: string): string | null {
 function readCached<T>(key: string, fallback: T): T {
   const raw = readRaw(key);
   const cached = cache.get(key);
-  if (cached && cached.raw === raw) {
+  if (cached && cached.raw === raw && Object.is(cached.fallback, fallback)) {
     return cached.value as T;
   }
 
@@ -57,7 +72,7 @@ function readCached<T>(key: string, fallback: T): T {
       value = fallback;
     }
   }
-  cache.set(key, { raw, value });
+  cache.set(key, { raw, fallback, value });
   return value;
 }
 
@@ -91,7 +106,7 @@ export function useStoredJson<T>(key: string, fallback: T): [T, (value: T | ((pr
         // subscriber for the rest of this session, it just will not be
         // remembered on the next visit (private browsing, quota exceeded).
       }
-      cache.set(key, { raw, value: resolved });
+      cache.set(key, { raw, fallback, value: resolved });
       window.dispatchEvent(new Event(changeEventName(key)));
     },
     [key, fallback],

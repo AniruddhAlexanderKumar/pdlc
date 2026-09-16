@@ -27,6 +27,17 @@ export const COMMAND_CENTER_SECTIONS = [
 export type CommandCenterSectionKey = (typeof COMMAND_CENTER_SECTIONS)[number]["key"];
 
 /**
+ * A stable, module-level empty array — never a fresh `[]` literal inline in
+ * the hook body. `useStoredJson`'s cache keys on this reference as well as
+ * the raw stored string (see its own comment on why), so a new array
+ * object on every render would defeat that cache and, worse, break
+ * `useSyncExternalStore`'s "return a referentially stable snapshot when
+ * nothing changed" contract — found exactly that way, by a genuinely
+ * failing test, not assumed safe.
+ */
+const NO_HIDDEN_SECTIONS: readonly CommandCenterSectionKey[] = [];
+
+/**
  * Per-browser (localStorage), same tradeoff every other personal
  * preference in this app already makes — remembered on this device, not
  * synced to the account. Deliberately per-*project*: the key includes
@@ -35,9 +46,9 @@ export type CommandCenterSectionKey = (typeof COMMAND_CENTER_SECTIONS)[number]["
  * carry a "Suppliers hidden" preference into a project that has some).
  */
 export function useCommandCenterLayout(projectId: string) {
-  const [hiddenArray, setHiddenArray] = useStoredJson<CommandCenterSectionKey[]>(
+  const [hiddenArray, setHiddenArray] = useStoredJson<readonly CommandCenterSectionKey[]>(
     `${COMMAND_CENTER_LAYOUT_STORAGE_KEY}:${projectId}`,
-    [],
+    NO_HIDDEN_SECTIONS,
   );
 
   const hidden = React.useMemo(() => new Set(hiddenArray), [hiddenArray]);

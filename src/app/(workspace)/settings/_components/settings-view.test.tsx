@@ -111,4 +111,37 @@ describe("SettingsView", () => {
     render(<SettingsView isOwner />);
     expect(screen.queryByText(/Only an organization owner can change them/)).not.toBeInTheDocument();
   });
+
+  it("groups personal preferences under a 'Personalization' heading, separate from the organization-wide one", () => {
+    render(<SettingsView isOwner={false} />);
+    expect(screen.getByRole("heading", { name: "Personalization" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Organization-wide" })).toBeInTheDocument();
+  });
+
+  it("defaults Layout to Comfortable", () => {
+    render(<SettingsView isOwner={false} />);
+    expect(screen.getByRole("radio", { name: /Comfortable/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /Compact/ })).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("choosing Compact persists the same preference Command Center reads", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView isOwner={false} />);
+
+    await user.click(screen.getByRole("radio", { name: /Compact/ }));
+
+    expect(screen.getByRole("radio", { name: /Compact/ })).toHaveAttribute("aria-checked", "true");
+    expect(window.localStorage.getItem("pdlc:layout-density")).toBe(JSON.stringify("compact"));
+  });
+
+  it("Layout choice is remembered across a fresh mount", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<SettingsView isOwner={false} />);
+
+    await user.click(screen.getByRole("radio", { name: /Compact/ }));
+    unmount();
+
+    render(<SettingsView isOwner={false} />);
+    expect(await screen.findByRole("radio", { name: /Compact/ })).toHaveAttribute("aria-checked", "true");
+  });
 });

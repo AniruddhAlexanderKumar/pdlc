@@ -305,4 +305,39 @@ describe("CommandCenterView", () => {
 
     expect(screen.queryByRole("checkbox", { name: /attention/i })).not.toBeInTheDocument();
   });
+
+  /** Walks up from `el` to the nearest ancestor whose own class list includes "grid". */
+  function closestGrid(el: HTMLElement): HTMLElement | null {
+    let node: HTMLElement | null = el;
+    while (node) {
+      if (node.classList.contains("grid")) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  it("defaults to the comfortable multi-column layout when no global preference is set", async () => {
+    routeGets(baseView());
+    render(<CommandCenterView projectId={PROJECT_ID} />);
+
+    const heading = await screen.findByRole("heading", { name: "Technical readiness" });
+    const grid = closestGrid(heading);
+    expect(grid?.className).toMatch(/lg:grid-cols-2/);
+  });
+
+  it("the global 'compact' Layout preference (Settings → Personalization) reduces Command Center's own grids to one column", async () => {
+    window.localStorage.setItem("pdlc:layout-density", JSON.stringify("compact"));
+    routeGets(baseView());
+    render(<CommandCenterView projectId={PROJECT_ID} />);
+
+    const heading = await screen.findByRole("heading", { name: "Technical readiness" });
+    const grid = closestGrid(heading);
+    expect(grid).not.toBeNull();
+    expect(grid?.className).not.toMatch(/lg:grid-cols-2/);
+
+    const risksHeading = screen.getByRole("heading", { name: "Risks" });
+    const risksGrid = closestGrid(risksHeading);
+    expect(risksGrid).not.toBeNull();
+    expect(risksGrid?.className).not.toMatch(/lg:grid-cols-2/);
+  });
 });

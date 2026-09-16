@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useLayoutDensity } from "@/lib/use-layout-density";
 import { useStoredJson } from "@/lib/use-stored-json";
 import {
   DEFAULT_GRID_STATE,
@@ -21,7 +22,17 @@ import {
  * columns, or one module's saved layout will bleed into another's.
  */
 export function useDataGridState<T>(storageKey: string, columns: DataGridColumn<T>[]) {
-  const fallback = React.useMemo(() => DEFAULT_GRID_STATE, []);
+  // A grid this browser has never touched seeds its density from the
+  // reader's global "Layout" preference (Settings → Personalization)
+  // instead of a hardcoded "comfortable" — but only ever at that first
+  // read: `useStoredJson`'s fallback is consulted only when nothing is
+  // stored yet for *this* grid's own key, so a grid with its own explicit
+  // density keeps it even if the global preference later changes.
+  const [globalDensity] = useLayoutDensity();
+  const fallback = React.useMemo(
+    () => ({ ...DEFAULT_GRID_STATE, density: globalDensity }),
+    [globalDensity],
+  );
   const [stored, setStored] = useStoredJson<DataGridPersistedState>(`pdlc:grid:${storageKey}`, fallback);
 
   // The persisted column order only ever names columns that existed when it
