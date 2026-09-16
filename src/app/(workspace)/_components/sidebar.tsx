@@ -8,6 +8,7 @@ import {
   LayoutGrid,
   PanelLeftClose,
   PanelLeftOpen,
+  Gauge,
   SlidersHorizontal,
   Star,
   Waypoints,
@@ -167,7 +168,7 @@ function NavLink({
  * and stays reactive to the viewport until the user explicitly toggles it,
  * at which point their own choice wins regardless of width.
  */
-function Sidebar() {
+function Sidebar({ showPortfolio = false }: { showPortfolio?: boolean }) {
   const pathname = usePathname();
   const isNarrowViewport = useMediaQuery("(max-width: 767px)");
   const [manualCollapsed, setManualCollapsed] = React.useState<boolean | null>(null);
@@ -229,6 +230,20 @@ function Sidebar() {
             />
           );
         })}
+
+        {/*
+          Only rendered for a reader who can actually reach it — a member
+          seeing an "Executive" link that 404s would be worse than not
+          knowing the page exists, which is the same reason the page
+          itself answers 404 rather than 403.
+        */}
+        {showPortfolio && (
+          <NavLink
+            entry={{ key: "/executive", label: "Executive", href: "/executive", icon: Gauge }}
+            collapsed={collapsed}
+            isActive={isActiveEntry("/executive", false)}
+          />
+        )}
 
         <div className="my-1 border-t border-border" role="separator" />
 

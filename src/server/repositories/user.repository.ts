@@ -74,6 +74,30 @@ export async function createCredential(
   await client.userCredential.create({ data: input });
 }
 
+/**
+ * Sets one user's organization role, scoped by `organizationId` as well as
+ * `userId` so a user id from another tenant can never be updated through
+ * this path. Returns `null` when no row in this organization matched,
+ * which the service turns into a 404 rather than reporting a successful
+ * write that did not happen.
+ */
+export async function updateOrganizationRole(
+  input: { userId: string; organizationId: string; role: OrganizationRole },
+  client: DbClient = prisma,
+): Promise<{ id: string; name: string; organizationRole: OrganizationRole } | null> {
+  const result = await client.user.updateMany({
+    where: { id: input.userId, organizationId: input.organizationId },
+    data: { organizationRole: input.role },
+  });
+  if (result.count === 0) return null;
+
+  const user = await client.user.findFirst({
+    where: { id: input.userId, organizationId: input.organizationId },
+    select: { id: true, name: true, organizationRole: true },
+  });
+  return user;
+}
+
 export interface OrganizationMember {
   id: string;
   name: string;
@@ -140,12 +164,17 @@ export async function isMemberOfOrganization(
  * user id from a different organization (which should never reach here
  * given `OrganizationContext`'s own guarantees) resolves to `null` rather
  * than another tenant's role.
+ *
+ * Typed as the real `OrganizationRole` union rather than `string`: this
+ * value now selects an implicit project role (`implicitProjectRole`), so a
+ * role the domain does not know about should fail to compile here rather
+ * than fall through a comparison at runtime.
  */
 export async function getOrganizationRole(
   userId: string,
   organizationId: string,
   client: DbClient = prisma,
-): Promise<string | null> {
+): Promise<OrganizationRole | null> {
   const user = await client.user.findFirst({
     where: { id: userId, organizationId },
     select: { organizationRole: true },

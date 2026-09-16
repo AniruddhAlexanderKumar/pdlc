@@ -1,7 +1,11 @@
-import { addOrganizationMemberRequestSchema } from "@/domain";
+import {
+  type OrganizationRole,
+  addOrganizationMemberRequestSchema,
+  setOrganizationMemberRoleRequestSchema,
+} from "@/domain";
 import { prisma } from "@/lib/db";
 import type { OrganizationContext } from "@/server/context/organization-context";
-import { ConflictError } from "@/server/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 import { hashPassword } from "@/server/auth/password";
 import * as auditLogRepository from "@/server/repositories/audit-log.repository";
 import * as userRepository from "@/server/repositories/user.repository";
@@ -27,6 +31,7 @@ export const ORG_MEMBERSHIP_ENTITY_TYPE = "User";
 
 export const ORG_MEMBERSHIP_AUDIT_ACTIONS = {
   memberAdded: "organization.member_added",
+  roleChanged: "organization.member_role_changed",
 } as const;
 
 /**
@@ -119,4 +124,73 @@ export async function addOrganizationMember(
     }
     throw error;
   }
+}
+
+/**
+ * Changes one member's organization role. Owner-only.
+ *
+ * Two guard rails, both deliberate:
+ *
+ * - **`OWNER` cannot be assigned.** The request schema does not accept it
+ *   (`ASSIGNABLE_ORGANIZATION_ROLES`), so ownership stays untransferable
+ *   through every path in this pass — the same restraint
+ *   `addOrganizationMember` observes by only ever creating `MEMBER`.
+ * - **An owner cannot change their own role.** Not a courtesy: an
+ *   organization with no owner can never regain one, since granting
+ *   `OWNER` is exactly what no path does. Demoting yourself would be a
+ *   one-way door out of administering your own organization, so it is
+ *   refused rather than confirmed-then-regretted.
+ *
+ * A target who is currently `OWNER` is refused for the same reason — that
+ * would be the previous case wearing a different hat if two owners ever
+ * existed.
+ */
+export async function setOrganizationMemberRole(
+  context: OrganizationContext,
+  userId: string,
+  input: unknown,
+): Promise<{ id: string; name: string; organizationRole: OrganizationRole }> {
+  await requireOrganizationOwner(context);
+  if (!context.actorId) {
+    throw new ForbiddenError("An authenticated actor is required to change a member's role.");
+  }
+  const actorId = context.actorId;
+
+  const data = parseOrThrow(setOrganizationMemberRoleRequestSchema, input, "Invalid role");
+
+  if (userId === actorId) {
+    throw new ValidationError("You cannot change your own organization role.");
+  }
+
+  const current = await userRepository.getOrganizationRole(userId, context.organizationId);
+  if (current === null) {
+    throw new NotFoundError("That person is not a member of this organization.");
+  }
+  if (current === "OWNER") {
+    throw new ValidationError("An organization owner's role cannot be changed.");
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    const updated = await userRepository.updateOrganizationRole(
+      { userId, organizationId: context.organizationId, role: data.role },
+      tx,
+    );
+    if (!updated) {
+      throw new NotFoundError("That person is not a member of this organization.");
+    }
+
+    await auditLogRepository.recordAuditEvent(
+      {
+        organizationId: context.organizationId,
+        actorId,
+        action: ORG_MEMBERSHIP_AUDIT_ACTIONS.roleChanged,
+        entityType: ORG_MEMBERSHIP_ENTITY_TYPE,
+        entityId: userId,
+        metadata: { from: current, to: data.role },
+      },
+      tx,
+    );
+
+    return updated;
+  });
 }

@@ -103,6 +103,33 @@ describe("isOrganizationOwner / requireOrganizationOwner", () => {
     vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
     await expect(service.requireOrganizationOwner(CONTEXT)).resolves.toBeUndefined();
   });
+
+  it("an EXECUTIVE is not an owner and cannot pass the owner gate — the role administers nothing", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("EXECUTIVE");
+    await expect(service.isOrganizationOwner(CONTEXT)).resolves.toBe(false);
+    await expect(service.requireOrganizationOwner(CONTEXT)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe("requirePortfolioAccess", () => {
+  it("resolves for an owner", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
+    await expect(service.requirePortfolioAccess(CONTEXT)).resolves.toBeUndefined();
+  });
+
+  it("resolves for an executive — the one surface the role exists to reach", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("EXECUTIVE");
+    await expect(service.requirePortfolioAccess(CONTEXT)).resolves.toBeUndefined();
+  });
+
+  it("throws for a plain member, who is a legitimate member of the organization but not of this", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+    await expect(service.requirePortfolioAccess(CONTEXT)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("throws for a context with no actor", async () => {
+    await expect(service.requirePortfolioAccess(SYSTEM_CONTEXT)).rejects.toBeInstanceOf(ForbiddenError);
+  });
 });
 
 describe("getProjectRole", () => {
@@ -124,6 +151,27 @@ describe("getProjectRole", () => {
   it("returns null for a plain member with no membership row", async () => {
     vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
     vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+
+    await expect(service.getProjectRole(CONTEXT, PROJECT_ID)).resolves.toBeNull();
+  });
+
+  it("falls back to implicit VIEWER for an organization executive with no membership row", async () => {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("EXECUTIVE");
+
+    await expect(service.getProjectRole(CONTEXT, PROJECT_ID)).resolves.toBe("VIEWER");
+  });
+
+  it("an explicit membership row still wins for an executive — being an executive never demotes a real role", async () => {
+    vi.mocked(membershipRepository.findMembership).mockResolvedValue(membershipRow("ENGINEER") as never);
+
+    await expect(service.getProjectRole(CONTEXT, PROJECT_ID)).resolves.toBe("ENGINEER");
+    expect(userRepository.getOrganizationRole).not.toHaveBeenCalled();
+  });
+
+  it("returns null for an executive of a *different* organization — the implicit grant does not cross the boundary either", async () => {
+    vi.mocked(projectRepository.findProjectInOrganization).mockResolvedValue(null);
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("EXECUTIVE");
 
     await expect(service.getProjectRole(CONTEXT, PROJECT_ID)).resolves.toBeNull();
   });

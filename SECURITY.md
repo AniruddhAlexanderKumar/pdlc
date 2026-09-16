@@ -25,7 +25,7 @@ Trust boundaries this system actually has, and what crosses each:
 | --- | --- | --- |
 | Unauthenticated internet → API | An unsigned request | `requireAuthenticatedContext()`; only `/api/auth/*` and `/api/health*` skip it |
 | Authenticated user → organization | Session cookie resolves to a `User` row | `resolveSession` against the hashed token, server-side expiry |
-| Organization member → project | `ProjectMembership` row, or organization `OWNER` | `authorization.service.ts`'s `requireProject*Access` |
+| Organization member → project | `ProjectMembership` row, or an implicit grant from `OWNER`/`EXECUTIVE` | `authorization.service.ts`'s `requireProject*Access` |
 | Project role → mutation tier | `VIEWER`/`REVIEWER`/`ENGINEER`/`MANAGER` | Per-action `require*Access` call at every service entry point |
 | Browser ↔ API | Cookie, CSRF origin check | `SameSite=Lax` + `src/middleware.ts`'s origin comparison |
 | Application ↔ PostgreSQL | The one thing every layer above ultimately gates | Prisma, parameterized, project/org id always in the `WHERE` |
@@ -101,9 +101,12 @@ of any kind (`src/server/services/auth.service.ts`, `src/server/auth/`).
 Two independent axes, enforced server-side on every mutation and read that
 matters, never trusted from the client:
 
-- **Organization**: `OWNER` / `MEMBER`. An organization owner administers
-  membership and billing-adjacent concerns; a member's access is entirely
-  a function of which projects they belong to.
+- **Organization**: `OWNER` / `EXECUTIVE` / `MEMBER`. An organization owner
+  administers membership and billing-adjacent concerns; a member's access
+  is entirely a function of which projects they belong to. `EXECUTIVE` is
+  not a tier between the two — it is wider *reach* with strictly narrower
+  *authority*: read-only on every project in the organization, and
+  administers nothing at all.
 - **Project role**: `MANAGER` > `ENGINEER` / `REVIEWER` > `VIEWER`, resolved
   per project per user from `ProjectMembership`, never inferred from
   organization role alone. `src/server/services/authorization.service.ts`
@@ -112,6 +115,37 @@ matters, never trusted from the client:
   no service constructs its own authorization logic. See
   ARCHITECTURE.md's "Engineering Access Control" section for the full role
   matrix and which action requires which tier.
+
+**Implicit project access.** `OWNER` and `EXECUTIVE` reach projects with no
+`ProjectMembership` row, through exactly one mapping —
+`implicitProjectRole` in `src/domain/access-control.ts`, which gives an
+owner `MANAGER` and an executive `VIEWER`. `getProjectRole` consults it
+only *after* looking for a real membership row, so an explicit row always
+wins: an executive who is also added to one project as its `MANAGER` is a
+manager there and a viewer everywhere else. This is why no enforcement
+branch anywhere mentions `EXECUTIVE` by name — the role grants a project
+role, and the pre-existing capability predicates
+(`canWriteProject`/`canApproveInProject`/`canManageProject`, all of which
+refuse `VIEWER`) then refuse every write, approval, and membership change
+without being changed at all. Adding a fourth organization role means
+extending that one function, not auditing every call site.
+
+**Role assignment.** Only an `OWNER` may change anyone's organization role
+(`setOrganizationMemberRole`, audited as `organization.member_role_changed`
+with both the old and new role, inside the mutation's own transaction).
+Three refusals are deliberate and tested: `OWNER` is not an accepted target
+role in the request schema at all, so ownership is not grantable through
+any path; an owner cannot change their own role (an organization that loses
+its last owner cannot regain one); and an owner cannot demote another
+owner. An `EXECUTIVE` calling this endpoint is refused like any member —
+the role that sees everything administers nothing.
+
+**Portfolio**: `requirePortfolioAccess` gates `GET /api/portfolio` and the
+`/executive` page to `OWNER`/`EXECUTIVE` (`canViewPortfolio`). The page
+itself calls `notFound()` rather than rendering a forbidden state, matching
+the convention used elsewhere for surfaces a caller cannot see at all. The
+read is organization-scoped from the session like every other read; no
+organization id crosses the request boundary.
 
 **IDOR resistance**: every object lookup is scoped by both the caller's
 authorized project *and* the object's own id in the same query — never "find

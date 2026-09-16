@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CircleHelp, Settings } from "lucide-react";
-import type { AuthenticatedIdentity } from "@/domain";
+import { type AuthenticatedIdentity, canViewPortfolio } from "@/domain";
 import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
 import { UserMenu } from "./user-menu";
@@ -27,7 +27,7 @@ export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
       <Breadcrumbs />
 
       <div className="ml-auto flex items-center gap-1">
-        <CommandPalette />
+        <CommandPalette showPortfolio={canViewPortfolio(identity.user.organizationRole)} />
         <Link
           href="/settings"
           aria-label="Settings"

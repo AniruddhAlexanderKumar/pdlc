@@ -1,9 +1,12 @@
 import {
+  type OrganizationRole,
   type ProjectRole,
   canApproveProjectAction,
   canManageProject,
   canReadProject,
+  canViewPortfolio,
   canWriteProject,
+  implicitProjectRole,
 } from "@/domain";
 import type { OrganizationContext } from "@/server/context/organization-context";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
@@ -30,6 +33,14 @@ import * as userRepository from "@/server/repositories/user.repository";
  *     organization — no `ProjectMembership` row required. This is the
  *     access every existing project's creator already had before this
  *     capability existed, now checked rather than assumed.
+ *   - An organization **EXECUTIVE** reads every project in their
+ *     organization without a `ProjectMembership` row either, but only
+ *     reads: the implicit role they resolve to is `VIEWER`, so every
+ *     write, approval and membership check below refuses them exactly as
+ *     it refuses any other viewer. There is no separate executive branch
+ *     in any of those checks, which is the point — one mapping
+ *     (`implicitProjectRole`) decides their reach, and the existing
+ *     capability predicates decide their authority.
  *   - Everyone else needs a real `ProjectMembership` row. Organization
  *     membership alone grants nothing — not even read access.
  *
@@ -38,11 +49,15 @@ import * as userRepository from "@/server/repositories/user.repository";
  * `requireProjectManage` before doing anything.
  */
 
+/** The caller's organization role, or `null` when they are not a member of this organization at all. */
+async function getOrganizationRole(context: OrganizationContext): Promise<OrganizationRole | null> {
+  if (!context.actorId) return null;
+  return userRepository.getOrganizationRole(context.actorId, context.organizationId);
+}
+
 /** True when this actor administers their own organization (full org access, no per-project row needed). */
 export async function isOrganizationOwner(context: OrganizationContext): Promise<boolean> {
-  if (!context.actorId) return false;
-  const role = await userRepository.getOrganizationRole(context.actorId, context.organizationId);
-  return role === "OWNER";
+  return (await getOrganizationRole(context)) === "OWNER";
 }
 
 export async function requireOrganizationOwner(context: OrganizationContext): Promise<void> {
@@ -52,10 +67,30 @@ export async function requireOrganizationOwner(context: OrganizationContext): Pr
 }
 
 /**
+ * The cross-project portfolio read — owners and executives only.
+ *
+ * Deliberately its own guard rather than a reuse of
+ * `requireOrganizationOwner`: the portfolio is the one surface an
+ * executive exists to reach, and an ordinary member must not reach it even
+ * though they are a legitimate member of the organization.
+ */
+export async function requirePortfolioAccess(context: OrganizationContext): Promise<void> {
+  if (!canViewPortfolio(await getOrganizationRole(context))) {
+    throw new ForbiddenError("Only an organization owner or executive may view the portfolio.");
+  }
+}
+
+/**
  * The caller's effective role on one project — their real membership row's
- * role, or the organization owner's implicit full access represented as
- * `MANAGER`, or `null` when they have neither. This is the single read
- * every other check in this file is built from.
+ * role, or the role their *organization* role grants implicitly on every
+ * project (`MANAGER` for an owner, `VIEWER` for an executive), or `null`
+ * when they have neither. This is the single read every other check in
+ * this file is built from.
+ *
+ * An explicit membership row always wins over the implicit grant, in both
+ * directions: an executive who has also been added to one project as an
+ * `ENGINEER` really can write on that project, and nothing here quietly
+ * demotes them to viewer for it.
  */
 export async function getProjectRole(
   context: OrganizationContext,
@@ -79,7 +114,7 @@ export async function getProjectRole(
   const membership = await membershipRepository.findMembership(projectId, context.actorId);
   if (membership) return membership.role;
 
-  return (await isOrganizationOwner(context)) ? "MANAGER" : null;
+  return implicitProjectRole(await getOrganizationRole(context));
 }
 
 /**

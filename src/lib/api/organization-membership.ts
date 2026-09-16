@@ -44,6 +44,22 @@ export async function fetchOrganizationPeople(signal?: AbortSignal): Promise<Org
   return requestJson<OrganizationPersonDto[]>("/api/organization/members", "members", { signal });
 }
 
+/**
+ * Owner-only server-side. `OWNER` is not an accepted value — organization
+ * ownership is not grantable through any path in this pass, and the
+ * request schema rejects it rather than the UI merely omitting it.
+ */
+export async function setOrganizationMemberRole(
+  userId: string,
+  role: "EXECUTIVE" | "MEMBER",
+): Promise<{ id: string; name: string; organizationRole: OrganizationRole }> {
+  return requestJson<{ id: string; name: string; organizationRole: OrganizationRole }>(
+    `/api/organization/members/${userId}/role`,
+    "member",
+    { method: "PATCH", body: JSON.stringify({ role }) },
+  );
+}
+
 export function useOrganizationPeople() {
   return useResource<OrganizationPersonDto[]>(
     React.useCallback((signal) => fetchOrganizationPeople(signal), []),

@@ -344,16 +344,36 @@ that with two independent axes and explicit, per-project membership.
 
 ### The role model
 
-**Organization role** (`OrganizationRole` — `OWNER` | `MEMBER`, on
-`users.organizationRole`) — who administers the organization itself.
-`OWNER`: manages organization membership (who belongs to it at all) and has
-full implicit access to every project in the organization, with no
+**Organization role** (`OrganizationRole` — `OWNER` | `EXECUTIVE` |
+`MEMBER`, on `users.organizationRole`) — who administers the organization
+itself. `OWNER`: manages organization membership (who belongs to it at all)
+and has full implicit access to every project in the organization, with no
 per-project row required — the same authority the organization's creator
 already had before this capability existed, now checked rather than
 assumed. `MEMBER`: an ordinary authenticated user; cannot manage
 organization membership and cannot grant anyone a role; reaches a project
-only through an explicit `ProjectMembership`. Exactly two values —
-deliberately not a ladder with more tiers waiting to be added.
+only through an explicit `ProjectMembership`.
+
+`EXECUTIVE` was added later, and it is worth being precise about what it is
+*not*: it is not a tier inserted between owner and member, and this enum is
+still not a ladder. It trades in two different currencies at once — wider
+**reach** (every project in the organization, with no membership row) for
+strictly narrower **authority** (read-only everywhere, administers
+nothing). An executive can read a project an owner never added them to, and
+cannot write to, approve in, or manage even one. The role exists because
+the people who need to see across a whole programme — a head of
+engineering, a customer-facing director — were previously served only by
+making them an owner, which handed them every destructive capability in the
+organization to answer a read-only question.
+
+The reach comes from `implicitProjectRole`, the single function that maps
+an organization role to the project role it implies (`OWNER` → `MANAGER`,
+`EXECUTIVE` → `VIEWER`, `MEMBER` → none). The narrower authority is not
+enforced anywhere in particular, which is the point: because an executive
+resolves to `VIEWER`, the four capability predicates that already existed
+refuse them, and no `require*Access` call needed changing. A fourth
+organization role would extend that one mapping rather than require an
+audit of every call site.
 
 **Project role** (`ProjectRole` — `MANAGER` | `ENGINEER` | `REVIEWER` |
 `VIEWER`, on `project_memberships.role`) — what one person may do inside
@@ -406,8 +426,12 @@ copy of `Organization`/`User` data — `ProjectMember` (the repository read
 shape) joins in the safe `user` fields (`id`, `name`, `email`,
 `organizationRole`) a caller needs to show "who is this, and what is their
 standing in the organization" without a second query. An organization
-`OWNER` needs no row here at all; everyone else's access is exactly the
-rows that exist.
+`OWNER` or `EXECUTIVE` needs no row here at all; everyone else's access is
+exactly the rows that exist. Where both apply, the explicit row wins:
+`getProjectRole` looks for a membership first and consults
+`implicitProjectRole` only when there is none, so adding an executive to
+one project as its `ENGINEER` makes them an engineer *there* without
+touching their read-only standing everywhere else.
 
 The pre-existing `User.role` column (`ADMIN` | `ENGINEER` | `VIEWER`) is
 untouched and remains what it always was: carried on the session, never
@@ -705,6 +729,12 @@ verified that discipline was intact; it did not need to add it.
 | Traceability / Engineering History / Engineering Graph | project member      | — (read-only workspace)                           | —                                                     | —            |
 | Project Membership                                     | project member      | —                                                 | —                                                     | MANAGER-only |
 | Organization Membership                                | organization member | —                                                 | —                                                     | OWNER-only   |
+| **Organization role assignment**                       | **organization member** | —                                             | —                                                     | **OWNER-only** |
+| **Portfolio (`/executive`)**                           | **OWNER / EXECUTIVE**   | — (read-only surface)                         | —                                                     | —            |
+
+"project member" in the Read column includes anyone holding an implicit
+grant: an `EXECUTIVE` reads every row in every one of these modules without
+a membership row, and is refused by every other column in the table.
 
 Bold rows are this pass's own additions; the rest restate what Prompt 25
 already documented above, kept in one table so the two passes read as one
@@ -746,7 +776,10 @@ Membership changes get their own actions, written transactionally
 alongside the mutation exactly like every other engineering audit event:
 `project_membership.added`, `project_membership.role_changed`,
 `project_membership.removed` (entity type `ProjectMembership`), and
-`organization.member_added` (entity type `User`). `changeMemberRole` and
+`organization.member_added` / `organization.member_role_changed` (entity
+type `User`; the role change records `{ from, to }` so a promotion to
+`EXECUTIVE` and a later demotion are both reconstructable from the log
+alone). `changeMemberRole` and
 `removeMember` both refuse to leave a project with zero managers
 (`requireNotLastManager`, checked against `countManagers` before the
 write) — the one role that can ever administer membership again, or reach

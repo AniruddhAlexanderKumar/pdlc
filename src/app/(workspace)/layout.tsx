@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { canViewPortfolio } from "@/domain";
 import * as organizationService from "@/server/services/organization.service";
 import { getAuthenticatedContext, toIdentity } from "@/server/auth/context";
 import { Sidebar } from "./_components/sidebar";
@@ -29,7 +30,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   return (
     <TerminologyProvider overrides={profile.labelOverrides}>
       <div className="flex min-h-svh w-full">
-        <Sidebar />
+        <Sidebar showPortfolio={canViewPortfolio(context.user.organizationRole)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar identity={toIdentity(context)} />
           {/*

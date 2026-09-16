@@ -48,7 +48,7 @@ function moduleTitle(
  * organization's own chosen word, so a reader searching for the word they
  * actually see in their sidebar still finds it.
  */
-export function CommandPalette() {
+export function CommandPalette({ showPortfolio = false }: { showPortfolio?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const overrides = useTerminologyOverrides();
@@ -64,6 +64,7 @@ export function CommandPalette() {
       { title: "Dashboard", href: "/dashboard", section: "Go to" },
       { title: "Projects", href: "/projects", section: "Go to" },
       { title: "Settings", href: "/settings", section: "Go to" },
+      ...(showPortfolio ? [{ title: "Executive", href: "/executive", section: "Go to" }] : []),
       { title: "Organization", href: "/organization", section: "Go to" },
       { title: "Help", href: "/help", section: "Go to" },
     ];
@@ -91,7 +92,7 @@ export function CommandPalette() {
     }
 
     return entries;
-  }, [currentProjectId, overrides, hidden]);
+  }, [currentProjectId, overrides, hidden, showPortfolio]);
 
   const results = React.useMemo(() => {
     const trimmed = query.trim().toLowerCase();

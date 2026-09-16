@@ -31,17 +31,31 @@ import { entityIdSchema } from "./shared/identifier";
 /**
  * `OWNER` — administers the organization: manages organization membership
  * (who belongs to it at all) and has full access to every project in it,
- * with no per-project membership row required. `MEMBER` — an ordinary
- * authenticated user of the organization; cannot manage organization
- * membership or grant roles to anyone, and reaches a project only through
- * an explicit `ProjectMembership`.
+ * with no per-project membership row required. `EXECUTIVE` — see below.
+ * `MEMBER` — an ordinary authenticated user of the organization; cannot
+ * manage organization membership or grant roles to anyone, and reaches a
+ * project only through an explicit `ProjectMembership`.
  *
- * Deliberately two values. This is not a permissions ladder with more tiers
- * waiting to be added — the existing product has exactly one
- * organization-wide administrative question ("who can manage who belongs
- * here") and this answers it.
+ * This was two values for most of this product's life, with a comment
+ * saying so deliberately: "not a permissions ladder with more tiers
+ * waiting to be added", because the product had exactly one
+ * organization-wide administrative question and `OWNER` answered it. That
+ * reasoning still holds for *administration*, and `EXECUTIVE` does not
+ * weaken it — an executive administers nothing at all. It exists because
+ * a genuinely different organization-wide question turned up, which no
+ * project role could answer: **who may see across every project without
+ * being able to change anything in any of them.**
+ *
+ * `EXECUTIVE` is therefore not a rung between `OWNER` and `MEMBER`. It is
+ * orthogonal to both: broader *reach* than a member (every project,
+ * without a membership row), strictly narrower *authority* than either
+ * (read-only everywhere, and no organization administration whatsoever —
+ * it cannot add a person, change a role, or set industry or terminology).
+ * Concretely it resolves to an implicit `VIEWER` on every project in the
+ * organization; see `implicitProjectRole` below, which is the only place
+ * that mapping is written down.
  */
-export const ORGANIZATION_ROLES = ["OWNER", "MEMBER"] as const;
+export const ORGANIZATION_ROLES = ["OWNER", "EXECUTIVE", "MEMBER"] as const;
 export type OrganizationRole = (typeof ORGANIZATION_ROLES)[number];
 export const organizationRoleSchema = z.enum(ORGANIZATION_ROLES);
 
@@ -52,11 +66,64 @@ export function isOwnerRole(role: string): boolean {
 
 const ORGANIZATION_ROLE_LABELS: Readonly<Record<OrganizationRole, string>> = {
   OWNER: "Owner",
+  EXECUTIVE: "Executive",
   MEMBER: "Member",
 };
 
 export function organizationRoleLabel(role: OrganizationRole): string {
   return ORGANIZATION_ROLE_LABELS[role];
+}
+
+const ORGANIZATION_ROLE_DESCRIPTIONS: Readonly<Record<OrganizationRole, string>> = {
+  OWNER: "Administers the organization, and has full access to every project in it.",
+  EXECUTIVE: "Reads every project in the organization, and the portfolio view. Changes nothing, anywhere.",
+  MEMBER: "Reaches only the projects they have been explicitly added to.",
+};
+
+export function organizationRoleDescription(role: OrganizationRole): string {
+  return ORGANIZATION_ROLE_DESCRIPTIONS[role];
+}
+
+/**
+ * Organization administration: managing who belongs to the organization,
+ * what anyone's organization role is, and the organization-wide settings
+ * (industry, terminology). `OWNER` alone — an executive's reach is
+ * deliberately read-only, so it grants nothing here.
+ */
+export function canAdministerOrganization(role: OrganizationRole | null): boolean {
+  return role === "OWNER";
+}
+
+/**
+ * The cross-project portfolio view. An owner sees it because they can
+ * already reach everything anyway; an executive sees it because it is the
+ * reason the role exists.
+ *
+ * Takes a plain `string`, like `isOwnerRole` above and for the same
+ * reason: `AuthenticatedIdentity.organizationRole` is typed `string`
+ * (`auth.ts` cannot import this module — it is the other way round), and
+ * the page component needs this check too. Compared against the real
+ * role constants rather than inline literals, so there is still one source
+ * of truth. Server enforcement is `requirePortfolioAccess`, which resolves
+ * the role from the database; this is the routing and display half.
+ */
+export function canViewPortfolio(role: string | null): boolean {
+  return role === "OWNER" || role === "EXECUTIVE";
+}
+
+/**
+ * The project role an organization role grants on *every* project in the
+ * organization, with no `ProjectMembership` row — or `null` when it grants
+ * none and a real membership row is the only way in.
+ *
+ * The single place this mapping is written down. `authorization.service.ts`
+ * reads it for enforcement and nothing else re-derives it, so "what does
+ * an executive actually get" has exactly one answer to change.
+ */
+export function implicitProjectRole(role: OrganizationRole | null): ProjectRole | null {
+  if (role === "OWNER") return "MANAGER";
+  if (role === "EXECUTIVE") return "VIEWER";
+  return null;
 }
 
 // --- Project role ------------------------------------------------------------
@@ -180,5 +247,22 @@ export const addOrganizationMemberRequestSchema = z.strictObject({
   password: passwordSchema,
 });
 export type AddOrganizationMemberRequest = z.infer<typeof addOrganizationMemberRequestSchema>;
+
+/**
+ * The organization roles an owner may *assign*. `OWNER` is deliberately
+ * absent: organization ownership is not transferable or grantable through
+ * any path in this pass — the same restraint
+ * `addOrganizationMemberRequestSchema` already observes by only ever
+ * creating `MEMBER` accounts. An owner promotes someone to `EXECUTIVE` or
+ * returns them to `MEMBER`; anything else is a 400, not a silently
+ * ignored field.
+ */
+export const ASSIGNABLE_ORGANIZATION_ROLES = ["EXECUTIVE", "MEMBER"] as const;
+export type AssignableOrganizationRole = (typeof ASSIGNABLE_ORGANIZATION_ROLES)[number];
+
+export const setOrganizationMemberRoleRequestSchema = z.strictObject({
+  role: z.enum(ASSIGNABLE_ORGANIZATION_ROLES),
+});
+export type SetOrganizationMemberRoleRequest = z.infer<typeof setOrganizationMemberRoleRequestSchema>;
 
 export const projectMemberIdSchema = entityIdSchema;

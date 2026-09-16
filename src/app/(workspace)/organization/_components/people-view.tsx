@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { AlertTriangle, RefreshCw, UserPlus, Users } from "lucide-react";
-import { organizationRoleLabel } from "@/domain";
+import { ASSIGNABLE_ORGANIZATION_ROLES, implicitProjectRole, organizationRoleLabel } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import {
   type OrganizationPersonDto,
   addOrganizationMember,
+  setOrganizationMemberRole,
   useOrganizationPeople,
 } from "@/lib/api/organization-membership";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingState } from "@/components/ui/loading-state";
+import { Select } from "@/components/ui/select";
 import { formatIsoDate } from "@/lib/utils";
 
 /**
@@ -90,7 +92,7 @@ export function PeopleView({ isOwner }: { isOwner: boolean }) {
         ) : (
           <ul className="flex flex-col divide-y divide-border rounded-md border border-border">
             {state.data.map((person) => (
-              <PersonRow key={person.id} person={person} />
+              <PersonRow key={person.id} person={person} isOwner={isOwner} onChanged={reload} />
             ))}
           </ul>
         ))}
@@ -110,30 +112,74 @@ export function PeopleView({ isOwner }: { isOwner: boolean }) {
 }
 
 /**
- * An owner's access is never described by their membership count.
+ * Anyone with an *implicit* grant is never described by their membership
+ * count.
  *
- * An organization owner reaches every project in the organization with no
- * per-project membership row at all: `getProjectRole` in
- * `authorization.service.ts` looks for a membership row first and, finding
- * none, falls back to `isOrganizationOwner` and returns an implicit
- * `MANAGER`. An owner's row count is therefore usually zero, and rendering
- * that as "No project access" is not merely terse, it is the opposite of
- * what is true — caught by looking at the real page with real seed data,
- * where the owner sat at the top of the list claiming to have no access to
- * anything.
+ * `getProjectRole` in `authorization.service.ts` looks for a membership
+ * row first and, finding none, falls back to `implicitProjectRole` — which
+ * gives an owner `MANAGER` and an executive `VIEWER` on every project in
+ * the organization. Both therefore normally have a row count of zero, and
+ * rendering that as "No project access" is not merely terse, it is the
+ * opposite of what is true.
+ *
+ * Worth recording how this was found twice: the first version special-cased
+ * `OWNER` only, after the real page was seen calling the organization's
+ * owner access-less. Adding `EXECUTIVE` reintroduced exactly the same bug
+ * for the new role, and it was caught the same way — by promoting someone
+ * on the real page and reading the row back. Hence the switch on the
+ * implicit grant rather than another role literal: a fourth organization
+ * role would otherwise make the same mistake a third time.
  */
 function describeAccess(person: OrganizationPersonDto): string {
-  if (person.organizationRole === "OWNER") return "All projects";
+  const implicit = implicitProjectRole(person.organizationRole);
+  if (implicit !== null) {
+    return implicit === "VIEWER" ? "All projects (read-only)" : "All projects";
+  }
   if (person.projectCount === 0) return "No project access";
   return `${person.projectCount} project${person.projectCount === 1 ? "" : "s"}`;
 }
 
-function PersonRow({ person }: { person: OrganizationPersonDto }) {
+function PersonRow({
+  person,
+  isOwner,
+  onChanged,
+}: {
+  person: OrganizationPersonDto;
+  isOwner: boolean;
+  onChanged: () => void;
+}) {
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // An owner's own role, and any owner's role, cannot be changed — the
+  // server refuses both (see `setOrganizationMemberRole`), so offering the
+  // control would be offering a button that always fails.
+  const canChangeRole = isOwner && person.organizationRole !== "OWNER";
+
+  async function handleRoleChange(role: "EXECUTIVE" | "MEMBER") {
+    if (isSaving || role === person.organizationRole) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      await setOrganizationMemberRole(person.id, role);
+      onChanged();
+    } catch (caught) {
+      setError(describeApiError(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2.5">
       <div className="flex min-w-0 flex-col">
         <span className="truncate text-sm font-medium text-foreground">{person.name}</span>
         <span className="truncate text-xs text-muted-foreground">{person.email}</span>
+        {error && (
+          <span role="alert" className="text-xs text-destructive">
+            {error}
+          </span>
+        )}
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <span
@@ -141,6 +187,8 @@ function PersonRow({ person }: { person: OrganizationPersonDto }) {
           title={
             person.organizationRole === "OWNER"
               ? "An organization owner reaches every project without needing to be added to it."
+              : person.organizationRole === "EXECUTIVE"
+                ? "An executive reads every project without needing to be added to it, and can change nothing."
               : undefined
           }
         >
@@ -149,9 +197,25 @@ function PersonRow({ person }: { person: OrganizationPersonDto }) {
         <span className="hidden text-xs text-muted-foreground sm:inline">
           Joined <span className="font-mono">{formatIsoDate(person.joinedAt)}</span>
         </span>
-        <Badge variant={person.organizationRole === "OWNER" ? "default" : "outline"}>
-          {organizationRoleLabel(person.organizationRole)}
-        </Badge>
+        {canChangeRole ? (
+          <Select
+            aria-label={`Organization role for ${person.name}`}
+            className="h-8 w-32"
+            value={person.organizationRole}
+            disabled={isSaving}
+            onChange={(event) => handleRoleChange(event.target.value as "EXECUTIVE" | "MEMBER")}
+          >
+            {ASSIGNABLE_ORGANIZATION_ROLES.map((role) => (
+              <option key={role} value={role}>
+                {organizationRoleLabel(role)}
+              </option>
+            ))}
+          </Select>
+        ) : (
+          <Badge variant={person.organizationRole === "OWNER" ? "default" : "outline"}>
+            {organizationRoleLabel(person.organizationRole)}
+          </Badge>
+        )}
       </div>
     </li>
   );

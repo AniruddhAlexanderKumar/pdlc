@@ -130,6 +130,12 @@ enum UserRole {
 /// question.
 enum OrganizationRole {
   OWNER
+  /// Reads every project in the organization without a membership row, and
+  /// the portfolio view — and changes nothing, anywhere. Not a tier between
+  /// OWNER and MEMBER: it administers nothing at all. See
+  /// `implicitProjectRole` in src/domain/access-control.ts, which is the
+  /// only place the "executive means VIEWER everywhere" mapping is written.
+  EXECUTIVE
   MEMBER
 }
 
