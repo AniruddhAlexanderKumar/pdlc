@@ -31,6 +31,7 @@ export * from "./organization";
 export * from "./project";
 export * from "./requirement";
 export * from "./risk";
+export * from "./search";
 export * from "./sentinel";
 export * from "./stakeholder-need";
 export * from "./supplier";

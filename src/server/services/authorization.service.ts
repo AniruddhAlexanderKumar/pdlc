@@ -81,6 +81,21 @@ export async function requirePortfolioAccess(context: OrganizationContext): Prom
 }
 
 /**
+ * Whether this actor reaches every project in their organization without a
+ * `ProjectMembership` row — true for an owner and an executive, false for a
+ * member.
+ *
+ * Exists for search, which cannot ask `getProjectRole` per project: it
+ * resolves the readable set inside one SQL query, and needs this single
+ * boolean to write that query's authorization clause. Derived from
+ * `implicitProjectRole` rather than comparing role literals, so it stays
+ * correct by construction if a fourth organization role is ever added.
+ */
+export async function hasImplicitProjectAccess(context: OrganizationContext): Promise<boolean> {
+  return implicitProjectRole(await getOrganizationRole(context)) !== null;
+}
+
+/**
  * The caller's effective role on one project — their real membership row's
  * role, or the role their *organization* role grants implicitly on every
  * project (`MANAGER` for an owner, `VIEWER` for an executive), or `null`

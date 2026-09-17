@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ListChecks, Plus, RefreshCw, Search } from "lucide-react";
+import { Activity, AlertTriangle, ListChecks, Plus, RefreshCw, Search, Wand2 } from "lucide-react";
 import { REQUIREMENT_STATUSES, type RequirementStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
@@ -37,6 +37,8 @@ import {
 } from "@/components/data-grid";
 import { formatIsoDate } from "@/lib/utils";
 import { RequirementFormDialog } from "./requirement-form-dialog";
+import { RequirementsStarterWizard } from "./requirements-starter-wizard";
+import { ApprovalConflictPanel } from "./approval-conflict-panel";
 
 /**
  * Requirements list for one project, through the shared data grid (Master
@@ -61,6 +63,7 @@ export function RequirementsView({ projectId }: { projectId: string }) {
   const { state, reload } = useRequirements(projectId, filters.status);
   const project = useProject(projectId);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isStarterOpen, setIsStarterOpen] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<ReadonlySet<string>>(new Set());
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -204,12 +207,26 @@ export function RequirementsView({ projectId }: { projectId: string }) {
             : "Formal engineering requirements for this project."
         }
         actions={
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus aria-hidden="true" />
-            New requirement
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setIsStarterOpen(true)}>
+              <Wand2 aria-hidden="true" className="text-primary" />
+              Requirements Starter
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/requirements-health`}>
+                <Activity aria-hidden="true" className="text-primary" />
+                Health Dashboard
+              </Link>
+            </Button>
+            <Button onClick={() => setIsCreateOpen(true)}>
+              <Plus aria-hidden="true" />
+              New requirement
+            </Button>
+          </div>
         }
       />
+
+      <ApprovalConflictPanel conflicts={[]} />
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
@@ -399,6 +416,12 @@ export function RequirementsView({ projectId }: { projectId: string }) {
           )}
         </SheetContent>
       </Sheet>
+
+      <RequirementsStarterWizard
+        isOpen={isStarterOpen}
+        onClose={() => setIsStarterOpen(false)}
+        onRequirementGenerated={() => reload()}
+      />
     </div>
   );
 }

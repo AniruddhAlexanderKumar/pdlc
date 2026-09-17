@@ -107,11 +107,19 @@ jobs:
         # Exit code 2 means the committed migrations would not reproduce the
         # current schema.prisma — someone edited the schema without adding a
         # migration. Exit 0 means they agree.
+        #
+        # Prisma 7 removed `--shadow-database-url`; the shadow database is
+        # read from `datasource.shadowDatabaseUrl` in prisma7.config.ts,
+        # which takes it from this variable. Passing the old flag made this
+        # step exit 1 ("unknown or unexpected option") on every run — an
+        # error, not a drift report, so the check had stopped verifying
+        # anything it claims to verify.
+        env:
+          SHADOW_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/pdlc_shadow?schema=public"
         run: |
           npx prisma migrate diff \
             --from-migrations ./prisma/migrations \
             --to-schema ./prisma/schema.prisma \
-            --shadow-database-url "postgresql://postgres:postgres@localhost:5432/pdlc_shadow?schema=public" \
             --exit-code
 
       # Builds the actual production image from the actual Dockerfile and

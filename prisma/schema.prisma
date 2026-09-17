@@ -444,6 +444,8 @@ model StakeholderNeed {
 
   @@unique([projectId, identifier])
   @@index([projectId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "stakeholder_needs_identifier_trgm_idx")
   @@map("stakeholder_needs")
 }
 
@@ -498,6 +500,8 @@ model Requirement {
   @@unique([projectId, identifier])
   @@index([projectId, status])
   @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "requirements_identifier_trgm_idx")
   @@map("requirements")
 }
 
@@ -552,6 +556,8 @@ model EngineeringDecision {
   @@unique([projectId, identifier])
   @@index([projectId, status])
   @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "engineering_decisions_identifier_trgm_idx")
   @@map("engineering_decisions")
 }
 
@@ -704,6 +710,8 @@ model DesignItem {
   @@index([projectId, status])
   @@index([projectId, itemType])
   @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "design_items_identifier_trgm_idx")
   @@map("design_items")
 }
 
@@ -744,6 +752,8 @@ model InterfaceDefinition {
 
   @@unique([projectId, identifier])
   @@index([projectId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "interface_definitions_identifier_trgm_idx")
   @@map("interface_definitions")
 }
 
@@ -797,6 +807,8 @@ model VerificationActivity {
   @@unique([projectId, identifier])
   @@index([projectId, status])
   @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "verification_activities_identifier_trgm_idx")
   @@map("verification_activities")
 }
 
@@ -837,6 +849,8 @@ model Risk {
   @@unique([projectId, identifier])
   @@index([projectId, status])
   @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "risks_identifier_trgm_idx")
   @@map("risks")
 }
 
@@ -881,6 +895,8 @@ model Issue {
   @@unique([projectId, identifier])
   @@index([projectId, status])
   @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "issues_identifier_trgm_idx")
   @@map("issues")
 }
 
@@ -920,6 +936,8 @@ model ChangeRequest {
   @@unique([projectId, identifier])
   @@index([projectId, status])
   @@index([requestedById])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "change_requests_identifier_trgm_idx")
   @@map("change_requests")
 }
 
@@ -993,6 +1011,8 @@ model Evidence {
   @@unique([projectId, identifier])
   @@index([projectId, status])
   @@index([projectId, evidenceType])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "evidence_identifier_trgm_idx")
   @@map("evidence")
 }
 
@@ -2139,6 +2159,8 @@ model Supplier {
 
   @@unique([projectId, identifier])
   @@index([projectId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "suppliers_identifier_trgm_idx")
   @@map("suppliers")
 }
 
@@ -2180,6 +2202,8 @@ model SuppliedItem {
   @@unique([projectId, identifier])
   @@index([projectId, status])
   @@index([supplierId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "supplied_items_identifier_trgm_idx")
   @@map("supplied_items")
 }
 
@@ -2475,6 +2499,8 @@ model EngineeringBaseline {
 
   @@unique([projectId, identifier])
   @@index([projectId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "engineering_baselines_identifier_trgm_idx")
   @@map("engineering_baselines")
 }
 
@@ -2579,6 +2605,8 @@ model OperationalObservation {
   @@index([designItemId])
   @@index([decisionExpectationId])
   @@index([suppliedItemId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "operational_observations_identifier_trgm_idx")
   @@map("operational_observations")
 }
 
@@ -2733,6 +2761,8 @@ model CertificationProgram {
   bases   CertificationBasis[]
   reviews CertificationReview[]
 
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "certification_programs_identifier_trgm_idx")
   @@map("certification_programs")
 }
 
@@ -2781,6 +2811,8 @@ model CertificationBasis {
 
   @@unique([certificationProgramId, identifier])
   @@index([certificationProgramId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "certification_bases_identifier_trgm_idx")
   @@map("certification_bases")
 }
 
@@ -2859,6 +2891,8 @@ model ComplianceItem {
   @@unique([certificationBasisId, identifier])
   @@index([certificationBasisId, status])
   @@index([certificationBasisId, applicability])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "compliance_items_identifier_trgm_idx")
   @@map("compliance_items")
 }
 
@@ -3052,6 +3086,8 @@ model CertificationFinding {
 
   @@unique([complianceItemId, identifier])
   @@index([complianceItemId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "certification_findings_identifier_trgm_idx")
   @@map("certification_findings")
 }
 

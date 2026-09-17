@@ -1,11 +1,18 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { SearchResult } from "@/domain/search";
+import type { SearchState } from "@/lib/api/search";
 
 /**
  * Driven for real against `PROJECT_MODULES` and `NAV_ITEMS` — the same data
  * the sidebar itself renders from — so a module added there is
- * automatically searchable here too, with no second list to keep in sync.
+ * automatically reachable here too, with no second list to keep in sync.
+ *
+ * The search half is faked at the hook, not the network: what matters here
+ * is how found records are ordered against navigation and what a row says,
+ * and the query itself is proven against real PostgreSQL in
+ * `src/tests/integration/search.test.ts`.
  */
 
 const push = vi.fn();
@@ -15,15 +22,41 @@ vi.mock("next/navigation", () => ({
   usePathname: () => pathname,
 }));
 
+let searchState: SearchState = { phase: "idle" };
+vi.mock("@/lib/api/search", () => ({ useSearch: () => searchState }));
+
 const { CommandPalette } = await import("./command-palette");
+
+function result(overrides: Partial<SearchResult> = {}): SearchResult {
+  return {
+    type: "REQUIREMENT",
+    id: "req1aaaaaaaaaaaaaaaaaaaa",
+    identifier: "REQ-001",
+    title: "Thrust vector control authority",
+    status: "APPROVED",
+    projectId: "proj1aaaaaaaaaaaaaaaaaaa",
+    projectName: "Upper Stage",
+    ownerName: "Ada Lovelace",
+    updatedAt: "2026-02-01T00:00:00.000Z",
+    matchKind: "TEXT",
+    ...overrides,
+  };
+}
+
+function ready(results: SearchResult[], truncated = false): SearchState {
+  return { phase: "ready", data: { query: "q", results, truncated } };
+}
 
 afterEach(() => {
   pathname = "/dashboard";
+  searchState = { phase: "idle" };
   window.localStorage.clear();
   push.mockReset();
 });
 
-describe("CommandPalette", () => {
+const INPUT = /search records, or jump to a page/i;
+
+describe("CommandPalette navigation", () => {
   it("opens on click and lists the global destinations outside any project", async () => {
     const user = userEvent.setup();
     render(<CommandPalette />);
@@ -58,12 +91,12 @@ describe("CommandPalette", () => {
     expect(screen.getAllByText("Traceability").length).toBeGreaterThan(0);
   });
 
-  it("filters results as the query changes", async () => {
+  it("filters navigation as the query changes", async () => {
     const user = userEvent.setup();
     render(<CommandPalette />);
     await user.click(screen.getByRole("button", { name: /jump to/i }));
 
-    await user.type(screen.getByLabelText(/jump to a module/i), "risk");
+    await user.type(screen.getByLabelText(INPUT), "risk");
 
     expect(screen.getAllByText("Risks").length).toBeGreaterThan(0);
     expect(screen.queryByText("Settings")).not.toBeInTheDocument();
@@ -75,7 +108,7 @@ describe("CommandPalette", () => {
     render(<CommandPalette />);
     await user.click(screen.getByRole("button", { name: /jump to/i }));
 
-    await user.type(screen.getByLabelText(/jump to a module/i), "risks");
+    await user.type(screen.getByLabelText(INPUT), "risks");
     await user.keyboard("{Enter}");
 
     expect(push).toHaveBeenCalledWith("/projects/proj1aaaaaaaaaaaaaaaaaaa/risks");
@@ -86,7 +119,7 @@ describe("CommandPalette", () => {
     render(<CommandPalette />);
     await user.click(screen.getByRole("button", { name: /jump to/i }));
 
-    await user.type(screen.getByLabelText(/jump to a module/i), "xyznonexistent");
+    await user.type(screen.getByLabelText(INPUT), "xyznonexistent");
 
     expect(screen.getByText(/nothing matches/i)).toBeInTheDocument();
   });
@@ -103,5 +136,90 @@ describe("CommandPalette", () => {
     await user.click(screen.getByRole("button", { name: /jump to/i }));
 
     expect(screen.queryByText("Risks")).not.toBeInTheDocument();
+  });
+});
+
+describe("CommandPalette search", () => {
+  it("shows a found record with the identifier, project and status that tell two apart", async () => {
+    searchState = ready([result()]);
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+
+    expect(screen.getByText("Thrust vector control authority")).toBeInTheDocument();
+    expect(screen.getByText(/REQ-001 · Upper Stage · APPROVED/)).toBeInTheDocument();
+  });
+
+  it("opens the record itself, not a list page", async () => {
+    searchState = ready([result()]);
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+
+    await user.click(screen.getByText("Thrust vector control authority"));
+
+    expect(push).toHaveBeenCalledWith(
+      "/projects/proj1aaaaaaaaaaaaaaaaaaa/requirements/req1aaaaaaaaaaaaaaaaaaaa",
+    );
+  });
+
+  /** Someone who types an identifier is not looking for a module. */
+  it("puts an exact identifier match above every navigation entry", async () => {
+    searchState = ready([result({ matchKind: "IDENTIFIER_EXACT" })]);
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+
+    const options = screen.getAllByRole("option");
+    expect(options[0]).toHaveTextContent("Thrust vector control authority");
+    expect(options[0]).toHaveTextContent("Exact match");
+  });
+
+  it("keeps navigation above an ordinary text match, which is only a guess", async () => {
+    searchState = ready([result({ matchKind: "TEXT" })]);
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+
+    const options = screen.getAllByRole("option");
+    expect(options[0]).toHaveTextContent("Dashboard");
+    expect(options.at(-1)).toHaveTextContent("Thrust vector control authority");
+  });
+
+  it("never shows a relevance score next to a record", async () => {
+    searchState = ready([result({ matchKind: "IDENTIFIER_PARTIAL" })]);
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+
+    const listbox = screen.getByRole("listbox");
+    expect(listbox.textContent).not.toMatch(/\d+\s*%|score|relevance|rank/i);
+  });
+
+  it("says plainly when there are more matches than it is showing", async () => {
+    searchState = ready([result()], true);
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+
+    expect(screen.getByText(/more records match than are shown/i)).toBeInTheDocument();
+  });
+
+  it("surfaces a search failure instead of rendering an empty result set as 'nothing found'", async () => {
+    searchState = { phase: "error", message: "Search failed." };
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Search failed.");
+  });
+
+  it("tells the reader a search is running", async () => {
+    searchState = { phase: "searching" };
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Searching…");
   });
 });
