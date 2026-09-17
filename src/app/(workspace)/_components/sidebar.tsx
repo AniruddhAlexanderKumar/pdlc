@@ -11,7 +11,9 @@ import {
   Gauge,
   SlidersHorizontal,
   Star,
+  Search,
   Waypoints,
+  X,
 } from "lucide-react";
 import type { TerminologyLabelKey } from "@/domain";
 import { cn } from "@/lib/utils";
@@ -145,7 +147,17 @@ function NavLink({
  * sections instead of permanent sidebar residency (see project-modules.ts's
  * module ranking) — unless a reader pins one, below.
  *
- * The "Simplify" toggle applies that same ranking one step further: it
+ * A live search box caps the list while the sidebar is expanded. Typing
+ * queries every destination the current context could land on — the global
+ * anchors, every project module including occasional-tier ones that have no
+ * permanent residency, Command Center, and Overview — and flattens the
+ * matches into one unambiguous Results list, so a reader who knows roughly
+ * what they want ("the thing that watches decisions") never has to know
+ * which group it sits in. Search is intentionally local and synchronous:
+ * matching a handful of labels needs no debounce and no network — Reach for
+ * the command palette when the goal is a *record*, not a module.
+ *
+ * The "Simplify" toggle applies the module ranking one step further: it
  * collapses every group down to its daily-tier members only (a handful of
  * links), for anyone who wants less to look at than the full six groups —
  * a real per-browser preference (localStorage), not a second navigation
@@ -177,9 +189,22 @@ function Sidebar({ showPortfolio = false }: { showPortfolio?: boolean }) {
 
   const [simplified, setSimplified] = useStoredFlag(SIMPLIFY_STORAGE_KEY);
   const { hidden, pinned, setPinned } = useNavCustomization();
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   function toggleSimplified() {
     setSimplified(!simplified);
+  }
+
+  const query = searchQuery.trim().toLowerCase();
+
+  function matchesQuery(label: string, href: string): boolean {
+    return !query || label.toLowerCase().includes(query) || href.toLowerCase().includes(query);
+  }
+
+  function clearSearch() {
+    setSearchQuery("");
+    searchInputRef.current?.focus();
   }
 
   const pinnedModules = PROJECT_MODULES.filter(
@@ -189,6 +214,49 @@ function Sidebar({ showPortfolio = false }: { showPortfolio?: boolean }) {
   function isActiveEntry(href: string, exact: boolean): boolean {
     return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   }
+
+  const globalResults = GLOBAL_ITEMS.filter((item) => matchesQuery(item.label, item.href));
+
+  const pickerResults = PICKER_ITEMS.filter(
+    (item) => !hidden.has(item.href) && matchesQuery(item.label, item.href),
+  );
+
+  const projectSearchEntries: Entry[] = React.useMemo(() => {
+    if (!currentProjectId) return [];
+    const pinnedEntries: Entry[] = pinnedModules.map((module) => ({
+      key: `pinned:${module.href}`,
+      label: module.label,
+      href: `/projects/${currentProjectId}${module.href}`,
+      icon: module.icon,
+      labelKey: module.labelKey,
+    }));
+    const moduleEntries: Entry[] = PROJECT_MODULES.filter(
+      (module) =>
+        module.href !== ALWAYS_VISIBLE_HREF && !hidden.has(module.href) && !pinned.has(module.href),
+    ).map((module) => ({
+      key: module.href,
+      label: module.label,
+      href: `/projects/${currentProjectId}${module.href}`,
+      icon: module.icon,
+      labelKey: module.labelKey,
+    }));
+    return [
+      {
+        key: "command-center",
+        label: "Command Center",
+        href: `/projects/${currentProjectId}/command-center`,
+        icon: LayoutDashboard,
+      },
+      { key: "overview", label: "Overview", href: `/projects/${currentProjectId}`, icon: LayoutGrid },
+      ...pinnedEntries,
+      ...moduleEntries,
+    ];
+  }, [currentProjectId, pinnedModules, hidden, pinned]);
+
+  const projectResults =
+    currentProjectId !== null
+      ? projectSearchEntries.filter((entry) => matchesQuery(entry.label, entry.href))
+      : [];
 
   return (
     <aside
@@ -214,8 +282,44 @@ function Sidebar({ showPortfolio = false }: { showPortfolio?: boolean }) {
         )}
       </div>
 
+      {/*
+        The search box exists only in the expanded sidebar: it has no room
+        in the 4rem icon rail, where every entry already carries its label
+        as a tooltip and the whole point is minimal chrome.
+      */}
+      {!collapsed && (
+        <div className="px-2 pt-2">
+          <div className="flex items-center gap-2 rounded-md border border-border bg-secondary px-2.5">
+            <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") clearSearch();
+              }}
+              placeholder="Search modules"
+              aria-label="Search modules"
+              className="h-8 w-full min-w-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                aria-label="Clear search"
+                title="Clear search"
+                className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X className="size-3.5" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2" aria-label="Primary">
-        {GLOBAL_ITEMS.map((item) => {
+        {globalResults.map((item) => {
           // "/projects" is a literal prefix of every project's own pages —
           // once inside one, "Overview" (below) is the specific indicator
           // for that, so "Projects" here only lights up on its own list
@@ -237,7 +341,7 @@ function Sidebar({ showPortfolio = false }: { showPortfolio?: boolean }) {
           knowing the page exists, which is the same reason the page
           itself answers 404 rather than 403.
         */}
-        {showPortfolio && (
+        {showPortfolio && matchesQuery("Executive", "/executive") && (
           <NavLink
             entry={{ key: "/executive", label: "Executive", href: "/executive", icon: Gauge }}
             collapsed={collapsed}
@@ -247,7 +351,48 @@ function Sidebar({ showPortfolio = false }: { showPortfolio?: boolean }) {
 
         <div className="my-1 border-t border-border" role="separator" />
 
-        {currentProjectId ? (
+        {query !== "" ? (
+          // Search mode: flatten every destination — global anchors above,
+          // then (inside a project) every module that matches, including
+          // occasional-tier ones with no permanent residency. Group headers,
+          // pin toggles and Simplify all step aside so the matches read as
+          // one list, not a filtered version of six sections.
+          currentProjectId ? (
+            <>
+              {!collapsed && (
+                <span className="px-2.5 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Results
+                </span>
+              )}
+              {projectResults.length === 0 && (
+                <p className="px-2.5 py-2 text-sm text-muted-foreground">
+                  No modules match “{searchQuery.trim()}”.
+                </p>
+              )}
+              {projectResults.map((entry) => (
+                <NavLink
+                  key={entry.key}
+                  entry={entry}
+                  collapsed={collapsed}
+                  isActive={isActiveEntry(entry.href, entry.key === "overview")}
+                />
+              ))}
+            </>
+          ) : pickerResults.length === 0 ? (
+            <p className="px-2.5 py-2 text-sm text-muted-foreground">
+              No modules match “{searchQuery.trim()}”.
+            </p>
+          ) : (
+            pickerResults.map((item) => (
+              <NavLink
+                key={item.href}
+                entry={{ key: item.href, label: item.label, href: item.href, icon: item.icon, labelKey: item.labelKey }}
+                collapsed={collapsed}
+                isActive={isActiveEntry(item.href, false)}
+              />
+            ))
+          )
+        ) : currentProjectId ? (
           <>
             <NavLink
               entry={{

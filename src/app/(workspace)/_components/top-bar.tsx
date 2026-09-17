@@ -11,22 +11,27 @@ import { UserMenu } from "./user-menu";
  * identifier and never reaches the browser's UI. The name doubles as a link
  * to the organization's own profile page (currently just its industry
  * selection) rather than adding a second place to find it.
+ *
+ * On a narrow viewport the organization name yields to the breadcrumb trail:
+ * it is the one piece of context the right-hand controls do not re-state,
+ * while where you are (the crumbs) and where you can go (the actions) both
+ * stay. The link still exists for screen readers at every size.
  */
 export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
   return (
     <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4">
       <Link
         href="/organization"
-        className="max-w-[14rem] truncate rounded-sm text-sm font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="hidden max-w-[12rem] truncate rounded-sm text-sm font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:inline"
       >
         {identity.organization.name}
       </Link>
 
-      <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+      <div className="mx-1 hidden h-5 w-px shrink-0 bg-border md:block" aria-hidden="true" />
 
       <Breadcrumbs />
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1">
         <CommandPalette showPortfolio={canViewPortfolio(identity.user.organizationRole)} />
         <Link
           href="/settings"

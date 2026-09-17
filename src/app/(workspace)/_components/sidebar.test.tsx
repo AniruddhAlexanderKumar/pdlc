@@ -226,4 +226,79 @@ describe("Sidebar", () => {
 
     expect(screen.queryByRole("button", { name: "Pin Traceability" })).not.toBeInTheDocument();
   });
+
+  it("expands to search modules in the sidebar", async () => {
+    pathname = "/dashboard";
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    // The search box only exists in the expanded sidebar — the collapsed
+    // icon rail has no room for it, and every icon already has a tooltip.
+    expect(screen.getByRole("searchbox", { name: "Search modules" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+
+    expect(screen.queryByRole("searchbox", { name: "Search modules" })).not.toBeInTheDocument();
+  });
+
+  it("filters the outside-project module pickers as you type", async () => {
+    pathname = "/dashboard";
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    await user.type(screen.getByRole("searchbox", { name: "Search modules" }), "requ");
+
+    expect(screen.getByRole("link", { name: /^Requirements$/ })).toHaveAttribute(
+      "href",
+      "/requirements",
+    );
+    expect(screen.queryByRole("link", { name: /^Risks$/ })).not.toBeInTheDocument();
+  });
+
+  it("finds a module with no default sidebar residency when searching inside a project", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    // Suppliers is occasional-tier with no group, so it has no permanent
+    // sidebar spot — under a search it must still be findable.
+    expect(screen.queryByRole("link", { name: /^Suppliers$/ })).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole("searchbox", { name: "Search modules" }), "supplier");
+
+    expect(screen.getByRole("link", { name: /^Suppliers$/ })).toHaveAttribute(
+      "href",
+      "/projects/proj1aaaaaaaaaaaaaaaaaaa/suppliers",
+    );
+  });
+
+  it("flattens grouped modules into one Results list while searching, and does not show crumb separators or Simplify", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    await user.type(screen.getByRole("searchbox", { name: "Search modules" }), "risks");
+
+    // The grouped "Change" header is replaced by a single Results section.
+    expect(screen.getByText("Results")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Risks$/ })).toHaveAttribute(
+      "href",
+      "/projects/proj1aaaaaaaaaaaaaaaaaaa/risks",
+    );
+  });
+
+  it("shows a no-results message for a search that matches nothing, and recovers when cleared", async () => {
+    pathname = "/dashboard";
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    await user.type(screen.getByRole("searchbox", { name: "Search modules" }), "zzz-none");
+    expect(screen.getByText(/No modules match/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Requirements$/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(screen.queryByText(/No modules match/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Requirements$/ })).toBeInTheDocument();
+  });
 });
