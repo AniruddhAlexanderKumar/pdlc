@@ -44,7 +44,7 @@ export default function StepByStepGuidePage() {
   return (
     <DocsPage
       title="Step-by-Step Guide"
-      description="Click-by-click operational instructions for every core PDLC platform workflow."
+      description="Simple and straightforward click-by-click operational instructions for every core PDLC platform workflow."
       lastUpdated="2026-09-17"
       sourcePath="src/app/(marketing)/docs/step-by-step-guide/page.tsx"
     >
@@ -109,6 +109,28 @@ export default function StepByStepGuidePage() {
 
                 <AccordionContent className="pt-2 pb-4">
                   <div className="flex flex-col gap-4">
+                    {/* Simple 3-step summary box */}
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold text-primary mb-2">
+                        <Sparkles className="size-3.5" />
+                        Quick Summary:
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="rounded-md bg-background p-2 border border-border">
+                          <strong className="text-foreground">1. What it does:</strong>
+                          <p className="text-muted-foreground text-[11px] mt-0.5">{category.simpleSummary.whatItDoes}</p>
+                        </div>
+                        <div className="rounded-md bg-background p-2 border border-border">
+                          <strong className="text-foreground">2. Where to click:</strong>
+                          <p className="text-primary font-mono text-[11px] mt-0.5">{category.simpleSummary.whereToClick}</p>
+                        </div>
+                        <div className="rounded-md bg-background p-2 border border-border">
+                          <strong className="text-foreground">3. What you get:</strong>
+                          <p className="text-muted-foreground text-[11px] mt-0.5">{category.simpleSummary.whatYouGet}</p>
+                        </div>
+                      </div>
+                    </div>
+
                     {category.steps.map((step) => (
                       <Card key={step.stepNumber} className="border-border/60">
                         <CardHeader className="p-4 pb-2">

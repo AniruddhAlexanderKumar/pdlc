@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,17 +8,18 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
-  ChevronRight,
   Compass,
   FileCheck,
   GitFork,
   Handshake,
   HelpCircle,
   Lightbulb,
+  MousePointerClick,
   Play,
   Search,
   ShieldCheck,
   Sparkles,
+  SlidersHorizontal,
   Users,
   X,
   Zap,
@@ -29,7 +30,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ICON_MAP = {
   Users,
@@ -45,9 +45,9 @@ const ICON_MAP = {
 export function StepByStepGuideModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string>("requirements");
+  const [guideMode, setGuideMode] = useState<"simple" | "detailed">("simple");
   const [searchQuery, setSearchQuery] = useState("");
   const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({});
-  const [sandboxInput, setSandboxInput] = useState("");
   const [sandboxOutput, setSandboxOutput] = useState<string | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const router = useRouter();
@@ -66,7 +66,7 @@ export function StepByStepGuideModal() {
     };
   }, []);
 
-  const activeCategory = GUIDE_CATEGORIES.find((cat) => cat.id === activeCategoryId) || GUIDE_CATEGORIES[0];
+  const activeCategory = GUIDE_CATEGORIES.find((cat) => cat.id === activeCategoryId) ?? GUIDE_CATEGORIES[0];
 
   const toggleStepCompleted = (stepKey: string) => {
     setCompletedSteps((prev) => ({
@@ -91,6 +91,10 @@ export function StepByStepGuideModal() {
     return matchCategory || matchSteps;
   });
 
+  const totalSteps = GUIDE_CATEGORIES.reduce((acc, cat) => acc + cat.steps.length, 0);
+  const totalCompleted = Object.values(completedSteps).filter(Boolean).length;
+  const progressPercent = Math.round((totalCompleted / totalSteps) * 100);
+
   const handleRunPracticeSandbox = () => {
     setIsSimulating(true);
     setSandboxOutput(null);
@@ -102,7 +106,7 @@ export function StepByStepGuideModal() {
       } else {
         setSandboxOutput("Simulation complete: Step parameters verified against PDLC knowledge graph rules.");
       }
-    }, 700);
+    }, 600);
   };
 
   return (
@@ -110,36 +114,82 @@ export function StepByStepGuideModal() {
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto p-0 sm:max-w-5xl">
         <div className="flex flex-col bg-background">
           {/* Header */}
-          <DialogHeader className="sticky top-0 z-20 border-b border-border bg-card p-6 pb-4">
+          <DialogHeader className="sticky top-0 z-20 border-b border-border bg-card p-5 pb-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <BookOpen className="size-5" />
                 </div>
                 <div>
-                  <DialogTitle className="text-xl font-bold">Step-by-Step Software Guide</DialogTitle>
+                  <div className="flex items-center gap-2">
+                    <DialogTitle className="text-xl font-bold">Step-by-Step Software Guide</DialogTitle>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {progressPercent}% Explored
+                    </Badge>
+                  </div>
                   <DialogDescription className="text-xs text-muted-foreground">
-                    Interactive click-by-click walkthroughs for aerospace requirements, impact simulation, and compliance.
+                    Interactive walkthroughs for aerospace requirements, change impact simulation, and compliance.
                   </DialogDescription>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Mode Switch: Simple vs Detailed */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center rounded-lg border border-border bg-muted/50 p-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setGuideMode("simple")}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition-all ${
+                      guideMode === "simple"
+                        ? "bg-card shadow-xs text-foreground font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Sparkles className="size-3.5 text-primary" />
+                    Simple Mode
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGuideMode("detailed")}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition-all ${
+                      guideMode === "detailed"
+                        ? "bg-card shadow-xs text-foreground font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <SlidersHorizontal className="size-3.5 text-primary" />
+                    Detailed Steps
+                  </button>
+                </div>
+
                 <Button
                   variant="outline"
                   size="sm"
                   asChild
                   onClick={() => setIsOpen(false)}
+                  className="hidden sm:inline-flex"
                 >
                   <Link href="/docs/step-by-step-guide">
-                    <Compass className="mr-1.5 size-4" /> Full Documentation Page
+                    <Compass className="mr-1.5 size-4" /> Full Docs Page
                   </Link>
                 </Button>
               </div>
             </div>
 
+            {/* Overall progress bar */}
+            <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">Progress:</span>
+              <div className="h-1.5 flex-1 rounded-full bg-muted">
+                <div
+                  className="h-1.5 rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span>{totalCompleted}/{totalSteps} steps completed</span>
+            </div>
+
             {/* Search filter */}
-            <div className="relative mt-4">
+            <div className="relative mt-3">
               <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
               <Input
                 placeholder="Search workflows (e.g. 'quality inspection', 'blast radius', 'stakeholder conflict', 'verification')..."
@@ -179,7 +229,6 @@ export function StepByStepGuideModal() {
                       onClick={() => {
                         setActiveCategoryId(cat.id);
                         setSandboxOutput(null);
-                        setSandboxInput("");
                       }}
                       className={`flex items-start gap-3 rounded-lg p-2.5 text-left transition-colors ${
                         isActive
@@ -238,67 +287,140 @@ export function StepByStepGuideModal() {
                     </Button>
                   </div>
 
-                  {/* Steps List */}
-                  <div className="flex flex-col gap-4">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Step-by-Step Instructions ({activeCategory.steps.length} Steps)
-                    </h4>
-
-                    {activeCategory.steps.map((step) => {
-                      const stepKey = `${activeCategory.id}-${step.stepNumber}`;
-                      const isDone = Boolean(completedSteps[stepKey]);
-
-                      return (
-                        <Card key={step.stepNumber} className={`transition-all ${isDone ? "border-emerald-500/30 bg-emerald-500/5" : ""}`}>
-                          <CardHeader className="p-4 pb-2">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-2.5">
-                                <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                                  isDone ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground"
-                                }`}>
-                                  {step.stepNumber}
-                                </span>
-                                <CardTitle className="text-sm font-semibold">{step.title}</CardTitle>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => toggleStepCompleted(stepKey)}
-                                className={`flex items-center gap-1 rounded-sm px-2 py-1 text-xs transition-colors ${
-                                  isDone
-                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                    : "text-muted-foreground hover:bg-muted"
-                                }`}
-                              >
-                                <CheckCircle2 className="size-3.5" />
-                                {isDone ? "Completed" : "Mark Done"}
-                              </button>
+                  {/* Mode 1: Simple Overview (Plain English 3-Bullet Summary) */}
+                  {guideMode === "simple" && (
+                    <div className="flex flex-col gap-4">
+                      <Card className="border-primary/30 bg-primary/5">
+                        <CardHeader className="p-4 pb-2">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="size-4 text-primary" />
+                            <CardTitle className="text-sm font-bold text-primary">
+                              Simple 3-Step Overview
+                            </CardTitle>
+                          </div>
+                          <CardDescription className="text-xs">
+                            The essential summary in plain English—no technical fluff.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2 flex flex-col gap-3 text-xs">
+                          <div className="flex items-start gap-2.5 rounded-md bg-background p-3 border border-border">
+                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                              1
+                            </span>
+                            <div>
+                              <strong className="text-foreground">What it does:</strong>
+                              <p className="mt-0.5 text-muted-foreground">{activeCategory.simpleSummary.whatItDoes}</p>
                             </div>
-                          </CardHeader>
-                          <CardContent className="p-4 pt-1 flex flex-col gap-2 text-xs">
-                            <div className="rounded-md bg-muted/50 px-2.5 py-1.5 font-mono text-[11px] text-foreground">
-                              <span className="font-semibold text-primary">UI Action:</span> {step.action}
+                          </div>
+
+                          <div className="flex items-start gap-2.5 rounded-md bg-background p-3 border border-border">
+                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                              2
+                            </span>
+                            <div>
+                              <strong className="text-foreground">Where to click:</strong>
+                              <p className="mt-0.5 text-muted-foreground font-mono text-[11px] text-primary">{activeCategory.simpleSummary.whereToClick}</p>
                             </div>
-                            <p className="text-muted-foreground leading-relaxed">{step.description}</p>
+                          </div>
 
-                            {step.tip && (
-                              <div className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-400">
-                                <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-amber-600" />
-                                <span><strong>Tip:</strong> {step.tip}</span>
-                              </div>
-                            )}
+                          <div className="flex items-start gap-2.5 rounded-md bg-background p-3 border border-border">
+                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                              3
+                            </span>
+                            <div>
+                              <strong className="text-foreground">What you get:</strong>
+                              <p className="mt-0.5 text-muted-foreground">{activeCategory.simpleSummary.whatYouGet}</p>
+                            </div>
+                          </div>
 
-                            {step.warning && (
-                              <div className="flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/10 p-2 text-[11px] text-red-700 dark:text-red-400">
-                                <X className="mt-0.5 size-3.5 shrink-0 text-red-600" />
-                                <span><strong>Engineering Caution:</strong> {step.warning}</span>
+                          <div className="mt-2 flex items-center justify-between gap-3 pt-2 border-t border-border">
+                            <span className="text-xs text-muted-foreground">Want exact click details and cautions?</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setGuideMode("detailed")}
+                              className="gap-1 text-xs text-primary"
+                            >
+                              Switch to Detailed Steps <SlidersHorizontal className="size-3" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+
+                  {/* Mode 2: Detailed Engineering Steps */}
+                  {guideMode === "detailed" && (
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Detailed Click-by-Click Instructions ({activeCategory.steps.length} Steps)
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => setGuideMode("simple")}
+                          className="text-xs text-primary underline-offset-4 hover:underline"
+                        >
+                          Switch back to Simple View
+                        </button>
+                      </div>
+
+                      {activeCategory.steps.map((step) => {
+                        const stepKey = `${activeCategory.id}-${step.stepNumber}`;
+                        const isDone = Boolean(completedSteps[stepKey]);
+
+                        return (
+                          <Card key={step.stepNumber} className={`transition-all ${isDone ? "border-emerald-500/30 bg-emerald-500/5" : ""}`}>
+                            <CardHeader className="p-4 pb-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-2.5">
+                                  <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                                    isDone ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground"
+                                  }`}>
+                                    {step.stepNumber}
+                                  </span>
+                                  <CardTitle className="text-sm font-semibold">{step.title}</CardTitle>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => toggleStepCompleted(stepKey)}
+                                  className={`flex items-center gap-1 rounded-sm px-2 py-1 text-xs transition-colors ${
+                                    isDone
+                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                      : "text-muted-foreground hover:bg-muted"
+                                  }`}
+                                >
+                                  <CheckCircle2 className="size-3.5" />
+                                  {isDone ? "Completed" : "Mark Done"}
+                                </button>
                               </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-1 flex flex-col gap-2 text-xs">
+                              <div className="rounded-md bg-muted/50 px-2.5 py-1.5 font-mono text-[11px] text-foreground">
+                                <span className="font-semibold text-primary">UI Action:</span> {step.action}
+                              </div>
+                              <p className="text-muted-foreground leading-relaxed">{step.description}</p>
+
+                              {step.tip && (
+                                <div className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-400">
+                                  <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-amber-600" />
+                                  <span><strong>Tip:</strong> {step.tip}</span>
+                                </div>
+                              )}
+
+                              {step.warning && (
+                                <div className="flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/10 p-2 text-[11px] text-red-700 dark:text-red-400">
+                                  <X className="mt-0.5 size-3.5 shrink-0 text-red-600" />
+                                  <span><strong>Engineering Caution:</strong> {step.warning}</span>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Interactive Practice Sandbox */}
                   {activeCategory.practiceScenario && (
@@ -321,8 +443,8 @@ export function StepByStepGuideModal() {
                       </CardHeader>
                       <CardContent className="p-4 pt-2 flex flex-col gap-3">
                         <div className="text-xs text-muted-foreground">
-                          <strong>Sample Input:</strong>
-                          <div className="mt-1 rounded-md border border-border bg-muted/40 p-2 font-mono text-[11px] text-foreground">
+                          <strong>Sample Input Scenario:</strong>
+                          <div className="mt-1 rounded-md border border-border bg-muted/40 p-2.5 font-mono text-[11px] text-foreground">
                             {activeCategory.practiceScenario.sampleInput}
                           </div>
                         </div>
@@ -335,7 +457,7 @@ export function StepByStepGuideModal() {
                             className="gap-1.5 text-xs"
                           >
                             <Play className="size-3.5" />
-                            {isSimulating ? "Simulating Workflow..." : "Test Workflow Sandbox"}
+                            {isSimulating ? "Testing Workflow Sandbox..." : "Run Sandbox Test"}
                           </Button>
                         </div>
 
@@ -343,7 +465,7 @@ export function StepByStepGuideModal() {
                           <div className="mt-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-800 dark:text-emerald-300">
                             <div className="flex items-center gap-1.5 font-semibold">
                               <CheckCircle2 className="size-4 text-emerald-600" />
-                              Sandbox Test Result:
+                              Sandbox Outcome:
                             </div>
                             <p className="mt-1 leading-relaxed font-mono text-[11px]">{sandboxOutput}</p>
                           </div>

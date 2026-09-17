@@ -16,6 +16,15 @@ describe("step-by-step-guide-data", () => {
     expect(categoryIds).toContain("sentinel");
   });
 
+  it("ensures every category has a plain-English simpleSummary", () => {
+    for (const category of GUIDE_CATEGORIES) {
+      expect(category.simpleSummary).toBeDefined();
+      expect(category.simpleSummary.whatItDoes).toBeTruthy();
+      expect(category.simpleSummary.whereToClick).toBeTruthy();
+      expect(category.simpleSummary.whatYouGet).toBeTruthy();
+    }
+  });
+
   it("ensures every step has title, action, uiTarget, and description", () => {
     for (const category of GUIDE_CATEGORIES) {
       expect(category.title).toBeTruthy();

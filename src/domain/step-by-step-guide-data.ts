@@ -8,6 +8,12 @@ export interface GuideStep {
   warning?: string;
 }
 
+export interface SimpleWorkflowSummary {
+  whatItDoes: string;
+  whereToClick: string;
+  whatYouGet: string;
+}
+
 export interface GuideCategory {
   id: string;
   title: string;
@@ -16,6 +22,7 @@ export interface GuideCategory {
   shortDescription: string;
   targetRoute: string;
   routeLabel: string;
+  simpleSummary: SimpleWorkflowSummary;
   steps: GuideStep[];
   practiceScenario?: {
     headline: string;
@@ -34,6 +41,11 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     shortDescription: "Configure your organization, create project workspaces, set custom terminology, and invite team members with specific roles.",
     targetRoute: "/organization",
     routeLabel: "Go to Organization",
+    simpleSummary: {
+      whatItDoes: "Sets up your company workspace and invites your engineering team members.",
+      whereToClick: "Top Bar -> Click Organization Name -> People -> Add a Person",
+      whatYouGet: "Secure role-based access for engineers, managers, and reviewers across your projects.",
+    },
     steps: [
       {
         stepNumber: 1,
@@ -75,6 +87,11 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     shortDescription: "Author precise aerospace requirements, run real-time AI quality inspection against 12 engineering criteria, and fix subjective language.",
     targetRoute: "/projects",
     routeLabel: "Go to Requirements",
+    simpleSummary: {
+      whatItDoes: "Helps you write clear requirements and automatically catches vague or missing specifications.",
+      whereToClick: "Project Sidebar -> Requirements -> New Requirement / Inspect Quality",
+      whatYouGet: "Flawless, measurable requirements with clear units and verification methods.",
+    },
     steps: [
       {
         stepNumber: 1,
@@ -122,6 +139,11 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     shortDescription: "Log multi-stakeholder positions, surface subtle interpretation conflicts, and lock binding agreement records.",
     targetRoute: "/projects",
     routeLabel: "Manage Stakeholder Approvals",
+    simpleSummary: {
+      whatItDoes: "Prevents team misunderstandings by recording approvals and flagging conflicting interpretations.",
+      whereToClick: "Requirement Detail -> Approvals & Conflicts -> Record Position",
+      whatYouGet: "Clear stakeholder consensus and formal conflict resolution records before work starts.",
+    },
     steps: [
       {
         stepNumber: 1,
@@ -168,6 +190,11 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     shortDescription: "Intercept broad, ill-framed engineering questions and transform them into structured queries with clear acceptance criteria.",
     targetRoute: "/projects",
     routeLabel: "Ask Engineering Question",
+    simpleSummary: {
+      whatItDoes: "Turns vague questions like 'how to make it better?' into sharp, solvable engineering questions.",
+      whereToClick: "Top Bar or Decisions Module -> Ask Engineering Question",
+      whatYouGet: "Framed trade studies with exact variables, constraints, and success criteria.",
+    },
     steps: [
       {
         stepNumber: 1,
@@ -214,6 +241,11 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     shortDescription: "Explore multi-hop relationships across requirements, decisions, components, verification plans, risks, and evidence.",
     targetRoute: "/projects",
     routeLabel: "View Traceability Matrix",
+    simpleSummary: {
+      whatItDoes: "Shows how everything in your project connects—from top goals down to parts and test results.",
+      whereToClick: "Project Sidebar -> Understand -> Traceability Matrix",
+      whatYouGet: "Complete visual map of dependencies and evidence for compliance audits.",
+    },
     steps: [
       {
         stepNumber: 1,
@@ -254,6 +286,11 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     shortDescription: "Propose requirement modifications and simulate 1st, 2nd, and 3rd order downstream impacts across the entire knowledge graph.",
     targetRoute: "/projects",
     routeLabel: "Run Impact Simulator",
+    simpleSummary: {
+      whatItDoes: "Simulates what will break or need re-testing before you change a requirement.",
+      whereToClick: "Requirement Action -> Simulate Change Impact -> Run Graph Impact Analysis",
+      whatYouGet: "A downstream blast radius map and automatic revalidation checklist.",
+    },
     steps: [
       {
         stepNumber: 1,
@@ -307,6 +344,11 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     shortDescription: "Define verification methods (Test, Analysis, Inspection, Demonstration) and attach verifiable documentary evidence.",
     targetRoute: "/projects",
     routeLabel: "View Verification Plans",
+    simpleSummary: {
+      whatItDoes: "Records test plans and attaches real proof documents showing requirements are met.",
+      whereToClick: "Project Sidebar -> Prove -> Verification -> Assign Method / Attach Evidence",
+      whatYouGet: "Verifiable proof that your product passes all engineering tests.",
+    },
     steps: [
       {
         stepNumber: 1,
@@ -347,6 +389,11 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     shortDescription: "Monitor real-time project health metrics and respond to active Sentinel alerts when baseline decisions are invalidated.",
     targetRoute: "/projects",
     routeLabel: "View Requirements Health",
+    simpleSummary: {
+      whatItDoes: "Monitors overall project health and alerts you when upstream changes invalidate prior decisions.",
+      whereToClick: "Project Sidebar -> Understand -> Requirements Health -> Sentinel Alerts",
+      whatYouGet: "Real-time warning system ensuring zero silent engineering failures.",
+    },
     steps: [
       {
         stepNumber: 1,
