@@ -8,6 +8,7 @@ import { TerminologyProvider } from "./_components/terminology-context";
 import { TopBar } from "./_components/top-bar";
 import { InteractiveOnboardingTour } from "./_components/interactive-onboarding-tour";
 import { SituationAwareAI } from "./_components/situation-aware-ai";
+import { StepByStepGuideModal } from "./_components/step-by-step-guide-modal";
 
 /**
  * Shell for the authenticated application.
@@ -50,6 +51,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
         {/* Global workspace co-pilots */}
         <InteractiveOnboardingTour />
         <SituationAwareAI />
+        <StepByStepGuideModal />
       </div>
     </TerminologyProvider>
   );

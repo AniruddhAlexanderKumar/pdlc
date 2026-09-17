@@ -84,21 +84,31 @@ export function HelpView() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BookOpen className="size-5 text-primary" />
-              <CardTitle>Beginner Guide & Interactive Tour</CardTitle>
+              <CardTitle>Step-by-Step Software Guide & Onboarding Tour</CardTitle>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              <Sparkles className="size-3" /> New
+              <Sparkles className="size-3" /> Interactive Co-Pilots
             </span>
           </div>
           <CardDescription>
-            Learn PDLC Platform principles, graph-first engineering, and context-aware tools.
+            Master PDLC Platform workflows with interactive click-by-click walkthroughs, practice sandboxes, and graph engineering principles.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
+        <CardContent className="flex flex-col gap-3 pt-0">
           <p className="text-sm text-muted-foreground">
-            Explore the full beginner documentation or re-launch the interactive step-by-step onboarding wizard.
+            Launch the step-by-step interactive guide drawer, run the onboarding tour, or read full documentation.
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                window.dispatchEvent(new Event("pdlc:open-step-by-step-guide"));
+              }}
+              className="gap-1.5"
+            >
+              <BookOpen className="size-4" />
+              Open Step-by-Step Guide
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -108,12 +118,11 @@ export function HelpView() {
               className="gap-1.5"
             >
               <Compass className="size-4 text-primary" />
-              Launch Interactive Tour
+              Launch Onboarding Tour
             </Button>
-            <Button asChild size="sm" className="gap-1.5">
-              <Link href="/docs/beginner-guide">
-                <BookOpen className="size-4" />
-                Read Beginner Guide
+            <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Link href="/docs/step-by-step-guide">
+                Read Full Step Guide Page
               </Link>
             </Button>
           </div>

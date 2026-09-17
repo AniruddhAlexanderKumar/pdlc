@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CircleHelp, Compass, Settings, Sparkles } from "lucide-react";
+import { BookOpenCheck, CircleHelp, Compass, Settings, Sparkles } from "lucide-react";
 import { type AuthenticatedIdentity, canViewPortfolio } from "@/domain";
 import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
@@ -36,6 +36,18 @@ export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
           className="flex size-8 items-center justify-center rounded-md text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <Sparkles className="size-4" aria-hidden="true" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new Event("pdlc:open-step-by-step-guide"));
+          }}
+          aria-label="Step-by-Step Software Guide"
+          title="Step-by-Step Software Guide"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <BookOpenCheck className="size-4" aria-hidden="true" />
         </button>
 
         <button
