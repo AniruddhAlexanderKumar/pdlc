@@ -97,7 +97,7 @@ export function StepByStepGuideModal() {
 
     setTimeout(() => {
       setIsSimulating(false);
-      if (activeCategory.practiceScenario) {
+      if (activeCategory?.practiceScenario) {
         setSandboxOutput(activeCategory.practiceScenario.expectedOutcome);
       } else {
         setSandboxOutput("Simulation complete: Step parameters verified against PDLC knowledge graph rules.");
