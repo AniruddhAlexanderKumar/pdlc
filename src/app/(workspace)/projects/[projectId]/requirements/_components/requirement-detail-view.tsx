@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, History, Lock, Pencil } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History, Lock, Pencil, Zap } from "lucide-react";
 import type { RequirementStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
@@ -28,6 +28,7 @@ import { Select } from "@/components/ui/select";
 import { formatIsoDate } from "@/lib/utils";
 import { RequirementFormDialog } from "./requirement-form-dialog";
 import { RequirementTraceability } from "./requirement-traceability";
+import { RequirementImpactSimulatorUI } from "./requirement-impact-simulator-ui";
 
 /** Human wording for the audit actions this module writes. */
 const HISTORY_LABELS: Record<string, string> = {
@@ -67,6 +68,7 @@ export function RequirementDetailView({
   const project = useProject(projectId);
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
   const [isEditOpen, setIsEditOpen] = React.useState(false);
+  const [showSimulator, setShowSimulator] = React.useState(false);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [isBusy, setIsBusy] = React.useState(false);
 
@@ -130,6 +132,15 @@ export function RequirementDetailView({
                 All requirements
               </Link>
             </Button>
+
+            <Button
+              variant={showSimulator ? "default" : "outline"}
+              onClick={() => setShowSimulator((prev) => !prev)}
+            >
+              <Zap aria-hidden="true" className={showSimulator ? "" : "text-primary"} />
+              {showSimulator ? "Hide Simulator" : "Simulate Change Impact"}
+            </Button>
+
             <Button
               variant="outline"
               onClick={() => setIsEditOpen(true)}
@@ -159,6 +170,20 @@ export function RequirementDetailView({
           </>
         }
       />
+
+      {showSimulator && (
+        <RequirementImpactSimulatorUI
+          projectId={projectId}
+          requirement={{
+            id: requirement.id,
+            identifier: requirement.identifier,
+            title: requirement.title,
+            statement: requirement.statement,
+            priority: requirement.priority,
+            rationale: requirement.rationale,
+          }}
+        />
+      )}
 
       {!requirement.editable.content && (
         <p
