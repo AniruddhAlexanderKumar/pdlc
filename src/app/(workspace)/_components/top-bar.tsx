@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { CircleHelp, Settings } from "lucide-react";
+import { CircleHelp, Compass, Settings, Sparkles } from "lucide-react";
 import { type AuthenticatedIdentity, canViewPortfolio } from "@/domain";
 import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
@@ -7,15 +9,7 @@ import { UserMenu } from "./user-menu";
 
 /**
  * Top utility bar: the signed-in organization, the breadcrumb trail, and the
- * user menu. The organization is shown by name only — its id is an internal
- * identifier and never reaches the browser's UI. The name doubles as a link
- * to the organization's own profile page (currently just its industry
- * selection) rather than adding a second place to find it.
- *
- * On a narrow viewport the organization name yields to the breadcrumb trail:
- * it is the one piece of context the right-hand controls do not re-state,
- * while where you are (the crumbs) and where you can go (the actions) both
- * stay. The link still exists for screen readers at every size.
+ * user menu, plus launchers for the interactive onboarding tour & situation-aware AI.
  */
 export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
   return (
@@ -32,7 +26,32 @@ export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
       <Breadcrumbs />
 
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new Event("pdlc:toggle-ai-assistant"));
+          }}
+          aria-label="Situation-Aware AI Assistant"
+          title="Situation-Aware AI Assistant"
+          className="flex size-8 items-center justify-center rounded-md text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <Sparkles className="size-4" aria-hidden="true" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new Event("pdlc:open-onboarding-tour"));
+          }}
+          aria-label="Interactive Onboarding Tour"
+          title="Interactive Onboarding Tour"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <Compass className="size-4" aria-hidden="true" />
+        </button>
+
         <CommandPalette showPortfolio={canViewPortfolio(identity.user.organizationRole)} />
+
         <Link
           href="/settings"
           aria-label="Settings"

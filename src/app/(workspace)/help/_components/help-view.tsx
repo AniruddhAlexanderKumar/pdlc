@@ -1,5 +1,8 @@
+import Link from "next/link";
+import { BookOpen, Compass, Sparkles } from "lucide-react";
 import { GRAPH_EDGE_TYPES, GRAPH_NODE_TYPES } from "@/domain";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EdgeRegistryExplorer } from "@/components/domain-explorers/edge-registry-explorer";
 import { LifecycleExplorer } from "@/components/domain-explorers/lifecycle-explorer";
@@ -73,6 +76,47 @@ export function HelpView() {
         </CardHeader>
         <CardContent>
           <TaskGuides />
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/40 bg-card">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="size-5 text-primary" />
+              <CardTitle>Beginner Guide & Interactive Tour</CardTitle>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+              <Sparkles className="size-3" /> New
+            </span>
+          </div>
+          <CardDescription>
+            Learn PDLC Platform principles, graph-first engineering, and context-aware tools.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0">
+          <p className="text-sm text-muted-foreground">
+            Explore the full beginner documentation or re-launch the interactive step-by-step onboarding wizard.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                window.dispatchEvent(new Event("pdlc:open-onboarding-tour"));
+              }}
+              className="gap-1.5"
+            >
+              <Compass className="size-4 text-primary" />
+              Launch Interactive Tour
+            </Button>
+            <Button asChild size="sm" className="gap-1.5">
+              <Link href="/docs/beginner-guide">
+                <BookOpen className="size-4" />
+                Read Beginner Guide
+              </Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

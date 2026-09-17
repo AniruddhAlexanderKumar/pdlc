@@ -6,6 +6,8 @@ import { getAuthenticatedContext, toIdentity } from "@/server/auth/context";
 import { Sidebar } from "./_components/sidebar";
 import { TerminologyProvider } from "./_components/terminology-context";
 import { TopBar } from "./_components/top-bar";
+import { InteractiveOnboardingTour } from "./_components/interactive-onboarding-tour";
+import { SituationAwareAI } from "./_components/situation-aware-ai";
 
 /**
  * Shell for the authenticated application.
@@ -44,6 +46,10 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
           */}
           <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
         </div>
+
+        {/* Global workspace co-pilots */}
+        <InteractiveOnboardingTour />
+        <SituationAwareAI />
       </div>
     </TerminologyProvider>
   );

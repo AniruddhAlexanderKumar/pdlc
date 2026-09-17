@@ -12,6 +12,7 @@ export interface DocsNavItem {
 }
 
 export const DOCS_NAV: DocsNavItem[] = [
+  { title: "Beginner guide", href: "/docs/beginner-guide" },
   { title: "Getting started", href: "/docs/getting-started" },
   { title: "Concepts", href: "/docs/concepts" },
   { title: "Deployment", href: "/docs/deployment" },
