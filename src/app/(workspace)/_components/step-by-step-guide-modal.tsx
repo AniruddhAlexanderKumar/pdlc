@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useWorkflowExperience } from "@/lib/use-workflow-experience";
 
 const ICON_MAP = {
   Users,
@@ -43,9 +44,14 @@ const ICON_MAP = {
 } as const;
 
 export function StepByStepGuideModal() {
+  const { isSimpleMode } = useWorkflowExperience();
   const [isOpen, setIsOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string>("requirements");
-  const [guideMode, setGuideMode] = useState<"simple" | "detailed">("simple");
+  const [guideMode, setGuideMode] = useState<"simple" | "detailed">(isSimpleMode ? "simple" : "detailed");
+
+  useEffect(() => {
+    setGuideMode(isSimpleMode ? "simple" : "detailed");
+  }, [isSimpleMode]);
   const [searchQuery, setSearchQuery] = useState("");
   const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({});
   const [sandboxOutput, setSandboxOutput] = useState<string | null>(null);

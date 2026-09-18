@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  BookOpen,
   Columns2,
   Eye,
   EyeOff,
@@ -10,8 +11,10 @@ import {
   Moon,
   RectangleHorizontal,
   RotateCcw,
+  Sparkles,
   Star,
   Sun,
+  Wand2,
 } from "lucide-react";
 import type { Density } from "@/components/data-grid/data-grid-types";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +32,7 @@ import {
 import { useStoredFlag } from "@/lib/use-stored-flag";
 import { useLayoutDensity } from "@/lib/use-layout-density";
 import { type ThemePreference, useTheme } from "@/lib/use-theme";
+import { useWorkflowExperience } from "@/lib/use-workflow-experience";
 
 const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string; icon: typeof Sun }> = [
   { value: "system", label: "Match system", icon: Laptop },
@@ -195,6 +199,8 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
           </CardContent>
         </Card>
 
+        <WorkflowExperienceSettingsCard />
+
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
@@ -349,5 +355,89 @@ function ModuleRow({
         </button>
       </div>
     </div>
+  );
+}
+
+function WorkflowExperienceSettingsCard() {
+  const { isSimpleMode, setSimpleMode, autoShowGuide, setAutoShowGuide } = useWorkflowExperience();
+
+  return (
+    <Card className="border-primary/30 bg-card">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wand2 className="size-4 text-primary" aria-hidden="true" />
+            <CardTitle>Workflow & Guide Experience</CardTitle>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            Personal Preference
+          </Badge>
+        </div>
+        <CardDescription>
+          Customize how simple and guided your engineering workflows appear in this browser.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 rounded-lg border border-border p-3.5 bg-muted/30">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <Sparkles className="size-3.5 text-primary" />
+                Simplified Workflow Mode
+              </span>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Defaults step-by-step guides to plain-English 3-bullet summaries and streamlined single-action controls.
+              </p>
+            </div>
+            <label className="relative inline-flex cursor-pointer items-center shrink-0">
+              <input
+                type="checkbox"
+                checked={isSimpleMode}
+                onChange={(e) => setSimpleMode(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 rounded-lg border border-border p-3.5 bg-muted/30">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <BookOpen className="size-3.5 text-primary" />
+                Contextual Auto-Guide Co-Pilot
+              </span>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Automatically suggest the interactive step-by-step guide drawer when navigating to core modules.
+              </p>
+            </div>
+            <label className="relative inline-flex cursor-pointer items-center shrink-0">
+              <input
+                type="checkbox"
+                checked={autoShowGuide}
+                onChange={(e) => setAutoShowGuide(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xs text-muted-foreground">Want to test the interactive step-by-step guide now?</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              window.dispatchEvent(new Event("pdlc:open-step-by-step-guide"));
+            }}
+            className="gap-1.5 text-xs"
+          >
+            <BookOpen className="size-3.5" /> Launch Guide Drawer
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
