@@ -1,20 +1,30 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowRight,
   Binary,
+  BookOpen,
+  CheckCircle2,
+  Compass,
   Database,
   Download,
+  FileCheck,
   FileCheck2,
   GitCommit,
+  GitFork,
+  Handshake,
+  HelpCircle,
   Layers,
   Lock,
   Network,
   Server,
   Shield,
   ShieldCheck,
+  Sparkles,
   Terminal,
   Workflow,
+  Zap,
 } from "lucide-react";
 import { GRAPH_EDGE_TYPES, GRAPH_LIMITS, GRAPH_NODE_TYPES } from "@/domain";
 import { Button } from "@/components/ui/button";
@@ -27,7 +37,7 @@ import { InteractiveShowcase } from "./_components/interactive-showcase";
 export const metadata: Metadata = {
   title: "PDLC Platform — Deterministic Aerospace Lifecycle Management",
   description:
-    "A self-hosted, graph-native product development lifecycle system for aerospace and mission-critical engineering. One real graph, deterministic engines, zero AI.",
+    "A self-hosted, graph-native product development lifecycle system for aerospace and mission-critical engineering. Change impact simulation, requirements quality control, and zero AI hallucinations.",
 };
 
 const STATS = [
@@ -50,6 +60,41 @@ const STATS = [
     value: "0 calls",
     label: "Outbound telemetry",
     sub: "100% self-hosted, air-gapped, and sovereign",
+  },
+] as const;
+
+const PREVENTION_MODULES = [
+  {
+    icon: FileCheck,
+    tag: "QUALITY GATE 1",
+    title: "Requirements Quality & Ambiguity Inspector",
+    description:
+      "Automated inspection of 12 strict criteria: ambiguity, missing measurable metrics, missing units, undefined terms, and subjective language ('adequate', 'fast', 'sufficient'). Includes non-destructive rewrites and starter wizards.",
+    badge: "12 Criteria Checked",
+  },
+  {
+    icon: Handshake,
+    tag: "CONSENSUS GATE 2",
+    title: "Stakeholder Agreement & Conflict Resolution",
+    description:
+      "Logs formal positions across engineering disciplines, detects subtle cross-team interpretation conflicts before baseline lock, and generates binding resolution records.",
+    badge: "Conflict Detection",
+  },
+  {
+    icon: HelpCircle,
+    tag: "FRAMING GATE 3",
+    title: "Engineering Question Gatekeeper",
+    description:
+      "Intercepts vague, broad queries (e.g. 'How to make turbopump more reliable?') and transforms them into structured engineering questions with exact success criteria.",
+    badge: "Problem Framing",
+  },
+  {
+    icon: Zap,
+    tag: "BLAST RADIUS GATE 4",
+    title: "Requirement Change Impact Simulator",
+    description:
+      "Propose requirement edits and instantly calculate 1st, 2nd, and 3rd order downstream ripple effects across requirements, design decisions, test plans, and evidence records.",
+    badge: "Impact Analysis",
   },
 ] as const;
 
@@ -196,46 +241,48 @@ export default function MarketingHomePage() {
           </span>
           <span className="font-semibold text-foreground">PDLC PLATFORM v{PRODUCT_VERSION}</span>
           <span className="text-border">/</span>
-          <span className="hidden sm:inline">DETERMINISTIC AEROSPACE LIFECYCLE MANAGEMENT</span>
+          <span className="hidden sm:inline">DETERMINISTIC AEROSPACE LIFECYCLE ENGINE</span>
           <span className="sm:hidden">MISSION-CRITICAL</span>
         </div>
 
         {/* Hero Title */}
         <h1 className="mt-6 max-w-4xl text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl leading-[1.1]">
-          The Deterministic Traceability Backbone for{" "}
+          Prevent Aerospace Engineering Failures Before They Happen with{" "}
           <span className="text-primary underline decoration-primary/30 decoration-wavy underline-offset-8">
-            Aerospace Engineering
+            Deterministic Traceability
           </span>
         </h1>
 
         {/* Subtitle */}
         <p className="mt-6 max-w-3xl text-base text-muted-foreground sm:text-lg leading-relaxed">
-          A self-hosted, graph-native lifecycle system that unifies requirements, decisions, verification, risks, and changes on one real relational graph. Zero AI hallucinations, zero document drift, and mathematically verified change impact analysis.
+          Actively eliminates poor requirements, stakeholder disagreements, and ill-framed engineering questions. Unified on one real relational graph with instant Change Impact Simulation and zero AI hallucinations.
         </p>
 
         {/* CTAs */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button asChild size="lg" className="gap-2 px-6">
+          <Button asChild size="lg" className="gap-2 px-6 shadow-md">
             <Link href="/sign-up">
-              <span>Create an organization</span>
+              <span>Create an Organization</span>
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </Button>
+
           <Button asChild variant="outline" size="lg" className="gap-2">
+            <Link href="/docs/step-by-step-guide">
+              <BookOpen className="size-4 text-primary" aria-hidden="true" />
+              <span>Step-by-Step Software Guide</span>
+            </Link>
+          </Button>
+
+          <Button asChild variant="ghost" size="lg" className="gap-2">
             <Link href="/download">
               <Download className="size-4 text-muted-foreground" aria-hidden="true" />
               <span>Download self-hosted bundle</span>
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="lg" className="gap-2">
-            <Link href="/docs">
-              <Terminal className="size-4 text-muted-foreground" aria-hidden="true" />
-              <span>Read docs</span>
-            </Link>
-          </Button>
         </div>
 
-        {/* 2. HERO MOCKUP: MISSION TRACE CONSOLE */}
+        {/* 2. HERO MOCKUP: MISSION TRACE & IMPACT CONSOLE */}
         <div className="mt-14 w-full max-w-4xl overflow-hidden rounded-xl border border-border bg-card text-left shadow-lg">
           <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-4 py-2.5">
             <div className="flex items-center gap-2">
@@ -245,7 +292,7 @@ export default function MarketingHomePage() {
                 <div className="size-2.5 rounded-full bg-success/60" />
               </div>
               <span className="font-mono text-xs font-semibold text-foreground">
-                {"MISSION-TRACE-CONSOLE // ECS-PRIMARY-AVIONICS"}
+                {"MISSION-TRACE-CONSOLE // CHANGE-IMPACT-SIMULATOR"}
               </span>
             </div>
             <div className="hidden sm:flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
@@ -337,8 +384,8 @@ export default function MarketingHomePage() {
                     <span className="font-semibold text-foreground">RSK-014 (Mitigated)</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Engine verdict:</span>
-                    <span className="font-semibold text-success">Review Required</span>
+                    <span className="text-muted-foreground">Approval Status:</span>
+                    <span className="font-semibold text-amber-500">APPROVAL_POTENTIALLY_INVALIDATED</span>
                   </div>
                 </div>
 
@@ -351,7 +398,50 @@ export default function MarketingHomePage() {
         </div>
       </Shell>
 
-      {/* 3. LIVE DOMAIN METRICS STRIP */}
+      {/* 3. CORE PREVENTION MODULES SHOWCASE */}
+      <Shell className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <Badge variant="outline" className="self-start text-xs font-mono">
+            PROBLEM PREVENTION ENGINES
+          </Badge>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            4 Core Failure Mode Prevention Features
+          </h2>
+          <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
+            PDLC actively intervenes before poor specifications or uncoordinated changes cause flight failures.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {PREVENTION_MODULES.map((mod) => {
+            const Icon = mod.icon;
+            return (
+              <div
+                key={mod.title}
+                className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/50"
+              >
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="size-5" aria-hidden="true" />
+                    </div>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {mod.badge}
+                    </Badge>
+                  </div>
+                  <span className="font-mono text-[10px] tracking-wider text-muted-foreground">
+                    {mod.tag}
+                  </span>
+                  <h3 className="text-base font-semibold text-foreground">{mod.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{mod.description}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Shell>
+
+      {/* 4. LIVE DOMAIN METRICS STRIP */}
       <Shell>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {STATS.map((stat) => (
@@ -374,7 +464,7 @@ export default function MarketingHomePage() {
         </div>
       </Shell>
 
-      {/* 4. LIFECYCLE PIPELINE (THE V-MODEL ON A GRAPH) */}
+      {/* 5. LIFECYCLE PIPELINE (THE V-MODEL ON A GRAPH) */}
       <Shell className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <Badge variant="outline" className="self-start text-xs font-mono">
@@ -411,7 +501,7 @@ export default function MarketingHomePage() {
         </div>
       </Shell>
 
-      {/* 5. INTERACTIVE LIVE BENCH / ENGINE SHOWCASE */}
+      {/* 6. INTERACTIVE LIVE BENCH / ENGINE SHOWCASE */}
       <Shell className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <Badge variant="outline" className="self-start text-xs font-mono">
@@ -428,7 +518,7 @@ export default function MarketingHomePage() {
         <InteractiveShowcase />
       </Shell>
 
-      {/* 6. CORE ARCHITECTURAL DIFFERENTIATORS */}
+      {/* 7. CORE ARCHITECTURAL DIFFERENTIATORS */}
       <Shell className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <Badge variant="outline" className="self-start text-xs font-mono">
@@ -468,7 +558,7 @@ export default function MarketingHomePage() {
         </div>
       </Shell>
 
-      {/* 7. AIRWORTHINESS COMPLIANCE STANDARDS */}
+      {/* 8. AIRWORTHINESS COMPLIANCE STANDARDS */}
       <Shell className="flex flex-col gap-6">
         <div className="rounded-xl border border-border bg-gradient-to-br from-card via-card to-secondary/30 p-6 sm:p-8">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -518,7 +608,7 @@ export default function MarketingHomePage() {
         </div>
       </Shell>
 
-      {/* 8. WHO IT'S FOR */}
+      {/* 9. WHO IT'S FOR */}
       <Shell className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <Badge variant="outline" className="self-start text-xs font-mono">
@@ -560,7 +650,7 @@ export default function MarketingHomePage() {
         </div>
       </Shell>
 
-      {/* 9. DEPLOYMENT & SOVEREIGNTY */}
+      {/* 10. DEPLOYMENT & SOVEREIGNTY */}
       <Shell className="flex flex-col gap-8">
         <div className="flex flex-col gap-2">
           <Badge variant="outline" className="self-start text-xs font-mono">
@@ -617,7 +707,7 @@ chmod +x setup.sh && ./setup.sh`}</CodeBlock>
         </div>
       </Shell>
 
-      {/* 10. CALL TO ACTION (BOTTOM) */}
+      {/* 11. CALL TO ACTION (BOTTOM) */}
       <Shell>
         <div className="flex flex-col items-center gap-6 rounded-2xl border border-border bg-secondary/30 px-6 py-12 text-center sm:px-12 sm:py-16">
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
@@ -636,14 +726,14 @@ chmod +x setup.sh && ./setup.sh`}</CodeBlock>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="gap-2 px-6">
               <Link href="/sign-up">
-                <span>Create an organization</span>
+                <span>Create an Organization</span>
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="gap-2">
-              <Link href="/download">
-                <Download className="size-4" aria-hidden="true" />
-                <span>Download bundle</span>
+              <Link href="/docs/step-by-step-guide">
+                <BookOpen className="size-4 text-primary" aria-hidden="true" />
+                <span>Step-by-Step Software Guide</span>
               </Link>
             </Button>
             <Button asChild variant="ghost" size="lg">
