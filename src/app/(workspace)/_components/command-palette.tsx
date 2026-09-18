@@ -85,6 +85,8 @@ export function CommandPalette({ showPortfolio = false }: { showPortfolio?: bool
       { key: "nav:/dashboard", title: "Dashboard", href: "/dashboard", section: "Go to" },
       { key: "nav:/projects", title: "Projects", href: "/projects", section: "Go to" },
       { key: "nav:/settings", title: "Settings", href: "/settings", section: "Go to" },
+      { key: "nav:/docs/step-by-step-guide", title: "Step-by-Step Software Guide", href: "/docs/step-by-step-guide", section: "Documentation" },
+      { key: "nav:/docs/beginner-guide", title: "Beginner Guide", href: "/docs/beginner-guide", section: "Documentation" },
       ...(showPortfolio
         ? [{ key: "nav:/executive", title: "Executive", href: "/executive", section: "Go to" }]
         : []),

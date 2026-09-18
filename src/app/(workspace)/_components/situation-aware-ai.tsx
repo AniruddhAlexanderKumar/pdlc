@@ -72,6 +72,12 @@ export function SituationAwareAI() {
     const textToSend = customText ?? inputMessage;
     if (!textToSend.trim() || isLoading) return;
 
+    if (textToSend.includes("Open Step-by-Step Software Guide") || textToSend.includes("Open Step-by-Step Guide")) {
+      window.dispatchEvent(new Event("pdlc:open-step-by-step-guide"));
+    } else if (textToSend.includes("Launch Onboarding Tour")) {
+      window.dispatchEvent(new Event("pdlc:open-onboarding-tour"));
+    }
+
     const userMsg: Message = {
       id: "user-" + Date.now(),
       sender: "user",

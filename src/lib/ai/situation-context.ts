@@ -186,7 +186,25 @@ export function generateSituationalAnalysis(
         `- Primary Entity: \`${context.primaryDomainEntity}\`\n` +
         `- User Authority: Holding \`${context.userRole}\` access role.\n` +
         `- Graph Connection: Every object created here links explicitly to upstream/downstream nodes. There are no arbitrary severity scores or hidden magic numbers.`,
-      recommendedActions: context.suggestedPrompts,
+      recommendedActions: [...context.suggestedPrompts, "Open Step-by-Step Software Guide"],
+    };
+  }
+
+  // Guide query
+  if (query.includes("guide") || query.includes("step") || query.includes("how to")) {
+    return {
+      contextBanner: `📍 Aware of: Step-by-Step Interactive Guide`,
+      answer: `**Step-by-Step Software Guide Available:**\n\n` +
+        `PDLC Platform features built-in interactive walkthroughs and 3-step simple summaries for every core workflow.\n\n` +
+        `• **Quality Inspector**: Catch vague language & missing units.\n` +
+        `• **Conflict Resolution**: Detect stakeholder interpretation clashes.\n` +
+        `• **Impact Simulator**: Calculate 1st/2nd/3rd order downstream blast radii.\n` +
+        `• **Gatekeeper**: Transform broad queries into framed engineering questions.`,
+      recommendedActions: [
+        "Open Step-by-Step Software Guide",
+        "Switch to Simple Workflow Mode in Settings",
+        "Launch Onboarding Tour",
+      ],
     };
   }
 
