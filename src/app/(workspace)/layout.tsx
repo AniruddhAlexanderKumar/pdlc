@@ -9,6 +9,7 @@ import { TopBar } from "./_components/top-bar";
 import { InteractiveOnboardingTour } from "./_components/interactive-onboarding-tour";
 import { SituationAwareAI } from "./_components/situation-aware-ai";
 import { StepByStepGuideModal } from "./_components/step-by-step-guide-modal";
+import { GuidedWalkthroughOverlay } from "./_components/guided-walkthrough-overlay";
 
 /**
  * Shell for the authenticated application.
@@ -16,7 +17,7 @@ import { StepByStepGuideModal } from "./_components/step-by-step-guide-modal";
  * This is the authoritative gate for every workspace page: the session is
  * resolved from the database here, on the server, before any child renders.
  * Middleware may have redirected already, but a present cookie proves nothing
- * — an expired or forged token is rejected at this point.
+ * — an expired or forged token is redirected at this point.
  */
 export default async function WorkspaceLayout({ children }: { children: ReactNode }) {
   const context = await getAuthenticatedContext();
@@ -52,6 +53,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
         <InteractiveOnboardingTour />
         <SituationAwareAI />
         <StepByStepGuideModal />
+        <GuidedWalkthroughOverlay />
       </div>
     </TerminologyProvider>
   );

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Activity, AlertTriangle, ListChecks, Plus, RefreshCw, Search, Wand2 } from "lucide-react";
+import { Activity, AlertTriangle, BookOpen, ListChecks, Plus, RefreshCw, Search, Wand2 } from "lucide-react";
 import { REQUIREMENT_STATUSES, type RequirementStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
@@ -208,6 +208,17 @@ export function RequirementsView({ projectId }: { projectId: string }) {
         }
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent("pdlc:open-step-by-step-guide", { detail: "requirements" })
+                );
+              }}
+            >
+              <BookOpen aria-hidden="true" className="text-primary" />
+              Step-by-Step Guide
+            </Button>
             <Button variant="outline" onClick={() => setIsStarterOpen(true)}>
               <Wand2 aria-hidden="true" className="text-primary" />
               Requirements Starter
