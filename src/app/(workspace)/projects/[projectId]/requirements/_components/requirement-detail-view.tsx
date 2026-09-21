@@ -173,7 +173,6 @@ export function RequirementDetailView({
 
       {showSimulator && (
         <RequirementImpactSimulatorUI
-          projectId={projectId}
           requirement={{
             id: requirement.id,
             identifier: requirement.identifier,

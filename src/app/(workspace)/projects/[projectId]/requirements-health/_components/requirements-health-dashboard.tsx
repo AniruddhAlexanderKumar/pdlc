@@ -3,17 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  ShieldAlert,
   CheckCircle2,
   AlertTriangle,
   XCircle,
   Activity,
   FileCheck,
   Users,
-  GitGraph,
   ArrowRight,
   HelpCircle,
-  FileCode,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

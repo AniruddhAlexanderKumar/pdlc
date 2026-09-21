@@ -35,7 +35,31 @@ describe("Requirement Quality & Question Gatekeeper Engines", () => {
     const result = inspectRequirementQuality(goodReq);
     expect(result.qualityStatus).toBe("COMPLETE");
     expect(result.flaws).toHaveLength(0);
-    expect(result.score).toBe(100);
+  });
+
+  /**
+   * The same guard `certification.test.ts`, `evidence.test.ts`,
+   * `impact-analysis.test.ts` and `baseline-comparison.test.ts` already
+   * apply to their own vocabularies, applied here too.
+   *
+   * This inspector briefly did carry one — `score: number`, computed as
+   * `100 - 15 per flaw` — and a test asserted it equalled 100, which locked
+   * the violation in rather than catching it. A classification a reader can
+   * argue with is worth more than a number nobody can.
+   */
+  it("reports a classification and real flaws, and no score of any kind", () => {
+    const result = inspectRequirementQuality({
+      title: "Engine thrust",
+      statement: "The engine shall provide adequate thrust.",
+      ownerId: null,
+      verificationMethod: null,
+    });
+
+    expect(result).not.toHaveProperty("score");
+    const serialised = JSON.stringify(result).toLowerCase();
+    for (const forbidden of ["score", "percent", "rating", "confidence"]) {
+      expect(serialised).not.toContain(forbidden);
+    }
   });
 
   it("converts vague input questions into formal engineering questions", () => {

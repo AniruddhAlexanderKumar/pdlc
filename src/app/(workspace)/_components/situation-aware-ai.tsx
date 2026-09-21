@@ -10,21 +10,18 @@ import {
   User,
   Compass,
   RefreshCw,
-  HelpCircle,
-  CheckCircle2,
   ChevronRight,
-  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { extractSituationContext, generateSituationalAnalysis, type SituationalContext } from "@/lib/ai/situation-context";
 
+/** `timestamp` used to sit here too — set on every message, rendered by nothing. */
 interface Message {
   id: string;
   sender: "user" | "ai";
   text: string;
   contextBanner?: string;
   actions?: string[];
-  timestamp: Date;
 }
 
 export function SituationAwareAI() {
@@ -51,22 +48,27 @@ export function SituationAwareAI() {
     };
   }, []);
 
-  // Initialize initial situational message when panel opens or route changes
-  React.useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      const initialAnalysis = generateSituationalAnalysis(situation);
-      setMessages([
-        {
-          id: "welcome-" + Date.now(),
-          sender: "ai",
-          text: initialAnalysis.answer,
-          contextBanner: initialAnalysis.contextBanner,
-          actions: initialAnalysis.recommendedActions,
-          timestamp: new Date(),
-        },
-      ]);
-    }
-  }, [isOpen, situation, messages.length]);
+  /**
+   * The opening message is derived, not stored.
+   *
+   * It used to be written into `messages` from an effect, costing a second
+   * render every time the panel opened and tripping the set-state-in-effect
+   * rule. Nothing about it is state: it is a pure function of the current
+   * route. Computed here, it also stays correct when the reader navigates,
+   * instead of going stale behind whatever was seeded first.
+   */
+  const welcome = React.useMemo<Message>(() => {
+    const analysis = generateSituationalAnalysis(situation);
+    return {
+      id: `welcome:${situation.pathname}`,
+      sender: "ai",
+      text: analysis.answer,
+      contextBanner: analysis.contextBanner,
+      actions: analysis.recommendedActions,
+    };
+  }, [situation]);
+
+  const conversation = messages.length === 0 ? [welcome] : messages;
 
   async function handleSend(customText?: string) {
     const textToSend = customText ?? inputMessage;
@@ -82,7 +84,6 @@ export function SituationAwareAI() {
       id: "user-" + Date.now(),
       sender: "user",
       text: textToSend,
-      timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -107,7 +108,6 @@ export function SituationAwareAI() {
           text: data.analysis.answer,
           contextBanner: data.analysis.contextBanner,
           actions: data.analysis.recommendedActions,
-          timestamp: new Date(),
         };
         setMessages((prev) => [...prev, aiMsg]);
       } else {
@@ -119,7 +119,6 @@ export function SituationAwareAI() {
           text: localAnalysis.answer,
           contextBanner: localAnalysis.contextBanner,
           actions: localAnalysis.recommendedActions,
-          timestamp: new Date(),
         };
         setMessages((prev) => [...prev, aiMsg]);
       }
@@ -133,7 +132,6 @@ export function SituationAwareAI() {
           text: localAnalysis.answer,
           contextBanner: localAnalysis.contextBanner,
           actions: localAnalysis.recommendedActions,
-          timestamp: new Date(),
         },
       ]);
     } finally {
@@ -195,7 +193,7 @@ export function SituationAwareAI() {
 
       {/* Messages Thread */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-        {messages.map((msg) => (
+        {conversation.map((msg) => (
           <div
             key={msg.id}
             className={`flex flex-col gap-1.5 ${

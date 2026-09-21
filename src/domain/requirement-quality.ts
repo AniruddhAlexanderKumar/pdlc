@@ -34,10 +34,27 @@ export interface RequirementQualityFlaw {
   flawedSnippet?: string;
 }
 
+/**
+ * What the inspector found — a classification and the specific flaws behind
+ * it, and deliberately no number.
+ *
+ * An earlier version of this carried `score: number // 0-100 quality
+ * indicator`, computed as `100 - 15 per flaw`. That is an invented figure on
+ * an invented scale: the 15 means nothing, a requirement with seven flaws is
+ * not "10% good", and two requirements scoring 70 are not comparable in any
+ * way the number implies. The product refuses figures like that everywhere
+ * else — `certification.test.ts` asserts no rule may even *declare* a
+ * `score` property, and `evidence.test.ts` rejects one on creation — and the
+ * Help page tells the reader outright that no score exists anywhere in the
+ * product. Shipping one here would have made that page a lie.
+ *
+ * `qualityStatus` and `flaws` say everything the score gestured at, and say
+ * it in terms an engineer can check: which specific words are subjective,
+ * which criterion is missing.
+ */
 export interface RequirementQualityResult {
   requirementId: string;
   qualityStatus: RequirementQualityStatus;
-  score: number; // 0-100 quality indicator
   flaws: RequirementQualityFlaw[];
   proposedImprovement?: {
     title: string;

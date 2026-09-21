@@ -1,16 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
-  ShieldAlert,
-  ArrowRight,
   CheckCircle2,
-  GitBranch,
   RefreshCw,
-  FileDiff,
-  CheckSquare,
-  Users,
   ShieldCheck,
   Edit3,
   Zap,
@@ -23,7 +16,6 @@ import { RevalidationPanel } from "./revalidation-panel";
 import { RevisionComparisonPanel } from "./revision-comparison-panel";
 
 interface RequirementImpactSimulatorUIProps {
-  projectId: string;
   requirement: {
     id: string;
     identifier: string;
@@ -34,12 +26,11 @@ interface RequirementImpactSimulatorUIProps {
   };
 }
 
-export function RequirementImpactSimulatorUI({ projectId, requirement }: RequirementImpactSimulatorUIProps) {
+export function RequirementImpactSimulatorUI({ requirement }: RequirementImpactSimulatorUIProps) {
   const [activeStep, setActiveStep] = React.useState<number>(1);
   const [proposedStatement, setProposedStatement] = React.useState<string>(
     `${requirement.statement.replace(/\d+/, "420")} (Simulated modification to reduce mass envelope ceiling).`
   );
-  const [isSimulated, setIsSimulated] = React.useState<boolean>(true);
 
   const simulation = React.useMemo(() => {
     return simulateRequirementChange(requirement, {
@@ -141,7 +132,6 @@ export function RequirementImpactSimulatorUI({ projectId, requirement }: Require
             <Button
               size="sm"
               onClick={() => {
-                setIsSimulated(true);
                 setActiveStep(3);
               }}
               className="gap-1.5"
@@ -161,7 +151,6 @@ export function RequirementImpactSimulatorUI({ projectId, requirement }: Require
       {/* Step 3: Interactive Blast Radius Visualizer */}
       <BlastRadiusGraph
         centerRequirementIdentifier={requirement.identifier}
-        centerRequirementTitle={requirement.title}
         impacts={simulation.impacts}
       />
 

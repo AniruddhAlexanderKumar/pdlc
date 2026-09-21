@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Activity,
-  ArrowRight,
   BookOpen,
   CheckCircle2,
   Compass,
@@ -21,7 +20,7 @@ import { GUIDE_CATEGORIES } from "@/domain/step-by-step-guide-data";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DocsPage } from "../_components/docs-page";
 
 export const metadata: Metadata = {

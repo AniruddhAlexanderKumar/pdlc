@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { History, ArrowRight, CheckCircle2, FileDiff } from "lucide-react";
+import { FileDiff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface RevisionComparisonPanelProps {

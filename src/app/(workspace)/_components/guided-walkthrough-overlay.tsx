@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { BookOpen, Compass, Sparkles, X, ChevronUp, ChevronDown, Lightbulb } from "lucide-react";
+import { BookOpen, Sparkles, X, ChevronUp, ChevronDown, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function GuidedWalkthroughOverlay() {

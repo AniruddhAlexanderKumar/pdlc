@@ -120,9 +120,6 @@ export function inspectRequirementQuality(
     status = "MISSING_INFORMATION";
   }
 
-  // Calculate score (100 - 15 per flaw, min 10)
-  const score = Math.max(10, 100 - flaws.length * 15);
-
   // Generate proposed non-destructive improvement
   let proposedStatement = req.statement;
   if (foundSubjective.length > 0) {
@@ -145,7 +142,6 @@ export function inspectRequirementQuality(
   return {
     requirementId: req.id || "DRAFT",
     qualityStatus: status,
-    score,
     flaws,
     proposedImprovement,
   };

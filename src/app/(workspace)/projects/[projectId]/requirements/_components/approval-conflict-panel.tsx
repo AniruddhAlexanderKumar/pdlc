@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Users, FileText, Scale } from "lucide-react";
+import { ShieldAlert, CheckCircle2, Users, FileText, Scale } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { RequirementsConflictRecord } from "@/domain/requirements-conflict";

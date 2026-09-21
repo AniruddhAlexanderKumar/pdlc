@@ -1,18 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  AlertTriangle,
   ArrowRight,
   Binary,
   BookOpen,
-  CheckCircle2,
-  Compass,
   Database,
   Download,
   FileCheck,
   FileCheck2,
   GitCommit,
-  GitFork,
   Handshake,
   HelpCircle,
   Layers,
@@ -21,8 +17,6 @@ import {
   Server,
   Shield,
   ShieldCheck,
-  Sparkles,
-  Terminal,
   Workflow,
   Zap,
 } from "lucide-react";

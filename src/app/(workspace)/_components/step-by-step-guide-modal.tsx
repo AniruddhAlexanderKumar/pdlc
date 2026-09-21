@@ -14,7 +14,6 @@ import {
   Handshake,
   HelpCircle,
   Lightbulb,
-  MousePointerClick,
   Play,
   Search,
   ShieldCheck,
@@ -24,7 +23,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { GUIDE_CATEGORIES, GuideCategory, GuideStep } from "@/domain/step-by-step-guide-data";
+import { GUIDE_CATEGORIES } from "@/domain/step-by-step-guide-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,11 +46,19 @@ export function StepByStepGuideModal() {
   const { isSimpleMode } = useWorkflowExperience();
   const [isOpen, setIsOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState<string>("requirements");
-  const [guideMode, setGuideMode] = useState<"simple" | "detailed">(isSimpleMode ? "simple" : "detailed");
-
-  useEffect(() => {
-    setGuideMode(isSimpleMode ? "simple" : "detailed");
-  }, [isSimpleMode]);
+  /**
+   * The Settings preference decides the mode; switching it inside the guide
+   * is an override that lasts until the reader closes it.
+   *
+   * This was an effect that wrote the preference back into state on every
+   * change — a `setState`-in-effect, and one that silently clobbered a
+   * choice the reader had just made in the toolbar above. Derived instead,
+   * so the preference is the default and the override is the exception, in
+   * that order, visibly.
+   */
+  const [modeOverride, setModeOverride] = useState<"simple" | "detailed" | null>(null);
+  const guideMode = modeOverride ?? (isSimpleMode ? "simple" : "detailed");
+  const setGuideMode = setModeOverride;
   const [searchQuery, setSearchQuery] = useState("");
   const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({});
   const [sandboxOutput, setSandboxOutput] = useState<string | null>(null);

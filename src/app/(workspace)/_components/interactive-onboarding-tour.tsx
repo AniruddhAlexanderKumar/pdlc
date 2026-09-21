@@ -3,18 +3,16 @@
 import * as React from "react";
 import {
   Sparkles,
-  BookOpen,
   Compass,
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
-  X,
   Layers,
   ShieldCheck,
   Zap,
   GitGraph,
 } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useStoredFlag } from "@/lib/use-stored-flag";
 
@@ -103,15 +101,31 @@ const TOUR_STEPS: TourStep[] = [
 
 export function InteractiveOnboardingTour() {
   const [completed, setCompleted] = useStoredFlag("pdlc:onboarding-completed");
-  const [isOpen, setIsOpen] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(0);
 
-  // Automatically trigger on mount if onboarding is not completed
-  React.useEffect(() => {
-    if (!completed) {
-      setIsOpen(true);
-    }
-  }, [completed]);
+  /**
+   * Whether the tour shows is derived, not stored.
+   *
+   * "Open on first sign-in" was an effect calling `setIsOpen(true)` when the
+   * stored flag was unset — a second render on every mount, and the
+   * set-state-in-effect the React Compiler rejects. But being open is not
+   * independent state: it is "has never finished it and hasn't waved it
+   * away", plus "something asked for it". Written that way the rule reads in
+   * one line, and there is no moment where the two can disagree.
+   *
+   * `dismissed` is per-mount on purpose: closing the tour without finishing
+   * is not the same as having done it, so it returns next sign-in. Only
+   * Finish writes the durable flag.
+   */
+  const [dismissed, setDismissed] = React.useState(false);
+  const [requested, setRequested] = React.useState(false);
+
+  const isOpen = requested || (!completed && !dismissed);
+
+  const setIsOpen = React.useCallback((next: boolean) => {
+    setRequested(next);
+    if (!next) setDismissed(true);
+  }, []);
 
   // Listen for manual trigger events from TopBar or Help page
   React.useEffect(() => {
@@ -121,7 +135,7 @@ export function InteractiveOnboardingTour() {
     };
     window.addEventListener("pdlc:open-onboarding-tour", handleOpen);
     return () => window.removeEventListener("pdlc:open-onboarding-tour", handleOpen);
-  }, []);
+  }, [setIsOpen]);
 
   const step = TOUR_STEPS[currentStep];
   const isFirst = currentStep === 0;

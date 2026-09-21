@@ -1,21 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { ShieldAlert, AlertTriangle, CheckCircle2, FileText, Info, Users, Sparkles, Check } from "lucide-react";
+import { ShieldAlert, Check } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { AffectedArtifactImpact } from "@/domain/requirement-change-simulator";
 
 interface BlastRadiusGraphProps {
   centerRequirementIdentifier: string;
-  centerRequirementTitle: string;
   impacts: AffectedArtifactImpact[];
   onConfirmInferred?: (impactId: string) => void;
 }
 
 export function BlastRadiusGraph({
   centerRequirementIdentifier,
-  centerRequirementTitle,
   impacts,
   onConfirmInferred,
 }: BlastRadiusGraphProps) {

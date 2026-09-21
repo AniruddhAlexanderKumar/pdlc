@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Sparkles, CheckCircle2, ChevronRight, Wand2, FileText, ArrowRight } from "lucide-react";
+import { CheckCircle2, ChevronRight, Wand2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import type { VerificationMethod } from "@/domain";
 
 interface RequirementsStarterWizardProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface RequirementsStarterWizardProps {
     rationale: string;
     source: string;
     priority: "HIGH" | "MEDIUM" | "CRITICAL";
-    verificationMethod: "TEST" | "ANALYSIS" | "INSPECTION" | "DEMONSTRATION";
+    verificationMethod: VerificationMethod;
   }) => void;
 }
 
@@ -25,8 +26,10 @@ export function RequirementsStarterWizard({ isOpen, onClose, onRequirementGenera
   const [primaryFunction, setPrimaryFunction] = React.useState("Maintain vehicle orientation within 0.1 deg");
   const [performanceTarget, setPerformanceTarget] = React.useState("Response time < 50 ms under 5g vibration");
   const [operatingEnvironment, setOperatingEnvironment] = React.useState("Vacuum operation (-40°C to +85°C)");
-  const [safetyLevel, setSafetyLevel] = React.useState("CRITICAL");
-  const [verificationMethod, setVerificationMethod] = React.useState<"TEST" | "ANALYSIS" | "INSPECTION" | "DEMONSTRATION">("TEST");
+  // Fixed, not chosen: the wizard offers no control for this, and a
+  // useState whose setter is never called only implied otherwise.
+  const safetyLevel = "CRITICAL";
+  const [verificationMethod, setVerificationMethod] = React.useState<VerificationMethod>("TEST");
 
   function handleGenerate() {
     const identifier = `REQ-${Math.floor(100 + Math.random() * 900)}`;
@@ -112,7 +115,7 @@ export function RequirementsStarterWizard({ isOpen, onClose, onRequirementGenera
             <label className="font-semibold text-foreground">5. What is the assigned Verification Method?</label>
             <select
               value={verificationMethod}
-              onChange={(e) => setVerificationMethod(e.target.value as any)}
+              onChange={(event) => setVerificationMethod(event.target.value as VerificationMethod)}
               className="rounded border border-border bg-background px-3 py-2 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="TEST">TEST (Hot fire, thermal vacuum, vibration)</option>

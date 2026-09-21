@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ShieldAlert, CheckCircle2, ArrowRight, HelpCircle, Edit3, X } from "lucide-react";
+import { ShieldAlert, CheckCircle2, Edit3 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { inspectAndFormulateQuestion, type StructuredEngineeringQuestion } from "@/lib/ai/question-gatekeeper";

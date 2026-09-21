@@ -7,8 +7,6 @@ import {
   CheckCircle2,
   FileCheck,
   GitBranch,
-  Handshake,
-  HelpCircle,
   Layers,
   Play,
   ShieldCheck,

@@ -1,17 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { CheckSquare, AlertTriangle, FileText, HelpCircle, TestTube, Users, CheckCircle2 } from "lucide-react";
+import { CheckSquare, FileText, HelpCircle, TestTube, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+
 import type { RevalidationChecklist } from "@/domain/requirement-change-simulator";
 
 interface RevalidationPanelProps {
   checklist: RevalidationChecklist;
-  onMarkTaskDone?: (taskId: string) => void;
 }
 
-export function RevalidationPanel({ checklist, onMarkTaskDone }: RevalidationPanelProps) {
+export function RevalidationPanel({ checklist }: RevalidationPanelProps) {
   return (
     <Card className="border-amber-500/40 bg-card">
       <CardHeader className="pb-3">
