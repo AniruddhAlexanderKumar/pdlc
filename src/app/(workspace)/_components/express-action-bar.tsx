@@ -4,15 +4,14 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BookOpen,
   ChevronDown,
   FileCheck,
   GitPullRequest,
-  Plus,
   Scale,
   ShieldAlert,
-  ShieldCheck,
+  ShoppingCart,
   Sparkles,
+  TestTube2,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,16 +39,19 @@ export function ExpressActionBar() {
         <Button
           variant="outline"
           size="sm"
-          className="hidden md:inline-flex h-8 items-center gap-1.5 border-primary/30 bg-primary/5 text-xs font-semibold text-primary hover:bg-primary/10 hover:text-primary transition-colors"
+          className="inline-flex h-8 items-center gap-1.5 border-primary/30 bg-primary/5 text-xs font-bold text-primary hover:bg-primary/10 hover:text-primary transition-colors"
         >
           <Zap className="size-3.5 fill-primary/20 text-primary" aria-hidden="true" />
           <span>Express Workflows</span>
           <ChevronDown className="size-3 text-primary/70" aria-hidden="true" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-2 flex flex-col gap-1">
-        <div className="px-2 py-1.5 flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-          <Sparkles className="size-3 text-primary" /> 1-Click Fast Actions
+      <PopoverContent align="end" className="w-80 p-2.5 flex flex-col gap-1 shadow-lg">
+        <div className="px-2 py-1 flex items-center justify-between font-mono text-[11px] text-muted-foreground font-bold">
+          <span className="flex items-center gap-1.5 text-primary">
+            <Sparkles className="size-3.5 text-primary" /> 1-Click Fast Actions
+          </span>
+          <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-extrabold">SIMPLE MODE</span>
         </div>
         <div className="h-px bg-border my-1" />
 
@@ -60,8 +62,32 @@ export function ExpressActionBar() {
         >
           <FileCheck className="size-4 text-emerald-500 shrink-0" />
           <div className="flex flex-col min-w-0">
-            <span className="font-medium text-xs">New Requirement</span>
-            <span className="text-[10px] text-muted-foreground truncate">Draft requirement & inspect quality</span>
+            <span className="font-bold text-xs">1. Create Requirement</span>
+            <span className="text-[10px] text-muted-foreground truncate">Draft technical spec &amp; inspect quality</span>
+          </div>
+        </Link>
+
+        <Link
+          href="/integrations"
+          onClick={closeMenu}
+          className="flex items-center gap-2.5 rounded-md p-2 hover:bg-secondary text-foreground transition-colors"
+        >
+          <ShoppingCart className="size-4 text-amber-500 shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-xs">2. Connect Store Part / Spec</span>
+            <span className="text-[10px] text-muted-foreground truncate">Sync Amazon, DigiKey, Mouser or McMaster</span>
+          </div>
+        </Link>
+
+        <Link
+          href={getHref("/evidence")}
+          onClick={closeMenu}
+          className="flex items-center gap-2.5 rounded-md p-2 hover:bg-secondary text-foreground transition-colors"
+        >
+          <TestTube2 className="size-4 text-blue-500 shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-xs">3. Attach Verification Evidence</span>
+            <span className="text-[10px] text-muted-foreground truncate">Link hot fire logs or CAD calculations</span>
           </div>
         </Link>
 
@@ -70,22 +96,10 @@ export function ExpressActionBar() {
           onClick={closeMenu}
           className="flex items-center gap-2.5 rounded-md p-2 hover:bg-secondary text-foreground transition-colors"
         >
-          <Scale className="size-4 text-blue-500 shrink-0" />
+          <Scale className="size-4 text-indigo-500 shrink-0" />
           <div className="flex flex-col min-w-0">
-            <span className="font-medium text-xs">Log Trade Study / Decision</span>
-            <span className="text-[10px] text-muted-foreground truncate">Record assumptions & alternatives</span>
-          </div>
-        </Link>
-
-        <Link
-          href={getHref("/risks")}
-          onClick={closeMenu}
-          className="flex items-center gap-2.5 rounded-md p-2 hover:bg-secondary text-foreground transition-colors"
-        >
-          <ShieldAlert className="size-4 text-amber-500 shrink-0" />
-          <div className="flex flex-col min-w-0">
-            <span className="font-medium text-xs">Declare Engineering Risk</span>
-            <span className="text-[10px] text-muted-foreground truncate">Register severity & mitigation</span>
+            <span className="font-bold text-xs">4. Log Trade Study / Decision</span>
+            <span className="text-[10px] text-muted-foreground truncate">Record baseline choice &amp; sign-off gate</span>
           </div>
         </Link>
 
@@ -96,36 +110,10 @@ export function ExpressActionBar() {
         >
           <GitPullRequest className="size-4 text-purple-500 shrink-0" />
           <div className="flex flex-col min-w-0">
-            <span className="font-medium text-xs">Request Change / Impact Walk</span>
-            <span className="text-[10px] text-muted-foreground truncate">Simulate change impact across graph</span>
+            <span className="font-bold text-xs">5. Simulate Blast Radius Impact</span>
+            <span className="text-[10px] text-muted-foreground truncate">Walk downstream change dependencies</span>
           </div>
         </Link>
-
-        <Link
-          href={getHref("/sentinel")}
-          onClick={closeMenu}
-          className="flex items-center gap-2.5 rounded-md p-2 hover:bg-secondary text-foreground transition-colors"
-        >
-          <ShieldCheck className="size-4 text-indigo-500 shrink-0" />
-          <div className="flex flex-col min-w-0">
-            <span className="font-medium text-xs">Open Decision Sentinel</span>
-            <span className="text-[10px] text-muted-foreground truncate">Surveil assumption breaks & drifts</span>
-          </div>
-        </Link>
-
-        <div className="h-px bg-border my-1" />
-
-        <button
-          type="button"
-          onClick={() => {
-            closeMenu();
-            window.dispatchEvent(new Event("pdlc:open-step-by-step-guide"));
-          }}
-          className="flex items-center gap-2 rounded-md p-2 hover:bg-secondary text-foreground text-xs font-medium transition-colors text-left"
-        >
-          <BookOpen className="size-4 text-primary shrink-0" />
-          <span>Launch Step-by-Step Guide</span>
-        </button>
       </PopoverContent>
     </Popover>
   );
