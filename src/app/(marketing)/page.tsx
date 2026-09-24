@@ -9,32 +9,21 @@ import {
   Lock,
   Server,
   ShieldCheck,
-  Sparkles,
-  Terminal,
   TestTube2,
-  Waypoints,
   Zap,
   Building2,
-  ShoppingCart,
-  ChevronRight,
-  Shield,
-  Activity,
-  Check,
-  Compass,
-  Globe
+  ShoppingCart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { HeroInteractiveConcept } from "./_components/hero-interactive-concept";
-import { InteractiveWorkflowStepper } from "./_components/interactive-workflow-stepper";
 
 export default function LandingPage() {
   return (
     <div className="relative overflow-hidden bg-transparent text-white selection:bg-cyan-500 selection:text-black font-sans">
-      {/* SECTION 1: HERO */}
-      <section className="relative min-h-[90vh] flex flex-col justify-center items-center py-24 sm:py-32 border-b border-white/10">
+      {/* SECTION 1: HERO (PURE SPACEX TYPOGRAPHIC SLIDE - ZERO SOFTWARE VISUALS) */}
+      <section className="relative min-h-[85vh] flex flex-col justify-center items-center py-24 sm:py-36 border-b border-white/10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl text-center">
           {/* Main Headline: THE MORNINGSTAR SOLUTION */}
-          <h1 className="mt-8 text-5xl sm:text-7xl lg:text-9xl font-black uppercase text-white tracking-tight leading-[0.92]">
+          <h1 className="text-5xl sm:text-7xl lg:text-9xl font-black uppercase text-white tracking-tight leading-[0.92]">
             THE MORNINGSTAR <br className="hidden sm:inline" />
             <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
               SOLUTION.
@@ -47,7 +36,7 @@ export default function LandingPage() {
           </div>
 
           {/* Core Description */}
-          <p className="mt-6 text-base sm:text-xl text-slate-300 font-normal leading-relaxed max-w-3xl mx-auto uppercase tracking-wide font-mono">
+          <p className="mt-8 text-base sm:text-xl text-slate-300 font-normal leading-relaxed max-w-3xl mx-auto uppercase tracking-wide font-mono">
             PDLC CONNECTS REQUIREMENTS, QUESTIONS, EVIDENCE, DECISIONS AND DEPENDENCIES INTO ONE INTELLIGENT PRODUCT DEVELOPMENT SYSTEM.
           </p>
 
@@ -70,8 +59,8 @@ export default function LandingPage() {
               size="lg"
               className="h-14 px-10 rounded-none border border-white/40 bg-black/60 hover:bg-white hover:text-black font-mono text-xs font-extrabold text-white uppercase tracking-widest transition-all backdrop-blur-xs"
             >
-              <a href="#interactive-concept" className="flex items-center gap-3">
-                SEE HOW IT WORKS
+              <a href="#manifesto" className="flex items-center gap-3">
+                READ MANIFESTO
               </a>
             </Button>
           </div>
@@ -98,27 +87,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SECTION 2: INTERACTIVE SYSTEM GRAPH CANVAS */}
-      <section id="interactive-concept" className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <span className="font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase">
-              REAL-TIME REASONING ENGINE
-            </span>
-            <h2 className="mt-4 text-4xl sm:text-6xl font-black uppercase text-white tracking-tight">
-              LIVE SYSTEM ARCHITECTURE
-            </h2>
-            <p className="mt-4 font-mono text-sm text-slate-400 uppercase tracking-wide">
-              INTERACT WITH THE LIVING PRODUCT GRAPH BELOW TO SIMULATE PARAMETER CHANGES AND OBSERVE SIGNAL PROPAGATION.
-            </p>
-          </div>
-
-          <HeroInteractiveConcept />
-        </div>
-      </section>
-
-      {/* SECTION 3: CATEGORY MANIFESTO */}
-      <section className="py-28 sm:py-40 border-b border-white/10 bg-black/80 backdrop-blur-sm text-center">
+      {/* SECTION 2: CATEGORY MANIFESTO */}
+      <section id="manifesto" className="py-28 sm:py-40 border-b border-white/10 bg-black/80 backdrop-blur-sm text-center">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           <span className="font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase">
             THE MORNINGSTAR MANIFESTO
@@ -132,14 +102,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SECTION 4: 5-STEP INTERACTIVE WORKFLOW STEPPER */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <InteractiveWorkflowStepper />
-        </div>
-      </section>
-
-      {/* SECTION 5: THE 6 CORE PRIMITIVES */}
+      {/* SECTION 3: THE 6 CORE PRIMITIVES */}
       <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -224,7 +187,60 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SECTION 6: STORE & TOOLCHAIN CONNECTORS */}
+      {/* SECTION 4: THE DETERMINISTIC GRAPH ENGINE ADVANTAGE */}
+      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl font-mono">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            <div className="lg:col-span-5 flex flex-col gap-6 font-sans">
+              <span className="text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase font-mono">
+                DETERMINISTIC GRAPH ENGINE
+              </span>
+              <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight">
+                ENGINEERING TRUTH IN SUB-5MS GRAPH QUERIES.
+              </h2>
+              <p className="text-slate-400 leading-relaxed text-xs uppercase tracking-wider font-mono">
+                MORNINGSTAR MAINTAINS AN IN-MEMORY DIRECTED GRAPH OF EVERY REQUIREMENT, QUESTION, EVIDENCE FILE, AND SIGN-OFF DECISION ACROSS YOUR ENTIRE ENGINEERING ORGANIZATION.
+              </p>
+            </div>
+
+            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="flex flex-col gap-3 rounded-none border border-white/15 bg-black/90 p-6">
+                <span className="text-cyan-400 font-bold text-base">01</span>
+                <h3 className="font-black text-white text-sm uppercase font-sans">SUB-5MS GRAPH WALK</h3>
+                <p className="text-slate-400 leading-relaxed font-normal">
+                  Traverse thousands of complex dependency edges to find unverified requirements and stale test reports instantly.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-none border border-white/15 bg-black/90 p-6">
+                <span className="text-indigo-400 font-bold text-base">02</span>
+                <h3 className="font-black text-white text-sm uppercase font-sans">PRE-RELEASE BLAST RADIUS</h3>
+                <p className="text-slate-400 leading-relaxed font-normal">
+                  Know exactly which test plans, CAD models, and supplier contracts break before releasing hardware changes.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-none border border-white/15 bg-black/90 p-6">
+                <span className="text-emerald-400 font-bold text-base">03</span>
+                <h3 className="font-black text-white text-sm uppercase font-sans">DUAL-CUSTODY APPROVALS</h3>
+                <p className="text-slate-400 leading-relaxed font-normal">
+                  Enforce multi-disciplinary review gates that guarantee Systems Safety and Chief Engineers sign off before milestone gates.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-none border border-white/15 bg-black/90 p-6">
+                <span className="text-purple-400 font-bold text-base">04</span>
+                <h3 className="font-black text-white text-sm uppercase font-sans">CRYPTOGRAPHIC AUDIT LEDGER</h3>
+                <p className="text-slate-400 leading-relaxed font-normal">
+                  Immutable historical recording of every parameter update, rationale note, and evidence attachment.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 5: STORE & TOOLCHAIN CONNECTORS */}
       <section className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center font-mono">
@@ -301,7 +317,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SECTION 7: ENTERPRISE SECURITY & INFRASTRUCTURE */}
+      {/* SECTION 6: ENTERPRISE SECURITY & INFRASTRUCTURE */}
       <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs">
@@ -332,7 +348,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SECTION 8: FINAL CTA SLIDE */}
+      {/* SECTION 7: FINAL CTA SLIDE */}
       <section className="py-28 sm:py-44 bg-black/90 text-center border-t border-white/10 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           <span className="font-mono text-xs font-bold text-cyan-400 tracking-[0.35em] uppercase">
