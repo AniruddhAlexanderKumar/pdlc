@@ -15,11 +15,13 @@ import {
   ShoppingCart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TelemetryTicker } from "./_components/telemetry-ticker";
+import { IntegrationsInteractiveGrid } from "./_components/integrations-interactive-grid";
 
 export default function LandingPage() {
   return (
     <div className="relative overflow-hidden bg-transparent text-white selection:bg-cyan-500 selection:text-black font-sans">
-      {/* SECTION 1: HERO (PURE SPACEX TYPOGRAPHIC SLIDE - ZERO SOFTWARE VISUALS) */}
+      {/* SECTION 1: HERO */}
       <section className="relative min-h-[85vh] flex flex-col justify-center items-center py-24 sm:py-36 border-b border-white/10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl text-center">
           {/* Main Headline: THE MORNINGSTAR SOLUTION */}
@@ -87,6 +89,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* SPACEX-STYLE LIVE TELEMETRY TICKER BAR */}
+      <TelemetryTicker />
+
       {/* SECTION 2: CATEGORY MANIFESTO */}
       <section id="manifesto" className="py-28 sm:py-40 border-b border-white/10 bg-black/80 backdrop-blur-sm text-center">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
@@ -118,7 +123,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-mono text-xs">
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300 shadow-lg hover:shadow-cyan-500/10">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-cyan-400 uppercase tracking-widest">PRIMITIVE 01</span>
                 <FileText className="size-5 text-white" />
@@ -129,7 +134,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-amber-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-amber-400 transition-all duration-300 shadow-lg hover:shadow-amber-500/10">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-amber-400 uppercase tracking-widest">PRIMITIVE 02</span>
                 <HelpCircle className="size-5 text-white" />
@@ -140,7 +145,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-emerald-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-emerald-400 transition-all duration-300 shadow-lg hover:shadow-emerald-500/10">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-emerald-400 uppercase tracking-widest">PRIMITIVE 03</span>
                 <TestTube2 className="size-5 text-white" />
@@ -151,7 +156,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-indigo-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-indigo-400 transition-all duration-300 shadow-lg hover:shadow-indigo-500/10">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-indigo-400 uppercase tracking-widest">PRIMITIVE 04</span>
                 <GitPullRequest className="size-5 text-white" />
@@ -162,7 +167,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-purple-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-purple-400 transition-all duration-300 shadow-lg hover:shadow-purple-500/10">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-purple-400 uppercase tracking-widest">PRIMITIVE 05</span>
                 <ShieldCheck className="size-5 text-white" />
@@ -173,7 +178,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300 shadow-lg hover:shadow-cyan-500/10">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-cyan-400 uppercase tracking-widest">PRIMITIVE 06</span>
                 <Zap className="size-5 text-white" />
@@ -240,79 +245,24 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SECTION 5: STORE & TOOLCHAIN CONNECTORS */}
+      {/* SECTION 5: INTERACTIVE STORE & TOOLCHAIN CONNECTORS */}
       <section className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center font-mono">
-            <div className="lg:col-span-5 flex flex-col gap-6">
-              <span className="text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl font-mono">
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-4 font-sans max-w-3xl">
+              <span className="text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase font-mono">
                 INTEGRATIONS CONSTELLATION
               </span>
-              <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight font-sans">
+              <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight">
                 CONNECT YOUR SUPPLY CHAIN &amp; TOOLCHAIN.
               </h2>
               <p className="text-slate-400 leading-relaxed text-xs uppercase tracking-wider font-mono">
                 1-CLICK STORE AND API CONNECTORS SYNC SUPPLIER INVENTORY, PART SPECIFICATIONS, CAD MODELS, AND ISSUE TRACKERS DIRECTLY INTO MORNINGSTAR.
               </p>
-              <div className="pt-2">
-                <Button
-                  asChild
-                  className="h-12 px-8 rounded-none bg-white text-black hover:bg-slate-200 font-mono text-xs font-extrabold uppercase tracking-widest transition-all border border-white"
-                >
-                  <Link href="/sign-up">EXPLORE STORE CONNECTORS</Link>
-                </Button>
-              </div>
             </div>
 
-            <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
-                <div className="font-bold text-white flex items-center gap-2">
-                  <ShoppingCart className="size-4 text-amber-400" /> AMAZON STORE API
-                </div>
-                <span className="text-[10px] text-slate-400">ASIN &amp; PART SYNC</span>
-                <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold px-2 py-0.5">LIVE CONNECTED</span>
-              </div>
-
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
-                <div className="font-bold text-white flex items-center gap-2">
-                  <Cpu className="size-4 text-red-400" /> DIGIKEY API
-                </div>
-                <span className="text-[10px] text-slate-400">IC SPECS &amp; STOCK</span>
-                <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold px-2 py-0.5">LIVE CONNECTED</span>
-              </div>
-
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
-                <div className="font-bold text-white flex items-center gap-2">
-                  <Building2 className="size-4 text-cyan-400" /> MOUSER ELECTRONICS
-                </div>
-                <span className="text-[10px] text-slate-400">DATASHEET SYNC</span>
-                <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold px-2 py-0.5">LIVE CONNECTED</span>
-              </div>
-
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
-                <div className="font-bold text-white flex items-center gap-2">
-                  <Layers className="size-4 text-emerald-400" /> MCMASTER-CARR
-                </div>
-                <span className="text-[10px] text-slate-400">CAD MODEL GRAPH</span>
-                <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold px-2 py-0.5">LIVE CONNECTED</span>
-              </div>
-
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
-                <div className="font-bold text-white flex items-center gap-2">
-                  <FileText className="size-4 text-indigo-400" /> DOORS / JIRA
-                </div>
-                <span className="text-[10px] text-slate-400">LEGACY REQ SYNC</span>
-                <span className="text-[9px] bg-blue-950 text-blue-400 border border-blue-800 font-bold px-2 py-0.5">READY</span>
-              </div>
-
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
-                <div className="font-bold text-white flex items-center gap-2">
-                  <Server className="size-4 text-purple-400" /> SIEMENS PLM
-                </div>
-                <span className="text-[10px] text-slate-400">ASSEMBLY TREE</span>
-                <span className="text-[9px] bg-blue-950 text-blue-400 border border-blue-800 font-bold px-2 py-0.5">READY</span>
-              </div>
-            </div>
+            {/* Interactive Connectors Grid */}
+            <IntegrationsInteractiveGrid />
           </div>
         </div>
       </section>
