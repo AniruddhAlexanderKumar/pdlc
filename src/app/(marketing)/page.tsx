@@ -37,25 +37,30 @@ export default function LandingPage() {
       {/* SECTION 1: HERO (SPACEX FULL VIEWPORT SLIDE) */}
       <section className="relative min-h-[90vh] flex flex-col justify-center items-center py-24 sm:py-32 border-b border-white/10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl text-center">
-          {/* Eyebrow */}
+          {/* Mission Tag */}
           <div className="inline-flex items-center gap-3 rounded-full border border-cyan-500/30 bg-cyan-950/30 px-5 py-1.5 font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase backdrop-blur-md">
             <span className="relative flex size-2">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-cyan-400 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-cyan-400" />
             </span>
-            MISSION OBJECTIVE // PRODUCT DEVELOPMENT PLATFORM
+            MISSION OBJECTIVE // ENGINE DECISION PLATFORM
           </div>
 
-          {/* Main Headline */}
+          {/* Main Headline: THE MORNINGSTAR SOLUTION */}
           <h1 className="mt-8 text-5xl sm:text-7xl lg:text-9xl font-black uppercase text-white tracking-tight leading-[0.92]">
-            PRODUCT DEVELOPMENT, <br className="hidden sm:inline" />
+            THE MORNINGSTAR <br className="hidden sm:inline" />
             <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
-              CONNECTED.
+              SOLUTION.
             </span>
           </h1>
 
-          {/* Subheadline */}
-          <p className="mt-8 text-base sm:text-xl text-slate-300 font-normal leading-relaxed max-w-3xl mx-auto uppercase tracking-wide font-mono">
+          {/* Smaller Words Subheadline: 5 Man Mission */}
+          <div className="mt-4 font-mono text-sm sm:text-base text-cyan-400 font-extrabold tracking-[0.35em] uppercase">
+            5 MAN MISSION
+          </div>
+
+          {/* Core Description */}
+          <p className="mt-6 text-base sm:text-xl text-slate-300 font-normal leading-relaxed max-w-3xl mx-auto uppercase tracking-wide font-mono">
             PDLC CONNECTS REQUIREMENTS, QUESTIONS, EVIDENCE, DECISIONS AND DEPENDENCIES INTO ONE INTELLIGENT PRODUCT DEVELOPMENT SYSTEM.
           </p>
 
@@ -67,7 +72,7 @@ export default function LandingPage() {
               className="h-14 px-10 rounded-none bg-white text-black hover:bg-slate-200 font-mono text-xs font-black uppercase tracking-widest transition-all border border-white"
             >
               <Link href="/sign-up" className="flex items-center gap-3">
-                EXPLORE PDLC
+                EXPLORE MORNINGSTAR
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -129,13 +134,13 @@ export default function LandingPage() {
       <section className="py-28 sm:py-40 border-b border-white/10 bg-black text-center">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           <span className="font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase">
-            CATEGORY MANIFESTO
+            THE MORNINGSTAR MANIFESTO
           </span>
           <h2 className="mt-8 text-3xl sm:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-[1.08]">
             “ENGINEERING DECISIONS SHOULDN’T BE BURIED IN SPREADSHEETS OR SCATTERED ACROSS CHAT LOGS. THEY MUST BE A LIVING, DEFENSIBLE GRAPH.”
           </h2>
           <p className="mt-8 font-mono text-sm sm:text-base text-slate-400 max-w-3xl mx-auto leading-relaxed uppercase tracking-wider">
-            PDLC REPLACES FRAGMENTED DOCUMENTATION WITH A DETERMINISTIC GRAPH ENGINE. EVERY PARAMETER CHANGE PROPAGATES DOWNSTREAM IN REAL-TIME, PREVENTING SCRAP AND GUARANTEEING AUDIT DEFENSIBILITY.
+            THE MORNINGSTAR SOLUTION REPLACES FRAGMENTED DOCUMENTATION WITH A DETERMINISTIC GRAPH ENGINE. EVERY PARAMETER CHANGE PROPAGATES DOWNSTREAM IN REAL-TIME, PREVENTING SCRAP AND GUARANTEEING AUDIT DEFENSIBILITY.
           </p>
         </div>
       </section>
@@ -152,7 +157,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase">
-              THE PDLC GRAPH ONTOLOGY
+              THE MORNINGSTAR ONTOLOGY
             </span>
             <h2 className="mt-4 text-4xl sm:text-6xl font-black uppercase text-white tracking-tight">
               SIX PRIMITIVES. ONE SYSTEM.
@@ -244,7 +249,7 @@ export default function LandingPage() {
                 CONNECT YOUR SUPPLY CHAIN &amp; TOOLCHAIN.
               </h2>
               <p className="text-slate-400 leading-relaxed text-xs uppercase tracking-wider font-mono">
-                1-CLICK STORE AND API CONNECTORS SYNC SUPPLIER INVENTORY, PART SPECIFICATIONS, CAD MODELS, AND ISSUE TRACKERS DIRECTLY INTO YOUR PDLC DECISION GRAPH.
+                1-CLICK STORE AND API CONNECTORS SYNC SUPPLIER INVENTORY, PART SPECIFICATIONS, CAD MODELS, AND ISSUE TRACKERS DIRECTLY INTO MORNINGSTAR.
               </p>
               <div className="pt-2">
                 <Button
@@ -340,11 +345,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SECTION 8: SPACEX-STYLE FINAL CTA SLIDE */}
+      {/* SECTION 8: FINAL CTA SLIDE */}
       <section className="py-28 sm:py-44 bg-black text-center border-t border-white/10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           <span className="font-mono text-xs font-bold text-cyan-400 tracking-[0.35em] uppercase">
-            PDLC PLATFORM // DECISION INTELLIGENCE
+            5 MAN MISSION // THE MORNINGSTAR SOLUTION
           </span>
 
           <h2 className="mt-8 text-4xl sm:text-7xl font-black text-white uppercase tracking-tight leading-[0.95]">

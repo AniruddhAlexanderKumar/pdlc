@@ -27,11 +27,11 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
               <Waypoints className="size-4 text-cyan-400" aria-hidden="true" />
             </div>
             <div className="flex flex-col font-mono">
-              <span className="text-sm font-extrabold tracking-[0.25em] text-white uppercase">
-                PDLC
+              <span className="text-xs font-extrabold tracking-[0.25em] text-white uppercase">
+                THE MORNINGSTAR SOLUTION
               </span>
-              <span className="text-[9px] font-bold text-slate-400 tracking-[0.3em] uppercase -mt-1">
-                PLATFORM
+              <span className="text-[9px] font-bold text-cyan-400 tracking-[0.3em] uppercase -mt-0.5">
+                5 MAN MISSION
               </span>
             </div>
           </Link>
@@ -76,9 +76,10 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
       <footer className="border-t border-white/10 bg-black print:hidden">
         <Shell className="flex flex-col gap-6 py-10 sm:flex-row sm:items-center sm:justify-between font-mono text-xs uppercase tracking-wider">
           <div className="flex flex-col gap-1 text-slate-400">
-            <span className="font-extrabold text-white">PDLC PLATFORM</span>
+            <span className="font-extrabold text-white">THE MORNINGSTAR SOLUTION</span>
+            <span className="text-[10px] text-cyan-400 font-bold">5 MAN MISSION</span>
             <span className="text-[10px] text-slate-500">
-              © {new Date().getFullYear()} PDLC INC. ALL RIGHTS RESERVED.
+              © {new Date().getFullYear()} ALL RIGHTS RESERVED.
             </span>
           </div>
 
