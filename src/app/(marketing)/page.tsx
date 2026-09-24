@@ -1,573 +1,469 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
-  ChevronRight,
+  Cpu,
   Database,
-  FileCheck,
-  FileCheck2,
   FileText,
-  GitBranch,
-  GitCommit,
   GitPullRequest,
-  Handshake,
   HelpCircle,
   Layers,
   Lock,
-  Network,
-  Scale,
+  RefreshCw,
+  Search,
   Server,
-  Shield,
-  ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Terminal,
+  TestTube2,
   Waypoints,
   Zap,
+  Building2,
+  ShoppingCart,
+  ChevronRight,
+  Shield,
+  Activity,
+  Check
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Shell } from "@/components/common/shell";
-import { PRODUCT_VERSION } from "@/lib/product-version";
-import { HeroGraphInteractive } from "./_components/hero-graph-interactive";
+import { Badge } from "@/components/ui/badge";
+import { HeroSystemAnimation } from "./_components/hero-system-animation";
 import { QueryInterfaceVisual } from "./_components/query-interface-visual";
 import { UseCaseVisual } from "./_components/use-case-visual";
 
-export const metadata: Metadata = {
-  title: "PDLC Platform — Engineering Requirements & Decision Intelligence Platform",
-  description:
-    "PDLC connects requirements, questions, evidence, decisions, and approvals into one continuously traceable engineering system for complex hardware and deep-tech teams.",
-};
-
-const FAILURE_MODES = [
-  {
-    code: "FAIL-01",
-    tag: "SPECIFICATION DEFECT",
-    title: "Poor Requirements",
-    description:
-      "Requirements are vague, incomplete, contradictory, or never properly defined. Subjective phrasing like 'adequate thermal margin' or 'fast actuation' leaves crucial bounds unquantified.",
-    snippetId: "REQ-PROP-012",
-    snippetText: "The valve shall operate with adequate margin under extreme environmental conditions.",
-    comment: "Reviewer: Unquantified term 'adequate margin'. What temperature and pressure bounds?",
-    badge: "Ambiguity Flaw",
-  },
-  {
-    code: "FAIL-02",
-    tag: "UNRESOLVED TRADES",
-    title: "Unanswered Questions",
-    description:
-      "Teams make design and architectural decisions before the underlying engineering questions are formally framed with clear acceptance criteria and variables.",
-    snippetId: "QST-THERM-044",
-    snippetText: "What is the steady-state thermal dissipation across the manifold during peak flight envelope?",
-    comment: "Reviewer: Decision DEC-004 proceeded without resolving this trade study.",
-    badge: "Unresolved Question",
-  },
-  {
-    code: "FAIL-03",
-    tag: "VERIFICATION GAP",
-    title: "Evidence Gaps",
-    description:
-      "Critical performance and safety claims exist in isolation without a verifiable source document, test log, structural calculation, or explicit owner.",
-    snippetId: "EVD-UNLINKED-90",
-    snippetText: "Claimed burst pressure tolerance: 350 bar (Source: Internal email thread).",
-    comment: "Reviewer: Missing sealed test report or finite element analysis document.",
-    badge: "Missing Evidence",
-  },
-  {
-    code: "FAIL-04",
-    tag: "UNAUTHORIZED DELTA",
-    title: "Approval Gaps",
-    description:
-      "Requirements, interface control documents (ICDs), and engineering changes are implemented in downstream subsystems without explicit dual-custody sign-offs.",
-    snippetId: "APP-ICD-401",
-    snippetText: "ICD-401 Fluid Interface Revision v3.2 applied in CAD model.",
-    comment: "Reviewer: Propulsion Lead & Safety Officer approvals are still PENDING.",
-    badge: "Approval Gap",
-  },
-] as const;
-
-const LIFECYCLE_CHAIN = [
-  {
-    stage: "01",
-    label: "REQUIRE",
-    title: "Define what must be true.",
-    body: "Author unambiguous, measurable requirements with explicit numerical bounds, units, and categories.",
-    icon: FileCheck,
-  },
-  {
-    stage: "02",
-    label: "QUESTION",
-    title: "Identify what must be resolved.",
-    body: "Frame critical engineering queries, trade studies, and assumptions before locking design choices.",
-    icon: HelpCircle,
-  },
-  {
-    stage: "03",
-    label: "EVIDENCE",
-    title: "Attach verified sources.",
-    body: "Bind calculations, test logs, simulation runs, datasheets, and inspection reports to claims.",
-    icon: FileText,
-  },
-  {
-    stage: "04",
-    label: "DECIDE",
-    title: "Record engineering rationale.",
-    body: "Log formal engineering decisions, evaluated trade-off alternatives, and baseline choices.",
-    icon: Scale,
-  },
-  {
-    stage: "05",
-    label: "APPROVE",
-    title: "Capture stakeholder agreement.",
-    body: "Enforce explicit dual-custody sign-offs across Systems, Thermal, Propulsion, and Safety leads.",
-    icon: ShieldCheck,
-  },
-  {
-    stage: "06",
-    label: "TRACE",
-    title: "Understand change impact.",
-    body: "Automatically walk the relational graph when an assumption or requirement changes downstream.",
-    icon: Waypoints,
-  },
-] as const;
-
-const DIFFERENTIATOR_MATRIX = [
-  {
-    category: "Core Concept",
-    traditional: "Task lists & issue tickets",
-    pdlc: "Requirements & decision intelligence graph",
-  },
-  {
-    category: "Primary Unit",
-    traditional: "Tasks, Documents, Tickets, Comments",
-    pdlc: "Requirements, Questions, Evidence, Decisions",
-  },
-  {
-    category: "Decision Rationale",
-    traditional: "Lost in slack messages & email threads",
-    pdlc: "Immutable decision records with evidence links",
-  },
-  {
-    category: "Conflict Handling",
-    traditional: "Discovered during late physical integration",
-    pdlc: "Automated cross-discipline conflict detection",
-  },
-  {
-    category: "Change Impact",
-    traditional: "Manual meetings & spreadsheet memory",
-    pdlc: "Deterministic relational graph traversal",
-  },
-  {
-    category: "Governance & Audit",
-    traditional: "Post-hoc documentation scrambles",
-    pdlc: "Continuously defensible evidence chain",
-  },
-] as const;
-
-const TECHNICAL_ROLES = [
-  {
-    role: "Systems Engineering",
-    icon: Network,
-    useCase: "Maintain unbroken bidirectional traceability from high-level mission needs down to component verification.",
-  },
-  {
-    role: "Requirements Engineering",
-    icon: FileCheck2,
-    useCase: "Inspect requirement quality across 12 criteria and eliminate vague, unquantified specifications.",
-  },
-  {
-    role: "Certification & Compliance",
-    icon: ShieldCheck,
-    useCase: "Produce deterministic audit trails for DO-178C, DO-254, ARP4754A, and ISO 26262 compliance.",
-  },
-  {
-    role: "Product Engineering",
-    icon: Layers,
-    useCase: "Verify subsystem design choices and interface control documents against upstream stakeholder intents.",
-  },
-  {
-    role: "R&D & Advanced Programs",
-    icon: Scale,
-    useCase: "Capture trade studies, engineering assumptions, and experimental evidence in a structured system.",
-  },
-  {
-    role: "Quality Engineering",
-    icon: FileText,
-    useCase: "Ensure no requirement is closed or baseline locked without verified test evidence.",
-  },
-  {
-    role: "Supplier Engineering",
-    icon: Server,
-    useCase: "Assess downstream impact when supplier specifications or hardware component ASINs/SKUs change.",
-  },
-  {
-    role: "Technical Program Leadership",
-    icon: GitCommit,
-    useCase: "Track real structural sign-off bottlenecks and change blast radii without status meeting overhead.",
-  },
-] as const;
-
-export default function DeepTechLandingPage() {
+export default function LandingPage() {
   return (
-    <div className="flex flex-col gap-24 bg-slate-950 text-slate-100 py-12 md:py-16 selection:bg-cyan-500/30 selection:text-cyan-200">
-      
-      {/* ==================================================================== */}
-      {/* HERO SECTION */}
-      {/* ==================================================================== */}
-      <Shell className="flex flex-col items-center text-center">
-        {/* Version Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/80 px-3.5 py-1 text-xs font-mono text-slate-300">
-          <span className="relative flex size-2">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-          </span>
-          <span className="font-semibold text-slate-100">PDLC PLATFORM v{PRODUCT_VERSION}</span>
-          <span className="text-slate-600">/</span>
-          <span className="text-slate-400 font-mono">DETERMINISTIC DECISION SYSTEM</span>
-        </div>
+    <div className="relative overflow-hidden bg-slate-50/50 text-slate-900 selection:bg-blue-600 selection:text-white">
+      {/* Background Decorative Mesh Gradients */}
+      <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[800px] w-full max-w-7xl -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100/60 via-slate-50/40 to-transparent blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-1/3 -z-10 size-[600px] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-100/40 via-blue-50/20 to-transparent blur-3xl" />
 
-        {/* Main Headline */}
-        <h1 className="mt-8 max-w-4xl font-mono text-3xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl leading-[1.15]">
-          Engineering decisions should be <span className="text-cyan-400 underline decoration-cyan-500/40 underline-offset-8">traceable.</span>
-        </h1>
-
-        {/* Subheadline */}
-        <p className="mt-6 max-w-2xl font-sans text-base text-slate-300 sm:text-lg leading-relaxed">
-          PDLC connects requirements, questions, evidence, decisions, and approvals into one continuously traceable engineering system.
-        </p>
-
-        {/* Call to Action Buttons */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4 font-mono text-xs">
-          <Button asChild size="lg" className="gap-2 bg-cyan-500 font-semibold text-slate-950 hover:bg-cyan-400 transition-colors">
-            <Link href="/sign-up">
-              Explore the Platform <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-
-          <Button asChild variant="outline" size="lg" className="gap-2 border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700 hover:bg-slate-800 hover:text-white transition-colors">
-            <Link href="#problem">
-              See How It Works
-            </Link>
-          </Button>
-        </div>
-
-        {/* Hero Visual: Interactive Graph */}
-        <div className="mt-12 w-full max-w-5xl">
-          <HeroGraphInteractive />
-        </div>
-      </Shell>
-
-      {/* ==================================================================== */}
-      {/* SECTION 2 — THE PROBLEM */}
-      {/* ==================================================================== */}
-      <Shell id="problem" className="flex flex-col gap-10">
-        <div className="flex flex-col gap-3 max-w-3xl">
-          <Badge variant="outline" className="w-fit font-mono text-xs border-amber-500/40 text-amber-400 bg-amber-500/10">
-            ENGINEERING FAILURE MODES
-          </Badge>
-          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
-            Product development breaks long before the product does.
-          </h2>
-          <p className="text-sm text-slate-300">
-            Complex hardware programs rarely fail from a single component defect. They break when unclear requirements, floating assumptions, unverified claims, and silent approvals compound over time.
-          </p>
-        </div>
-
-        {/* 4 Technical Failure Modes Review Environment */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {FAILURE_MODES.map((mode) => (
-            <div
-              key={mode.code}
-              className="flex flex-col justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-5 font-mono transition-colors hover:border-slate-700 hover:bg-slate-900/90"
-            >
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-400 tracking-wider">
-                    [{mode.code}] {mode.tag}
-                  </span>
-                  <Badge variant="outline" className="border-rose-500/30 text-rose-400 bg-rose-500/10 text-[10px]">
-                    {mode.badge}
-                  </Badge>
-                </div>
-
-                <h3 className="text-base font-bold font-sans text-white">{mode.title}</h3>
-                <p className="text-xs font-sans text-slate-300 leading-relaxed">{mode.description}</p>
-              </div>
-
-              {/* Review Snippet Box */}
-              <div className="flex flex-col gap-2 rounded-lg border border-slate-800/80 bg-slate-950 p-3.5 text-xs">
-                <div className="flex items-center justify-between text-[10px] text-slate-500 border-b border-slate-800/60 pb-1.5">
-                  <span>Artifact: {mode.snippetId}</span>
-                  <span className="text-rose-400 font-semibold">Unresolved</span>
-                </div>
-                <p className="text-slate-300 italic">&ldquo;{mode.snippetText}&rdquo;</p>
-                <div className="flex items-center gap-1.5 text-[11px] text-amber-400/90 font-sans pt-1 border-t border-slate-800/60">
-                  <AlertTriangle className="size-3.5 shrink-0" />
-                  <span>{mode.comment}</span>
-                </div>
-              </div>
+      {/* SECTION 1: HERO */}
+      <section className="relative pt-12 pb-20 md:pt-20 md:pb-28">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          {/* Top Pill */}
+          <div className="flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-white px-4 py-1.5 font-mono text-xs font-semibold text-blue-700 shadow-sm shadow-blue-900/5 backdrop-blur-md">
+              <Sparkles className="size-3.5 text-amber-500" />
+              <span>THE ENGINEERING DECISION &amp; REQUIREMENTS INTELLIGENCE PLATFORM</span>
+              <ChevronRight className="size-3.5 text-blue-400" />
             </div>
-          ))}
-        </div>
-      </Shell>
+          </div>
 
-      {/* ==================================================================== */}
-      {/* SECTION 3 — THE CORE SYSTEM */}
-      {/* ==================================================================== */}
-      <Shell className="flex flex-col gap-10">
-        <div className="flex flex-col gap-3 max-w-3xl">
-          <Badge variant="outline" className="w-fit font-mono text-xs border-cyan-500/40 text-cyan-400 bg-cyan-500/10">
-            THE LIFECYCLE CHAIN
-          </Badge>
-          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
-            Build a chain of evidence around every engineering decision.
-          </h2>
-          <p className="text-sm text-slate-300">
-            PDLC connects the entire product lifecycle into a continuous horizontal architecture, ensuring every decision is backed by mathematical proof, explicit sign-offs, and graph traceability.
-          </p>
-        </div>
+          {/* Main Headline & Subheadline */}
+          <div className="mt-8 text-center max-w-4xl mx-auto">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-slate-900 leading-[1.1]">
+              Product development, <br className="hidden sm:inline" />
+              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 bg-clip-text text-transparent">
+                connected.
+              </span>
+            </h1>
 
-        {/* Horizontal Technical Architecture Flow */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-          {LIFECYCLE_CHAIN.map((step) => {
-            const Icon = step.icon;
-            return (
-              <div
-                key={step.stage}
-                className="relative flex flex-col justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/50 p-4 transition-colors hover:border-cyan-500/50 hover:bg-slate-900/90"
+            <p className="mt-6 text-lg sm:text-xl text-slate-600 font-normal leading-relaxed max-w-2xl mx-auto">
+              PDLC connects requirements, questions, evidence, decisions and dependencies into one intelligent product development system.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Button
+                asChild
+                size="lg"
+                className="h-12 px-7 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-mono text-sm font-semibold shadow-lg shadow-blue-500/25 transition-all border-none"
               >
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-cyan-400">{step.stage}</span>
-                    <Icon className="size-4 text-slate-400" />
-                  </div>
-                  <span className="font-mono text-xs font-bold tracking-wider text-slate-200 uppercase">
-                    {step.label}
-                  </span>
-                  <h3 className="font-sans text-xs font-bold text-white mt-1">{step.title}</h3>
-                  <p className="font-sans text-[11px] text-slate-400 leading-normal">{step.body}</p>
-                </div>
+                <Link href="/sign-up" className="flex items-center gap-2">
+                  Explore PDLC
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
 
-                <div className="flex items-center gap-1 font-mono text-[10px] text-slate-500 pt-2 border-t border-slate-800">
-                  <span>Linked Node</span>
-                  <ChevronRight className="size-3 text-cyan-400 ml-auto" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Shell>
-
-      {/* ==================================================================== */}
-      {/* SECTION 4 — PRODUCT DIFFERENTIATION */}
-      {/* ==================================================================== */}
-      <Shell className="flex flex-col gap-10">
-        <div className="flex flex-col gap-3 max-w-3xl">
-          <Badge variant="outline" className="w-fit font-mono text-xs border-purple-500/40 text-purple-400 bg-purple-500/10">
-            ARCHITECTURAL COMPARISON
-          </Badge>
-          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
-            Not another project management layer.
-          </h2>
-          <p className="text-sm text-slate-300">
-            Conventional development tools store disconnected files and tickets. PDLC structures the reasoning, evidence, and dependencies behind engineering decisions.
-          </p>
-        </div>
-
-        {/* Comparison Matrix Table */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden font-mono text-xs">
-          <div className="grid grid-cols-12 border-b border-slate-800 bg-slate-950 p-4 font-bold text-slate-300">
-            <div className="col-span-3">DIMENSION</div>
-            <div className="col-span-4 text-slate-400">TRADITIONAL DEVELOPMENT TOOLS</div>
-            <div className="col-span-5 text-cyan-400 flex items-center gap-1">
-              <ShieldCheck className="size-4" /> PDLC DECISION INTELLIGENCE
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="h-12 px-7 rounded-xl border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-mono text-sm font-semibold shadow-sm transition-all"
+              >
+                <a href="#core-graph" className="flex items-center gap-2">
+                  See how it works
+                </a>
+              </Button>
             </div>
           </div>
 
-          <div className="divide-y divide-slate-800/70">
-            {DIFFERENTIATOR_MATRIX.map((item) => (
-              <div key={item.category} className="grid grid-cols-12 p-4 items-center gap-2 hover:bg-slate-900/90 transition-colors">
-                <div className="col-span-3 font-semibold text-slate-200">{item.category}</div>
-                <div className="col-span-4 text-slate-400 flex items-center gap-1.5">
-                  <span className="text-rose-400/80">✕</span> {item.traditional}
-                </div>
-                <div className="col-span-5 font-semibold text-cyan-300 flex items-center gap-1.5">
-                  <span className="text-emerald-400">✓</span> {item.pdlc}
-                </div>
+          {/* LIVING HERO ANIMATION VISUAL */}
+          <div className="mt-14 sm:mt-18">
+            <HeroSystemAnimation />
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 2: CATEGORY DEFINITION & THE CORE PROBLEM */}
+      <section className="py-20 border-t border-slate-200/80 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            <div className="lg:col-span-5 flex flex-col gap-4">
+              <div className="inline-flex items-center gap-2 font-mono text-xs font-bold text-blue-600 uppercase tracking-wider">
+                <Activity className="size-4 text-blue-600" />
+                <span>THE ENGINEERING DISCONNECT</span>
               </div>
-            ))}
-          </div>
-        </div>
-      </Shell>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                Complex engineering breaks in the gaps between tools.
+              </h2>
+              <p className="text-slate-600 leading-relaxed text-sm sm:text-base">
+                Requirements live in legacy databases, questions in unrecorded chat threads, test evidence in lab reports, and decisions in email chains. When a single parameter changes, nobody knows what breaks until hardware fails during testing.
+              </p>
+            </div>
 
-      {/* ==================================================================== */}
-      {/* SECTION 5 — LIVE PRODUCT VISUAL */}
-      {/* ==================================================================== */}
-      <Shell className="flex flex-col gap-10">
-        <div className="flex flex-col gap-3 max-w-3xl">
-          <Badge variant="outline" className="w-fit font-mono text-xs border-cyan-500/40 text-cyan-400 bg-cyan-500/10">
-            GRAPH QUERY INTERFACE
-          </Badge>
-          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
-            Ask what the engineering data already knows.
-          </h2>
-          <p className="text-sm text-slate-300">
-            Query your product graph for unsupported claims, conflicting specifications, unverified calculations, and downstream blast radii in milliseconds.
-          </p>
-        </div>
-
-        {/* Section 5 Query Visual Component */}
-        <QueryInterfaceVisual />
-      </Shell>
-
-      {/* ==================================================================== */}
-      {/* SECTION 6 — TECHNICAL ARCHITECTURE */}
-      {/* ==================================================================== */}
-      <Shell className="flex flex-col gap-10">
-        <div className="flex flex-col gap-3 max-w-3xl">
-          <Badge variant="outline" className="w-fit font-mono text-xs border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
-            TECHNICAL ARCHITECTURE
-          </Badge>
-          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
-            A structured memory for product development.
-          </h2>
-          <p className="text-sm text-slate-300">
-            A deterministic relational graph model backed by strict PostgreSQL 17 constraints, capturing exact metadata attributes across every object.
-          </p>
-        </div>
-
-        {/* Technical Architecture Flow Diagram */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 font-mono">
-          <div className="flex flex-wrap items-center justify-between gap-3 font-mono text-xs border-b border-slate-800 pb-4">
-            <span className="font-bold text-slate-200">SCHEMA FLOW // POSTGRESQL 17 RELATIONAL MODEL</span>
-            <span className="text-cyan-400">100% SELF-HOSTED & AIR-GAPPED</span>
-          </div>
-
-          {/* Architecture Pipeline */}
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 text-center text-xs font-bold">
-            {["Requirements", "Questions", "Docs / Data / Tests", "Evidence Graph", "Decisions", "Approvals", "Change Impact"].map((block, idx) => (
-              <div key={block} className="flex flex-col items-center gap-2">
-                <div className="w-full rounded border border-slate-700 bg-slate-950 py-3 px-2 text-slate-200 hover:border-cyan-400 transition-colors">
-                  {block}
+            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-6 shadow-sm hover:shadow-md transition-all">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-rose-100 text-rose-600 font-mono font-bold text-sm">
+                  01
                 </div>
-                {idx < 6 && <span className="text-slate-600 lg:hidden">↓</span>}
+                <h3 className="font-extrabold text-slate-900 text-base">Unanswered Questions</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Engineers spot ambiguity in requirements, but questions stall in review queues without direct trace links to active design decisions.
+                </p>
               </div>
-            ))}
+
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-6 shadow-sm hover:shadow-md transition-all">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 font-mono font-bold text-sm">
+                  02
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-base">Missing Evidence Links</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Design reviews pass without verifying if test data or CAD calculations support safety margins, leading to costly late-stage redesigns.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-6 shadow-sm hover:shadow-md transition-all">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 font-mono font-bold text-sm">
+                  03
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-base">Invisible Blast Radius</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Modifying a single thermal or mechanical constraint silently invalidates supplier specifications across downstream teams.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-6 shadow-sm hover:shadow-md transition-all">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 font-mono font-bold text-sm">
+                  04
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-base">Zero Defensibility</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  When audits occur, teams spend weeks manually assembling compliance matrices from fragmented spreadsheets and legacy documents.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 3: CORE SYSTEM ARCHITECTURE (THE PRODUCT DEVELOPMENT GRAPH) */}
+      <section id="core-graph" className="py-20 border-t border-slate-200/80 bg-slate-50/50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <div className="inline-flex items-center gap-2 font-mono text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">
+              <Waypoints className="size-4 text-blue-600" />
+              <span>THE PDLC ONTOLOGY</span>
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">
+              One connected graph for the entire lifecycle.
+            </h2>
+            <p className="mt-4 text-slate-600 text-sm sm:text-base leading-relaxed">
+              PDLC structures product development around 6 fundamental engineering primitives connected by deterministic dependency edges.
+            </p>
           </div>
 
-          {/* Metadata Badges Bar */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-2 pt-6 border-t border-slate-800/80">
-            <span className="text-xs text-slate-400 font-sans mr-2">Tracked Metadata:</span>
-            {["Source", "Owner", "Revision", "Timestamp", "Confidence", "Status", "Dependency", "Validation state"].map((meta) => (
-              <Badge key={meta} variant="outline" className="font-mono text-[11px] border-slate-700 text-slate-300 bg-slate-950">
-                {meta}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <FileText className="size-5" />
+                </div>
+                <span className="font-mono text-xs font-bold text-slate-400">PRIMITIVE 01</span>
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Requirement</h3>
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                Verifiable technical boundaries, operational limits, and interface constraints across hardware and software systems.
+              </p>
+              <div className="mt-4 font-mono text-[11px] text-blue-600 font-semibold bg-blue-50/60 p-2 rounded-lg border border-blue-100">
+                REQ-1042 • Thermal Limit &lt;= 850°C
+              </div>
+            </div>
+
+            <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <HelpCircle className="size-5" />
+                </div>
+                <span className="font-mono text-xs font-bold text-slate-400">PRIMITIVE 02</span>
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Question</h3>
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                Engineering ambiguity or missing parameters explicitly raised and tracked until resolved with technical evidence.
+              </p>
+              <div className="mt-4 font-mono text-[11px] text-amber-600 font-semibold bg-amber-50/60 p-2 rounded-lg border border-amber-100">
+                QST-089 • Manifold Margin Clearance?
+              </div>
+            </div>
+
+            <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <TestTube2 className="size-5" />
+                </div>
+                <span className="font-mono text-xs font-bold text-slate-400">PRIMITIVE 03</span>
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Evidence</h3>
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                Hot fire test logs, CAD stress analyses, FEA simulations, or supplier ICD specifications supporting design safety.
+              </p>
+              <div className="mt-4 font-mono text-[11px] text-emerald-600 font-semibold bg-emerald-50/60 p-2 rounded-lg border border-emerald-100">
+                EVD-402 • HIL Test Protocol 4B
+              </div>
+            </div>
+
+            <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <GitPullRequest className="size-5" />
+                </div>
+                <span className="font-mono text-xs font-bold text-slate-400">PRIMITIVE 04</span>
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Decision</h3>
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                Architectural choices and trade study baselines explicitly recorded with complete rationale and evidence lineage.
+              </p>
+              <div className="mt-4 font-mono text-[11px] text-indigo-600 font-semibold bg-indigo-50/60 p-2 rounded-lg border border-indigo-100">
+                DEC-019 • Dual-Layer Shield Selection
+              </div>
+            </div>
+
+            <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                  <ShieldCheck className="size-5" />
+                </div>
+                <span className="font-mono text-xs font-bold text-slate-400">PRIMITIVE 05</span>
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Approval</h3>
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                Dual-custody verification sign-offs requiring multi-disciplinary approval before release to manufacturing.
+              </p>
+              <div className="mt-4 font-mono text-[11px] text-purple-600 font-semibold bg-purple-50/60 p-2 rounded-lg border border-purple-100">
+                APP-005 • Systems Safety Gate
+              </div>
+            </div>
+
+            <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Zap className="size-5" />
+                </div>
+                <span className="font-mono text-xs font-bold text-slate-400">PRIMITIVE 06</span>
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-slate-900">Change</h3>
+              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+                Propagated modification delta dynamically calculating blast radius across all connected hardware/software subcomponents.
+              </p>
+              <div className="mt-4 font-mono text-[11px] text-blue-600 font-semibold bg-blue-50/60 p-2 rounded-lg border border-blue-100">
+                CR-112 • Thermal Bound Revision
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 4: INTERACTIVE GRAPH QUERY ENGINE */}
+      <section id="interactive-engine" className="py-20 border-t border-slate-200/80 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <div className="inline-flex items-center gap-2 font-mono text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">
+              <Terminal className="size-4 text-blue-600" />
+              <span>DETERMINISTIC GRAPH REASONING</span>
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">
+              Query your engineering truth in milliseconds.
+            </h2>
+            <p className="mt-4 text-slate-600 text-sm sm:text-base leading-relaxed">
+              Ask natural language or graph queries to surface unsupported requirements, missing evidence, and downstream change blast radiuses instantly.
+            </p>
+          </div>
+
+          <QueryInterfaceVisual />
+        </div>
+      </section>
+
+      {/* SECTION 5: REAL-WORLD SUBSYSTEM SCENARIO */}
+      <section id="blast-radius" className="py-20 border-t border-slate-200/80 bg-slate-50/50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <div className="inline-flex items-center gap-2 font-mono text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">
+              <Zap className="size-4 text-blue-600" />
+              <span>PRE-IMPLEMENTATION DEFENSE</span>
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">
+              Catch engineering errors before hardware scrap.
+            </h2>
+            <p className="mt-4 text-slate-600 text-sm sm:text-base leading-relaxed">
+              See how a single thermal requirement change is analyzed by PDLC to prevent costly physical test failures.
+            </p>
+          </div>
+
+          <UseCaseVisual />
+        </div>
+      </section>
+
+      {/* SECTION 6: ENTERPRISE STORE & CAD INTEGRATIONS */}
+      <section className="py-20 border-t border-slate-200/80 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            <div className="lg:col-span-5 flex flex-col gap-4">
+              <div className="inline-flex items-center gap-2 font-mono text-xs font-bold text-blue-600 uppercase tracking-wider">
+                <ShoppingCart className="size-4 text-blue-600" />
+                <span>OFFICIAL INTEGRATIONS HUB</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                Connect your engineering supply chain &amp; toolchain.
+              </h2>
+              <p className="text-slate-600 leading-relaxed text-sm sm:text-base">
+                1-click official connectors sync real-time supplier part availability, electrical parameters, CAD specs, and issue trackers directly into your PDLC decision graph.
+              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <Button
+                  asChild
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-mono text-xs font-semibold shadow-md shadow-blue-500/20"
+                >
+                  <Link href="/sign-up">Connect Store API</Link>
+                </Button>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-4 font-mono text-xs">
+              <div className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4 shadow-xs">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <ShoppingCart className="size-4 text-amber-600" /> Amazon Store API
+                </div>
+                <span className="text-[11px] text-slate-500">ASIN &amp; Part Sync</span>
+                <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded">CONNECTED</span>
+              </div>
+
+              <div className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4 shadow-xs">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <Cpu className="size-4 text-red-600" /> DigiKey API
+                </div>
+                <span className="text-[11px] text-slate-500">IC Specs &amp; Stock</span>
+                <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded">CONNECTED</span>
+              </div>
+
+              <div className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4 shadow-xs">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <Building2 className="size-4 text-blue-600" /> Mouser Electronics
+                </div>
+                <span className="text-[11px] text-slate-500">Component Datasheets</span>
+                <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded">CONNECTED</span>
+              </div>
+
+              <div className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4 shadow-xs">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <Layers className="size-4 text-emerald-600" /> McMaster-Carr
+                </div>
+                <span className="text-[11px] text-slate-500">Hardware CAD Models</span>
+                <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded">CONNECTED</span>
+              </div>
+
+              <div className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4 shadow-xs">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <FileText className="size-4 text-indigo-600" /> IBM DOORS / Jira
+                </div>
+                <span className="text-[11px] text-slate-500">Legacy Req Sync</span>
+                <span className="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-1.5 py-0.5 rounded">READY</span>
+              </div>
+
+              <div className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4 shadow-xs">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <Server className="size-4 text-purple-600" /> Siemens PLM / CAD
+                </div>
+                <span className="text-[11px] text-slate-500">Assembly Tree Graph</span>
+                <span className="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-1.5 py-0.5 rounded">READY</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 7: SECURITY & ENTERPRISE INFRASTRUCTURE */}
+      <section className="py-20 border-t border-slate-200/80 bg-slate-50/50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <Lock className="size-6 text-blue-600" />
+              <h3 className="font-bold text-slate-900 text-lg">SOC2 Type II &amp; ITAR Ready</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                End-to-end encryption at rest and in transit with strict role-based access controls for aerospace and defense engineering standards.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <Server className="size-6 text-indigo-600" />
+              <h3 className="font-bold text-slate-900 text-lg">On-Premises &amp; Air-Gapped</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Deploy inside your private AWS/Azure VPC or air-gapped infrastructure with zero external data telemetry.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <ShieldCheck className="size-6 text-emerald-600" />
+              <h3 className="font-bold text-slate-900 text-lg">Immutable Audit Ledger</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Every requirement edit, evidence attachment, and approval decision is cryptographically signed and stored with full history tracking.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 8: FINAL CTA */}
+      <section className="py-20 border-t border-slate-200/80 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 p-8 sm:p-14 text-white shadow-2xl shadow-blue-500/25">
+            <div className="pointer-events-none absolute -right-10 -top-10 size-80 rounded-full bg-white/10 blur-2xl" />
+
+            <div className="relative z-10 flex flex-col items-center text-center max-w-2xl mx-auto">
+              <Badge variant="outline" className="font-mono text-xs text-blue-100 border-white/30 uppercase tracking-widest px-3 py-1">
+                ENGINEERING DECISION PLATFORM
               </Badge>
-            ))}
-          </div>
-        </div>
-      </Shell>
 
-      {/* ==================================================================== */}
-      {/* SECTION 7 — WHO IT IS FOR */}
-      {/* ==================================================================== */}
-      <Shell className="flex flex-col gap-10">
-        <div className="flex flex-col gap-3 max-w-3xl">
-          <Badge variant="outline" className="w-fit font-mono text-xs border-blue-500/40 text-blue-400 bg-blue-500/10">
-            TARGET ENGINEERING DISCIPLINES
-          </Badge>
-          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
-            Built for teams where ambiguity is expensive.
-          </h2>
-          <p className="text-sm text-slate-300">
-            Designed specifically for technical engineering organizations building mission-critical hardware, aerospace, automotive, defense, and complex systems.
-          </p>
-        </div>
+              <h2 className="mt-6 text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+                Build defensible engineering decisions today.
+              </h2>
 
-        {/* Roles Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {TECHNICAL_ROLES.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={item.role}
-                className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-5 transition-colors hover:border-slate-700 hover:bg-slate-900/80"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="flex size-8 items-center justify-center rounded bg-slate-800 text-cyan-400">
-                    <Icon className="size-4" />
-                  </div>
-                  <h3 className="font-sans text-sm font-bold text-white">{item.role}</h3>
-                </div>
-                <p className="font-sans text-xs text-slate-300 leading-relaxed">{item.useCase}</p>
+              <p className="mt-4 text-blue-100 text-sm sm:text-base leading-relaxed font-normal">
+                Eliminate unverified requirements, blind change propagation, and missing test evidence across your engineering lifecycle.
+              </p>
+
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-12 px-8 rounded-xl bg-white text-blue-700 hover:bg-blue-50 font-mono text-sm font-bold shadow-lg transition-all border-none"
+                >
+                  <Link href="/sign-up">Get Started with PDLC</Link>
+                </Button>
+
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="h-12 px-8 rounded-xl border-white/40 bg-white/10 hover:bg-white/20 text-white font-mono text-sm font-semibold transition-all backdrop-blur-xs"
+                >
+                  <Link href="/docs">Read Architecture Docs</Link>
+                </Button>
               </div>
-            );
-          })}
-        </div>
-      </Shell>
-
-      {/* ==================================================================== */}
-      {/* SECTION 8 — USE CASE */}
-      {/* ==================================================================== */}
-      <Shell className="flex flex-col gap-10">
-        <div className="flex flex-col gap-3 max-w-3xl">
-          <Badge variant="outline" className="w-fit font-mono text-xs border-purple-500/40 text-purple-400 bg-purple-500/10">
-            REAL-WORLD SCENARIO
-          </Badge>
-          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
-            Prevent late-stage physical rework before code or CAD is frozen.
-          </h2>
-        </div>
-
-        {/* Section 8 Use Case Visual Component */}
-        <UseCaseVisual />
-      </Shell>
-
-      {/* ==================================================================== */}
-      {/* SECTION 9 — COMPANY POSITIONING */}
-      {/* ==================================================================== */}
-      <Shell className="flex flex-col gap-6 max-w-4xl text-left font-sans">
-        <div className="border-l-2 border-cyan-500 pl-6 py-2">
-          <h2 className="font-mono text-xl font-bold tracking-tight text-white">
-            Engineering memory for organizations that build complex things.
-          </h2>
-          <p className="mt-3 text-sm text-slate-300 leading-relaxed">
-            Modern engineering teams generate enormous amounts of requirements, specifications, decisions, tests, reviews, and technical knowledge. PDLC connects that information into a system that preserves why decisions were made, what supports them, and what changes when assumptions change.
-          </p>
-        </div>
-      </Shell>
-
-      {/* ==================================================================== */}
-      {/* SECTION 10 — FINAL CTA */}
-      {/* ==================================================================== */}
-      <Shell>
-        <div className="w-full rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 p-8 sm:p-12 text-center flex flex-col items-center gap-6 shadow-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1 font-mono text-xs text-cyan-300">
-            <ShieldCheck className="size-3.5 text-cyan-400" />
-            <span>SELF-HOSTED & AIR-GAPPED READY</span>
-          </div>
-
-          <h2 className="font-mono text-3xl font-black tracking-tight text-white sm:text-5xl max-w-3xl leading-tight">
-            Make every engineering decision defensible.
-          </h2>
-
-          <p className="max-w-xl font-sans text-sm text-slate-300 leading-relaxed">
-            Connect requirements, evidence, decisions, and approvals across the product development lifecycle.
-          </p>
-
-          <div className="flex flex-col items-center gap-3">
-            <Button asChild size="lg" className="gap-2 bg-cyan-500 font-mono text-xs font-semibold text-slate-950 hover:bg-cyan-400 transition-colors">
-              <Link href="/sign-up">
-                Explore PDLC <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            <span className="font-mono text-[11px] text-slate-500">
-              Designed for technical teams building complex products.
-            </span>
+            </div>
           </div>
         </div>
-      </Shell>
-
+      </section>
     </div>
   );
 }

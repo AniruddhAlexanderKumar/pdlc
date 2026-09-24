@@ -1,87 +1,86 @@
 "use client";
 
 import * as React from "react";
-import { AlertOctagon, CheckCircle2, FileCheck, FileText, GitPullRequest, HelpCircle, Layers, ShieldAlert, ShieldCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { AlertCircle, ArrowRight, CheckCircle2, Shield, Zap, FileText, GitPullRequest } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function UseCaseVisual() {
+  const [activeStep, setActiveStep] = React.useState<number>(1);
+
+  const steps = [
+    {
+      step: 1,
+      title: "1. Requirement Modified",
+      code: "REQ-042",
+      desc: "Thermal upper bound increased from 650°C to 800°C by Thermal Lead.",
+      status: "TRIGGER",
+      bg: "bg-amber-50 text-amber-700 border-amber-200",
+    },
+    {
+      step: 2,
+      title: "2. Blast Radius Computed",
+      code: "O(V+E) SEARCH",
+      desc: "System identifies 3 downstream impacts: Structural spec, Manifold test plan, Parker Valve ICD.",
+      status: "COMPUTED",
+      bg: "bg-blue-50 text-blue-700 border-blue-200",
+    },
+    {
+      step: 3,
+      title: "3. Dual-Custody Approval",
+      code: "DEC-019",
+      desc: "Requires explicit sign-off from Systems Lead + Chief Engineer before proceeding to hardware.",
+      status: "ACTION",
+      bg: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    },
+  ];
+
   return (
-    <div className="w-full rounded-xl border border-slate-800 bg-slate-950 p-6 shadow-2xl">
-      {/* Top Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-        <div className="flex items-center gap-2">
-          <GitPullRequest className="size-4 text-purple-400" />
-          <span className="font-mono text-xs font-bold text-slate-200 uppercase tracking-wider">
-            REAL ENGINEERING SCENARIO: SUBSYSTEM REQUIREMENT CHANGE
-          </span>
+    <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-blue-900/5">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-2.5 font-mono text-xs font-bold text-slate-800 uppercase tracking-wider">
+          <Zap className="size-4 text-blue-600" />
+          <span>SUBSYSTEM CHANGE BLAST RADIUS SCENARIO</span>
         </div>
-        <Badge variant="outline" className="font-mono text-xs border-purple-500/40 text-purple-300 bg-purple-500/10">
-          REQ-PROP-104: Main Valve Actuation Speed
-        </Badge>
+        <span className="rounded bg-emerald-100 px-2.5 py-0.5 font-mono text-[10px] font-extrabold text-emerald-800 border border-emerald-200">
+          PRE-IMPLEMENTATION DEFENSE
+        </span>
       </div>
 
-      {/* Grid of Identified Impact Cascades */}
-      <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div className="flex flex-col gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 p-3.5 font-mono">
-          <span className="text-2xl font-extrabold text-slate-100">12</span>
-          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-            <FileCheck className="size-3 text-blue-400" /> Dependent Reqs
-          </span>
-          <span className="text-[10px] text-slate-500">Cross-domain link</span>
-        </div>
-
-        <div className="flex flex-col gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 p-3.5 font-mono">
-          <span className="text-2xl font-extrabold text-slate-100">3</span>
-          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-            <FileText className="size-3 text-purple-400" /> Affected Docs
-          </span>
-          <span className="text-[10px] text-slate-500">ICDs & Specifications</span>
-        </div>
-
-        <div className="flex flex-col gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 p-3.5 font-mono">
-          <span className="text-2xl font-extrabold text-slate-100">2</span>
-          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-            <HelpCircle className="size-3 text-amber-400" /> Open Questions
-          </span>
-          <span className="text-[10px] text-slate-500">Unresolved trades</span>
-        </div>
-
-        <div className="flex flex-col gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 p-3.5 font-mono">
-          <span className="text-2xl font-extrabold text-slate-100">1</span>
-          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-            <ShieldAlert className="size-3 text-rose-400" /> Missing Artifact
-          </span>
-          <span className="text-[10px] text-slate-500">Verification gap</span>
-        </div>
-
-        <div className="flex flex-col gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 p-3.5 font-mono col-span-2 sm:col-span-1">
-          <span className="text-2xl font-extrabold text-slate-100">4</span>
-          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1">
-            <ShieldCheck className="size-3 text-cyan-400" /> Stakeholder Sign-offs
-          </span>
-          <span className="text-[10px] text-slate-500">Approval gates</span>
-        </div>
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {steps.map((s) => (
+          <button
+            key={s.step}
+            type="button"
+            onClick={() => setActiveStep(s.step)}
+            className={cn(
+              "flex flex-col gap-3 rounded-xl border p-5 text-left transition-all duration-300",
+              activeStep === s.step
+                ? "border-blue-600 bg-white ring-4 ring-blue-500/10 shadow-lg scale-[1.02]"
+                : "border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white"
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-xs text-slate-900">{s.title}</span>
+              <span className={cn("rounded-full px-2 py-0.5 font-mono text-[9px] font-extrabold border", s.bg)}>
+                {s.status}
+              </span>
+            </div>
+            <span className="font-mono text-xs font-bold text-blue-600">{s.code}</span>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">{s.desc}</p>
+          </button>
+        ))}
       </div>
 
-      {/* Hero Highlight Box */}
-      <div className="mt-6 rounded-lg border border-emerald-500/40 bg-emerald-950/20 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white shadow-md">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-            <CheckCircle2 className="size-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-base font-extrabold tracking-tight text-emerald-300">
-              Change impact identified before implementation.
-            </span>
-            <span className="text-xs font-mono text-emerald-400/80">
-              Zero silent failures. Downstream impact cascaded and locked prior to hardware release.
-            </span>
-          </div>
+          <Shield className="size-5 text-amber-300 shrink-0" />
+          <span className="text-xs font-semibold">
+            Change impact identified and neutralized <span className="font-mono underline underline-offset-2">before</span> physical test or manufacturing release.
+          </span>
         </div>
-
-        <Badge variant="outline" className="font-mono text-xs border-emerald-500/40 text-emerald-400 bg-emerald-500/10 shrink-0">
-          PROVEN DEFENSIVE GRAPH
-        </Badge>
+        <span className="font-mono text-xs font-bold bg-white/20 px-3 py-1 rounded-lg backdrop-blur-xs">
+          RISK AVOIDED: $480,000 HARDWARE SCRAP
+        </span>
       </div>
     </div>
   );
