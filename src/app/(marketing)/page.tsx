@@ -33,15 +33,6 @@ export default function LandingPage() {
       {/* SECTION 1: HERO */}
       <section className="relative min-h-[90vh] flex flex-col justify-center items-center py-24 sm:py-32 border-b border-white/10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl text-center">
-          {/* Mission Tag */}
-          <div className="inline-flex items-center gap-3 rounded-full border border-cyan-500/30 bg-cyan-950/40 px-5 py-1.5 font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase backdrop-blur-md">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-cyan-400" />
-            </span>
-            MISSION OBJECTIVE // ENGINE DECISION PLATFORM
-          </div>
-
           {/* Main Headline: THE MORNINGSTAR SOLUTION */}
           <h1 className="mt-8 text-5xl sm:text-7xl lg:text-9xl font-black uppercase text-white tracking-tight leading-[0.92]">
             THE MORNINGSTAR <br className="hidden sm:inline" />
