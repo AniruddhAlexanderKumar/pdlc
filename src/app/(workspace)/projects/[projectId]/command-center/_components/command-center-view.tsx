@@ -97,6 +97,28 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
         }
       />
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex size-2.5">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
+          </span>
+          <span className="font-mono text-xs font-bold tracking-wider text-foreground uppercase">
+            MISSION CONTROL TELEMETRY
+          </span>
+          <Badge variant="outline" className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+            NOMINAL
+          </Badge>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-mono">
+          <span>ATTENTION: <strong className="text-foreground">{data.attentionItems.length}</strong></span>
+          <span>•</span>
+          <span>BASELINE: <strong className="text-foreground">{data.configuration.hasActiveBaseline ? "ACTIVE" : "NONE"}</strong></span>
+          <span>•</span>
+          <span>SURVEILLANCE: <strong className="text-foreground">{data.sentinel.openCount} OPEN</strong></span>
+        </div>
+      </div>
+
       <ProjectHeaderCard project={data.project} />
 
       <AtAGlanceStrip data={data} />

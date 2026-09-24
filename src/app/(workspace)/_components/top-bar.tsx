@@ -27,6 +27,14 @@ export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
 
       <Breadcrumbs />
 
+      <div className="hidden xl:flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-0.5 text-[11px] font-mono font-medium text-emerald-600 dark:text-emerald-400">
+        <span className="relative flex size-2">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+        </span>
+        <span>SYSTEM: NOMINAL</span>
+      </div>
+
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <ExpressActionBar />
         <CommandPalette showPortfolio={canViewPortfolio(identity.user.organizationRole)} />
