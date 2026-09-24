@@ -144,11 +144,11 @@ export function RequirementDetailView({
             <Button
               variant="outline"
               onClick={() => setIsEditOpen(true)}
-              disabled={!requirement.editable.content}
+              disabled={!requirement?.editable?.content}
               title={
-                requirement.editable.content
+                requirement?.editable?.content
                   ? undefined
-                  : `A requirement in ${requirementStatusLabel(requirement.status)} cannot be edited`
+                  : `A requirement in ${requirement ? requirementStatusLabel(requirement.status) : "final state"} cannot be edited`
               }
             >
               <Pencil aria-hidden="true" />

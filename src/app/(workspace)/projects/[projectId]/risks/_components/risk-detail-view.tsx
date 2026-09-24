@@ -116,8 +116,8 @@ export function RiskDetailView({ projectId, riskId }: { projectId: string; riskI
             <Button
               variant="outline"
               onClick={() => setIsEditOpen(true)}
-              disabled={!risk.editable.content}
-              title={risk.editable.content ? undefined : "A closed risk cannot be edited"}
+              disabled={!risk?.editable?.content}
+              title={risk?.editable?.content ? undefined : "A closed risk cannot be edited"}
             >
               <Pencil aria-hidden="true" />
               Edit

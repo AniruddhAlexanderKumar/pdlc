@@ -105,7 +105,7 @@ export function ChangeDetailView({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={`${change.identifier} — ${change.title}`}
+        title={`${change?.identifier ?? ""} — ${change?.title ?? ""}`}
         description="Engineering change request."
         actions={
           <>
@@ -118,9 +118,9 @@ export function ChangeDetailView({
             <Button
               variant="outline"
               onClick={() => setIsEditOpen(true)}
-              disabled={!change.editable.definition}
+              disabled={!change?.editable?.definition}
               title={
-                change.editable.definition
+                change?.editable?.definition
                   ? undefined
                   : "A change under review or later can no longer be edited"
               }
@@ -128,19 +128,23 @@ export function ChangeDetailView({
               <Pencil aria-hidden="true" />
               Edit
             </Button>
-            <Button asChild variant="outline">
-              <Link href={`/projects/${projectId}/history/CHANGE_REQUEST/${change.id}`}>
-                <History aria-hidden="true" />
-                History
-              </Link>
-            </Button>
-            <TraceLink
-              projectId={projectId}
-              type="CHANGE_REQUEST"
-              id={change.id}
-              identifier={change.identifier}
-              label={change.title}
-            />
+            {change?.id && (
+              <Button asChild variant="outline">
+                <Link href={`/projects/${projectId}/history/CHANGE_REQUEST/${change.id}`}>
+                  <History aria-hidden="true" />
+                  History
+                </Link>
+              </Button>
+            )}
+            {change?.id && (
+              <TraceLink
+                projectId={projectId}
+                type="CHANGE_REQUEST"
+                id={change.id}
+                identifier={change.identifier}
+                label={change.title}
+              />
+            )}
           </>
         }
       />
