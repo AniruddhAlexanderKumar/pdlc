@@ -11,7 +11,7 @@ import {
 
 export function useOfficialIntegrations() {
   const [integrations, setIntegrations] = React.useState<OfficialIntegration[]>(() => {
-    return OFFICIAL_INTEGRATIONS_CATALOG.map((item, idx) => ({
+    return OFFICIAL_INTEGRATIONS_CATALOG.map((item) => ({
       id: `int-${item.provider.toLowerCase()}`,
       provider: item.provider,
       name: item.name,
@@ -70,6 +70,18 @@ export function useOfficialIntegrations() {
     );
   };
 
+  const connectAllStores = () => {
+    setIntegrations((prev) =>
+      prev.map((item) => ({
+        ...item,
+        status: "CONNECTED",
+        apiKeyConfigured: true,
+        lastSyncAt: new Date(),
+        itemsMappedCount: item.itemsMappedCount > 0 ? item.itemsMappedCount : 8,
+      }))
+    );
+  };
+
   const syncStoreCatalog = (provider: IntegrationProvider) => {
     setIntegrations((prev) =>
       prev.map((item) => (item.provider === provider ? { ...item, status: "SYNCING" } : item))
@@ -88,13 +100,38 @@ export function useOfficialIntegrations() {
             : item
         )
       );
-    }, 800);
+    }, 600);
+  };
+
+  const addAsinItem = (asinOrSku: string, customTitle?: string) => {
+    const cleanAsin = asinOrSku.trim().toUpperCase() || "B079XX-SAMPLE";
+    const newItem: StoreCatalogItem = {
+      asinOrSku: cleanAsin,
+      title: customTitle || `Imported Amazon Store Component (${cleanAsin})`,
+      manufacturer: "Amazon Store / Certified Hardware Vendor",
+      category: "Imported Store Hardware",
+      price: "$34.00",
+      availability: "IN_STOCK",
+      storeUrl: `https://www.amazon.com/dp/${cleanAsin}`,
+    };
+
+    setActiveCatalogItems((prev) => [newItem, ...prev]);
+
+    setIntegrations((prev) =>
+      prev.map((item) =>
+        item.provider === "AMAZON_STORE"
+          ? { ...item, itemsMappedCount: item.itemsMappedCount + 1 }
+          : item
+      )
+    );
   };
 
   return {
     integrations,
     activeCatalogItems,
     toggleConnection,
+    connectAllStores,
     syncStoreCatalog,
+    addAsinItem,
   };
 }

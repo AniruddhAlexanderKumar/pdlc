@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Key,
   Layers,
+  Plus,
   RefreshCw,
   Server,
   ShieldCheck,
@@ -27,11 +28,20 @@ import { useOfficialIntegrations } from "@/lib/api/integrations";
 import { formatIsoDate } from "@/lib/utils";
 
 export function IntegrationsView() {
-  const { integrations, activeCatalogItems, toggleConnection, syncStoreCatalog } = useOfficialIntegrations();
+  const {
+    integrations,
+    activeCatalogItems,
+    toggleConnection,
+    connectAllStores,
+    syncStoreCatalog,
+    addAsinItem,
+  } = useOfficialIntegrations();
+
   const [selectedProvider, setSelectedProvider] = React.useState<IntegrationProvider | null>(null);
   const [apiKeyInput, setApiKeyInput] = React.useState("");
   const [partnerIdInput, setPartnerIdInput] = React.useState("");
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [quickAsinInput, setQuickAsinInput] = React.useState("");
 
   const handleOpenConnectModal = (provider: IntegrationProvider) => {
     setSelectedProvider(provider);
@@ -50,20 +60,37 @@ export function IntegrationsView() {
     setIsModalOpen(false);
   };
 
+  const handleQuickAddAsin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!quickAsinInput.trim()) return;
+    addAsinItem(quickAsinInput);
+    setQuickAsinInput("");
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Official Integrations & Store Connectors"
-        description="Connect Amazon Store & Business API, DigiKey, Mouser, McMaster-Carr, and enterprise ERP store gateways to map component procurement directly into your relational product graph."
+        description="Connect Amazon Store & Business API, DigiKey, Mouser, McMaster-Carr, and enterprise ERP store gateways in 1-click to map hardware procurement directly into your relational product graph."
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => syncStoreCatalog("AMAZON_STORE")}
-            className="gap-1.5"
-          >
-            <RefreshCw className="size-3.5" /> Sync Amazon Store API
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={connectAllStores}
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Zap className="size-3.5 fill-white/20" /> Instant Connect All Stores
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncStoreCatalog("AMAZON_STORE")}
+              className="gap-1.5"
+            >
+              <RefreshCw className="size-3.5" /> Sync Amazon Store API
+            </Button>
+          </div>
         }
       />
 
@@ -76,34 +103,66 @@ export function IntegrationsView() {
             </div>
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-foreground">Amazon Store & Business API Connected</h3>
+                <h3 className="text-base font-bold text-foreground">Amazon Store & Business API</h3>
                 <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono">
-                  Active Sync
+                  1-Click Ready
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground max-w-2xl">
-                ASIN hardware lookup, stock verification, and price tracking synced live. 14 items currently linked to requirements & supplied item artifacts.
+                ASIN hardware lookup, stock verification, and price tracking synced live. 1-click import maps store items into PDLC requirements & supplied item artifacts.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => addAsinItem("B08N5WRWNW", "High-Temp Aerospace Silicon O-Ring Gasket")}
+              className="gap-1.5 text-xs"
+            >
+              <Plus className="size-3.5 text-emerald-500" /> Add Sample Amazon ASIN
+            </Button>
             <Button
               variant="default"
               size="sm"
               onClick={() => handleOpenConnectModal("AMAZON_STORE")}
-              className="gap-1.5"
+              className="gap-1.5 text-xs"
             >
-              <Key className="size-3.5" /> Configure Amazon API Keys
+              <Key className="size-3.5" /> Configure API Keys
             </Button>
           </div>
         </CardContent>
       </Card>
 
+      {/* 1-Click Quick ASIN / Store Item Importer Strip */}
+      <Card className="border-border bg-card p-4">
+        <form onSubmit={handleQuickAddAsin} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-primary shrink-0" />
+            <span className="text-sm font-semibold text-foreground">Quick ASIN / SKU Importer</span>
+            <span className="text-xs text-muted-foreground hidden lg:inline">— Paste any ASIN or SKU to map it into the product graph instantly</span>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Input
+              type="text"
+              placeholder="Paste ASIN (e.g. B08N5WRWNW)"
+              value={quickAsinInput}
+              onChange={(e) => setQuickAsinInput(e.target.value)}
+              className="h-8 text-xs font-mono w-full sm:w-56"
+            />
+            <Button type="submit" size="sm" className="h-8 text-xs gap-1 shrink-0">
+              <Plus className="size-3.5" /> Import
+            </Button>
+          </div>
+        </form>
+      </Card>
+
       {/* Catalog of Official Store & Supplier Integrations */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold tracking-tight text-foreground">Available Official Integrations</h2>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">Official Store Integrations</h2>
           <span className="text-xs font-mono text-muted-foreground">{integrations.filter((i) => i.status === "CONNECTED").length} / {integrations.length} Active</span>
         </div>
 
@@ -147,7 +206,9 @@ export function IntegrationsView() {
                       variant={isConnected ? "outline" : "default"}
                       size="sm"
                       disabled={isSyncing}
-                      onClick={() => handleOpenConnectModal(catalogItem.provider)}
+                      onClick={() => {
+                        if (state) toggleConnection(state.id);
+                      }}
                       className="w-full text-xs gap-1.5"
                     >
                       {isSyncing ? (
@@ -155,22 +216,20 @@ export function IntegrationsView() {
                           <RefreshCw className="size-3 animate-spin" /> Syncing...
                         </>
                       ) : isConnected ? (
-                        "Manage Credentials"
+                        "Connected (Click to Toggle)"
                       ) : (
-                        "Connect Integration"
+                        "1-Click Connect"
                       )}
                     </Button>
-                    {isConnected && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => syncStoreCatalog(catalogItem.provider)}
-                        title="Sync now"
-                        className="px-2"
-                      >
-                        <RefreshCw className="size-3.5 text-muted-foreground" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenConnectModal(catalogItem.provider)}
+                      title="Advanced API Keys"
+                      className="px-2 shrink-0"
+                    >
+                      <Key className="size-3.5 text-muted-foreground" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -181,12 +240,15 @@ export function IntegrationsView() {
 
       {/* Live Synced Amazon & Store Catalog Preview */}
       <section className="flex flex-col gap-4">
-        <h2 className="text-base font-semibold tracking-tight text-foreground">Live Synced Store Catalog Items</h2>
-        
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">Live Synced Store Items</h2>
+          <span className="text-xs text-muted-foreground font-mono">{activeCatalogItems.length} items in graph</span>
+        </div>
+
         <div className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="grid grid-cols-1 divide-y divide-border">
             {activeCatalogItems.map((item) => (
-              <div key={item.asinOrSku} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3">
+              <div key={item.asinOrSku + item.title} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3">
                 <div className="flex items-start gap-3">
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-secondary text-primary font-mono text-xs font-bold">
                     {item.asinOrSku.slice(0, 4)}
