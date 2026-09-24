@@ -28,26 +28,28 @@ import {
   AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HeroInteractiveConcept } from "./_components/hero-interactive-concept";
+import { InteractiveWorkflowStepper } from "./_components/interactive-workflow-stepper";
 
 export default function LandingPage() {
   return (
-    <div className="relative overflow-hidden bg-[#fafafa] text-zinc-950 selection:bg-blue-600 selection:text-white">
-      {/* Background Subtle Ambient Gradient */}
+    <div className="relative overflow-hidden bg-[#fcfcfd] text-zinc-950 selection:bg-blue-600 selection:text-white">
+      {/* Background Subtle Ambient Lighting */}
       <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[800px] w-full max-w-7xl -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100/40 via-zinc-50/20 to-transparent blur-3xl opacity-70" />
 
-      {/* SECTION 1: HERO (PURE TYPOGRAPHY & MAJESTIC METRICS) */}
-      <section className="relative pt-20 pb-28 md:pt-32 md:pb-40">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
-          {/* Category Pill */}
+      {/* SECTION 1: HERO */}
+      <section className="relative pt-16 pb-24 md:pt-28 md:pb-36">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          {/* Eyebrow Pill */}
           <div className="flex justify-center">
             <div className="inline-flex items-center gap-2.5 rounded-full border border-zinc-200 bg-white px-4 py-1.5 font-mono text-[11px] font-bold tracking-[0.25em] text-blue-600 uppercase shadow-xs">
               <Sparkles className="size-3.5 text-blue-600" />
-              <span>THE PRODUCT DEVELOPMENT DECISION PLATFORM</span>
+              <span>THE ENGINEERING DECISION PLATFORM</span>
             </div>
           </div>
 
           {/* Majestic Hero Headline */}
-          <div className="mt-10 text-center max-w-5xl mx-auto">
+          <div className="mt-8 text-center max-w-5xl mx-auto">
             <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight text-zinc-950 leading-[1.02]">
               Product development, <br className="hidden sm:inline" />
               <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 bg-clip-text text-transparent">
@@ -59,8 +61,8 @@ export default function LandingPage() {
               PDLC connects requirements, questions, evidence, decisions and dependencies into one intelligent product development system.
             </p>
 
-            {/* Action CTAs */}
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-4 font-mono text-xs font-semibold">
+            {/* CTAs */}
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-4 font-mono text-xs font-semibold">
               <Button
                 asChild
                 size="lg"
@@ -78,14 +80,19 @@ export default function LandingPage() {
                 size="lg"
                 className="h-14 px-9 rounded-xl border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-900 font-mono text-xs font-bold shadow-xs transition-all"
               >
-                <a href="#manifesto" className="flex items-center gap-2">
-                  Read Category Manifesto
+                <a href="#interactive-workflow" className="flex items-center gap-2">
+                  See how it works
                 </a>
               </Button>
             </div>
           </div>
 
-          {/* PURE CONCEPTUAL METRICS BAR (NO SOFTWARE VISUALS) */}
+          {/* INTERACTIVE HERO CONCEPT VISUAL */}
+          <div className="mt-16 sm:mt-24">
+            <HeroInteractiveConcept />
+          </div>
+
+          {/* CONCEPTUAL METRICS BAR */}
           <div className="mt-20 pt-12 border-t border-zinc-200/80 grid grid-cols-2 md:grid-cols-4 gap-8 text-center font-mono">
             <div className="flex flex-col gap-1">
               <span className="text-3xl sm:text-4xl font-black text-zinc-950">1 Graph</span>
@@ -122,8 +129,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SECTION 3: THE 6 PRIMITIVES (CLEAN ARCHITECTURAL ONTOLOGY) */}
-      <section id="primitives" className="py-24 md:py-36 border-t border-zinc-200/80 bg-[#fafafa]">
+      {/* SECTION 3: INTERACTIVE WORKFLOW STEPPER */}
+      <section id="interactive-workflow" className="py-24 md:py-36 border-t border-zinc-200/80 bg-[#fafafa]">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <InteractiveWorkflowStepper />
+        </div>
+      </section>
+
+      {/* SECTION 4: THE 6 PRIMITIVES (CLEAN ARCHITECTURAL ONTOLOGY) */}
+      <section id="primitives" className="py-24 md:py-36 border-t border-zinc-200/80 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="text-center max-w-3xl mx-auto mb-18">
             <span className="font-mono text-xs font-extrabold tracking-[0.3em] text-blue-600 uppercase">
@@ -214,67 +228,6 @@ export default function LandingPage() {
               <p className="mt-3 text-sm text-zinc-600 leading-relaxed font-normal">
                 Propagated modification recalculating blast radius across all connected hardware and software subcomponents.
               </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 4: THE DETERMINISTIC ENGINE ADVANTAGE */}
-      <section className="py-24 md:py-36 border-t border-zinc-200/80 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-5 flex flex-col gap-6">
-              <span className="font-mono text-xs font-extrabold tracking-[0.3em] text-blue-600 uppercase">
-                DETERMINISTIC GRAPH ENGINE
-              </span>
-              <h2 className="text-4xl sm:text-5xl font-black text-zinc-950 tracking-tight leading-tight">
-                Engineering truth in sub-5 millisecond graph queries.
-              </h2>
-              <p className="text-zinc-600 text-base leading-relaxed">
-                PDLC maintains an in-memory directed graph of every requirement, question, evidence file, and sign-off decision across your entire engineering organization.
-              </p>
-            </div>
-
-            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6 font-mono text-xs">
-              <div className="flex flex-col gap-3 rounded-3xl border border-zinc-200/80 bg-zinc-50/70 p-7 shadow-xs">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 font-bold">
-                  01
-                </div>
-                <h3 className="font-extrabold text-zinc-950 text-base font-sans">Sub-5ms Graph Walk</h3>
-                <p className="text-zinc-600 leading-relaxed font-sans text-xs">
-                  Traverse thousands of complex dependency edges to find unverified requirements and stale test reports instantly.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 rounded-3xl border border-zinc-200/80 bg-zinc-50/70 p-7 shadow-xs">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 font-bold">
-                  02
-                </div>
-                <h3 className="font-extrabold text-zinc-950 text-base font-sans">Pre-Release Blast Radius</h3>
-                <p className="text-zinc-600 leading-relaxed font-sans text-xs">
-                  Know exactly which test plans, CAD models, and supplier contracts break before releasing hardware changes.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 rounded-3xl border border-zinc-200/80 bg-zinc-50/70 p-7 shadow-xs">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 font-bold">
-                  03
-                </div>
-                <h3 className="font-extrabold text-zinc-950 text-base font-sans">Dual-Custody Approvals</h3>
-                <p className="text-zinc-600 leading-relaxed font-sans text-xs">
-                  Enforce multi-disciplinary review gates that guarantee Systems Safety and Chief Engineers sign off before milestone gates.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 rounded-3xl border border-zinc-200/80 bg-zinc-50/70 p-7 shadow-xs">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-purple-100 text-purple-700 font-bold">
-                  04
-                </div>
-                <h3 className="font-extrabold text-zinc-950 text-base font-sans">Cryptographic Audit Ledger</h3>
-                <p className="text-zinc-600 leading-relaxed font-sans text-xs">
-                  Immutable historical recording of every parameter update, rationale note, and evidence attachment.
-                </p>
-              </div>
             </div>
           </div>
         </div>
