@@ -1,749 +1,573 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowRight,
-  Binary,
-  BookOpen,
+  CheckCircle2,
+  ChevronRight,
   Database,
-  Download,
   FileCheck,
   FileCheck2,
+  FileText,
+  GitBranch,
   GitCommit,
+  GitPullRequest,
   Handshake,
   HelpCircle,
   Layers,
   Lock,
   Network,
+  Scale,
   Server,
   Shield,
+  ShieldAlert,
   ShieldCheck,
-  Workflow,
+  Terminal,
+  Waypoints,
   Zap,
 } from "lucide-react";
-import { GRAPH_EDGE_TYPES, GRAPH_LIMITS, GRAPH_NODE_TYPES } from "@/domain";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Shell } from "@/components/common/shell";
-import { CodeBlock } from "@/components/common/code-block";
 import { PRODUCT_VERSION } from "@/lib/product-version";
-import { InteractiveShowcase } from "./_components/interactive-showcase";
+import { HeroGraphInteractive } from "./_components/hero-graph-interactive";
+import { QueryInterfaceVisual } from "./_components/query-interface-visual";
+import { UseCaseVisual } from "./_components/use-case-visual";
 
 export const metadata: Metadata = {
-  title: "PDLC Platform — Deterministic Aerospace Lifecycle Management",
+  title: "PDLC Platform — Engineering Requirements & Decision Intelligence Platform",
   description:
-    "A self-hosted, graph-native product development lifecycle system for aerospace and mission-critical engineering. Change impact simulation, requirements quality control, and zero AI hallucinations.",
+    "PDLC connects requirements, questions, evidence, decisions, and approvals into one continuously traceable engineering system for complex hardware and deep-tech teams.",
 };
 
-const STATS = [
+const FAILURE_MODES = [
   {
-    value: GRAPH_NODE_TYPES.length,
-    label: "Domain node types",
-    sub: "Every artifact backed by a relational PostgreSQL 17 table",
+    code: "FAIL-01",
+    tag: "SPECIFICATION DEFECT",
+    title: "Poor Requirements",
+    description:
+      "Requirements are vague, incomplete, contradictory, or never properly defined. Subjective phrasing like 'adequate thermal margin' or 'fast actuation' leaves crucial bounds unquantified.",
+    snippetId: "REQ-PROP-012",
+    snippetText: "The valve shall operate with adequate margin under extreme environmental conditions.",
+    comment: "Reviewer: Unquantified term 'adequate margin'. What temperature and pressure bounds?",
+    badge: "Ambiguity Flaw",
   },
   {
-    value: GRAPH_EDGE_TYPES.length,
-    label: "Typed edge relations",
-    sub: "Foreign keys enforcing rigorous bidirectional traceability",
+    code: "FAIL-02",
+    tag: "UNRESOLVED TRADES",
+    title: "Unanswered Questions",
+    description:
+      "Teams make design and architectural decisions before the underlying engineering questions are formally framed with clear acceptance criteria and variables.",
+    snippetId: "QST-THERM-044",
+    snippetText: "What is the steady-state thermal dissipation across the manifold during peak flight envelope?",
+    comment: "Reviewer: Decision DEC-004 proceeded without resolving this trade study.",
+    badge: "Unresolved Question",
   },
   {
-    value: `${GRAPH_LIMITS.maxMaxDepth} hops`,
-    label: "Max traversal bound",
-    sub: "Guaranteed polynomial-time termination, no runaway queries",
+    code: "FAIL-03",
+    tag: "VERIFICATION GAP",
+    title: "Evidence Gaps",
+    description:
+      "Critical performance and safety claims exist in isolation without a verifiable source document, test log, structural calculation, or explicit owner.",
+    snippetId: "EVD-UNLINKED-90",
+    snippetText: "Claimed burst pressure tolerance: 350 bar (Source: Internal email thread).",
+    comment: "Reviewer: Missing sealed test report or finite element analysis document.",
+    badge: "Missing Evidence",
   },
   {
-    value: "0 calls",
-    label: "Outbound telemetry",
-    sub: "100% self-hosted, air-gapped, and sovereign",
+    code: "FAIL-04",
+    tag: "UNAUTHORIZED DELTA",
+    title: "Approval Gaps",
+    description:
+      "Requirements, interface control documents (ICDs), and engineering changes are implemented in downstream subsystems without explicit dual-custody sign-offs.",
+    snippetId: "APP-ICD-401",
+    snippetText: "ICD-401 Fluid Interface Revision v3.2 applied in CAD model.",
+    comment: "Reviewer: Propulsion Lead & Safety Officer approvals are still PENDING.",
+    badge: "Approval Gap",
   },
 ] as const;
 
-const PREVENTION_MODULES = [
+const LIFECYCLE_CHAIN = [
   {
+    stage: "01",
+    label: "REQUIRE",
+    title: "Define what must be true.",
+    body: "Author unambiguous, measurable requirements with explicit numerical bounds, units, and categories.",
     icon: FileCheck,
-    tag: "QUALITY GATE 1",
-    title: "Requirements Quality & Ambiguity Inspector",
-    description:
-      "Automated inspection of 12 strict criteria: ambiguity, missing measurable metrics, missing units, undefined terms, and subjective language ('adequate', 'fast', 'sufficient'). Includes non-destructive rewrites and starter wizards.",
-    badge: "12 Criteria Checked",
   },
   {
-    icon: Handshake,
-    tag: "CONSENSUS GATE 2",
-    title: "Stakeholder Agreement & Conflict Resolution",
-    description:
-      "Logs formal positions across engineering disciplines, detects subtle cross-team interpretation conflicts before baseline lock, and generates binding resolution records.",
-    badge: "Conflict Detection",
-  },
-  {
+    stage: "02",
+    label: "QUESTION",
+    title: "Identify what must be resolved.",
+    body: "Frame critical engineering queries, trade studies, and assumptions before locking design choices.",
     icon: HelpCircle,
-    tag: "FRAMING GATE 3",
-    title: "Engineering Question Gatekeeper",
-    description:
-      "Intercepts vague, broad queries (e.g. 'How to make turbopump more reliable?') and transforms them into structured engineering questions with exact success criteria.",
-    badge: "Problem Framing",
   },
   {
-    icon: Zap,
-    tag: "BLAST RADIUS GATE 4",
-    title: "Requirement Change Impact Simulator",
-    description:
-      "Propose requirement edits and instantly calculate 1st, 2nd, and 3rd order downstream ripple effects across requirements, design decisions, test plans, and evidence records.",
-    badge: "Impact Analysis",
-  },
-] as const;
-
-const DIFFERENTIATORS = [
-  {
-    icon: Database,
-    tag: "RELATIONAL INTEGRITY",
-    title: "One real relational graph",
-    body: `${GRAPH_NODE_TYPES.length} node types and ${GRAPH_EDGE_TYPES.length} edge types. Every relationship is backed by a strict PostgreSQL foreign key constraint — not loose spreadsheets, floating JSON documents, or untyped hyperlinks.`,
+    stage: "03",
+    label: "EVIDENCE",
+    title: "Attach verified sources.",
+    body: "Bind calculations, test logs, simulation runs, datasheets, and inspection reports to claims.",
+    icon: FileText,
   },
   {
-    icon: Binary,
-    tag: "FORMAL CERTAINTY",
-    title: "Deterministic traversal engines",
-    body: "Identical input produces identical output across every execution. A traversal that hits a safety limit halts and explicitly reports refusal; it never silently returns a partial answer as if it were complete.",
+    stage: "04",
+    label: "DECIDE",
+    title: "Record engineering rationale.",
+    body: "Log formal engineering decisions, evaluated trade-off alternatives, and baseline choices.",
+    icon: Scale,
   },
   {
+    stage: "05",
+    label: "APPROVE",
+    title: "Capture stakeholder agreement.",
+    body: "Enforce explicit dual-custody sign-offs across Systems, Thermal, Propulsion, and Safety leads.",
     icon: ShieldCheck,
-    tag: "AIRWORTHINESS RIGOR",
-    title: "Zero AI by architectural mandate",
-    body: "In FAA, EASA, and defense certification contexts (DO-178C, DO-254), safety cases demand certified human accountability and mathematical proof. PDLC never infers, guesses, or hallucinates.",
   },
   {
-    icon: Workflow,
-    tag: "BLAST RADIUS ANALYSIS",
-    title: "Deterministic change propagation",
-    body: "When an engineering change request or supplier erratum arises, our traversal engine computes the exact downstream cascade across requirements, verification plans, interfaces, and safety risks in milliseconds.",
-  },
-  {
-    icon: GitCommit,
-    tag: "CRYPTOGRAPHIC AUDIT",
-    title: "Immutable, sealed baselines",
-    body: "Freeze your complete lifecycle state at major program milestones (SRR, PDR, CDR). Baselines are SHA-256 fingerprinted and protected by dual-custody approval workflows with tamper-evident audit logs.",
-  },
-  {
-    icon: Lock,
-    tag: "SOVEREIGN SECURITY",
-    title: "First-party, air-gapped security",
-    body: "Self-hosted Argon2id password hashing at OWASP parameters, opaque server-side session hashes, and transactional audit logging. Your export-controlled engineering data never leaves your infrastructure.",
+    stage: "06",
+    label: "TRACE",
+    title: "Understand change impact.",
+    body: "Automatically walk the relational graph when an assumption or requirement changes downstream.",
+    icon: Waypoints,
   },
 ] as const;
 
-const LIFECYCLE_STAGES = [
+const DIFFERENTIATOR_MATRIX = [
   {
-    step: "01",
-    title: "Stakeholder Needs",
-    desc: "Operational intents, mission requirements, and flight envelopes.",
-    node: "StakeholderNeed",
+    category: "Core Concept",
+    traditional: "Task lists & issue tickets",
+    pdlc: "Requirements & decision intelligence graph",
   },
   {
-    step: "02",
-    title: "System Requirements",
-    desc: "Decomposed functional, physical, and environmental specifications.",
-    node: "Requirement",
+    category: "Primary Unit",
+    traditional: "Tasks, Documents, Tickets, Comments",
+    pdlc: "Requirements, Questions, Evidence, Decisions",
   },
   {
-    step: "03",
-    title: "Decisions & Architecture",
-    desc: "Trade studies, architectural choices, and frozen baselines.",
-    node: "EngineeringDecision",
+    category: "Decision Rationale",
+    traditional: "Lost in slack messages & email threads",
+    pdlc: "Immutable decision records with evidence links",
   },
   {
-    step: "04",
-    title: "Design & Interfaces",
-    desc: "Subsystem interfaces (ICDs), physical items, and failure modes.",
-    node: "DesignItem",
+    category: "Conflict Handling",
+    traditional: "Discovered during late physical integration",
+    pdlc: "Automated cross-discipline conflict detection",
   },
   {
-    step: "05",
-    title: "Verification Activities",
-    desc: "HIL tests, inspections, flight tests, and analysis procedures.",
-    node: "VerificationActivity",
+    category: "Change Impact",
+    traditional: "Manual meetings & spreadsheet memory",
+    pdlc: "Deterministic relational graph traversal",
   },
   {
-    step: "06",
-    title: "Airworthiness Evidence",
-    desc: "Cryptographically bound logs, test telemetry, and compliance sign-offs.",
-    node: "Evidence",
+    category: "Governance & Audit",
+    traditional: "Post-hoc documentation scrambles",
+    pdlc: "Continuously defensible evidence chain",
   },
 ] as const;
 
-const AUDIENCES = [
+const TECHNICAL_ROLES = [
   {
-    role: "Systems Engineers",
+    role: "Systems Engineering",
     icon: Network,
-    cares:
-      "Maintain unbroken bidirectional traceability from high-level mission needs down to component verification, without manual spreadsheet maintenance.",
-    href: "/docs/concepts",
+    useCase: "Maintain unbroken bidirectional traceability from high-level mission needs down to component verification.",
   },
   {
-    role: "Airworthiness & Quality Leads",
+    role: "Requirements Engineering",
     icon: FileCheck2,
-    cares:
-      "Produce compliance matrices for DO-178C, DO-254, and ARP4754A. Findings carry full relational audit paths rather than probabilistic approximations.",
-    href: "/docs/concepts",
+    useCase: "Inspect requirement quality across 12 criteria and eliminate vague, unquantified specifications.",
   },
   {
-    role: "Chief Engineers & Directors",
+    role: "Certification & Compliance",
+    icon: ShieldCheck,
+    useCase: "Produce deterministic audit trails for DO-178C, DO-254, ARP4754A, and ISO 26262 compliance.",
+  },
+  {
+    role: "Product Engineering",
     icon: Layers,
-    cares:
-      "Inspect program health, detect unlinked requirements, review change request blast radii, and track sign-off bottlenecks in real time.",
-    href: "/docs/concepts",
+    useCase: "Verify subsystem design choices and interface control documents against upstream stakeholder intents.",
   },
   {
-    role: "IT & Infrastructure Teams",
+    role: "R&D & Advanced Programs",
+    icon: Scale,
+    useCase: "Capture trade studies, engineering assumptions, and experimental evidence in a structured system.",
+  },
+  {
+    role: "Quality Engineering",
+    icon: FileText,
+    useCase: "Ensure no requirement is closed or baseline locked without verified test evidence.",
+  },
+  {
+    role: "Supplier Engineering",
     icon: Server,
-    cares:
-      "Deploy completely air-gapped via Docker Compose. Self-hosted PostgreSQL 17, zero third-party cloud dependencies, and zero outbound network calls.",
-    href: "/docs/security",
+    useCase: "Assess downstream impact when supplier specifications or hardware component ASINs/SKUs change.",
+  },
+  {
+    role: "Technical Program Leadership",
+    icon: GitCommit,
+    useCase: "Track real structural sign-off bottlenecks and change blast radii without status meeting overhead.",
   },
 ] as const;
 
-const DEPLOYMENT_MODES = [
-  {
-    name: "Self-Hosted (Recommended)",
-    badge: "PRODUCTION READY",
-    variant: "success" as const,
-    body: "Your private cloud or on-premises bare metal, your PostgreSQL 17 database, zero outbound telemetry. The verified production deployment path today via Docker Compose.",
-  },
-  {
-    name: "Air-Gapped Dedicated Instance",
-    badge: "ROADMAP",
-    variant: "secondary" as const,
-    body: "Isolated single-tenant instance for defense and enterprise programs requiring managed infrastructure with strict data sovereignty.",
-  },
-  {
-    name: "Multi-Tenant Sovereign Cloud",
-    badge: "FUTURE",
-    variant: "outline" as const,
-    body: "Managed cloud environment for evaluation and non-export-controlled commercial programs. Stated honestly as an architectural roadmap direction.",
-  },
-] as const;
-
-export default function MarketingHomePage() {
+export default function DeepTechLandingPage() {
   return (
-    <div className="flex flex-col gap-24 py-12 md:py-16">
-      {/* 1. HERO SECTION */}
+    <div className="flex flex-col gap-24 bg-slate-950 text-slate-100 py-12 md:py-16 selection:bg-cyan-500/30 selection:text-cyan-200">
+      
+      {/* ==================================================================== */}
+      {/* HERO SECTION */}
+      {/* ==================================================================== */}
       <Shell className="flex flex-col items-center text-center">
-        {/* Status Pill */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-mono text-muted-foreground shadow-xs">
+        {/* Version Badge */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/80 px-3.5 py-1 text-xs font-mono text-slate-300">
           <span className="relative flex size-2">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
           </span>
-          <span className="font-semibold text-foreground">PDLC PLATFORM v{PRODUCT_VERSION}</span>
-          <span className="text-border">/</span>
-          <span className="hidden sm:inline">DETERMINISTIC AEROSPACE LIFECYCLE ENGINE</span>
-          <span className="sm:hidden">MISSION-CRITICAL</span>
+          <span className="font-semibold text-slate-100">PDLC PLATFORM v{PRODUCT_VERSION}</span>
+          <span className="text-slate-600">/</span>
+          <span className="text-slate-400 font-mono">DETERMINISTIC DECISION SYSTEM</span>
         </div>
 
-        {/* Hero Title */}
-        <h1 className="mt-6 max-w-4xl text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl leading-[1.1]">
-          Prevent Aerospace Engineering Failures Before They Happen with{" "}
-          <span className="text-primary underline decoration-primary/30 decoration-wavy underline-offset-8">
-            Deterministic Traceability
-          </span>
+        {/* Main Headline */}
+        <h1 className="mt-8 max-w-4xl font-mono text-3xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl leading-[1.15]">
+          Engineering decisions should be <span className="text-cyan-400 underline decoration-cyan-500/40 underline-offset-8">traceable.</span>
         </h1>
 
-        {/* Subtitle */}
-        <p className="mt-6 max-w-3xl text-base text-muted-foreground sm:text-lg leading-relaxed">
-          Actively eliminates poor requirements, stakeholder disagreements, and ill-framed engineering questions. Unified on one real relational graph with instant Change Impact Simulation and zero AI hallucinations.
+        {/* Subheadline */}
+        <p className="mt-6 max-w-2xl font-sans text-base text-slate-300 sm:text-lg leading-relaxed">
+          PDLC connects requirements, questions, evidence, decisions, and approvals into one continuously traceable engineering system.
         </p>
 
-        {/* CTAs */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button asChild size="lg" className="gap-2 px-6 shadow-md">
+        {/* Call to Action Buttons */}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-4 font-mono text-xs">
+          <Button asChild size="lg" className="gap-2 bg-cyan-500 font-semibold text-slate-950 hover:bg-cyan-400 transition-colors">
             <Link href="/sign-up">
-              <span>Create an Organization</span>
-              <ArrowRight className="size-4" aria-hidden="true" />
+              Explore the Platform <ArrowRight className="size-4" />
             </Link>
           </Button>
 
-          <Button asChild variant="outline" size="lg" className="gap-2">
-            <Link href="/docs/step-by-step-guide">
-              <BookOpen className="size-4 text-primary" aria-hidden="true" />
-              <span>Step-by-Step Software Guide</span>
-            </Link>
-          </Button>
-
-          <Button asChild variant="ghost" size="lg" className="gap-2">
-            <Link href="/download">
-              <Download className="size-4 text-muted-foreground" aria-hidden="true" />
-              <span>Download self-hosted bundle</span>
+          <Button asChild variant="outline" size="lg" className="gap-2 border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700 hover:bg-slate-800 hover:text-white transition-colors">
+            <Link href="#problem">
+              See How It Works
             </Link>
           </Button>
         </div>
 
-        {/* 2. HERO MOCKUP: TRACEABILITY & IMPACT SIMULATOR PREVIEW */}
-        <div className="mt-14 w-full max-w-4xl overflow-hidden rounded-xl border border-border bg-card text-left shadow-xl">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-5 py-3.5">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Network className="size-4" aria-hidden="true" />
-              </div>
-              <span className="text-sm font-bold text-foreground">
-                Traceability & Change Impact Analysis
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Relational Graph Verified
-              </span>
-            </div>
-          </div>
-
-          <div className="p-5 text-xs leading-relaxed sm:p-6">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              {/* Left Column: Trace Chain */}
-              <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-4 lg:col-span-2">
-                <div className="flex items-center justify-between text-xs border-b border-border/60 pb-2">
-                  <span className="font-semibold text-foreground">
-                    Active Multi-Hop Traceability Chain
-                  </span>
-                  <Badge variant="outline" className="text-[10px] font-medium">
-                    DO-178C / DO-254 Baseline
-                  </Badge>
-                </div>
-
-                <div className="flex flex-col gap-2.5 pt-1">
-                  <div className="flex items-start gap-2.5">
-                    <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-primary">
-                      SN-042
-                    </span>
-                    <span className="text-foreground font-medium">
-                      Environmental Control System cabin pressure envelope
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-2.5 pl-4 border-l-2 border-primary/20">
-                    <ArrowRight className="size-3 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
-                    <div>
-                      <span className="font-mono text-[11px] font-semibold text-foreground">REQ-108:</span>{" "}
-                      <span className="text-muted-foreground">
-                        Dual independent valve actuators with isolated power rails
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5 pl-8 border-l-2 border-primary/20">
-                    <ArrowRight className="size-3 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
-                    <div>
-                      <span className="font-mono text-[11px] font-semibold text-foreground">DEC-019:</span>{" "}
-                      <span className="text-muted-foreground">
-                        Adopt CAN-FD with galvanic isolation for inter-module bus
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5 pl-12 border-l-2 border-primary/20">
-                    <ArrowRight className="size-3 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-mono text-[11px] font-semibold text-foreground">VER-082:</span>
-                      <span className="text-muted-foreground">HIL Fault Injection Matrix</span>
-                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                        VERIFIED (100%)
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5 pl-16 border-l-2 border-primary/20">
-                    <ArrowRight className="size-3 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <span className="font-mono text-[11px] font-semibold text-foreground">EVI-204:</span>
-                      <span className="font-mono text-[11px]">Telemetry Run #88219 (SHA-256: 0x9f8c4e...)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Engine Blast Radius Telemetry */}
-              <div className="flex flex-col justify-between gap-3 rounded-lg border border-border bg-muted/20 p-4">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-bold text-foreground">
-                    Deterministic Impact Engine
-                  </span>
-                  <p className="text-xs text-muted-foreground">
-                    Change Request <span className="font-bold text-foreground">CR-005</span> submitted against REQ-108.
-                  </p>
-                </div>
-
-                <div className="space-y-2 rounded-md border border-border bg-card p-3 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Blast radius depth:</span>
-                    <span className="font-semibold text-foreground">3 levels</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Downstream test plans:</span>
-                    <span className="font-semibold text-amber-600 dark:text-amber-400">2 affected</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Safety hazards:</span>
-                    <span className="font-semibold text-foreground">RSK-014 (Mitigated)</span>
-                  </div>
-                  <div className="flex flex-col gap-1 pt-1 border-t border-border">
-                    <span className="text-[11px] text-muted-foreground">Approval Status Flag:</span>
-                    <span className="inline-flex rounded-md bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                      APPROVAL_POTENTIALLY_INVALIDATED
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-xs text-muted-foreground">
-                  <span className="text-primary font-semibold">Deterministic Guarantee:</span> Exact foreign-key graph traversal without guesswork or artificial scores.
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Hero Visual: Interactive Graph */}
+        <div className="mt-12 w-full max-w-5xl">
+          <HeroGraphInteractive />
         </div>
       </Shell>
 
-      {/* 3. CORE PREVENTION MODULES SHOWCASE */}
-      <Shell className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <Badge variant="outline" className="self-start text-xs font-mono">
-            PROBLEM PREVENTION ENGINES
+      {/* ==================================================================== */}
+      {/* SECTION 2 — THE PROBLEM */}
+      {/* ==================================================================== */}
+      <Shell id="problem" className="flex flex-col gap-10">
+        <div className="flex flex-col gap-3 max-w-3xl">
+          <Badge variant="outline" className="w-fit font-mono text-xs border-amber-500/40 text-amber-400 bg-amber-500/10">
+            ENGINEERING FAILURE MODES
           </Badge>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            4 Core Failure Mode Prevention Features
+          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
+            Product development breaks long before the product does.
           </h2>
-          <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-            PDLC actively intervenes before poor specifications or uncoordinated changes cause flight failures.
+          <p className="text-sm text-slate-300">
+            Complex hardware programs rarely fail from a single component defect. They break when unclear requirements, floating assumptions, unverified claims, and silent approvals compound over time.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {PREVENTION_MODULES.map((mod) => {
-            const Icon = mod.icon;
-            return (
-              <div
-                key={mod.title}
-                className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/50"
-              >
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Icon className="size-5" aria-hidden="true" />
-                    </div>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {mod.badge}
-                    </Badge>
-                  </div>
-                  <span className="font-mono text-[10px] tracking-wider text-muted-foreground">
-                    {mod.tag}
-                  </span>
-                  <h3 className="text-base font-semibold text-foreground">{mod.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{mod.description}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Shell>
-
-      {/* 4. LIVE DOMAIN METRICS STRIP */}
-      <Shell>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {STATS.map((stat) => (
+        {/* 4 Technical Failure Modes Review Environment */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {FAILURE_MODES.map((mode) => (
             <div
-              key={stat.label}
-              className="flex flex-col justify-between gap-2 rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-primary/40"
-            >
-              <div className="flex items-baseline justify-between">
-                <span className="font-mono text-3xl sm:text-4xl font-bold tabular-nums tracking-tight text-foreground">
-                  {stat.value}
-                </span>
-                <span className="size-2 rounded-full bg-primary/60" aria-hidden="true" />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-semibold text-foreground">{stat.label}</span>
-                <span className="text-xs text-muted-foreground leading-snug">{stat.sub}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Shell>
-
-      {/* 5. LIFECYCLE PIPELINE (THE V-MODEL ON A GRAPH) */}
-      <Shell className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <Badge variant="outline" className="self-start text-xs font-mono">
-            END-TO-END TRACEABILITY
-          </Badge>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            The Aerospace Lifecycle Pipeline
-          </h2>
-          <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-            From initial mission intents through system architecture, risk management, and formal airworthiness sign-off — unified on a single relational schema without disconnected tools.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {LIFECYCLE_STAGES.map((stage) => (
-            <div
-              key={stage.step}
-              className="group relative flex flex-col justify-between gap-3 rounded-xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/50"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-primary">{stage.step}</span>
-                <span className="rounded-md border border-border bg-secondary/50 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
-                  {stage.node}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
-                  {stage.title}
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{stage.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Shell>
-
-      {/* 6. INTERACTIVE LIVE BENCH / ENGINE SHOWCASE */}
-      <Shell className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <Badge variant="outline" className="self-start text-xs font-mono">
-            LIVE ENGINE VERIFICATION
-          </Badge>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Inspect the Actual Graph Engine
-          </h2>
-          <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-            Not marketing mockups. Below are live, browser-rendered components interacting directly with the same domain schemas, transition tables, and safety-limit boundaries executing in the production application.
-          </p>
-        </div>
-
-        <InteractiveShowcase />
-      </Shell>
-
-      {/* 7. CORE ARCHITECTURAL DIFFERENTIATORS */}
-      <Shell className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <Badge variant="outline" className="self-start text-xs font-mono">
-            ARCHITECTURAL ADVANTAGES
-          </Badge>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Engineered for Airworthiness, Not Demos
-          </h2>
-          <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-            Every architectural decision inside PDLC is tailored for regulated environments where software failure is unacceptable and auditability is a legal requirement.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {DIFFERENTIATORS.map((diff) => {
-            const Icon = diff.icon;
-            return (
-              <div
-                key={diff.title}
-                className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-6 shadow-xs transition-colors hover:border-primary/40"
-              >
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Icon className="size-5" aria-hidden="true" />
-                    </div>
-                    <span className="font-mono text-[10px] tracking-wider text-muted-foreground">
-                      {diff.tag}
-                    </span>
-                  </div>
-                  <h3 className="text-base font-semibold text-foreground">{diff.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{diff.body}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Shell>
-
-      {/* 8. AIRWORTHINESS COMPLIANCE STANDARDS */}
-      <Shell className="flex flex-col gap-6">
-        <div className="rounded-xl border border-border bg-gradient-to-br from-card via-card to-secondary/30 p-6 sm:p-8">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="flex flex-col gap-3 lg:col-span-1">
-              <Badge variant="outline" className="self-start text-xs font-mono">
-                REGULATORY RIGOR
-              </Badge>
-              <h3 className="text-xl font-bold text-foreground">
-                Airworthiness & High-Reliability Standards
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                PDLC provides the deterministic data modeling required to satisfy certification authorities, eliminating audit discrepancies and missing verification links.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:col-span-2">
-              <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
-                <span className="font-mono text-xs font-bold text-primary">DO-178C / ED-12C</span>
-                <span className="text-sm font-semibold text-foreground">Airborne Systems Software</span>
-                <p className="text-xs text-muted-foreground">
-                  Bi-directional requirement-to-test traceability matrices and objective verification evidence.
-                </p>
-              </div>
-              <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
-                <span className="font-mono text-xs font-bold text-primary">DO-254 / ED-80</span>
-                <span className="text-sm font-semibold text-foreground">Complex Airborne Electronic Hardware</span>
-                <p className="text-xs text-muted-foreground">
-                  Interface definitions (ICDs), subsystem boundaries, and hierarchical requirement decomposition.
-                </p>
-              </div>
-              <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
-                <span className="font-mono text-xs font-bold text-primary">ARP4754A / ARP4761</span>
-                <span className="text-sm font-semibold text-foreground">Systems Engineering & Safety</span>
-                <p className="text-xs text-muted-foreground">
-                  FMEA, hazards, safety objectives, and mitigating design decisions tracked in one cohesive graph.
-                </p>
-              </div>
-              <div className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4">
-                <span className="font-mono text-xs font-bold text-primary">ISO 26262 & MIL-STD-882E</span>
-                <span className="text-sm font-semibold text-foreground">Functional Safety & Defense</span>
-                <p className="text-xs text-muted-foreground">
-                  Strict hazard tracking, risk mitigation verification, and tamper-evident configuration baselines.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Shell>
-
-      {/* 9. WHO IT'S FOR */}
-      <Shell className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <Badge variant="outline" className="self-start text-xs font-mono">
-            ORGANIZATIONAL LENSES
-          </Badge>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Tailored for Mission-Critical Engineering Roles
-          </h2>
-          <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-            Every engineering discipline accesses the same underlying graph through specialized, role-tailored workflows.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {AUDIENCES.map((audience) => {
-            const Icon = audience.icon;
-            return (
-              <Link
-                key={audience.role}
-                href={audience.href}
-                className="group flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/50 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <div className="flex flex-col gap-3">
-                  <div className="flex size-8 items-center justify-center rounded-md bg-secondary text-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                    <Icon className="size-4" aria-hidden="true" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                    {audience.role}
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{audience.cares}</p>
-                </div>
-                <div className="flex items-center gap-1 text-xs font-medium text-primary">
-                  <span>Explore concept</span>
-                  <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </Shell>
-
-      {/* 10. DEPLOYMENT & SOVEREIGNTY */}
-      <Shell className="flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <Badge variant="outline" className="self-start text-xs font-mono">
-            DATA SOVEREIGNTY
-          </Badge>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Deploy Anywhere. Zero Telemetry.
-          </h2>
-          <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-            Aerospace engineering and ITAR data cannot be entrusted to multi-tenant black boxes. PDLC is architected for sovereign self-hosting from day one.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-          {DEPLOYMENT_MODES.map((mode) => (
-            <div
-              key={mode.name}
-              className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-6 shadow-xs"
+              key={mode.code}
+              className="flex flex-col justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-5 font-mono transition-colors hover:border-slate-700 hover:bg-slate-900/90"
             >
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <Badge variant={mode.variant} className="text-[10px] font-mono">
+                  <span className="text-xs font-bold text-amber-400 tracking-wider">
+                    [{mode.code}] {mode.tag}
+                  </span>
+                  <Badge variant="outline" className="border-rose-500/30 text-rose-400 bg-rose-500/10 text-[10px]">
                     {mode.badge}
                   </Badge>
-                  <Server className="size-4 text-muted-foreground" aria-hidden="true" />
                 </div>
-                <h3 className="text-base font-semibold text-foreground">{mode.name}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{mode.body}</p>
+
+                <h3 className="text-base font-bold font-sans text-white">{mode.title}</h3>
+                <p className="text-xs font-sans text-slate-300 leading-relaxed">{mode.description}</p>
+              </div>
+
+              {/* Review Snippet Box */}
+              <div className="flex flex-col gap-2 rounded-lg border border-slate-800/80 bg-slate-950 p-3.5 text-xs">
+                <div className="flex items-center justify-between text-[10px] text-slate-500 border-b border-slate-800/60 pb-1.5">
+                  <span>Artifact: {mode.snippetId}</span>
+                  <span className="text-rose-400 font-semibold">Unresolved</span>
+                </div>
+                <p className="text-slate-300 italic">&ldquo;{mode.snippetText}&rdquo;</p>
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-400/90 font-sans pt-1 border-t border-slate-800/60">
+                  <AlertTriangle className="size-3.5 shrink-0" />
+                  <span>{mode.comment}</span>
+                </div>
               </div>
             </div>
           ))}
         </div>
+      </Shell>
 
-        {/* Quick Launch Terminal */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-xs">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-foreground">Launch Self-Hosted Stack</span>
-              <span className="font-mono text-xs text-muted-foreground">Docker Compose</span>
+      {/* ==================================================================== */}
+      {/* SECTION 3 — THE CORE SYSTEM */}
+      {/* ==================================================================== */}
+      <Shell className="flex flex-col gap-10">
+        <div className="flex flex-col gap-3 max-w-3xl">
+          <Badge variant="outline" className="w-fit font-mono text-xs border-cyan-500/40 text-cyan-400 bg-cyan-500/10">
+            THE LIFECYCLE CHAIN
+          </Badge>
+          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
+            Build a chain of evidence around every engineering decision.
+          </h2>
+          <p className="text-sm text-slate-300">
+            PDLC connects the entire product lifecycle into a continuous horizontal architecture, ensuring every decision is backed by mathematical proof, explicit sign-offs, and graph traceability.
+          </p>
+        </div>
+
+        {/* Horizontal Technical Architecture Flow */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          {LIFECYCLE_CHAIN.map((step) => {
+            const Icon = step.icon;
+            return (
+              <div
+                key={step.stage}
+                className="relative flex flex-col justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/50 p-4 transition-colors hover:border-cyan-500/50 hover:bg-slate-900/90"
+              >
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-cyan-400">{step.stage}</span>
+                    <Icon className="size-4 text-slate-400" />
+                  </div>
+                  <span className="font-mono text-xs font-bold tracking-wider text-slate-200 uppercase">
+                    {step.label}
+                  </span>
+                  <h3 className="font-sans text-xs font-bold text-white mt-1">{step.title}</h3>
+                  <p className="font-sans text-[11px] text-slate-400 leading-normal">{step.body}</p>
+                </div>
+
+                <div className="flex items-center gap-1 font-mono text-[10px] text-slate-500 pt-2 border-t border-slate-800">
+                  <span>Linked Node</span>
+                  <ChevronRight className="size-3 text-cyan-400 ml-auto" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Shell>
+
+      {/* ==================================================================== */}
+      {/* SECTION 4 — PRODUCT DIFFERENTIATION */}
+      {/* ==================================================================== */}
+      <Shell className="flex flex-col gap-10">
+        <div className="flex flex-col gap-3 max-w-3xl">
+          <Badge variant="outline" className="w-fit font-mono text-xs border-purple-500/40 text-purple-400 bg-purple-500/10">
+            ARCHITECTURAL COMPARISON
+          </Badge>
+          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
+            Not another project management layer.
+          </h2>
+          <p className="text-sm text-slate-300">
+            Conventional development tools store disconnected files and tickets. PDLC structures the reasoning, evidence, and dependencies behind engineering decisions.
+          </p>
+        </div>
+
+        {/* Comparison Matrix Table */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden font-mono text-xs">
+          <div className="grid grid-cols-12 border-b border-slate-800 bg-slate-950 p-4 font-bold text-slate-300">
+            <div className="col-span-3">DIMENSION</div>
+            <div className="col-span-4 text-slate-400">TRADITIONAL DEVELOPMENT TOOLS</div>
+            <div className="col-span-5 text-cyan-400 flex items-center gap-1">
+              <ShieldCheck className="size-4" /> PDLC DECISION INTELLIGENCE
             </div>
-            <p className="text-xs text-muted-foreground">
-              Unpack the production bundle and boot your local PostgreSQL 17 and PDLC platform instance:
-            </p>
-            <CodeBlock>{`unzip pdlc-self-hosted-bundle-v${PRODUCT_VERSION}.zip
-cd pdlc-self-hosted-bundle-v${PRODUCT_VERSION}
-chmod +x setup.sh && ./setup.sh`}</CodeBlock>
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-muted-foreground">
-              <span>Includes Docker Compose, automated migrations, and environment templates.</span>
-              <Link href="/docs/deployment" className="font-medium text-primary hover:underline">
-                View complete deployment guide →
-              </Link>
-            </div>
+          </div>
+
+          <div className="divide-y divide-slate-800/70">
+            {DIFFERENTIATOR_MATRIX.map((item) => (
+              <div key={item.category} className="grid grid-cols-12 p-4 items-center gap-2 hover:bg-slate-900/90 transition-colors">
+                <div className="col-span-3 font-semibold text-slate-200">{item.category}</div>
+                <div className="col-span-4 text-slate-400 flex items-center gap-1.5">
+                  <span className="text-rose-400/80">✕</span> {item.traditional}
+                </div>
+                <div className="col-span-5 font-semibold text-cyan-300 flex items-center gap-1.5">
+                  <span className="text-emerald-400">✓</span> {item.pdlc}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </Shell>
 
-      {/* 11. CALL TO ACTION (BOTTOM) */}
-      <Shell>
-        <div className="flex flex-col items-center gap-6 rounded-2xl border border-border bg-secondary/30 px-6 py-12 text-center sm:px-12 sm:py-16">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <Shield className="size-6" aria-hidden="true" />
+      {/* ==================================================================== */}
+      {/* SECTION 5 — LIVE PRODUCT VISUAL */}
+      {/* ==================================================================== */}
+      <Shell className="flex flex-col gap-10">
+        <div className="flex flex-col gap-3 max-w-3xl">
+          <Badge variant="outline" className="w-fit font-mono text-xs border-cyan-500/40 text-cyan-400 bg-cyan-500/10">
+            GRAPH QUERY INTERFACE
+          </Badge>
+          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
+            Ask what the engineering data already knows.
+          </h2>
+          <p className="text-sm text-slate-300">
+            Query your product graph for unsupported claims, conflicting specifications, unverified calculations, and downstream blast radii in milliseconds.
+          </p>
+        </div>
+
+        {/* Section 5 Query Visual Component */}
+        <QueryInterfaceVisual />
+      </Shell>
+
+      {/* ==================================================================== */}
+      {/* SECTION 6 — TECHNICAL ARCHITECTURE */}
+      {/* ==================================================================== */}
+      <Shell className="flex flex-col gap-10">
+        <div className="flex flex-col gap-3 max-w-3xl">
+          <Badge variant="outline" className="w-fit font-mono text-xs border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+            TECHNICAL ARCHITECTURE
+          </Badge>
+          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
+            A structured memory for product development.
+          </h2>
+          <p className="text-sm text-slate-300">
+            A deterministic relational graph model backed by strict PostgreSQL 17 constraints, capturing exact metadata attributes across every object.
+          </p>
+        </div>
+
+        {/* Technical Architecture Flow Diagram */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 font-mono">
+          <div className="flex flex-wrap items-center justify-between gap-3 font-mono text-xs border-b border-slate-800 pb-4">
+            <span className="font-bold text-slate-200">SCHEMA FLOW // POSTGRESQL 17 RELATIONAL MODEL</span>
+            <span className="text-cyan-400">100% SELF-HOSTED & AIR-GAPPED</span>
           </div>
 
-          <div className="flex flex-col gap-2 max-w-2xl">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Ground Your Engineering Lifecycle on a Real Graph
-            </h2>
-            <p className="text-sm text-muted-foreground sm:text-base leading-relaxed">
-              Eliminate compliance blindspots, spreadsheet divergence, and unverified change propagation. Run the deterministic PDLC system on your own infrastructure today.
-            </p>
+          {/* Architecture Pipeline */}
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 text-center text-xs font-bold">
+            {["Requirements", "Questions", "Docs / Data / Tests", "Evidence Graph", "Decisions", "Approvals", "Change Impact"].map((block, idx) => (
+              <div key={block} className="flex flex-col items-center gap-2">
+                <div className="w-full rounded border border-slate-700 bg-slate-950 py-3 px-2 text-slate-200 hover:border-cyan-400 transition-colors">
+                  {block}
+                </div>
+                {idx < 6 && <span className="text-slate-600 lg:hidden">↓</span>}
+              </div>
+            ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button asChild size="lg" className="gap-2 px-6">
-              <Link href="/sign-up">
-                <span>Create an Organization</span>
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="gap-2">
-              <Link href="/docs/step-by-step-guide">
-                <BookOpen className="size-4 text-primary" aria-hidden="true" />
-                <span>Step-by-Step Software Guide</span>
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" size="lg">
-              <Link href="/docs">System documentation</Link>
-            </Button>
+          {/* Metadata Badges Bar */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2 pt-6 border-t border-slate-800/80">
+            <span className="text-xs text-slate-400 font-sans mr-2">Tracked Metadata:</span>
+            {["Source", "Owner", "Revision", "Timestamp", "Confidence", "Status", "Dependency", "Validation state"].map((meta) => (
+              <Badge key={meta} variant="outline" className="font-mono text-[11px] border-slate-700 text-slate-300 bg-slate-950">
+                {meta}
+              </Badge>
+            ))}
           </div>
+        </div>
+      </Shell>
 
-          <p className="text-xs text-muted-foreground">
-            No credit card required. Pure open architecture. Verified on PostgreSQL 17.
+      {/* ==================================================================== */}
+      {/* SECTION 7 — WHO IT IS FOR */}
+      {/* ==================================================================== */}
+      <Shell className="flex flex-col gap-10">
+        <div className="flex flex-col gap-3 max-w-3xl">
+          <Badge variant="outline" className="w-fit font-mono text-xs border-blue-500/40 text-blue-400 bg-blue-500/10">
+            TARGET ENGINEERING DISCIPLINES
+          </Badge>
+          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
+            Built for teams where ambiguity is expensive.
+          </h2>
+          <p className="text-sm text-slate-300">
+            Designed specifically for technical engineering organizations building mission-critical hardware, aerospace, automotive, defense, and complex systems.
+          </p>
+        </div>
+
+        {/* Roles Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {TECHNICAL_ROLES.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.role}
+                className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-5 transition-colors hover:border-slate-700 hover:bg-slate-900/80"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 items-center justify-center rounded bg-slate-800 text-cyan-400">
+                    <Icon className="size-4" />
+                  </div>
+                  <h3 className="font-sans text-sm font-bold text-white">{item.role}</h3>
+                </div>
+                <p className="font-sans text-xs text-slate-300 leading-relaxed">{item.useCase}</p>
+              </div>
+            );
+          })}
+        </div>
+      </Shell>
+
+      {/* ==================================================================== */}
+      {/* SECTION 8 — USE CASE */}
+      {/* ==================================================================== */}
+      <Shell className="flex flex-col gap-10">
+        <div className="flex flex-col gap-3 max-w-3xl">
+          <Badge variant="outline" className="w-fit font-mono text-xs border-purple-500/40 text-purple-400 bg-purple-500/10">
+            REAL-WORLD SCENARIO
+          </Badge>
+          <h2 className="font-mono text-2xl font-black tracking-tight text-white sm:text-4xl">
+            Prevent late-stage physical rework before code or CAD is frozen.
+          </h2>
+        </div>
+
+        {/* Section 8 Use Case Visual Component */}
+        <UseCaseVisual />
+      </Shell>
+
+      {/* ==================================================================== */}
+      {/* SECTION 9 — COMPANY POSITIONING */}
+      {/* ==================================================================== */}
+      <Shell className="flex flex-col gap-6 max-w-4xl text-left font-sans">
+        <div className="border-l-2 border-cyan-500 pl-6 py-2">
+          <h2 className="font-mono text-xl font-bold tracking-tight text-white">
+            Engineering memory for organizations that build complex things.
+          </h2>
+          <p className="mt-3 text-sm text-slate-300 leading-relaxed">
+            Modern engineering teams generate enormous amounts of requirements, specifications, decisions, tests, reviews, and technical knowledge. PDLC connects that information into a system that preserves why decisions were made, what supports them, and what changes when assumptions change.
           </p>
         </div>
       </Shell>
+
+      {/* ==================================================================== */}
+      {/* SECTION 10 — FINAL CTA */}
+      {/* ==================================================================== */}
+      <Shell>
+        <div className="w-full rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 p-8 sm:p-12 text-center flex flex-col items-center gap-6 shadow-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1 font-mono text-xs text-cyan-300">
+            <ShieldCheck className="size-3.5 text-cyan-400" />
+            <span>SELF-HOSTED & AIR-GAPPED READY</span>
+          </div>
+
+          <h2 className="font-mono text-3xl font-black tracking-tight text-white sm:text-5xl max-w-3xl leading-tight">
+            Make every engineering decision defensible.
+          </h2>
+
+          <p className="max-w-xl font-sans text-sm text-slate-300 leading-relaxed">
+            Connect requirements, evidence, decisions, and approvals across the product development lifecycle.
+          </p>
+
+          <div className="flex flex-col items-center gap-3">
+            <Button asChild size="lg" className="gap-2 bg-cyan-500 font-mono text-xs font-semibold text-slate-950 hover:bg-cyan-400 transition-colors">
+              <Link href="/sign-up">
+                Explore PDLC <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+            <span className="font-mono text-[11px] text-slate-500">
+              Designed for technical teams building complex products.
+            </span>
+          </div>
+        </div>
+      </Shell>
+
     </div>
   );
 }
