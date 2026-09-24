@@ -1,64 +1,69 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Waypoints, ArrowRight, ShieldCheck } from "lucide-react";
+import { Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Shell } from "@/components/common/shell";
 
 const FOOTER_LINKS = [
-  { label: "Docs", href: "/docs" },
-  { label: "Security", href: "/docs/security" },
-  { label: "Known limitations", href: "/docs/known-limitations" },
-  { label: "Release notes", href: "/docs/release-notes" },
-  { label: "Download", href: "/download" },
-  { label: "GitHub", href: "https://github.com/The-5-man-mission/pdlc" },
+  { label: "DOCS", href: "/docs" },
+  { label: "SECURITY", href: "/docs/security" },
+  { label: "KNOWN LIMITATIONS", href: "/docs/known-limitations" },
+  { label: "RELEASE NOTES", href: "/docs/release-notes" },
+  { label: "DOWNLOAD", href: "/download" },
+  { label: "GITHUB", href: "https://github.com/The-5-man-mission/pdlc" },
 ];
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-svh flex-col bg-slate-50/50 text-slate-900 selection:bg-blue-600 selection:text-white">
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md print:static">
+    <div className="flex min-h-svh flex-col bg-black text-white selection:bg-cyan-500 selection:text-black font-sans">
+      {/* SpaceX-Inspired Top Navbar */}
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl print:static">
         <Shell className="flex h-16 items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2.5 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="flex items-center gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20">
-              <Waypoints className="size-4" aria-hidden="true" />
+            <div className="flex size-8 shrink-0 items-center justify-center rounded border border-white/20 bg-white/5 text-white group-hover:border-white transition-all">
+              <Waypoints className="size-4 text-cyan-400" aria-hidden="true" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-mono text-base font-extrabold tracking-tight text-slate-900">
+            <div className="flex flex-col font-mono">
+              <span className="text-sm font-extrabold tracking-[0.25em] text-white uppercase">
                 PDLC
               </span>
-              <span className="font-mono text-[9px] font-bold text-blue-600 tracking-widest uppercase -mt-1">
+              <span className="text-[9px] font-bold text-slate-400 tracking-[0.3em] uppercase -mt-1">
                 PLATFORM
               </span>
             </div>
           </Link>
 
-          <nav className="flex items-center gap-2 print:hidden sm:gap-4 font-mono text-xs">
+          <nav className="flex items-center gap-4 print:hidden sm:gap-6 font-mono text-xs font-bold uppercase tracking-wider">
             <Link
               href="/docs"
-              className="hidden font-semibold text-slate-600 hover:text-blue-600 transition-colors sm:inline"
+              className="hidden text-slate-300 hover:text-white transition-colors sm:inline"
             >
-              Docs
+              DOCS
             </Link>
             <Link
               href="/download"
-              className="hidden font-semibold text-slate-600 hover:text-blue-600 transition-colors sm:inline"
+              className="hidden text-slate-300 hover:text-white transition-colors sm:inline"
             >
-              Download
+              DOWNLOAD
             </Link>
-            <Button asChild variant="ghost" size="sm" className="font-mono text-xs text-slate-700 hover:bg-slate-100">
-              <Link href="/sign-in">Sign in</Link>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="font-mono text-xs font-bold uppercase text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <Link href="/sign-in">SIGN IN</Link>
             </Button>
             <Button
               asChild
               size="sm"
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-mono text-xs font-semibold shadow-md shadow-blue-500/20 transition-all border-none"
+              className="bg-white text-black hover:bg-slate-200 font-mono text-xs font-extrabold uppercase tracking-wider transition-all border border-white px-5 py-2 rounded-none"
             >
               <Link href="/sign-up">
-                <span className="sm:hidden">Sign up</span>
-                <span className="hidden sm:inline">Create Organization</span>
+                <span>CREATE ORGANIZATION</span>
               </Link>
             </Button>
           </nav>
@@ -67,21 +72,22 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
 
       <main className="flex-1">{children}</main>
 
-      <footer className="border-t border-slate-200 bg-white print:hidden">
-        <Shell className="flex flex-col gap-4 py-8 sm:flex-row sm:items-center sm:justify-between font-mono text-xs">
-          <div className="flex flex-col gap-1">
-            <span className="font-bold text-slate-900">PDLC Platform</span>
-            <span className="text-slate-500 text-[11px]">
-              © {new Date().getFullYear()} PDLC Inc. The Product Development Decision Platform.
+      {/* SpaceX-Inspired Minimalist Dark Footer */}
+      <footer className="border-t border-white/10 bg-black print:hidden">
+        <Shell className="flex flex-col gap-6 py-10 sm:flex-row sm:items-center sm:justify-between font-mono text-xs uppercase tracking-wider">
+          <div className="flex flex-col gap-1 text-slate-400">
+            <span className="font-extrabold text-white">PDLC PLATFORM</span>
+            <span className="text-[10px] text-slate-500">
+              © {new Date().getFullYear()} PDLC INC. ALL RIGHTS RESERVED.
             </span>
           </div>
 
-          <nav className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
             {FOOTER_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-slate-600 hover:text-blue-600 font-medium transition-colors"
+                className="text-slate-400 hover:text-white transition-colors"
               >
                 {link.label}
               </Link>
