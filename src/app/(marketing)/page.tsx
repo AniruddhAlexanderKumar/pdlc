@@ -29,16 +29,12 @@ import { InteractiveWorkflowStepper } from "./_components/interactive-workflow-s
 
 export default function LandingPage() {
   return (
-    <div className="relative overflow-hidden bg-black text-white selection:bg-cyan-500 selection:text-black font-sans">
-      {/* SpaceX Deep Space Backdrop Mesh */}
-      <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[1000px] w-full max-w-7xl -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/20 via-blue-950/10 to-transparent blur-3xl opacity-60" />
-      <div className="pointer-events-none absolute right-0 top-1/2 -z-10 size-[800px] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/15 via-black to-transparent blur-3xl opacity-50" />
-
-      {/* SECTION 1: HERO (SPACEX FULL VIEWPORT SLIDE) */}
+    <div className="relative overflow-hidden bg-transparent text-white selection:bg-cyan-500 selection:text-black font-sans">
+      {/* SECTION 1: HERO */}
       <section className="relative min-h-[90vh] flex flex-col justify-center items-center py-24 sm:py-32 border-b border-white/10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl text-center">
           {/* Mission Tag */}
-          <div className="inline-flex items-center gap-3 rounded-full border border-cyan-500/30 bg-cyan-950/30 px-5 py-1.5 font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase backdrop-blur-md">
+          <div className="inline-flex items-center gap-3 rounded-full border border-cyan-500/30 bg-cyan-950/40 px-5 py-1.5 font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase backdrop-blur-md">
             <span className="relative flex size-2">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-cyan-400 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-cyan-400" />
@@ -81,7 +77,7 @@ export default function LandingPage() {
               asChild
               variant="outline"
               size="lg"
-              className="h-14 px-10 rounded-none border border-white/40 bg-transparent hover:bg-white hover:text-black font-mono text-xs font-extrabold text-white uppercase tracking-widest transition-all"
+              className="h-14 px-10 rounded-none border border-white/40 bg-black/60 hover:bg-white hover:text-black font-mono text-xs font-extrabold text-white uppercase tracking-widest transition-all backdrop-blur-xs"
             >
               <a href="#interactive-concept" className="flex items-center gap-3">
                 SEE HOW IT WORKS
@@ -112,7 +108,7 @@ export default function LandingPage() {
       </section>
 
       {/* SECTION 2: INTERACTIVE SYSTEM GRAPH CANVAS */}
-      <section id="interactive-concept" className="py-24 sm:py-36 border-b border-white/10 bg-zinc-950/60">
+      <section id="interactive-concept" className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="text-center max-w-3xl mx-auto mb-14">
             <span className="font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase">
@@ -131,7 +127,7 @@ export default function LandingPage() {
       </section>
 
       {/* SECTION 3: CATEGORY MANIFESTO */}
-      <section className="py-28 sm:py-40 border-b border-white/10 bg-black text-center">
+      <section className="py-28 sm:py-40 border-b border-white/10 bg-black/80 backdrop-blur-sm text-center">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           <span className="font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase">
             THE MORNINGSTAR MANIFESTO
@@ -146,14 +142,14 @@ export default function LandingPage() {
       </section>
 
       {/* SECTION 4: 5-STEP INTERACTIVE WORKFLOW STEPPER */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-zinc-950/60">
+      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <InteractiveWorkflowStepper />
         </div>
       </section>
 
       {/* SECTION 5: THE 6 CORE PRIMITIVES */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-black">
+      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="font-mono text-xs font-bold tracking-[0.35em] text-cyan-400 uppercase">
@@ -168,7 +164,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-mono text-xs">
-            <div className="group rounded-none border border-white/15 bg-zinc-950/80 p-8 hover:border-cyan-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-cyan-400 uppercase tracking-widest">PRIMITIVE 01</span>
                 <FileText className="size-5 text-white" />
@@ -179,7 +175,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-zinc-950/80 p-8 hover:border-amber-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-amber-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-amber-400 uppercase tracking-widest">PRIMITIVE 02</span>
                 <HelpCircle className="size-5 text-white" />
@@ -190,7 +186,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-zinc-950/80 p-8 hover:border-emerald-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-emerald-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-emerald-400 uppercase tracking-widest">PRIMITIVE 03</span>
                 <TestTube2 className="size-5 text-white" />
@@ -201,7 +197,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-zinc-950/80 p-8 hover:border-indigo-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-indigo-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-indigo-400 uppercase tracking-widest">PRIMITIVE 04</span>
                 <GitPullRequest className="size-5 text-white" />
@@ -212,7 +208,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-zinc-950/80 p-8 hover:border-purple-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-purple-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-purple-400 uppercase tracking-widest">PRIMITIVE 05</span>
                 <ShieldCheck className="size-5 text-white" />
@@ -223,7 +219,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="group rounded-none border border-white/15 bg-zinc-950/80 p-8 hover:border-cyan-400 transition-all duration-300">
+            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <span className="font-bold text-cyan-400 uppercase tracking-widest">PRIMITIVE 06</span>
                 <Zap className="size-5 text-white" />
@@ -238,7 +234,7 @@ export default function LandingPage() {
       </section>
 
       {/* SECTION 6: STORE & TOOLCHAIN CONNECTORS */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-zinc-950/60">
+      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center font-mono">
             <div className="lg:col-span-5 flex flex-col gap-6">
@@ -262,7 +258,7 @@ export default function LandingPage() {
             </div>
 
             <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black p-5">
+              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
                 <div className="font-bold text-white flex items-center gap-2">
                   <ShoppingCart className="size-4 text-amber-400" /> AMAZON STORE API
                 </div>
@@ -270,7 +266,7 @@ export default function LandingPage() {
                 <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold px-2 py-0.5">LIVE CONNECTED</span>
               </div>
 
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black p-5">
+              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
                 <div className="font-bold text-white flex items-center gap-2">
                   <Cpu className="size-4 text-red-400" /> DIGIKEY API
                 </div>
@@ -278,7 +274,7 @@ export default function LandingPage() {
                 <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold px-2 py-0.5">LIVE CONNECTED</span>
               </div>
 
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black p-5">
+              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
                 <div className="font-bold text-white flex items-center gap-2">
                   <Building2 className="size-4 text-cyan-400" /> MOUSER ELECTRONICS
                 </div>
@@ -286,7 +282,7 @@ export default function LandingPage() {
                 <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold px-2 py-0.5">LIVE CONNECTED</span>
               </div>
 
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black p-5">
+              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
                 <div className="font-bold text-white flex items-center gap-2">
                   <Layers className="size-4 text-emerald-400" /> MCMASTER-CARR
                 </div>
@@ -294,7 +290,7 @@ export default function LandingPage() {
                 <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold px-2 py-0.5">LIVE CONNECTED</span>
               </div>
 
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black p-5">
+              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
                 <div className="font-bold text-white flex items-center gap-2">
                   <FileText className="size-4 text-indigo-400" /> DOORS / JIRA
                 </div>
@@ -302,7 +298,7 @@ export default function LandingPage() {
                 <span className="text-[9px] bg-blue-950 text-blue-400 border border-blue-800 font-bold px-2 py-0.5">READY</span>
               </div>
 
-              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black p-5">
+              <div className="flex flex-col items-start gap-2.5 rounded-none border border-white/15 bg-black/90 p-5">
                 <div className="font-bold text-white flex items-center gap-2">
                   <Server className="size-4 text-purple-400" /> SIEMENS PLM
                 </div>
@@ -315,10 +311,10 @@ export default function LandingPage() {
       </section>
 
       {/* SECTION 7: ENTERPRISE SECURITY & INFRASTRUCTURE */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-black">
+      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs">
-            <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-zinc-950/80 p-8">
+            <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-black/90 p-8">
               <Lock className="size-7 text-cyan-400" />
               <h3 className="font-extrabold text-white text-lg font-sans uppercase">SOC2 TYPE II &amp; ITAR READY</h3>
               <p className="text-slate-400 leading-relaxed font-normal">
@@ -326,7 +322,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-zinc-950/80 p-8">
+            <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-black/90 p-8">
               <Server className="size-7 text-indigo-400" />
               <h3 className="font-extrabold text-white text-lg font-sans uppercase">ON-PREMISES &amp; AIR-GAPPED</h3>
               <p className="text-slate-400 leading-relaxed font-normal">
@@ -334,7 +330,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-zinc-950/80 p-8">
+            <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-black/90 p-8">
               <ShieldCheck className="size-7 text-emerald-400" />
               <h3 className="font-extrabold text-white text-lg font-sans uppercase">ZERO LLM DATA RETENTION</h3>
               <p className="text-slate-400 leading-relaxed font-normal">
@@ -346,7 +342,7 @@ export default function LandingPage() {
       </section>
 
       {/* SECTION 8: FINAL CTA SLIDE */}
-      <section className="py-28 sm:py-44 bg-black text-center border-t border-white/10">
+      <section className="py-28 sm:py-44 bg-black/90 text-center border-t border-white/10 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           <span className="font-mono text-xs font-bold text-cyan-400 tracking-[0.35em] uppercase">
             5 MAN MISSION // THE MORNINGSTAR SOLUTION

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Shell } from "@/components/common/shell";
+import { UINatureBackground } from "./_components/ui-nature-background";
 
 const FOOTER_LINKS = [
   { label: "DOCS", href: "/docs" },
@@ -15,7 +16,10 @@ const FOOTER_LINKS = [
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-svh flex-col bg-black text-white selection:bg-cyan-500 selection:text-black font-sans">
+    <div className="relative flex min-h-svh flex-col bg-black text-white selection:bg-cyan-500 selection:text-black font-sans">
+      {/* Living UI/UX Nature Background Canvas */}
+      <UINatureBackground />
+
       {/* SpaceX-Inspired Top Navbar */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl print:static">
         <Shell className="flex h-16 items-center justify-between">
@@ -70,10 +74,10 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
         </Shell>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 relative z-10">{children}</main>
 
       {/* SpaceX-Inspired Minimalist Dark Footer */}
-      <footer className="border-t border-white/10 bg-black print:hidden">
+      <footer className="relative z-10 border-t border-white/10 bg-black/90 backdrop-blur-md print:hidden">
         <Shell className="flex flex-col gap-6 py-10 sm:flex-row sm:items-center sm:justify-between font-mono text-xs uppercase tracking-wider">
           <div className="flex flex-col gap-1 text-slate-400">
             <span className="font-extrabold text-white">THE MORNINGSTAR SOLUTION</span>
