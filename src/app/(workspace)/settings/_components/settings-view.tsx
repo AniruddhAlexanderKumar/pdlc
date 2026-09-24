@@ -6,6 +6,7 @@ import {
   Columns2,
   Eye,
   EyeOff,
+  Home,
   Laptop,
   ListTree,
   Moon,
@@ -15,7 +16,9 @@ import {
   Star,
   Sun,
   Wand2,
+  Zap,
 } from "lucide-react";
+import { useUserPersonalization, LANDING_MODULE_OPTIONS } from "@/lib/use-user-personalization";
 import type { Density } from "@/components/data-grid/data-grid-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -200,6 +203,7 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
         </Card>
 
         <WorkflowExperienceSettingsCard />
+        <PersonalizedLandingCard />
 
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -422,6 +426,76 @@ function WorkflowExperienceSettingsCard() {
           >
             <BookOpen className="size-3.5" /> Launch Guide Drawer
           </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PersonalizedLandingCard() {
+  const { landingModule, setLandingModule, showExpressBar, setShowExpressBar } = useUserPersonalization();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Home className="size-4 text-primary" aria-hidden="true" />
+          Default Start Page & Quick Workflows
+        </CardTitle>
+        <CardDescription>
+          Choose which engineering module opens when you select a project workspace, and configure top-bar shortcut visibility.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-foreground">Project Default Landing Module</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Default landing module">
+            {LANDING_MODULE_OPTIONS.map((option) => {
+              const isActive = landingModule === option.value;
+              return (
+                <button
+                  key={option.value || "overview"}
+                  type="button"
+                  role="radio"
+                  aria-checked={isActive}
+                  onClick={() => setLandingModule(option.value)}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors",
+                    isActive
+                      ? "border-primary bg-accent/60"
+                      : "border-input hover:bg-secondary/50",
+                  )}
+                >
+                  <span className={cn("text-sm font-semibold flex items-center justify-between w-full", isActive ? "text-primary" : "text-foreground")}>
+                    {option.label}
+                    {isActive && <Badge variant="outline" className="text-[10px] py-0 border-primary text-primary">Default</Badge>}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{option.description}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg border border-border p-3.5 bg-muted/20">
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
+              <Zap className="size-3.5 text-primary" />
+              Express Workflows Toolbar
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Show a 1-click action launcher button in the top navigation bar.
+            </span>
+          </div>
+          <label className="relative inline-flex cursor-pointer items-center shrink-0">
+            <input
+              type="checkbox"
+              checked={showExpressBar}
+              onChange={(e) => setShowExpressBar(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+          </label>
         </div>
       </CardContent>
     </Card>

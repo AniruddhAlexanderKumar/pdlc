@@ -5,18 +5,13 @@ import { Settings } from "lucide-react";
 import { type AuthenticatedIdentity, canViewPortfolio } from "@/domain";
 import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
+import { ExpressActionBar } from "./express-action-bar";
 import { HelpMenu } from "./help-menu";
 import { UserMenu } from "./user-menu";
 
 /**
  * Top utility bar: the signed-in organization, the breadcrumb trail, search,
- * settings, help, and the user menu.
- *
- * Help is one button. It used to be four unlabelled icons in a row — the
- * assistant, the step-by-step guides, the onboarding tour and the help
- * centre — which asked the reader to distinguish four kinds of help by
- * pictogram before knowing what any of them contained. They now live behind
- * `HelpMenu`, which names each one by what it answers.
+ * express workflows, settings, help, and the user menu.
  */
 export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
   return (
@@ -32,7 +27,8 @@ export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
 
       <Breadcrumbs />
 
-      <div className="ml-auto flex shrink-0 items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <ExpressActionBar />
         <CommandPalette showPortfolio={canViewPortfolio(identity.user.organizationRole)} />
 
         <Link

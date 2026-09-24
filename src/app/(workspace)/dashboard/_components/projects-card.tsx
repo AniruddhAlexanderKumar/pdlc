@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { describeApiError } from "@/lib/api/client";
 import { type ProjectDto, useProjects } from "@/lib/api/projects";
+import { useUserPersonalization } from "@/lib/use-user-personalization";
 import { cn } from "@/lib/utils";
 
 /** How many projects to show before deferring to the full Projects page. */
@@ -97,11 +98,14 @@ export function ProjectsCard() {
 }
 
 function ProjectCard({ project }: { project: ProjectDto }) {
+  const { landingModule } = useUserPersonalization();
+  const targetPath = landingModule ? `/projects/${project.id}${landingModule}` : `/projects/${project.id}`;
+
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <Link
-          href={`/projects/${project.id}/command-center`}
+          href={targetPath}
           className="min-w-0 text-sm font-medium text-foreground underline-offset-4 hover:underline"
         >
           {project.name}
@@ -115,9 +119,9 @@ function ProjectCard({ project }: { project: ProjectDto }) {
 
       <div className="mt-auto flex flex-wrap gap-2">
         <Button asChild size="sm">
-          <Link href={`/projects/${project.id}/command-center`}>
+          <Link href={targetPath}>
             <LayoutDashboard aria-hidden="true" />
-            Command Center
+            Open Workspace
           </Link>
         </Button>
         <Button asChild variant="outline" size="sm">
