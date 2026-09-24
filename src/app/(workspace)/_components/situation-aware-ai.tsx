@@ -36,16 +36,18 @@ export function SituationAwareAI() {
     return extractSituationContext(pathname ?? "/dashboard");
   }, [pathname]);
 
-  // Handle global toggle event
+  /**
+   * Opened from the Help menu, and nowhere else.
+   *
+   * A `pdlc:toggle-ai-assistant` listener sat here too, for the top-bar
+   * sparkle button and the floating panel that both used to fire it.
+   * Neither exists now, so the event had a listener and no sender —
+   * removed rather than left as a hook for something that no longer calls.
+   */
   React.useEffect(() => {
-    const handleToggle = () => setIsOpen((prev) => !prev);
     const handleOpen = () => setIsOpen(true);
-    window.addEventListener("pdlc:toggle-ai-assistant", handleToggle);
     window.addEventListener("pdlc:open-ai-assistant", handleOpen);
-    return () => {
-      window.removeEventListener("pdlc:toggle-ai-assistant", handleToggle);
-      window.removeEventListener("pdlc:open-ai-assistant", handleOpen);
-    };
+    return () => window.removeEventListener("pdlc:open-ai-assistant", handleOpen);
   }, []);
 
   /**
@@ -158,7 +160,7 @@ export function SituationAwareAI() {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-foreground">Situation-Aware AI</h2>
-            <p className="text-[10px] text-muted-foreground">Engineering Co-pilot</p>
+            <p className="text-[10px] text-muted-foreground">Answers from this page&apos;s context</p>
           </div>
         </div>
         <div className="flex items-center gap-1">

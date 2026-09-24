@@ -383,46 +383,76 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
   },
   {
     id: "sentinel",
-    title: "Decision Sentinel & Health Surveillance",
+    title: "Decision Sentinel",
     iconName: "Activity",
     badge: "Surveillance",
-    shortDescription: "Monitor real-time project health metrics and respond to active Sentinel alerts when baseline decisions are invalidated.",
+    shortDescription: "See which analyses an engineering change has called into question, and close each one deliberately.",
     targetRoute: "/projects",
-    routeLabel: "View Requirements Health",
+    routeLabel: "Open Sentinel",
     simpleSummary: {
-      whatItDoes: "Monitors overall project health and alerts you when upstream changes invalidate prior decisions.",
-      whereToClick: "Project Sidebar -> Understand -> Requirements Health -> Sentinel Alerts",
-      whatYouGet: "Real-time warning system ensuring zero silent engineering failures.",
+      whatItDoes:
+        "Opens a surveillance target when a change touches something an existing analysis actually depends on.",
+      whereToClick: "Project sidebar -> Sentinel",
+      whatYouGet: "A list of analyses worth re-checking, each naming the change that prompted it.",
     },
     steps: [
       {
         stepNumber: 1,
-        title: "Open Requirements Health Dashboard",
-        action: "Click 'Requirements Health' under 'Understand' in project sidebar",
-        uiTarget: "Project Sidebar -> Understand -> Requirements Health",
-        description: "View live RAG status for completeness, approval coverage, open conflicts, unverified requirements, and evidence gaps.",
+        title: "Open Sentinel for the project",
+        action: "Click 'Sentinel' in the project sidebar",
+        uiTarget: "Project sidebar -> Sentinel",
+        description:
+          "Lists every open surveillance target. A target exists only where the downstream engine's own recorded basis references the object that changed — Sentinel does not guess at relevance.",
       },
       {
         stepNumber: 2,
-        title: "Review Sentinel Surveillance Targets",
-        action: "Inspect the 'Active Sentinel Alerts' list",
-        uiTarget: "Health Dashboard -> Active Sentinel Alerts",
-        description: "Sentinel identifies upstream changes that silently undermine existing engineering decisions or safety analyses.",
+        title: "Read why a target opened",
+        action: "Open a target to see the change that triggered it and the analysis it affects",
+        uiTarget: "Sentinel -> a surveillance target",
+        description:
+          "Each target names the source change, the dependent analysis, and the dependency between them. There is no severity number: what you get is the actual relationship, so you can judge it.",
       },
       {
         stepNumber: 3,
-        title: "Acknowledge and Resolve Alerts",
-        action: "Click 'Acknowledge Target', enter resolution rationale, then click 'Resolve'",
-        uiTarget: "Sentinel Alert -> Acknowledge / Resolve",
-        description: "Acknowledging records that engineering has reviewed the alert. Resolving requires linking updated test evidence or revised decision records.",
+        title: "Acknowledge, then resolve",
+        action: "Acknowledge to record that it has been looked at; resolve once the analysis is re-run or confirmed still valid",
+        uiTarget: "Sentinel target -> Acknowledge / Resolve",
+        description:
+          "Acknowledging and resolving are separate on purpose: the first says a person has seen it, the second says the engineering question behind it is settled. Both are audited.",
       },
       {
         stepNumber: 4,
-        title: "Track Overall System Readiness",
-        action: "Monitor project RAG indicators and export readiness summary for flight review",
-        uiTarget: "Health Dashboard -> Export Readiness Summary",
-        description: "Ensures no unverified requirements or invalidated decisions remain open prior to formal review milestones.",
+        title: "Re-evaluate when the underlying work changes",
+        action: "Use 'Re-evaluate' to re-run the dependent engine against current state",
+        uiTarget: "Sentinel target -> Re-evaluate",
+        description:
+          "Re-evaluation appends a fresh assessment rather than editing the old one, so the record of what was believed, and when, survives.",
       },
     ],
   },
 ] as const;
+
+/**
+ * The guide category most relevant to a route, or `null` when nothing in
+ * particular is.
+ *
+ * This mapping used to live inside a floating overlay pinned to every page,
+ * which is the only reason that overlay existed — it opened the guide
+ * already filtered to the section matching wherever the reader was. The
+ * overlay is gone; the behaviour it was there for is not, and now it sits
+ * beside the categories it names, where a missing id is visible and
+ * testable rather than a silently dead string in a component.
+ *
+ * Deliberately returns `null` rather than guessing a default: opening the
+ * guide on an unrelated section is worse than opening it on its own index.
+ */
+export function guideCategoryForRoute(pathname: string): string | null {
+  const route = pathname.split("?")[0] ?? "";
+  if (route.includes("/requirements")) return "requirements";
+  if (route.includes("/stakeholder-needs")) return "stakeholders";
+  if (route.includes("/changes")) return "simulator";
+  if (route.includes("/traceability")) return "traceability";
+  if (route.includes("/verification")) return "verification";
+  if (route.includes("/sentinel")) return "sentinel";
+  return null;
+}

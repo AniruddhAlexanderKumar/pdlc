@@ -1,15 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, CircleHelp, Compass, Settings, Sparkles } from "lucide-react";
+import { Settings } from "lucide-react";
 import { type AuthenticatedIdentity, canViewPortfolio } from "@/domain";
 import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
+import { HelpMenu } from "./help-menu";
 import { UserMenu } from "./user-menu";
 
 /**
- * Top utility bar: the signed-in organization, the breadcrumb trail, and the
- * user menu, plus launchers for the interactive onboarding tour & situation-aware AI.
+ * Top utility bar: the signed-in organization, the breadcrumb trail, search,
+ * settings, help, and the user menu.
+ *
+ * Help is one button. It used to be four unlabelled icons in a row — the
+ * assistant, the step-by-step guides, the onboarding tour and the help
+ * centre — which asked the reader to distinguish four kinds of help by
+ * pictogram before knowing what any of them contained. They now live behind
+ * `HelpMenu`, which names each one by what it answers.
  */
 export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
   return (
@@ -26,42 +33,6 @@ export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
       <Breadcrumbs />
 
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={() => {
-            window.dispatchEvent(new Event("pdlc:toggle-ai-assistant"));
-          }}
-          aria-label="Situation-Aware AI Assistant"
-          title="Situation-Aware AI Assistant"
-          className="flex size-8 items-center justify-center rounded-md text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <Sparkles className="size-4" aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            window.dispatchEvent(new Event("pdlc:open-step-by-step-guide"));
-          }}
-          aria-label="Step-by-Step Software Guide"
-          title="Step-by-Step Software Guide"
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <BookOpenCheck className="size-4" aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            window.dispatchEvent(new Event("pdlc:open-onboarding-tour"));
-          }}
-          aria-label="Interactive Onboarding Tour"
-          title="Interactive Onboarding Tour"
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <Compass className="size-4" aria-hidden="true" />
-        </button>
-
         <CommandPalette showPortfolio={canViewPortfolio(identity.user.organizationRole)} />
 
         <Link
@@ -72,14 +43,9 @@ export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
         >
           <Settings className="size-4" aria-hidden="true" />
         </Link>
-        <Link
-          href="/help"
-          aria-label="Help"
-          title="Help"
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <CircleHelp className="size-4" aria-hidden="true" />
-        </Link>
+
+        <HelpMenu />
+
         <UserMenu identity={identity} />
       </div>
     </header>

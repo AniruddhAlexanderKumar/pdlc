@@ -87,7 +87,7 @@ export function HelpView() {
               <CardTitle>Step-by-Step Software Guide & Onboarding Tour</CardTitle>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              <Sparkles className="size-3" /> Interactive Co-Pilots
+              <Sparkles className="size-3" /> Guided help
             </span>
           </div>
           <CardDescription>

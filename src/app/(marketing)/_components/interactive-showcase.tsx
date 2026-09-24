@@ -64,30 +64,23 @@ export function InteractiveShowcase() {
 
   return (
     <div className="flex flex-col gap-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      {/* Console Titlebar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5" aria-hidden="true">
-            <div className="size-2.5 rounded-full bg-destructive/60" />
-            <div className="size-2.5 rounded-full bg-warning/60" />
-            <div className="size-2.5 rounded-full bg-success/60" />
+      {/* Component Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-5 py-3.5 sm:px-6">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <Layers className="size-4" aria-hidden="true" />
           </div>
-          <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-            <Terminal className="size-3.5 text-primary" aria-hidden="true" />
-            <span className="font-semibold text-foreground">pdlc-kernel</span>
-            <span>{"//"}</span>
-            <span>live-domain-bench</span>
-          </div>
+          <span className="text-sm font-bold text-foreground">
+            Interactive Domain & Feature Bench
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
-          <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400 font-medium">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
             <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            KERNEL ONLINE
+            PostgreSQL 17 Engine Online
           </span>
-          <span className="hidden sm:inline text-muted-foreground">POSTGRESQL 17</span>
-          <span className="hidden sm:inline text-muted-foreground">·</span>
-          <span className="hidden sm:inline text-muted-foreground">DETERMINISTIC O(V+E)</span>
+          <span className="hidden sm:inline font-mono text-[11px]">Deterministic O(V+E)</span>
         </div>
       </div>
 

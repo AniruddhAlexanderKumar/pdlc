@@ -130,19 +130,42 @@ export function extractSituationContext(
     };
   }
 
-  if (cleanPath.includes("/dashboard") || cleanPath.includes("/command-center")) {
+  // Two different pages, deliberately not one branch: `/dashboard` is the
+  // personal landing page listing the projects you can reach, while
+  // `/command-center` aggregates attention items inside one project. Saying
+  // "Command Center" on both was wrong on the first, and described a
+  // project-scoped view to someone who had not opened a project yet.
+  if (cleanPath.includes("/command-center")) {
     return {
       pathname: cleanPath,
-      moduleName: "Command Center Dashboard",
+      moduleName: "Command Center",
       moduleCategory: "Understand",
       primaryDomainEntity: "Project",
       userRole,
       projectId,
-      summary: "High-level orientation of project health, open change requests, and Sentinel alerts.",
+      summary:
+        "What needs attention in this project: open risks and issues, Sentinel targets, and readiness, each read from the engine that produced it.",
       suggestedPrompts: [
-        "Summarize project status & open items",
-        "What requires my immediate attention?",
-        "How to customize my Command Center layout?",
+        "What requires my attention in this project?",
+        "Where do these counts come from?",
+        "How do I customize this layout?",
+      ],
+    };
+  }
+
+  if (cleanPath.includes("/dashboard")) {
+    return {
+      pathname: cleanPath,
+      moduleName: "Dashboard",
+      moduleCategory: "Understand",
+      primaryDomainEntity: "Project",
+      userRole,
+      projectId,
+      summary: "Your starting point: the projects you can reach, and where you left off in them.",
+      suggestedPrompts: [
+        "How do I open a project?",
+        "What is the Command Center for?",
+        "How does this product fit together?",
       ],
     };
   }

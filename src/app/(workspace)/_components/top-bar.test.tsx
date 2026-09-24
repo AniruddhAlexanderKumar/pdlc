@@ -14,10 +14,19 @@ const IDENTITY = {
 };
 
 describe("TopBar", () => {
-  it("links to the Help page", () => {
+  /**
+   * Help is one button opening a menu, not a link straight to `/help`. It
+   * used to be four unlabelled icons — assistant, guides, tour, help centre
+   * — and the help centre is now one option inside the menu rather than a
+   * peer of the other three. `HelpMenu` covers what the menu contains.
+   */
+  it("offers exactly one help control, not one per kind of help", () => {
     render(<TopBar identity={IDENTITY} />);
 
-    expect(screen.getByRole("link", { name: "Help" })).toHaveAttribute("href", "/help");
+    expect(screen.getByRole("button", { name: "Help" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /onboarding tour/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /step-by-step/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /assistant/i })).not.toBeInTheDocument();
   });
 
   it("links the organization name to its profile page", () => {

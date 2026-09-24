@@ -30,9 +30,38 @@ describe("situation-context", () => {
   it("generates situational analysis for overview query", () => {
     const ctx = extractSituationContext("/dashboard", "OWNER");
     const analysis = generateSituationalAnalysis(ctx, "Analyze this page");
-    expect(analysis.contextBanner).toContain("Command Center Dashboard");
+    expect(analysis.contextBanner).toContain("Dashboard");
     expect(analysis.answer).toContain("Key Focus");
     expect(analysis.recommendedActions.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * `/dashboard` and `/command-center` were one branch, both answering
+   * "Command Center Dashboard". They are different pages: the first lists
+   * the projects you can reach, the second aggregates attention inside one
+   * project. Describing a project-scoped view to someone who has not opened
+   * a project yet is the kind of wrong that makes help feel untrustworthy,
+   * and this test previously asserted it.
+   */
+  it("tells the personal dashboard apart from a project's Command Center", () => {
+    const dashboard = extractSituationContext("/dashboard", "OWNER");
+    const commandCentre = extractSituationContext("/projects/p1/command-center", "OWNER");
+
+    expect(dashboard.moduleName).toBe("Dashboard");
+    expect(commandCentre.moduleName).toBe("Command Center");
+    expect(commandCentre.projectId).toBe("p1");
+    expect(dashboard.projectId).toBeUndefined();
+  });
+
+  /** "Health" is a word this product refuses; it should not reappear in help copy. */
+  it("describes what a page holds without rating it", () => {
+    for (const route of ["/dashboard", "/projects/p1/command-center", "/projects/p1/requirements"]) {
+      const ctx = extractSituationContext(route, "OWNER");
+      const text = `${ctx.moduleName} ${ctx.summary}`.toLowerCase();
+      for (const forbidden of ["health", "score", "rating", "%"]) {
+        expect(text, `${route} says "${forbidden}"`).not.toContain(forbidden);
+      }
+    }
   });
 
   it("generates targeted analysis for sentinel query", () => {

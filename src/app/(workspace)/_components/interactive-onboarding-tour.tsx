@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   Sparkles,
+  CircleHelp,
   Compass,
   CheckCircle2,
   ChevronRight,
@@ -83,17 +84,30 @@ const TOUR_STEPS: TourStep[] = [
     ),
   },
   {
-    title: "Situation-Aware AI Assistant",
-    subtitle: "Context-Conscious Engineering Co-pilot",
+    title: "Getting help",
+    subtitle: "Guidance that follows the page you are on",
     icon: <Compass className="size-8 text-primary" />,
     content: (
       <div className="flex flex-col gap-3 text-sm text-muted-foreground">
         <p>
-          Built directly into the top utility bar (<Sparkles className="inline size-3.5 text-primary" />), your <strong className="text-foreground">Situation-Aware AI</strong> automatically detects your active route, active project, and open Sentinel alerts to give you instant contextual guidance.
+          Everything below is behind the <strong className="text-foreground">Help</strong> button (
+          <CircleHelp className="inline size-3.5" aria-hidden="true" />) in the top bar. It opens
+          knowing which module you are in.
         </p>
-        <div className="rounded-md border border-primary/30 bg-primary/10 p-2.5 text-xs text-foreground">
-          Try clicking <strong className="text-primary">&quot;Analyze page context&quot;</strong> in the AI panel anytime you land on a new module!
-        </div>
+        <ul className="flex flex-col gap-1.5 text-xs">
+          <li>
+            <strong className="text-foreground">Explain this page</strong> — what the current module
+            is for, and what you can do next from it.
+          </li>
+          <li>
+            <strong className="text-foreground">Step-by-step guides</strong> — opens at the section
+            covering wherever you are.
+          </li>
+          <li>
+            <strong className="text-foreground">Replay the tour</strong> — this walkthrough, whenever
+            you want it again.
+          </li>
+        </ul>
       </div>
     ),
   },

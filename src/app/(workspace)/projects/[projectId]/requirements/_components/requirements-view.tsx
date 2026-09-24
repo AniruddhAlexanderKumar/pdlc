@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Activity, AlertTriangle, BookOpen, ListChecks, Plus, RefreshCw, Search, Wand2 } from "lucide-react";
+import { AlertTriangle, BookOpen, ListChecks, Plus, RefreshCw, Search, Wand2 } from "lucide-react";
 import { REQUIREMENT_STATUSES, type RequirementStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
@@ -223,12 +223,21 @@ export function RequirementsView({ projectId }: { projectId: string }) {
               <Wand2 aria-hidden="true" className="text-primary" />
               Requirements Starter
             </Button>
-            <Button asChild variant="outline">
-              <Link href={`/projects/${projectId}/requirements-health`}>
-                <Activity aria-hidden="true" className="text-primary" />
-                Health Dashboard
-              </Link>
-            </Button>
+            {/*
+              A "Health Dashboard" button stood here. The page behind it
+              reported "92% requirements completeness", "78% stakeholder
+              approval coverage" and RED/AMBER/GREEN ratings — every one a
+              string literal in the component, identical for every project
+              in every organization, computed from nothing. This product
+              refuses percentages and ratings precisely so that a number on
+              screen can be trusted; a fabricated one in an aerospace
+              traceability tool is worse than a missing feature, because
+              "92% complete" is a thing an engineer might act on.
+
+              Command Center answers the same question from the real
+              engines, so the capability is not lost. See the commit that
+              removed this for what it would take to build it for real.
+            */}
             <Button onClick={() => setIsCreateOpen(true)}>
               <Plus aria-hidden="true" />
               New requirement

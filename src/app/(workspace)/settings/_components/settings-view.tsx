@@ -359,7 +359,7 @@ function ModuleRow({
 }
 
 function WorkflowExperienceSettingsCard() {
-  const { isSimpleMode, setSimpleMode, autoShowGuide, setAutoShowGuide } = useWorkflowExperience();
+  const { isSimpleMode, setSimpleMode } = useWorkflowExperience();
 
   return (
     <Card className="border-primary/30 bg-card">
@@ -401,28 +401,14 @@ function WorkflowExperienceSettingsCard() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 rounded-lg border border-border p-3.5 bg-muted/30">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                <BookOpen className="size-3.5 text-primary" />
-                Contextual Auto-Guide Co-Pilot
-              </span>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Automatically suggest the interactive step-by-step guide drawer when navigating to core modules.
-              </p>
-            </div>
-            <label className="relative inline-flex cursor-pointer items-center shrink-0">
-              <input
-                type="checkbox"
-                checked={autoShowGuide}
-                onChange={(e) => setAutoShowGuide(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-        </div>
+        {/*
+          A "Contextual Auto-Guide Co-Pilot" switch stood here. Nothing read
+          it: the only references to `autoShowGuide` in the codebase were
+          this control writing it and this control reading it back, so
+          flipping it changed nothing anywhere. A switch that reports a
+          setting the product does not have is worse than no switch, and
+          guidance now appears when it is asked for, from the Help button.
+        */}
 
         <div className="flex items-center justify-between pt-1">
           <span className="text-xs text-muted-foreground">Want to test the interactive step-by-step guide now?</span>

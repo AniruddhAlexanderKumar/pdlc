@@ -9,7 +9,6 @@ import { TopBar } from "./_components/top-bar";
 import { InteractiveOnboardingTour } from "./_components/interactive-onboarding-tour";
 import { SituationAwareAI } from "./_components/situation-aware-ai";
 import { StepByStepGuideModal } from "./_components/step-by-step-guide-modal";
-import { GuidedWalkthroughOverlay } from "./_components/guided-walkthrough-overlay";
 
 /**
  * Shell for the authenticated application.
@@ -49,11 +48,14 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
           <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
         </div>
 
-        {/* Global workspace co-pilots */}
+        {/*
+          Reached from the one Help button in the top bar, which is why
+          none of these renders anything until asked. The onboarding tour is
+          the exception and opens itself on a first sign-in.
+        */}
         <InteractiveOnboardingTour />
         <SituationAwareAI />
         <StepByStepGuideModal />
-        <GuidedWalkthroughOverlay />
       </div>
     </TerminologyProvider>
   );

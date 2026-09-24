@@ -276,115 +276,119 @@ export default function MarketingHomePage() {
           </Button>
         </div>
 
-        {/* 2. HERO MOCKUP: MISSION TRACE & IMPACT CONSOLE */}
-        <div className="mt-14 w-full max-w-4xl overflow-hidden rounded-xl border border-border bg-card text-left shadow-lg">
-          <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-4 py-2.5">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5" aria-hidden="true">
-                <div className="size-2.5 rounded-full bg-destructive/60" />
-                <div className="size-2.5 rounded-full bg-warning/60" />
-                <div className="size-2.5 rounded-full bg-success/60" />
+        {/* 2. HERO MOCKUP: TRACEABILITY & IMPACT SIMULATOR PREVIEW */}
+        <div className="mt-14 w-full max-w-4xl overflow-hidden rounded-xl border border-border bg-card text-left shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-5 py-3.5">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Network className="size-4" aria-hidden="true" />
               </div>
-              <span className="font-mono text-xs font-semibold text-foreground">
-                {"MISSION-TRACE-CONSOLE // CHANGE-IMPACT-SIMULATOR"}
+              <span className="text-sm font-bold text-foreground">
+                Traceability & Change Impact Analysis
               </span>
             </div>
-            <div className="hidden sm:flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-emerald-500" />
-              <span>GRAPH SYNC: 100% RELATIONAL</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Relational Graph Verified
+              </span>
             </div>
           </div>
 
-          <div className="p-5 font-mono text-xs leading-relaxed sm:p-6">
+          <div className="p-5 text-xs leading-relaxed sm:p-6">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               {/* Left Column: Trace Chain */}
-              <div className="flex flex-col gap-2 rounded-lg border border-border bg-secondary/30 p-3.5 lg:col-span-2">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span className="font-semibold uppercase tracking-wider text-foreground">
-                    Active Traceability Thread
+              <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-4 lg:col-span-2">
+                <div className="flex items-center justify-between text-xs border-b border-border/60 pb-2">
+                  <span className="font-semibold text-foreground">
+                    Active Multi-Hop Traceability Chain
                   </span>
-                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary font-medium">
-                    DO-178C / DO-254
-                  </span>
+                  <Badge variant="outline" className="text-[10px] font-medium">
+                    DO-178C / DO-254 Baseline
+                  </Badge>
                 </div>
 
-                <div className="flex flex-col gap-2 pt-1">
-                  <div className="flex items-start gap-2">
-                    <span className="font-semibold text-primary">SN-042</span>
-                    <span className="text-muted-foreground">
-                      Triple-redundant Environmental Control System cabin pressure envelope
+                <div className="flex flex-col gap-2.5 pt-1">
+                  <div className="flex items-start gap-2.5">
+                    <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-primary">
+                      SN-042
+                    </span>
+                    <span className="text-foreground font-medium">
+                      Environmental Control System cabin pressure envelope
                     </span>
                   </div>
-                  <div className="flex items-start gap-2 pl-4 border-l border-border">
+                  <div className="flex items-start gap-2.5 pl-4 border-l-2 border-primary/20">
                     <ArrowRight className="size-3 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
                     <div>
-                      <span className="font-semibold text-foreground">REQ-108:</span>{" "}
+                      <span className="font-mono text-[11px] font-semibold text-foreground">REQ-108:</span>{" "}
                       <span className="text-muted-foreground">
                         Dual independent valve actuators with isolated power rails
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 pl-8 border-l border-border">
+                  <div className="flex items-start gap-2.5 pl-8 border-l-2 border-primary/20">
                     <ArrowRight className="size-3 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
                     <div>
-                      <span className="font-semibold text-foreground">DEC-019:</span>{" "}
+                      <span className="font-mono text-[11px] font-semibold text-foreground">DEC-019:</span>{" "}
                       <span className="text-muted-foreground">
                         Adopt CAN-FD with galvanic isolation for inter-module bus
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 pl-12 border-l border-border">
+                  <div className="flex items-start gap-2.5 pl-12 border-l-2 border-primary/20">
                     <ArrowRight className="size-3 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-semibold text-foreground">VER-082:</span>
+                      <span className="font-mono text-[11px] font-semibold text-foreground">VER-082:</span>
                       <span className="text-muted-foreground">HIL Fault Injection Matrix</span>
-                      <span className="rounded bg-success/15 px-1.5 py-0.2 text-[10px] text-success font-medium">
+                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
                         VERIFIED (100%)
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 pl-16 border-l border-border">
+                  <div className="flex items-start gap-2.5 pl-16 border-l-2 border-primary/20">
                     <ArrowRight className="size-3 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
                     <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <span className="font-semibold text-foreground">EVI-204:</span>
-                      <span>Telemetry Run #88219 (SHA: 0x9f8c4e...)</span>
+                      <span className="font-mono text-[11px] font-semibold text-foreground">EVI-204:</span>
+                      <span className="font-mono text-[11px]">Telemetry Run #88219 (SHA-256: 0x9f8c4e...)</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Right Column: Engine Blast Radius Telemetry */}
-              <div className="flex flex-col justify-between gap-3 rounded-lg border border-border bg-secondary/30 p-3.5">
+              <div className="flex flex-col justify-between gap-3 rounded-lg border border-border bg-muted/20 p-4">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground">
+                  <span className="text-xs font-bold text-foreground">
                     Deterministic Impact Engine
                   </span>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Change Request <span className="font-bold text-foreground">CR-005</span> submitted against REQ-108.
                   </p>
                 </div>
 
-                <div className="space-y-1.5 rounded-md border border-border bg-card p-2.5 text-[11px]">
+                <div className="space-y-2 rounded-md border border-border bg-card p-3 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Blast radius hops:</span>
+                    <span className="text-muted-foreground">Blast radius depth:</span>
                     <span className="font-semibold text-foreground">3 levels</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Downstream tests:</span>
-                    <span className="font-semibold text-warning">2 affected</span>
+                    <span className="text-muted-foreground">Downstream test plans:</span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">2 affected</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Safety risks:</span>
+                    <span className="text-muted-foreground">Safety hazards:</span>
                     <span className="font-semibold text-foreground">RSK-014 (Mitigated)</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Approval Status:</span>
-                    <span className="font-semibold text-amber-500">APPROVAL_POTENTIALLY_INVALIDATED</span>
+                  <div className="flex flex-col gap-1 pt-1 border-t border-border">
+                    <span className="text-[11px] text-muted-foreground">Approval Status Flag:</span>
+                    <span className="inline-flex rounded-md bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                      APPROVAL_POTENTIALLY_INVALIDATED
+                    </span>
                   </div>
                 </div>
 
-                <div className="text-[11px] text-muted-foreground">
-                  <span className="text-primary font-semibold">Deterministic result:</span> No guessing, no probabilistic ranking. Exactly what the graph foreign keys dictate.
+                <div className="text-xs text-muted-foreground">
+                  <span className="text-primary font-semibold">Deterministic Guarantee:</span> Exact foreign-key graph traversal without guesswork or artificial scores.
                 </div>
               </div>
             </div>
