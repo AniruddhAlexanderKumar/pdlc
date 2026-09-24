@@ -24,7 +24,7 @@ interface IntegrationItem {
   color: string;
 }
 
-const INTEGRATIONS: IntegrationItem[] = [
+const INITIAL_INTEGRATIONS: IntegrationItem[] = [
   { id: "amz", name: "AMAZON STORE API", category: "store", syncType: "ASIN & Part Availability Sync", status: "LIVE CONNECTED", icon: ShoppingCart, color: "text-amber-400" },
   { id: "dk", name: "DIGIKEY API", category: "store", syncType: "IC Electrical Specs & Stock", status: "LIVE CONNECTED", icon: Cpu, color: "text-red-400" },
   { id: "ms", name: "MOUSER ELECTRONICS", category: "store", syncType: "Component Datasheets & Price", status: "LIVE CONNECTED", icon: Building2, color: "text-cyan-400" },
@@ -37,8 +37,21 @@ const INTEGRATIONS: IntegrationItem[] = [
 
 export function IntegrationsInteractiveGrid() {
   const [filter, setFilter] = React.useState<"all" | "store" | "plm" | "req">("all");
+  const [items, setItems] = React.useState<IntegrationItem[]>(INITIAL_INTEGRATIONS);
 
-  const filteredIntegrations = INTEGRATIONS.filter(
+  const toggleConnect = (id: string) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        return {
+          ...item,
+          status: item.status === "LIVE CONNECTED" ? "READY" : "LIVE CONNECTED",
+        };
+      })
+    );
+  };
+
+  const filteredIntegrations = items.filter(
     (item) => filter === "all" || item.category === filter
   );
 
@@ -59,7 +72,7 @@ export function IntegrationsInteractiveGrid() {
               : "border-white/15 bg-zinc-950 text-slate-400 hover:text-white"
           )}
         >
-          ALL CONNECTORS ({INTEGRATIONS.length})
+          ALL CONNECTORS ({items.length})
         </button>
         <button
           type="button"
@@ -103,6 +116,7 @@ export function IntegrationsInteractiveGrid() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {filteredIntegrations.map((item) => {
           const Icon = item.icon;
+          const isConnected = item.status === "LIVE CONNECTED";
           return (
             <div
               key={item.id}
@@ -124,16 +138,20 @@ export function IntegrationsInteractiveGrid() {
                 <span
                   className={cn(
                     "text-[9px] font-bold px-2 py-0.5 border uppercase tracking-wider",
-                    item.status === "LIVE CONNECTED"
+                    isConnected
                       ? "bg-emerald-950 text-emerald-400 border-emerald-800"
                       : "bg-blue-950 text-blue-400 border-blue-800"
                   )}
                 >
                   {item.status}
                 </span>
-                <span className="text-[10px] text-cyan-400 font-bold group-hover:underline">
-                  CONNECT →
-                </span>
+                <button
+                  type="button"
+                  onClick={() => toggleConnect(item.id)}
+                  className="text-[10px] text-cyan-400 font-bold hover:underline uppercase"
+                >
+                  {isConnected ? "CONNECTED ✓" : "1-CLICK CONNECT →"}
+                </button>
               </div>
             </div>
           );
