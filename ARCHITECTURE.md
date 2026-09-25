@@ -1306,42 +1306,66 @@ and the browser is never told about organizations.
   showing its retry state. `key in body` is the test, so a legitimate
   `{ latest: null }` still arrives as `null`.
 
-## Project progress: "what do I do next?"
+## Project progress: "where are we, and what do I do next?"
 
 The first thing on a project's page, and on each project's dashboard card, is
-the single next step — computed from the project's own rows, not guessed.
+where the project stands and the single next step — computed from the
+project's own records, never guessed.
 
-The product's lifecycle has four stages, defined once in
-`src/domain/project-progress.ts`: **say what it must do** (requirements
-exist), **decide how you'll check each one** (no requirement lacks a
-`RequirementVerificationLink`), **attach the proof** (no verification
-activity lacks an `EvidenceLink`), and **keep it current** (change requests,
-never "done"). The next step is the first stage that is not done.
+About twenty kinds of engineering record are grouped, for the reader, into
+six stages defined once in `src/domain/project-progress.ts`:
 
-- **Read model, not engine.** `project-progress.repository.ts` runs six
-  concurrent `count` queries; "has no check" and "has no proof" are
-  `none: {}` on the link relation, so they mean exactly "not one linking row
-  exists". Obsolete requirements and closed change requests are excluded.
-  `GET /api/projects/:projectId/progress` requires ordinary project read
-  access and 404s otherwise, like any other view of the project.
-- **No aggregate.** There is deliberately no "2 of 4" and no progress bar —
-  a ratio of stages would treat "no requirements yet" and "one check missing
-  proof" as equal quarters of a whole. Each stage reports its own count;
-  `project-progress.test.ts` asserts no ratio or percentage can appear.
-- **One vocabulary.** The dashboard's "How this works", the project page's
-  panel, each dashboard card, and the public site's workflow section all
-  render the stage titles from `progressSteps`, so the explanation and the
-  instruction cannot drift apart. The sidebar's Simplify mode keeps every
-  module in `PROGRESS_MODULES`, so a simplified sidebar never hides the page
-  a next step sends someone to.
-- **Removed alongside it.** An "Express Workflows" top-bar menu, a
-  dashboard "personalized workflow widget" and a second dashboard
+| Stage | Question | Ready only when | Needs review when |
+| --- | --- | --- | --- |
+| Define | What are we trying to build? | ≥1 requirement, all approved | one awaits review |
+| Design | What are we creating? | ≥1 design item, all approved | one awaits review |
+| Decide | Why did we choose this approach? | ≥1 decision, all approved | one is under review |
+| Verify | How do we know it works? | every requirement has a check, every check passed or waived, every pass has evidence | a check failed |
+| Control change | What changed, and what does it affect? | something recorded and nothing left open | a change awaits review |
+| Review & release | Is the work complete enough? | an active baseline **and** a *current* `RELEASE_READY` verdict of READY | the verdict is not ready, unknown, or out of date |
+
+Each stage is one of `NOT_STARTED`, `IN_PROGRESS`, `NEEDS_REVIEW` or
+`READY`, and each state follows from a rule written in that file. Retired
+records (rejected, obsolete, superseded) are excluded throughout.
+
+- **Absence is never readiness.** A project with no risks recorded is
+  NOT_STARTED on Control, not READY: nobody having looked is not the same as
+  nothing being there, and the stage's own text says so. A release gate never
+  run, a verdict of UNKNOWN, and a READY that has gone stale are all kept out
+  of READY. Accepted and mitigated risks *are* dealt with, so a project can
+  release with known, accepted risk.
+- **The next step.** Anything waiting on a person comes first. Otherwise the
+  earliest unfinished stage — except that a stage not yet started is passed
+  over when a later one has begun, so a team that chose to skip it is not
+  pulled back. It still shows NOT_STARTED; only the suggestion moves on.
+- **No aggregate.** No "4 of 6" and no progress bar — a ratio of stages
+  would treat unlike gaps as equal parts of a whole. Asserted by test.
+- **No second engine.** `project-progress.repository.ts` runs one grouped
+  query per record kind (ten, concurrently, however large the project); "has
+  no check" and "has no proof" are `none: {}` on the link relation. The
+  release gate is read through `technicalReadinessService
+  .getLatestTechnicalReadiness`, the call the readiness panel already makes,
+  so freshness has one definition and reading never evaluates.
+  `GET /api/projects/:projectId/progress` needs ordinary read access and
+  404s otherwise.
+- **The release check link** is `?gate=RELEASE_READY#release-check`: the
+  readiness panel reads `?gate=` and a new link overrides a gate the reader
+  picked earlier, without a remount, since the two sit on the same page.
+- **One vocabulary.** The dashboard's "How this works", each dashboard card,
+  the project page panel, the sidebar's Simplify set (`PROGRESS_MODULES`)
+  and the public site's workflow section all read these definitions, so the
+  explanation and the instruction cannot describe different workflows.
+- **"Learn" is deliberately absent.** The brief's model ends with it; the
+  product has no lessons capability, and a stage that can never move would be
+  a promise the software cannot keep.
+- **Removed alongside the first version.** An "Express Workflows" top-bar
+  menu, a dashboard "personalized workflow widget" and a second dashboard
   "3-step workflow" all offered competing sequences, two of them leading to a
   simulated store integration (`/integrations`, `/api/integrations/amazon`)
   that reported `CONNECTED` without connecting to anything, answered
   unauthenticated requests, and returned `success: true` from its own error
-  path. All removed; `src/tests/security/no-fabricated-metrics.test.ts`
-  guards against a connected-integration or compliance claim returning.
+  path. `src/tests/security/no-fabricated-metrics.test.ts` and
+  `route-authentication.test.ts` guard against both returning.
 
 ## Project audit behavior
 

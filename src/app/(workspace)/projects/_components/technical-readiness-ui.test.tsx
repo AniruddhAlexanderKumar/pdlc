@@ -9,6 +9,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * count is asserted that the fixture did not carry.
  */
 
+/** The panel reads `?gate=` so a link can open it on a specific gate. Empty unless a test sets it. */
+let searchParams = new URLSearchParams();
+vi.mock("next/navigation", () => ({ useSearchParams: () => searchParams }));
+
 const { TechnicalReadinessPanel } = await import("./technical-readiness-panel");
 
 const PROJECT_ID = "proj1aaaaaaaaaaaaaaaaaaa";
@@ -227,6 +231,63 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  searchParams = new URLSearchParams();
+});
+
+// --- Arriving from a link ---------------------------------------------------
+
+/**
+ * The project page's "next step" panel sends the release stage here with
+ * `?gate=RELEASE_READY#release-check`. Without honouring that, the link would
+ * land on "System definition" and leave the reader to find "Release ready" in
+ * a list of five — the kind of hunting the next-step panel exists to remove.
+ */
+describe("arriving from a link", () => {
+  it("opens on the gate the link asks for", async () => {
+    searchParams = new URLSearchParams("gate=RELEASE_READY");
+    routeGets(notEvaluated());
+
+    render(<TechnicalReadinessPanel projectId={PROJECT_ID} />);
+
+    expect(await screen.findByLabelText("Gate")).toHaveValue("RELEASE_READY");
+  });
+
+  it("ignores a gate that does not exist, rather than asking the server for it", async () => {
+    searchParams = new URLSearchParams("gate=ANYTHING_ELSE");
+    routeGets(notEvaluated());
+
+    render(<TechnicalReadinessPanel projectId={PROJECT_ID} />);
+
+    expect(await screen.findByLabelText("Gate")).toHaveValue("SYSTEM_DEFINITION");
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("ANYTHING_ELSE"))).toBe(false);
+  });
+
+  /**
+   * The link and the panel are on the same page, so following it changes
+   * only the query string and nothing remounts. A new link must still win
+   * over a choice the reader made before following it.
+   */
+  it("follows a new link even after the reader picked a different gate", async () => {
+    routeGets(notEvaluated());
+    const user = userEvent.setup();
+    const view = render(<TechnicalReadinessPanel projectId={PROJECT_ID} />);
+
+    await user.selectOptions(await screen.findByLabelText("Gate"), "DESIGN_FREEZE");
+    expect(screen.getByLabelText("Gate")).toHaveValue("DESIGN_FREEZE");
+
+    searchParams = new URLSearchParams("gate=RELEASE_READY");
+    view.rerender(<TechnicalReadinessPanel projectId={PROJECT_ID} />);
+
+    expect(screen.getByLabelText("Gate")).toHaveValue("RELEASE_READY");
+  });
+
+  it("carries the anchor the next-step panel links to", async () => {
+    routeGets(notEvaluated());
+    const { container } = render(<TechnicalReadinessPanel projectId={PROJECT_ID} />);
+    await screen.findByLabelText("Gate");
+
+    expect(container.querySelector("#release-check")).not.toBeNull();
+  });
 });
 
 // --- Gate selector ----------------------------------------------------------

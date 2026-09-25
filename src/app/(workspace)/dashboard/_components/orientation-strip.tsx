@@ -1,31 +1,18 @@
-import { progressSteps } from "@/domain/project-progress";
+import { PROGRESS_STAGE_DEFINITIONS } from "@/domain/project-progress";
 
 /**
- * How the product works, in four plain sentences.
+ * How the product works, as six questions a team answers in order.
  *
- * This dashboard previously carried two sections both titled
- * "Straightforward 3-Step Workflow", with different steps. Between them
- * they told a newcomer to "paste an Amazon ASIN / DigiKey part number",
- * "Connect Store Part", and use "1-Click Sign-Off" with "multi-custody
- * decision sign-offs". The store connection was simulated — it reported
- * "CONNECTED" without connecting to anything — and neither kind of sign-off
- * exists in the product. Three steps, two of them not real.
+ * The wording comes from `PROGRESS_STAGE_DEFINITIONS` — the same text each
+ * project's page and dashboard card use to say what to do next — so the
+ * explanation here and the instruction there cannot drift apart. Nothing
+ * here is a button: the action belongs on a project, where there is
+ * something real to act on.
  *
- * These are the four stages the product actually has. The wording comes
- * from `progressSteps` — the same text the project page and each project's
- * dashboard card use to say what to do next — so the explanation here and
- * the instruction there cannot drift apart. Nothing here is a button: the
- * action belongs on a project, where there is something real to act on.
+ * (This replaced two sections both titled "Straightforward 3-Step
+ * Workflow", with different steps, two of which linked to a store
+ * integration that did not exist.)
  */
-const STAGES = progressSteps({
-  stakeholderNeeds: 0,
-  requirements: 0,
-  requirementsWithoutCheck: 0,
-  verificationActivities: 0,
-  checksWithoutProof: 0,
-  openChanges: 0,
-});
-
 export function OrientationStrip() {
   return (
     <section aria-labelledby="how-it-works-heading" className="flex flex-col gap-3">
@@ -34,16 +21,19 @@ export function OrientationStrip() {
           How this works
         </h2>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Every project moves through the same four stages. Each project above shows which one it
-          is on.
+          Every project answers the same six questions, roughly in this order. Each project above
+          shows which one it&apos;s on.
         </p>
       </div>
 
-      <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {STAGES.map((stage, index) => (
-          <li key={stage.stage} className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-4">
-            <span className="font-mono text-xs text-muted-foreground">Stage {index + 1}</span>
-            <span className="text-sm font-medium text-foreground">{stage.title}</span>
+      <ol className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+        {PROGRESS_STAGE_DEFINITIONS.map((stage, index) => (
+          <li key={stage.stage} className="flex flex-col gap-1 bg-card p-4">
+            <span className="font-mono text-xs text-muted-foreground">{index + 1}</span>
+            <span className="text-sm font-medium text-foreground">
+              {stage.title}
+              <span className="font-normal text-muted-foreground"> — {stage.question}</span>
+            </span>
             <p className="text-xs leading-relaxed text-muted-foreground">{stage.explanation}</p>
           </li>
         ))}

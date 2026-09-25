@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import type { ProgressStep, ProjectProgressCounts } from "@/domain/project-progress";
+import type { ProgressStep, ProjectProgressFacts } from "@/domain/project-progress";
 import { requestJson } from "./client";
 import { useResource } from "./use-resource";
 
 export interface ProjectProgressDto {
-  counts: ProjectProgressCounts;
+  facts: ProjectProgressFacts;
   steps: ProgressStep[];
   next: ProgressStep;
 }

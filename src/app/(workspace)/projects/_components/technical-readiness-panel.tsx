@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   ChevronRight,
@@ -100,8 +101,33 @@ function subjectTypeLabel(type: string): string {
   return SUBJECT_TYPE_LABELS[type] ?? type;
 }
 
+function isGate(value: string | null): value is TechnicalReadinessGate {
+  return value !== null && (TECHNICAL_READINESS_GATES as readonly string[]).includes(value);
+}
+
 export function TechnicalReadinessPanel({ projectId }: { projectId: string }) {
-  const [gate, setGate] = React.useState<TechnicalReadinessGate>("SYSTEM_DEFINITION");
+  /**
+   * Which gate is shown: the one a link asked for (`?gate=`), unless the
+   * reader has picked another since that link was followed.
+   *
+   * The project page's next-step panel links here for the release stage
+   * with `?gate=RELEASE_READY`. It sits on the same page, so following that
+   * link changes only the query string and nothing remounts — a gate read
+   * once into initial state would ignore it. Instead the reader's own choice
+   * remembers which link it was made under, and a new link overrides it.
+   * No effect is needed to keep the two in step.
+   */
+  const searchParams = useSearchParams();
+  const requestedGate = searchParams?.get("gate") ?? null;
+  const [choice, setChoice] = React.useState<{ gate: TechnicalReadinessGate; under: string | null } | null>(
+    null,
+  );
+  const gate: TechnicalReadinessGate =
+    choice && choice.under === requestedGate
+      ? choice.gate
+      : isGate(requestedGate)
+        ? requestedGate
+        : "SYSTEM_DEFINITION";
 
   const latest = useLatestTechnicalReadiness(projectId, gate);
   const history = useTechnicalReadinessHistory(projectId, gate);
@@ -116,12 +142,17 @@ export function TechnicalReadinessPanel({ projectId }: { projectId: string }) {
   const [viewingId, setViewingId] = React.useState<string | null>(null);
   const [viewError, setViewError] = React.useState<string | null>(null);
 
+  // A historical assessment belongs to one gate. If a link switches the gate
+  // while one is open, it is set aside rather than shown under the wrong
+  // gate's heading.
+  const shownHistorical = viewing && viewing.assessment.gate === gate ? viewing : null;
+
   const reloadLatest = latest.reload;
   const reloadHistory = history.reload;
 
   function selectGate(next: TechnicalReadinessGate) {
     // Changing the question must not answer it.
-    setGate(next);
+    setChoice({ gate: next, under: requestedGate });
     setViewing(null);
     setViewingId(null);
     setOpenFindingId(null);
@@ -169,7 +200,8 @@ export function TechnicalReadinessPanel({ projectId }: { projectId: string }) {
   }
 
   return (
-    <Card>
+    // `release-check` is the anchor the next-step panel's release stage links to.
+    <Card id="release-check" className="scroll-mt-20">
       <CardHeader>
         <CardTitle>Technical readiness</CardTitle>
         <CardDescription>
@@ -230,8 +262,8 @@ export function TechnicalReadinessPanel({ projectId }: { projectId: string }) {
           (hasTechnicalAssessment(latest.state.data) ? (
             <GateReport
               projectId={projectId}
-              report={viewing ?? latest.state.data}
-              historical={viewing !== null}
+              report={shownHistorical ?? latest.state.data}
+              historical={shownHistorical !== null}
               busy={isEvaluating}
               onEvaluate={evaluate}
               openFindingId={openFindingId}

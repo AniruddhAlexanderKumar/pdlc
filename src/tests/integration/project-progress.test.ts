@@ -13,14 +13,15 @@ import {
 } from "./setup";
 
 /**
- * "What to do next" against real PostgreSQL.
+ * "Where is this project?" against real PostgreSQL.
  *
- * The unit tests prove the stage logic given some counts. What they cannot
- * prove is that the counts are right — in particular that "has no check"
- * and "has no proof", written as `none: {}` on a relation, really mean "not
- * one linking row exists". A wrong relation filter here would not throw; it
- * would quietly tell an engineer their project was further along than it
- * is. So this builds a project with a known shape and checks every count.
+ * The unit tests prove the stage rules given some facts. What they cannot
+ * prove is that the facts are right: that `groupBy` sees every status, that
+ * "has no check" written as `none: {}` on a relation really means "not one
+ * linking row exists", and that retired records are left out. A wrong
+ * filter here would not throw — it would quietly tell an engineer their
+ * project was further along than it is. So this builds a project whose
+ * every stage has a known answer, and checks each.
  */
 
 const modules = databaseAvailable
@@ -44,76 +45,72 @@ describe.skipIf(!databaseAvailable)(`Project progress against PostgreSQL (${SKIP
     other = await createTestTenant("progress-other");
     const projectId = tenant.projectId;
     const tag = uniqueSuffix("p").replace(/[^a-z0-9]/gi, "").slice(-8);
+    const id = (prefix: string) => `${prefix}-${tag}`;
 
     await prisma.stakeholderNeed.create({
       data: {
         projectId,
-        identifier: `SN-${tag}`,
+        identifier: id("SN1"),
         title: "Reliable thrust",
         description: "Thrust within limits across the envelope.",
         stakeholder: "Mission",
       },
     });
 
-    // Four requirements: two will get a check, one will not, one is obsolete
-    // and must be ignored entirely.
-    const [reqChecked1, reqChecked2] = await Promise.all([
+    // Define: three live drafts (two checked, one not) and one retired.
+    const [reqA, reqB] = await Promise.all([
+      prisma.requirement.create({ data: { projectId, identifier: id("R1"), title: "Thrust", statement: "Shall produce 450 kN." } }),
+      prisma.requirement.create({ data: { projectId, identifier: id("R2"), title: "Mass", statement: "Shall weigh under 900 kg." } }),
+      prisma.requirement.create({ data: { projectId, identifier: id("R3"), title: "Unchecked", statement: "Shall survive 20 g." } }),
       prisma.requirement.create({
-        data: { projectId, identifier: `R1-${tag}`, title: "Thrust", statement: "Shall produce 450 kN." },
-      }),
-      prisma.requirement.create({
-        data: { projectId, identifier: `R2-${tag}`, title: "Mass", statement: "Shall weigh under 900 kg." },
-      }),
-      prisma.requirement.create({
-        data: { projectId, identifier: `R3-${tag}`, title: "Unchecked", statement: "Shall survive 20 g." },
-      }),
-      prisma.requirement.create({
-        data: {
-          projectId,
-          identifier: `R4-${tag}`,
-          title: "Retired",
-          statement: "No longer applies.",
-          status: "OBSOLETE",
-        },
+        data: { projectId, identifier: id("R4"), title: "Retired", statement: "No longer applies.", status: "OBSOLETE" },
       }),
     ]);
 
-    // Two checks: one with proof, one without.
-    const [checkProven, checkUnproven] = await Promise.all([
-      prisma.verificationActivity.create({
-        data: { projectId, identifier: `V1-${tag}`, title: "Hot fire", method: "TEST" },
-      }),
-      prisma.verificationActivity.create({
-        data: { projectId, identifier: `V2-${tag}`, title: "Mass audit", method: "INSPECTION" },
-      }),
-    ]);
-
-    await prisma.requirementVerificationLink.createMany({
+    // Design and Decide: one draft each, plus a retired decision that must not count.
+    await prisma.designItem.create({
+      data: { projectId, identifier: id("DI1"), name: "Combustion chamber", itemType: "COMPONENT" },
+    });
+    await prisma.engineeringDecision.createMany({
       data: [
-        { requirementId: reqChecked1!.id, verificationActivityId: checkProven!.id },
-        { requirementId: reqChecked2!.id, verificationActivityId: checkUnproven!.id },
+        { projectId, identifier: id("ED1"), title: "Cooling", statement: "Regenerative cooling.", rationale: "Heat flux." },
+        {
+          projectId,
+          identifier: id("ED2"),
+          title: "Rejected",
+          statement: "Ablative liner.",
+          rationale: "Mass.",
+          status: "REJECTED",
+        },
       ],
     });
 
+    // Verify: two passed checks, only one with proof.
+    const [proven, unproven] = await Promise.all([
+      prisma.verificationActivity.create({
+        data: { projectId, identifier: id("V1"), title: "Hot fire", method: "TEST", status: "PASSED" },
+      }),
+      prisma.verificationActivity.create({
+        data: { projectId, identifier: id("V2"), title: "Mass audit", method: "INSPECTION", status: "PASSED" },
+      }),
+    ]);
+    await prisma.requirementVerificationLink.createMany({
+      data: [
+        { requirementId: reqA!.id, verificationActivityId: proven!.id },
+        { requirementId: reqB!.id, verificationActivityId: unproven!.id },
+      ],
+    });
     const evidence = await prisma.evidence.create({
-      data: {
-        projectId,
-        identifier: `E1-${tag}`,
-        title: "Hot fire report",
-        evidenceType: "TEST_RESULT",
-        sourceReference: "TR-001",
-      },
+      data: { projectId, identifier: id("E1"), title: "Hot fire report", evidenceType: "TEST_RESULT", sourceReference: "TR-001" },
     });
-    await prisma.evidenceLink.create({
-      data: { evidenceId: evidence.id, verificationActivityId: checkProven!.id },
-    });
+    await prisma.evidenceLink.create({ data: { evidenceId: evidence.id, verificationActivityId: proven!.id } });
 
-    // One open change and one closed one — only the open one counts.
+    // Control: one change awaiting review, one finished; one open risk and one accepted; one resolved issue.
     await prisma.changeRequest.createMany({
       data: [
         {
           projectId,
-          identifier: `CR1-${tag}`,
+          identifier: id("CR1"),
           title: "Raise thrust",
           description: "Increase margin.",
           reason: "Payload growth",
@@ -122,7 +119,7 @@ describe.skipIf(!databaseAvailable)(`Project progress against PostgreSQL (${SKIP
         },
         {
           projectId,
-          identifier: `CR2-${tag}`,
+          identifier: id("CR2"),
           title: "Old change",
           description: "Done.",
           reason: "Historic",
@@ -130,6 +127,20 @@ describe.skipIf(!databaseAvailable)(`Project progress against PostgreSQL (${SKIP
           status: "IMPLEMENTED",
         },
       ],
+    });
+    await prisma.risk.createMany({
+      data: [
+        { projectId, identifier: id("RK1"), title: "Supplier slip", description: "Valve late." },
+        { projectId, identifier: id("RK2"), title: "Known limit", description: "Accepted margin.", status: "ACCEPTED" },
+      ],
+    });
+    await prisma.issue.create({
+      data: { projectId, identifier: id("IS1"), title: "Leak", description: "Found and fixed.", status: "RESOLVED" },
+    });
+
+    // Release: a locked version of the design, and no release check run.
+    await prisma.engineeringBaseline.create({
+      data: { projectId, identifier: id("BL1"), name: "Design freeze", status: "ACTIVE" },
     });
   }, 60_000);
 
@@ -140,34 +151,42 @@ describe.skipIf(!databaseAvailable)(`Project progress against PostgreSQL (${SKIP
     await disconnectIntegrationPrisma();
   });
 
-  it("counts each fact from the real rows", async () => {
-    const { counts } = await modules!.service.getProjectProgress(ownerContext(), tenant.projectId);
+  it("counts every fact from the real rows, leaving retired records out", async () => {
+    const { facts } = await modules!.service.getProjectProgress(ownerContext(), tenant.projectId);
 
-    expect(counts).toEqual({
-      stakeholderNeeds: 1,
-      requirements: 3, // the obsolete one is excluded
-      requirementsWithoutCheck: 1,
-      verificationActivities: 2,
-      checksWithoutProof: 1,
-      openChanges: 1, // the implemented one is excluded
+    expect(facts).toEqual({
+      stakeholderNeeds: { total: 1, draft: 1 },
+      requirements: { total: 3, draft: 3, inReview: 0, withoutCheck: 1 }, // the obsolete one is excluded
+      designItems: { total: 1, draft: 1, inReview: 0 },
+      decisions: { total: 1, proposed: 1, underReview: 0 }, // the rejected one is excluded
+      checks: { total: 2, notRun: 0, failed: 0, passedWithoutProof: 1 },
+      control: {
+        draftChanges: 0,
+        changesAwaitingReview: 1,
+        openRisks: 1, // the accepted risk has been dealt with
+        openIssues: 0,
+        everRecorded: 5,
+      },
+      release: { activeBaseline: true, draftBaseline: false, gate: { assessed: false } },
     });
   });
 
-  it("names the unchecked requirement as the next step, not the missing proof", async () => {
+  it("puts the change waiting for review first, because a person is waiting on it", async () => {
     const { next } = await modules!.service.getProjectProgress(ownerContext(), tenant.projectId);
 
-    expect(next.stage).toBe("PLAN_CHECKS");
-    expect(next.status).toBe("1 requirement has no check yet.");
+    expect(next.stage).toBe("CONTROL");
+    expect(next.state).toBe("NEEDS_REVIEW");
   });
 
-  it("does not let an obsolete requirement count as needing a check", async () => {
-    const { counts } = await modules!.service.getProjectProgress(ownerContext(), tenant.projectId);
+  it("reports the release stage as in progress, not ready, when the check has never been run", async () => {
+    const { steps } = await modules!.service.getProjectProgress(ownerContext(), tenant.projectId);
+    const release = steps.find((step) => step.stage === "RELEASE")!;
 
-    // R3 is the only live unchecked one; R4 is obsolete and unchecked too.
-    expect(counts.requirementsWithoutCheck).toBe(1);
+    expect(release.state).toBe("IN_PROGRESS");
+    expect(release.facts).toContain("The release check has not been run.");
   });
 
-  it("an empty project is told to write its first requirement", async () => {
+  it("tells an empty project to write its first requirement", async () => {
     const { next } = await modules!.service.getProjectProgress(
       { organizationId: other.organizationId, actorId: other.userId },
       other.projectId,
@@ -178,8 +197,8 @@ describe.skipIf(!databaseAvailable)(`Project progress against PostgreSQL (${SKIP
   });
 
   it("404s for a project in another organization, rather than confirming it exists", async () => {
-    await expect(
-      modules!.service.getProjectProgress(ownerContext(), other.projectId),
-    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(modules!.service.getProjectProgress(ownerContext(), other.projectId)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 });

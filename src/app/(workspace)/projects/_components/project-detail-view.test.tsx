@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { nextProgressStep, progressSteps } from "@/domain/project-progress";
+import { emptyProgressFacts, nextProgressStep, progressSteps } from "@/domain/project-progress";
 import { ProjectDetailView } from "./project-detail-view";
 
 const PROJECT = {
@@ -76,16 +76,9 @@ function isProgressCall(url: unknown): boolean {
 }
 
 function progressResponse(): Response {
-  const counts = {
-    stakeholderNeeds: 0,
-    requirements: 0,
-    requirementsWithoutCheck: 0,
-    verificationActivities: 0,
-    checksWithoutProof: 0,
-    openChanges: 0,
-  };
+  const facts = emptyProgressFacts();
   return response(200, {
-    progress: { counts, steps: progressSteps(counts), next: nextProgressStep(counts) },
+    progress: { facts, steps: progressSteps(facts), next: nextProgressStep(facts) },
   });
 }
 

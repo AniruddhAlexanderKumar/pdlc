@@ -1,38 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { FileText, GitPullRequest, Layers, TestTube2 } from "lucide-react";
-import { progressSteps } from "@/domain/project-progress";
+import { Boxes, FileText, GitPullRequest, Layers, Scale, ShieldCheck, TestTube2 } from "lucide-react";
+import { PROGRESS_STAGE_DEFINITIONS, type ProgressStage } from "@/domain/project-progress";
 import { cn } from "@/lib/utils";
 
 /**
- * The workflow this product actually has — the same four stages the
- * dashboard and each project's page use to say what to do next. Titles come
- * from `progressSteps`, so this page cannot describe a different sequence
- * from the one a customer meets after signing in.
+ * The workflow this product actually has — the same six stages each project's
+ * page and dashboard card use to say what to do next. Titles and questions
+ * come from `PROGRESS_STAGE_DEFINITIONS`, so this page cannot describe a
+ * different sequence from the one a customer meets after signing in.
  *
- * It previously described five steps, and most were not real: importing
- * from DOORS, Jira, PDFs and ICDs with "100% ingest coverage" (no import
- * exists), a "Question primitive" opened automatically (there is no such
- * record), "dual, cryptographic sign-offs" (the Approval model is unused
- * and nothing is signed), and impact "recalculated instantly whenever any
- * parameter changes" (it runs when someone asks, never on its own). Each
+ * It once described five steps, most of them not real: importing from
+ * DOORS, Jira, PDFs and ICDs with "100% ingest coverage", a "Question
+ * primitive" opened automatically, "dual, cryptographic sign-offs", and
+ * impact "recalculated instantly whenever any parameter changes". Each
  * statement below is checked against the product.
  */
-const STAGE_TITLES = progressSteps({
-  stakeholderNeeds: 0,
-  requirements: 0,
-  requirementsWithoutCheck: 0,
-  verificationActivities: 0,
-  checksWithoutProof: 0,
-  openChanges: 0,
-}).map((stage) => stage.title.toUpperCase());
-
-const WORKFLOW_STEPS = [
-  {
-    step: 1,
-    id: "define",
-    title: STAGE_TITLES[0]!,
+const STAGE_COPY: Record<
+  ProgressStage,
+  { subtitle: string; code: string; stat: string; icon: typeof FileText; detail: string }
+> = {
+  DEFINE: {
     subtitle: "WRITE EACH THING THE PRODUCT MUST DO AS ITS OWN REQUIREMENT, SPECIFIC ENOUGH THAT SOMEONE COULD CHECK IT.",
     code: "REQUIREMENT",
     stat: "ONE RECORD PER REQUIREMENT",
@@ -40,40 +29,54 @@ const WORKFLOW_STEPS = [
     detail:
       "Each requirement has its own lifecycle — draft, in review, approved, baselined — and every move between those states is checked on the server.",
   },
-  {
-    step: 2,
-    id: "plan",
-    title: STAGE_TITLES[1]!,
-    subtitle: "LINK EVERY REQUIREMENT TO THE TEST, ANALYSIS, INSPECTION OR DEMONSTRATION THAT WILL PROVE IT.",
+  DESIGN: {
+    subtitle: "DESCRIBE THE PARTS OF THE PRODUCT, AND LINK EACH REQUIREMENT TO THE PART THAT WILL MEET IT.",
+    code: "DESIGN ITEM",
+    stat: "REQUIREMENTS MAPPED TO PARTS",
+    icon: Boxes,
+    detail:
+      "Design items form the product structure, with the interfaces between them recorded as records of their own. A requirement is linked to the part that meets it by a real link, not a naming convention.",
+  },
+  DECIDE: {
+    subtitle: "RECORD WHAT YOU CHOSE, WHAT ELSE YOU CONSIDERED, AND WHY.",
+    code: "DECISION",
+    stat: "THE WHY, KEPT",
+    icon: Scale,
+    detail:
+      "A decision keeps the alternatives that were rejected, the assumptions it rests on and the outcome it expected. If an assumption later stops holding, the product can say so.",
+  },
+  VERIFY: {
+    subtitle: "LINK EVERY REQUIREMENT TO THE TEST, ANALYSIS, INSPECTION OR DEMONSTRATION THAT WILL PROVE IT — THEN ATTACH THE RESULT.",
     code: "VERIFICATION",
-    stat: "UNCHECKED ONES NAMED",
+    stat: "LOCKED ONCE VALIDATED",
     icon: TestTube2,
     detail:
-      "The link is a real record between two records, so the product can say exactly which requirements have no way to prove them yet — by name, not as a percentage.",
+      "The product can name every requirement with no way to prove it yet. Evidence moves from draft to validated; once validated it cannot be edited, and a correction is a new record that supersedes the old one.",
   },
-  {
-    step: 3,
-    id: "proof",
-    title: STAGE_TITLES[2]!,
-    subtitle: "ATTACH THE REPORT, CALCULATION OR INSPECTION RECORD EACH CHECK PRODUCED.",
-    code: "EVIDENCE",
-    stat: "LOCKED ONCE VALIDATED",
-    icon: Layers,
-    detail:
-      "Evidence moves from draft to validated. Once validated its content cannot be edited; a correction is a new record that supersedes the old one, and both are kept.",
-  },
-  {
-    step: 4,
-    id: "change",
-    title: STAGE_TITLES[3]!,
-    subtitle: "RECORD A CHANGE REQUEST BEFORE CHANGING ANYTHING, AND SEE WHAT IT TOUCHES FIRST.",
+  CONTROL: {
+    subtitle: "RECORD A CHANGE BEFORE MAKING IT, AND SEE WHAT IT TOUCHES FIRST.",
     code: "CHANGE IMPACT",
     stat: "IMPACT SHOWN BEFORE THE EDIT",
     icon: GitPullRequest,
     detail:
       "Impact analysis follows the real links outward from what is changing and names every requirement, design item and check it reaches, with the path it took. It runs when someone asks — never on its own.",
   },
-];
+  RELEASE: {
+    subtitle: "LOCK THE CURRENT VERSION OF THE DESIGN, THEN RUN THE RELEASE CHECK.",
+    code: "READINESS",
+    stat: "UNKNOWN IS NEVER READY",
+    icon: ShieldCheck,
+    detail:
+      "The release check lists exactly what stands in the way. Where it cannot tell, it says unknown rather than ready — and a check the project has moved on from is reported as out of date.",
+  },
+};
+
+const WORKFLOW_STEPS = PROGRESS_STAGE_DEFINITIONS.map((stage, index) => ({
+  step: index + 1,
+  id: stage.stage.toLowerCase(),
+  title: stage.title.toUpperCase(),
+  ...STAGE_COPY[stage.stage],
+}));
 
 export function InteractiveWorkflowStepper() {
   const [activeStepId, setActiveStepId] = React.useState<string>("define");

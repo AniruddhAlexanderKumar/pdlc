@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { describeApiError } from "@/lib/api/client";
+import { progressDestinationHref } from "@/domain/project-progress";
 import { useProjectProgress } from "@/lib/api/project-progress";
+import { ProgressStateChip } from "../../projects/_components/next-step-panel";
 import { type ProjectDto, useProjects } from "@/lib/api/projects";
 import { useUserPersonalization } from "@/lib/use-user-personalization";
 import { cn } from "@/lib/utils";
@@ -156,13 +158,19 @@ function ProjectNextStep({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-accent/30 px-3 py-2.5">
-      <div className="flex min-w-0 flex-col">
-        <span className="text-xs text-muted-foreground">Next step</span>
-        <span className="text-sm font-medium text-foreground">{next.title}</span>
-        <span className="text-xs text-muted-foreground">{next.status}</span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          Next step
+          <ProgressStateChip state={next.state} />
+        </span>
+        <span className="text-sm font-medium text-foreground">
+          {next.title}
+          <span className="font-normal text-muted-foreground"> — {next.question}</span>
+        </span>
+        <span className="text-xs text-muted-foreground">{next.facts[0]}</span>
       </div>
       <Button asChild size="sm" className="shrink-0">
-        <Link href={`/projects/${projectId}/${next.module}`}>
+        <Link href={progressDestinationHref(projectId, next.destination)}>
           {next.actionLabel}
           <ArrowRight aria-hidden="true" />
         </Link>
