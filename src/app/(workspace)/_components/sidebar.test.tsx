@@ -91,7 +91,7 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: /^Requirements$/ })).not.toHaveAttribute("aria-current");
   });
 
-  it("Simplify collapses to daily-tier modules only, and remembers the choice", async () => {
+  it("Simplify collapses to the essential modules, and remembers the choice", async () => {
     pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
     const user = userEvent.setup();
     const { unmount } = render(<Sidebar />);
@@ -115,6 +115,24 @@ describe("Sidebar", () => {
     render(<Sidebar />);
     expect(await screen.findByRole("button", { name: "Show all modules" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Traceability/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Simplify used to keep the daily tier alone, which hid Verification,
+   * Evidence and Changes — exactly where the project page's next step sends
+   * a reader for stages two to four. Someone who simplified their sidebar
+   * and then clicked "Plan checks" landed on a page their sidebar hid.
+   */
+  it("keeps every module the next-step panel can send you to, even when simplified", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    const user = userEvent.setup();
+    render(<Sidebar />);
+
+    await user.click(screen.getByRole("button", { name: "Simplify" }));
+
+    for (const name of [/^Requirements$/, /^Verification$/, /^Evidence$/, /^Changes$/]) {
+      expect(screen.getByRole("link", { name })).toBeInTheDocument();
+    }
   });
 
   it("pinning a module moves it into its own Pinned section, and survives Simplify", async () => {

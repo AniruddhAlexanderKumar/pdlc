@@ -1,72 +1,82 @@
 "use client";
 
 import * as React from "react";
-import {
-  FileText,
-  HelpCircle,
-  TestTube2,
-  GitPullRequest,
-  ShieldCheck,
-  Zap,
-  Layers
-} from "lucide-react";
+import { FileText, GitPullRequest, Layers, TestTube2 } from "lucide-react";
+import { progressSteps } from "@/domain/project-progress";
 import { cn } from "@/lib/utils";
+
+/**
+ * The workflow this product actually has — the same four stages the
+ * dashboard and each project's page use to say what to do next. Titles come
+ * from `progressSteps`, so this page cannot describe a different sequence
+ * from the one a customer meets after signing in.
+ *
+ * It previously described five steps, and most were not real: importing
+ * from DOORS, Jira, PDFs and ICDs with "100% ingest coverage" (no import
+ * exists), a "Question primitive" opened automatically (there is no such
+ * record), "dual, cryptographic sign-offs" (the Approval model is unused
+ * and nothing is signed), and impact "recalculated instantly whenever any
+ * parameter changes" (it runs when someone asks, never on its own). Each
+ * statement below is checked against the product.
+ */
+const STAGE_TITLES = progressSteps({
+  stakeholderNeeds: 0,
+  requirements: 0,
+  requirementsWithoutCheck: 0,
+  verificationActivities: 0,
+  checksWithoutProof: 0,
+  openChanges: 0,
+}).map((stage) => stage.title.toUpperCase());
 
 const WORKFLOW_STEPS = [
   {
     step: 1,
-    id: "ingest",
-    title: "1. INGEST REQUIREMENTS",
-    subtitle: "IMPORT MESSY SPECS FROM DOORS, JIRA, PDFS, OR SUPPLIER ICDS INTO SINGLE GRAPH NODES.",
-    code: "INGEST_NODE",
-    stat: "100% INGEST COVERAGE",
+    id: "define",
+    title: STAGE_TITLES[0]!,
+    subtitle: "WRITE EACH THING THE PRODUCT MUST DO AS ITS OWN REQUIREMENT, SPECIFIC ENOUGH THAT SOMEONE COULD CHECK IT.",
+    code: "REQUIREMENT",
+    stat: "ONE RECORD PER REQUIREMENT",
     icon: FileText,
-    detail: "System parses raw requirement text, extracts numerical constraints (e.g. <= 850°C), and maps upstream origin.",
+    detail:
+      "Each requirement has its own lifecycle — draft, in review, approved, baselined — and every move between those states is checked on the server.",
   },
   {
     step: 2,
-    id: "detect",
-    title: "2. DETECT AMBIGUITY",
-    subtitle: "FLAG UNVERIFIED ASSUMPTIONS AND MISSING PARAMETER VALUES AUTOMATICALLY.",
-    code: "AMBIGUITY_GATE",
-    stat: "0 UNANSWERED GAPS",
-    icon: HelpCircle,
-    detail: "When a requirement lacks attached calculation or evidence, PDLC automatically opens a linked Question primitive (QST-089).",
+    id: "plan",
+    title: STAGE_TITLES[1]!,
+    subtitle: "LINK EVERY REQUIREMENT TO THE TEST, ANALYSIS, INSPECTION OR DEMONSTRATION THAT WILL PROVE IT.",
+    code: "VERIFICATION",
+    stat: "UNCHECKED ONES NAMED",
+    icon: TestTube2,
+    detail:
+      "The link is a real record between two records, so the product can say exactly which requirements have no way to prove them yet — by name, not as a percentage.",
   },
   {
     step: 3,
-    id: "evidence",
-    title: "3. ATTACH EVIDENCE",
-    subtitle: "LINK HOT FIRE TEST LOGS, CAD FEA RUNS, OR DIGIKEY COMPONENT SPECS.",
-    code: "EVIDENCE_LINK",
-    stat: "O(V+E) VALIDATED",
-    icon: TestTube2,
-    detail: "Test procedures are mapped directly to parent requirements. Any failed test point instantly marks connected specs as UNVERIFIED.",
+    id: "proof",
+    title: STAGE_TITLES[2]!,
+    subtitle: "ATTACH THE REPORT, CALCULATION OR INSPECTION RECORD EACH CHECK PRODUCED.",
+    code: "EVIDENCE",
+    stat: "LOCKED ONCE VALIDATED",
+    icon: Layers,
+    detail:
+      "Evidence moves from draft to validated. Once validated its content cannot be edited; a correction is a new record that supersedes the old one, and both are kept.",
   },
   {
     step: 4,
-    id: "decision",
-    title: "4. MULTI-CUSTODY GATE",
-    subtitle: "REQUIRE DUAL SIGN-OFFS FROM SYSTEMS LEAD AND SAFETY OFFICERS BEFORE RELEASE.",
-    code: "DUAL_CUSTODY",
-    stat: "IMMUTABLE RATIONALE",
+    id: "change",
+    title: STAGE_TITLES[3]!,
+    subtitle: "RECORD A CHANGE REQUEST BEFORE CHANGING ANYTHING, AND SEE WHAT IT TOUCHES FIRST.",
+    code: "CHANGE IMPACT",
+    stat: "IMPACT SHOWN BEFORE THE EDIT",
     icon: GitPullRequest,
-    detail: "Architectural choices are stored with explicit evidence lineage and cryptographic sign-offs, creating audit-proof defensibility.",
-  },
-  {
-    step: 5,
-    id: "blast",
-    title: "5. BLAST RADIUS DEFENSE",
-    subtitle: "RECALCULATE DOWNSTREAM IMPACT INSTANTLY WHENEVER ANY PARAMETER CHANGES.",
-    code: "BLAST_RADIUS",
-    stat: "PRE-HARDWARE DEFENSE",
-    icon: Zap,
-    detail: "If REQ-1042's thermal limit changes from 650°C to 800°C, the graph automatically flags affected test procedures and supplier specs before hardware scrap.",
+    detail:
+      "Impact analysis follows the real links outward from what is changing and names every requirement, design item and check it reaches, with the path it took. It runs when someone asks — never on its own.",
   },
 ];
 
 export function InteractiveWorkflowStepper() {
-  const [activeStepId, setActiveStepId] = React.useState<string>("ingest");
+  const [activeStepId, setActiveStepId] = React.useState<string>("define");
   const activeStep = WORKFLOW_STEPS.find((s) => s.id === activeStepId) ?? WORKFLOW_STEPS[0]!;
 
   return (
@@ -117,9 +127,9 @@ export function InteractiveWorkflowStepper() {
           <div className="lg:col-span-7 flex flex-col gap-4">
             <div className="flex items-center gap-3 text-xs font-bold text-cyan-400">
               <span className="bg-cyan-950 text-cyan-400 border border-cyan-800 px-3 py-1 font-mono">
-                STEP {activeStep.step} OF 5
+                STEP {activeStep.step} OF {WORKFLOW_STEPS.length}
               </span>
-              <span className="text-slate-600">//</span>
+              <span className="text-slate-600">{"//"}</span>
               <span>{activeStep.code}</span>
             </div>
 
@@ -132,7 +142,7 @@ export function InteractiveWorkflowStepper() {
             </p>
 
             <div className="border border-white/10 bg-black p-4 text-xs text-slate-400 leading-relaxed uppercase tracking-wider">
-              <span className="font-bold text-cyan-400 block mb-1">ENGINE MECHANISM:</span>
+              <span className="font-bold text-cyan-400 block mb-1">HOW IT WORKS:</span>
               {activeStep.detail}
             </div>
           </div>
@@ -140,19 +150,18 @@ export function InteractiveWorkflowStepper() {
           <div className="lg:col-span-5 flex flex-col justify-between border border-white/15 bg-black p-6 text-white min-h-[200px]">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <span className="text-cyan-400 font-bold flex items-center gap-2">
-                <Layers className="size-4" /> TELEMETRY STATUS
+                <Layers className="size-4" /> WHAT YOU GET
               </span>
-              <span className="text-[10px] text-slate-400">STATE: ACTIVE</span>
             </div>
 
             <div className="my-4 flex flex-col gap-1">
-              <span className="text-slate-400 text-[10px] uppercase">PERFORMANCE METRIC</span>
+              <span className="text-slate-400 text-[10px] uppercase">RESULT</span>
               <span className="text-xl font-black text-emerald-400">{activeStep.stat}</span>
             </div>
 
             <div className="pt-3 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-400 uppercase">
-              <span>DETERMINISTIC GRAPH EDGE</span>
-              <span className="text-cyan-400 font-bold">O(V+E) VALIDATED</span>
+              <span>SAME RECORDS IN</span>
+              <span className="text-cyan-400 font-bold">SAME ANSWER OUT</span>
             </div>
           </div>
         </div>

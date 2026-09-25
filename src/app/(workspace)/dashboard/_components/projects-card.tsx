@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, FolderGit2, LayoutDashboard, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowRight, FolderGit2, FolderOpen, RefreshCw } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/common/project-status-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { describeApiError } from "@/lib/api/client";
+import { useProjectProgress } from "@/lib/api/project-progress";
 import { type ProjectDto, useProjects } from "@/lib/api/projects";
 import { useUserPersonalization } from "@/lib/use-user-personalization";
 import { cn } from "@/lib/utils";
@@ -15,14 +16,14 @@ import { cn } from "@/lib/utils";
 const PREVIEW_LIMIT = 6;
 
 /**
- * The dashboard's real content: which programs you can open, and one click
- * into each.
+ * The dashboard's real content: the projects you can open, and for each one
+ * the single thing to do next.
  *
- * Every card's primary action is Command Center, not the project overview
- * — Command Center is the page that actually answers "what needs me
- * today"; the overview answers "what modules exist", which the sidebar
- * already answers permanently. Landing a reader on the second one was a
- * large part of why getting oriented took so many clicks.
+ * Each card used to offer "Open Workspace" and "All modules" — two ways in,
+ * and no hint of what to do on arrival. It now states the next step,
+ * computed from the project's real rows, with a button straight to it, so
+ * someone who has just signed in can act without first learning the
+ * product's map. "Open project" follows the landing preference in Settings.
  */
 export function ProjectsCard() {
   const { state, reload } = useProjects();
@@ -99,13 +100,14 @@ export function ProjectsCard() {
 
 function ProjectCard({ project }: { project: ProjectDto }) {
   const { landingModule } = useUserPersonalization();
-  const targetPath = landingModule ? `/projects/${project.id}${landingModule}` : `/projects/${project.id}`;
+  const openPath = landingModule ? `/projects/${project.id}${landingModule}` : `/projects/${project.id}`;
+  const isArchived = project.status === "ARCHIVED";
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <Link
-          href={targetPath}
+          href={openPath}
           className="min-w-0 text-sm font-medium text-foreground underline-offset-4 hover:underline"
         >
           {project.name}
@@ -117,17 +119,54 @@ function ProjectCard({ project }: { project: ProjectDto }) {
         <p className="line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
       )}
 
-      <div className="mt-auto flex flex-wrap gap-2">
-        <Button asChild size="sm">
-          <Link href={targetPath}>
-            <LayoutDashboard aria-hidden="true" />
-            Open Workspace
+      {/* An archived project is read-only, so there is no "next" to do in it. */}
+      {!isArchived && <ProjectNextStep projectId={project.id} />}
+
+      <div className="mt-auto">
+        <Button asChild variant="outline" size="sm">
+          <Link href={openPath}>
+            <FolderOpen aria-hidden="true" />
+            Open project
           </Link>
         </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/projects/${project.id}`}>All modules</Link>
-        </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The project's one next step, right on the dashboard.
+ *
+ * Someone who has just signed in should not have to open a project and
+ * then work out what to do inside it — the answer is computed from the
+ * project's real rows (see `project-progress.ts`) and shown here, with a
+ * button straight to it. A failed load says nothing rather than something
+ * wrong: this line is a shortcut, and the project page carries the same
+ * panel with a retry.
+ */
+function ProjectNextStep({ projectId }: { projectId: string }) {
+  const { state } = useProjectProgress(projectId);
+
+  if (state.phase === "loading") {
+    return <div className="h-14 animate-pulse rounded-md bg-muted/50" aria-hidden="true" />;
+  }
+  if (state.phase === "error") return null;
+
+  const { next } = state.data;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-accent/30 px-3 py-2.5">
+      <div className="flex min-w-0 flex-col">
+        <span className="text-xs text-muted-foreground">Next step</span>
+        <span className="text-sm font-medium text-foreground">{next.title}</span>
+        <span className="text-xs text-muted-foreground">{next.status}</span>
+      </div>
+      <Button asChild size="sm" className="shrink-0">
+        <Link href={`/projects/${projectId}/${next.module}`}>
+          {next.actionLabel}
+          <ArrowRight aria-hidden="true" />
+        </Link>
+      </Button>
     </div>
   );
 }

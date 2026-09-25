@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import type { TerminologyLabelKey } from "@/domain";
+import { PROGRESS_MODULES } from "@/domain/project-progress";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useStoredFlag } from "@/lib/use-stored-flag";
@@ -29,6 +30,24 @@ export const CURRENT_PROJECT_PATTERN = /^\/projects\/([^/]+)(?:\/|$)/;
 
 /** Exported so the Settings page (`/settings`) can surface and control the same preference — one key, one source of truth, two places to reach it. */
 export const SIMPLIFY_STORAGE_KEY = "pdlc:nav-simplified";
+
+const STAGE_HREFS: ReadonlySet<string> = new Set(PROGRESS_MODULES.map((module) => `/${module}`));
+
+/**
+ * What Simplify keeps: the modules an engineer touches daily, plus every
+ * module the project page's "next step" can send you to.
+ *
+ * Simplify used to keep the daily tier alone — Command Center,
+ * Requirements, Decisions, Risks, Issues. That left out Verification,
+ * Evidence and Changes, which are exactly where stages two to four of the
+ * next-step panel point. So a newcomer who simplified their sidebar, then
+ * clicked "Plan checks", landed on a page their sidebar did not list. The
+ * stage modules come from `PROGRESS_MODULES`, so this cannot fall out of
+ * step with the panel again.
+ */
+export function isEssentialModule(module: { href: string; tier: string }): boolean {
+  return module.tier === "daily" || STAGE_HREFS.has(module.href);
+}
 
 /** Dashboard and Projects are global anchors — always shown, never rewritten. */
 const GLOBAL_ITEMS = NAV_ITEMS.filter((item) => item.href === "/dashboard" || item.href === "/projects");
@@ -471,7 +490,7 @@ function Sidebar({ showPortfolio = false }: { showPortfolio?: boolean }) {
                   module.group === group.id &&
                   !hidden.has(module.href) &&
                   !pinned.has(module.href) &&
-                  (!simplified || module.tier === "daily"),
+                  (!simplified || isEssentialModule(module)),
               );
               if (members.length === 0) return null;
               return (

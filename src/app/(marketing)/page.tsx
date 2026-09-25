@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Cpu,
   FileText,
   GitPullRequest,
   HelpCircle,
@@ -10,12 +9,8 @@ import {
   ShieldCheck,
   TestTube2,
   Zap,
-  Building2,
-  ShoppingCart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TelemetryTicker } from "./_components/telemetry-ticker";
-import { IntegrationsInteractiveGrid } from "./_components/integrations-interactive-grid";
 
 export default function LandingPage() {
   return (
@@ -88,8 +83,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* LIVE TELEMETRY TICKER */}
-      <TelemetryTicker />
+      {/*
+        A pulsing "live telemetry" strip ran here: "100% OPERATIONAL",
+        "DECISION ENGINE LATENCY < 5MS", "IMMUTABLE SIGNATURES", "AMAZON /
+        DIGIKEY / MOUSER", "AES-256 GCM / ITAR COMPLIANT". All hardcoded, and
+        five of six untrue — latency has never been measured, the audit log
+        carries no signatures, the store integrations do not exist, and no
+        compliance is held. Styled as a live readout, it was the most
+        official-looking claim on the page and the least supported.
+      */}
 
       {/* SECTION 2: MANIFESTO */}
       <section id="manifesto" className="py-28 sm:py-40 border-b border-white/10 bg-black/70 backdrop-blur-sm text-center">
@@ -244,36 +246,34 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SECTION 5: INTERACTIVE STORE CONNECTORS GRID */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl font-mono">
-          <div className="flex flex-col gap-8">
-            <div className="flex flex-col gap-4 font-sans max-w-3xl">
-              <span className="text-xs font-bold tracking-[0.4em] text-cyan-400 uppercase font-mono">
-                INTEGRATIONS CONSTELLATION
-              </span>
-              <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight">
-                CONNECT YOUR SUPPLY CHAIN &amp; TOOLCHAIN.
-              </h2>
-              <p className="text-slate-400 leading-relaxed text-xs uppercase tracking-wider font-mono">
-                1-CLICK STORE AND API CONNECTORS SYNC SUPPLIER INVENTORY, PART SPECIFICATIONS, CAD MODELS, AND ISSUE TRACKERS DIRECTLY INTO MORNINGSTAR.
-              </p>
-            </div>
+      {/*
+        An "Integrations Constellation" section stood here, listing Amazon,
+        DigiKey, Mouser and McMaster-Carr as "LIVE CONNECTED" and IBM DOORS,
+        Jira, Siemens Teamcenter and Ansys as "READY", each behind a
+        "1-CLICK CONNECT" button that only toggled local state. None of those
+        integrations exists. Importing from DOORS in particular is a known,
+        unbuilt gap — the thing a prospect evaluating this product is most
+        likely to try first. Removed until one of them is real.
+      */}
 
-            <IntegrationsInteractiveGrid />
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 6: ENTERPRISE SECURITY */}
+      {/* SECTION 6: SECURITY */}
       <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs">
             <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-black/90 p-8">
               <Lock className="size-7 text-cyan-400" />
-              <h3 className="font-extrabold text-white text-lg font-sans uppercase">SOC2 TYPE II &amp; ITAR READY</h3>
+              {/*
+                This card claimed "SOC2 TYPE II & ITAR READY" and "end-to-end
+                encryption at rest and in transit". No SOC 2 audit exists, the
+                product holds no compliance certification (see SECURITY.md),
+                and the server reads every record — it is not end-to-end
+                encrypted. Encryption at rest is the operator's database
+                setting and TLS is terminated by their proxy (DEPLOYMENT.md).
+                Replaced with properties the code actually has and tests.
+              */}
+              <h3 className="font-extrabold text-white text-lg font-sans uppercase">EVERY CHANGE ON RECORD</h3>
               <p className="text-slate-400 leading-relaxed font-normal">
-                End-to-end encryption at rest and in transit with strict role-based access controls for aerospace engineering standards.
+                Each change is written to an append-only audit log in the same transaction as the change itself. Access is checked on the server for every read and write, project by project.
               </p>
             </div>
 
@@ -287,9 +287,9 @@ export default function LandingPage() {
 
             <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-black/90 p-8">
               <ShieldCheck className="size-7 text-emerald-400" />
-              <h3 className="font-extrabold text-white text-lg font-sans uppercase">ZERO LLM DATA RETENTION</h3>
+              <h3 className="font-extrabold text-white text-lg font-sans uppercase">NO AI READS YOUR DATA</h3>
               <p className="text-slate-400 leading-relaxed font-normal">
-                Your proprietary CAD models, specifications, and trade studies are never used to train public language or reasoning models.
+                The product uses no language model at all. Every finding it shows is computed from your own records by rules you can inspect, and the same records always give the same answer.
               </p>
             </div>
           </div>

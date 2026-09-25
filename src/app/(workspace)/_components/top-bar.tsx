@@ -5,13 +5,21 @@ import { Settings } from "lucide-react";
 import { type AuthenticatedIdentity, canViewPortfolio } from "@/domain";
 import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
-import { ExpressActionBar } from "./express-action-bar";
 import { HelpMenu } from "./help-menu";
 import { UserMenu } from "./user-menu";
 
 /**
  * Top utility bar: the signed-in organization, the breadcrumb trail, search,
- * express workflows, settings, help, and the user menu.
+ * settings, help, and the user menu.
+ *
+ * Two things were removed from here. An "Express Workflows" menu listed
+ * five numbered steps, the second of which linked to a simulated store
+ * integration, and all five of which went to the same page when no project
+ * was open. And a pulsing green "SYSTEM: NOMINAL" light that was static
+ * markup: it checked nothing, and would have said "nominal" with the
+ * database down. A status light that cannot turn red is not a status.
+ * The project page's next-step panel now does what the menu was reaching
+ * for, from real data; `/api/health` is where real system status lives.
  */
 export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
   return (
@@ -27,16 +35,7 @@ export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
 
       <Breadcrumbs />
 
-      <div className="hidden xl:flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-0.5 text-[11px] font-mono font-medium text-emerald-600 dark:text-emerald-400">
-        <span className="relative flex size-2">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-        </span>
-        <span>SYSTEM: NOMINAL</span>
-      </div>
-
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        <ExpressActionBar />
         <CommandPalette showPortfolio={canViewPortfolio(identity.user.organizationRole)} />
 
         <Link

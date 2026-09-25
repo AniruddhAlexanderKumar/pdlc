@@ -23,7 +23,7 @@ Trust boundaries this system actually has, and what crosses each:
 
 | Boundary | Crosses it | Enforced by |
 | --- | --- | --- |
-| Unauthenticated internet → API | An unsigned request | `requireAuthenticatedContext()`; only `/api/auth/*` and `/api/health*` skip it |
+| Unauthenticated internet → API | An unsigned request | `requireAuthenticatedContext()`; only `/api/auth/*` and `/api/health*` skip it — enforced across every route file by `src/tests/security/route-authentication.test.ts` |
 | Authenticated user → organization | Session cookie resolves to a `User` row | `resolveSession` against the hashed token, server-side expiry |
 | Organization member → project | `ProjectMembership` row, or an implicit grant from `OWNER`/`EXECUTIVE` | `authorization.service.ts`'s `requireProject*Access` |
 | Project role → mutation tier | `VIEWER`/`REVIEWER`/`ENGINEER`/`MANAGER` | Per-action `require*Access` call at every service entry point |
@@ -31,6 +31,18 @@ Trust boundaries this system actually has, and what crosses each:
 | Application ↔ PostgreSQL | The one thing every layer above ultimately gates | Prisma, parameterized, project/org id always in the `WHERE` |
 | Evidence reference ↔ reality | Never crossed by this system | No fetch, no verification — see "Evidence storage limitation" |
 | CI/deployment environment | Build- and deploy-time secrets | See "Dependency and CI/CD supply chain" below |
+
+**A period when the first row was untrue.** A simulated store-integration
+route, `/api/integrations/amazon`, was merged without calling
+`requireAuthenticatedContext()`, so it answered anyone. It read and wrote
+no real data — it returned hardcoded catalog entries and a fabricated
+`CONNECTED` status — so nothing was exposed, but the property this table
+claims did not hold while it existed. It has been removed. The reason it
+went unnoticed is that the claim was asserted rather than checked: each
+route's own test proved that route authenticated, and no test proved every
+route did. `route-authentication.test.ts` now scans the whole route tree and
+fails on any route outside `auth/` and `health` that does not authenticate,
+and pins that exempt list so it cannot grow unreviewed.
 
 Attack classes considered, and where each is addressed in this document:
 authentication bypass and session theft/fixation ("Authentication");

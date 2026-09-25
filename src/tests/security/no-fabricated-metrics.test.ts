@@ -72,3 +72,73 @@ describe("no fabricated metrics in workspace screens", () => {
     expect(offenders, `RAG rating in: ${offenders.join(", ")}`).toEqual([]);
   });
 });
+
+/**
+ * The public site makes the same promise to people who have not signed in
+ * yet — and broke it more often than the product did.
+ *
+ * It advertised eight integrations with named companies as "LIVE CONNECTED"
+ * or "READY", none of which exist; a "live telemetry" strip reading "100%
+ * OPERATIONAL", "LATENCY < 5MS" and "AES-256 GCM / ITAR COMPLIANT", all
+ * hardcoded; and "SOC2 TYPE II & ITAR READY", while the site's own Known
+ * Limitations page correctly says no such certification is held. A false
+ * compliance claim to a prospective aerospace customer is not a copy
+ * problem.
+ */
+const MARKETING = join(process.cwd(), "src/app/(marketing)");
+const MARKETING_FILES = sourceFiles(MARKETING).map((path) => ({
+  path: path.replace(process.cwd(), "").replace(/\\/g, "/"),
+  source: readFileSync(path, "utf8"),
+}));
+
+/** JSX comments too, since explaining a removed claim must not re-trigger it. */
+function withoutAnyComments(source: string): string {
+  return withoutComments(source.replace(/\{\/\*[\s\S]*?\*\/\}/g, ""));
+}
+
+describe("no unsupported claims on the public site", () => {
+  it("scans the marketing pages", () => {
+    expect(MARKETING_FILES.length).toBeGreaterThan(10);
+  });
+
+  /**
+   * A percentage standing alone as a label — "100% OPERATIONAL", "92%" —
+   * is a claim about the product. One inside a long sentence is usually
+   * engineering content: an example requirement on this site says a valve
+   * opens "from fully closed to 100% open in <= 45 ms", which is a
+   * specification, not a boast. So only short strings are held to this.
+   */
+  it("states no percentage as a headline figure", () => {
+    const offenders = MARKETING_FILES.flatMap(({ path, source }) =>
+      [...withoutAnyComments(source)
+        .replace(/className=("[^"]*"|\{`[^`]*`\})/g, "")
+        // Geometry: where an SVG line or gradient stop sits, or a CSS box
+        // dimension. A coordinate of "42%" places a line; it claims nothing.
+        .replace(
+          /\b(x|y|x1|x2|y1|y2|cx|cy|fx|fy|r|rx|ry|offset|width|height|top|left|right|bottom|maxWidth|minWidth)\s*[=:]\s*["'][^"']*["']/g,
+          "",
+        )
+        .matchAll(/["'`]([^"'`\n]{0,40}\b\d{1,3}(\.\d+)?%[^"'`\n]{0,40})["'`]/g)]
+        .map((match) => `${path}: ${match[1]}`),
+    );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("claims no compliance status the product does not hold", () => {
+    const offenders = MARKETING_FILES.flatMap(({ path, source }) =>
+      [...withoutAnyComments(source).matchAll(/\b(soc ?2|itar|fedramp|iso ?27001)\b[^.\n]{0,40}\b(ready|compliant|certified)\b/gi)]
+        .map((match) => `${path}: ${match[0]}`),
+    );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("presents no integration as connected, because none exists", () => {
+    const offenders = MARKETING_FILES.filter(({ source }) =>
+      /LIVE CONNECTED|1-CLICK CONNECT/i.test(withoutAnyComments(source)),
+    ).map(({ path }) => path);
+
+    expect(offenders).toEqual([]);
+  });
+});

@@ -1,18 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Search, Terminal, Waypoints, AlertCircle, CheckCircle2, FileText, HelpCircle, Layers } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Search, Terminal, Waypoints } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface QueryResultItem {
-  id: string;
-  status: string;
-  statusType: "missing" | "conflict" | "pending";
-  detail: string;
-  owner: string;
-  subsystem: string;
-}
 
 const QUERY_PRESETS = [
   {

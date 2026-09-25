@@ -11,7 +11,6 @@ import {
   Play,
   ShieldCheck,
   Sparkles,
-  Terminal,
   Zap,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

@@ -15,6 +15,7 @@ import { useModuleLabel } from "../../_components/terminology-context";
 import { MODULE_GROUPS, PROJECT_MODULES, type ProjectModule } from "./project-modules";
 import { ProjectArchiveDialog } from "./project-archive-dialog";
 import { ProjectFormDialog } from "./project-form-dialog";
+import { NextStepPanel } from "./next-step-panel";
 import { SentinelSummaryCard } from "./sentinel-summary-card";
 import { TechnicalReadinessPanel } from "./technical-readiness-panel";
 
@@ -113,6 +114,41 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         </p>
       )}
 
+      {!isArchived && <NextStepPanel projectId={project.id} />}
+
+      <SentinelSummaryCard projectId={project.id} />
+
+      <TechnicalReadinessPanel projectId={project.id} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All modules</CardTitle>
+          <CardDescription>
+            Everything in this project, including the modules that have no permanent place in the
+            sidebar. The sidebar is the faster way to whichever ones you use daily.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {MODULE_GROUPS.map((group) => {
+            const members = OVERVIEW_MODULES.filter((module) => module.group === group.id);
+            if (members.length === 0) return null;
+            return (
+              <ModuleLinkGroup
+                key={group.id}
+                label={group.label}
+                modules={members}
+                projectId={project.id}
+              />
+            );
+          })}
+          <ModuleLinkGroup
+            label="Elsewhere"
+            modules={OVERVIEW_MODULES.filter((module) => module.group === null)}
+            projectId={project.id}
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Project record</CardTitle>
@@ -152,39 +188,6 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
               </dd>
             </div>
           </dl>
-        </CardContent>
-      </Card>
-
-      <SentinelSummaryCard projectId={project.id} />
-
-      <TechnicalReadinessPanel projectId={project.id} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>All modules</CardTitle>
-          <CardDescription>
-            Everything in this project, including the modules that have no permanent place in the
-            sidebar. The sidebar is the faster way to whichever ones you use daily.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {MODULE_GROUPS.map((group) => {
-            const members = OVERVIEW_MODULES.filter((module) => module.group === group.id);
-            if (members.length === 0) return null;
-            return (
-              <ModuleLinkGroup
-                key={group.id}
-                label={group.label}
-                modules={members}
-                projectId={project.id}
-              />
-            );
-          })}
-          <ModuleLinkGroup
-            label="Elsewhere"
-            modules={OVERVIEW_MODULES.filter((module) => module.group === null)}
-            projectId={project.id}
-          />
         </CardContent>
       </Card>
 

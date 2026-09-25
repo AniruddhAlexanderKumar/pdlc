@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, ArrowRight, CheckCircle2, Shield, Zap, FileText, GitPullRequest } from "lucide-react";
+import { Shield, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function UseCaseVisual() {

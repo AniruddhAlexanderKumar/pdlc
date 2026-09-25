@@ -1299,6 +1299,49 @@ and the browser is never told about organizations.
 - **Archived projects** stay listed with visible status, and the UI reflects the
   backend's read-only rule: Edit is disabled, Archive is withdrawn, and a notice
   explains why.
+- **A wrong-shaped response is an error.** `requestJson` throws
+  `ApiError("MALFORMED_RESPONSE")` when a 2xx response lacks the expected key,
+  rather than resolving with `undefined`. The old behaviour let a view believe
+  it had data and then throw while rendering, blanking the page instead of
+  showing its retry state. `key in body` is the test, so a legitimate
+  `{ latest: null }` still arrives as `null`.
+
+## Project progress: "what do I do next?"
+
+The first thing on a project's page, and on each project's dashboard card, is
+the single next step — computed from the project's own rows, not guessed.
+
+The product's lifecycle has four stages, defined once in
+`src/domain/project-progress.ts`: **say what it must do** (requirements
+exist), **decide how you'll check each one** (no requirement lacks a
+`RequirementVerificationLink`), **attach the proof** (no verification
+activity lacks an `EvidenceLink`), and **keep it current** (change requests,
+never "done"). The next step is the first stage that is not done.
+
+- **Read model, not engine.** `project-progress.repository.ts` runs six
+  concurrent `count` queries; "has no check" and "has no proof" are
+  `none: {}` on the link relation, so they mean exactly "not one linking row
+  exists". Obsolete requirements and closed change requests are excluded.
+  `GET /api/projects/:projectId/progress` requires ordinary project read
+  access and 404s otherwise, like any other view of the project.
+- **No aggregate.** There is deliberately no "2 of 4" and no progress bar —
+  a ratio of stages would treat "no requirements yet" and "one check missing
+  proof" as equal quarters of a whole. Each stage reports its own count;
+  `project-progress.test.ts` asserts no ratio or percentage can appear.
+- **One vocabulary.** The dashboard's "How this works", the project page's
+  panel, each dashboard card, and the public site's workflow section all
+  render the stage titles from `progressSteps`, so the explanation and the
+  instruction cannot drift apart. The sidebar's Simplify mode keeps every
+  module in `PROGRESS_MODULES`, so a simplified sidebar never hides the page
+  a next step sends someone to.
+- **Removed alongside it.** An "Express Workflows" top-bar menu, a
+  dashboard "personalized workflow widget" and a second dashboard
+  "3-step workflow" all offered competing sequences, two of them leading to a
+  simulated store integration (`/integrations`, `/api/integrations/amazon`)
+  that reported `CONNECTED` without connecting to anything, answered
+  unauthenticated requests, and returned `success: true` from its own error
+  path. All removed; `src/tests/security/no-fabricated-metrics.test.ts`
+  guards against a connected-integration or compliance claim returning.
 
 ## Project audit behavior
 

@@ -68,12 +68,35 @@ async function performJsonRequest(path: string, init?: RequestInit): Promise<unk
  * Performs a JSON request and unwraps one key of the response envelope.
  * Throws {@link ApiError} for any non-2xx response.
  */
+/**
+ * Reads one named field from a successful response.
+ *
+ * A 2xx response that lacks `key` is a broken contract, not an empty
+ * result, and it is reported as an error. This used to return
+ * `body[key]` unchecked, so a response of the wrong shape resolved as a
+ * *success* carrying `undefined` — and the view, believing it had data,
+ * then threw while rendering. That turned a recoverable problem (show an
+ * error, offer a retry, as every view already does) into a blank page. It
+ * was found when a new panel's request was answered with another
+ * endpoint's shape and took the whole project page down with it.
+ *
+ * `key in body` rather than `=== undefined`: several endpoints
+ * legitimately answer `{ latest: null }` to mean "nothing assessed yet",
+ * and that must still arrive as `null`.
+ */
 export async function requestJson<T>(
   path: string,
   key: string,
   init?: RequestInit,
 ): Promise<T> {
   const body = await performJsonRequest(path, init);
+  if (body === null || typeof body !== "object" || !(key in body)) {
+    throw new ApiError(
+      `The server's response to ${path} did not include "${key}".`,
+      502,
+      "MALFORMED_RESPONSE",
+    );
+  }
   return (body as Record<string, T>)[key] as T;
 }
 

@@ -16,7 +16,6 @@ import {
   Star,
   Sun,
   Wand2,
-  Zap,
 } from "lucide-react";
 import { useUserPersonalization, LANDING_MODULE_OPTIONS } from "@/lib/use-user-personalization";
 import type { Density } from "@/components/data-grid/data-grid-types";
@@ -433,17 +432,17 @@ function WorkflowExperienceSettingsCard() {
 }
 
 function PersonalizedLandingCard() {
-  const { landingModule, setLandingModule, showExpressBar, setShowExpressBar } = useUserPersonalization();
+  const { landingModule, setLandingModule } = useUserPersonalization();
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Home className="size-4 text-primary" aria-hidden="true" />
-          Default Start Page & Quick Workflows
+          Where &ldquo;Open project&rdquo; takes you
         </CardTitle>
         <CardDescription>
-          Choose which engineering module opens when you select a project workspace, and configure top-bar shortcut visibility.
+          Choose the page that opens when you open a project from the dashboard.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -477,26 +476,6 @@ function PersonalizedLandingCard() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-lg border border-border p-3.5 bg-muted/20">
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
-              <Zap className="size-3.5 text-primary" />
-              Express Workflows Toolbar
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Show a 1-click action launcher button in the top navigation bar.
-            </span>
-          </div>
-          <label className="relative inline-flex cursor-pointer items-center shrink-0">
-            <input
-              type="checkbox"
-              checked={showExpressBar}
-              onChange={(e) => setShowExpressBar(e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-          </label>
-        </div>
       </CardContent>
     </Card>
   );

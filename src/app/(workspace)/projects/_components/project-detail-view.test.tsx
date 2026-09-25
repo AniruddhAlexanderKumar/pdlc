@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { nextProgressStep, progressSteps } from "@/domain/project-progress";
 import { ProjectDetailView } from "./project-detail-view";
 
 const PROJECT = {
@@ -65,7 +66,31 @@ function sentinelCountsResponse(counts: { open: number; acknowledged: number } =
 }
 
 /**
- * Answers the project endpoint with `project`, and the gate/sentinel
+ * The page also opens with the "next step" panel, which reads the project's
+ * real progress counts. These tests are about the project record, so it is
+ * answered with an empty project — whose next step is to write the first
+ * requirement — unless a test overrides it.
+ */
+function isProgressCall(url: unknown): boolean {
+  return String(url).endsWith("/progress");
+}
+
+function progressResponse(): Response {
+  const counts = {
+    stakeholderNeeds: 0,
+    requirements: 0,
+    requirementsWithoutCheck: 0,
+    verificationActivities: 0,
+    checksWithoutProof: 0,
+    openChanges: 0,
+  };
+  return response(200, {
+    progress: { counts, steps: progressSteps(counts), next: nextProgressStep(counts) },
+  });
+}
+
+/**
+ * Answers the project endpoint with `project`, and the gate/sentinel/progress
  * endpoints with their own shapes. Mirrors `mockResolvedValue` for the
  * project call so the existing expectations about repeated reads still hold.
  */
@@ -73,6 +98,7 @@ function routeProject(project: unknown) {
   fetchMock.mockImplementation(async (url: unknown) => {
     if (isReadinessCall(url)) return readinessResponse(url);
     if (isSentinelCountsCall(url)) return sentinelCountsResponse();
+    if (isProgressCall(url)) return progressResponse();
     return response(200, { project });
   });
 }
@@ -86,6 +112,7 @@ function routeProjectWithMutation(
   fetchMock.mockImplementation(async (url: unknown, init?: RequestInit) => {
     if (isReadinessCall(url)) return readinessResponse(url);
     if (isSentinelCountsCall(url)) return sentinelCountsResponse();
+    if (isProgressCall(url)) return progressResponse();
     if (init?.method === method) return response(200, { project: mutated });
     return response(200, { project });
   });
@@ -229,6 +256,7 @@ describe("ProjectDetailView", () => {
     fetchMock.mockImplementation(async (url: unknown) => {
       if (isReadinessCall(url)) return readinessResponse(url);
       if (isSentinelCountsCall(url)) return sentinelCountsResponse({ open: 3, acknowledged: 1 });
+      if (isProgressCall(url)) return progressResponse();
       return response(200, { project: PROJECT });
     });
 

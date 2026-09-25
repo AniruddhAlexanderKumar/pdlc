@@ -2,20 +2,14 @@
 
 import * as React from "react";
 import {
-  AlertTriangle,
   ArrowRight,
-  CheckCircle2,
-  Clock,
   FileCheck,
   FileText,
-  GitCommit,
   HelpCircle,
   Layers,
   RefreshCw,
   Scale,
-  ShieldAlert,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";

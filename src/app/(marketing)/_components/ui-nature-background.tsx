@@ -31,8 +31,8 @@ export function UINatureBackground() {
     const animationFrame = requestAnimationFrame(() => {
       setNodes((prevNodes) =>
         prevNodes.map((n) => {
-          let newX = n.x + n.vx;
-          let newY = n.y + n.vy;
+          const newX = n.x + n.vx;
+          const newY = n.y + n.vy;
 
           let newVx = n.vx;
           let newVy = n.vy;

@@ -11,11 +11,10 @@ import {
   Zap,
   Play,
   Pause,
-  ArrowRight,
   Sparkles,
   Activity,
   Layers,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -186,7 +185,7 @@ export function HeroSystemAnimation() {
             SYSTEM GRAPH ENGINE
           </div>
           <span className="hidden font-mono text-xs text-zinc-400 tracking-wider sm:inline">
-            // STEP {currentStep} OF 4
+            {"// "}STEP {currentStep} OF 4
           </span>
         </div>
 

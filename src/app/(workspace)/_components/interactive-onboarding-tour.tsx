@@ -118,28 +118,31 @@ export function InteractiveOnboardingTour() {
   const [currentStep, setCurrentStep] = React.useState(0);
 
   /**
-   * Whether the tour shows is derived, not stored.
+   * Whether the tour shows is derived, not stored: "this reader has never
+   * closed it", plus "something asked for it" (the Help menu's "Replay the
+   * tour").
    *
-   * "Open on first sign-in" was an effect calling `setIsOpen(true)` when the
-   * stored flag was unset — a second render on every mount, and the
-   * set-state-in-effect the React Compiler rejects. But being open is not
-   * independent state: it is "has never finished it and hasn't waved it
-   * away", plus "something asked for it". Written that way the rule reads in
-   * one line, and there is no moment where the two can disagree.
-   *
-   * `dismissed` is per-mount on purpose: closing the tour without finishing
-   * is not the same as having done it, so it returns next sign-in. Only
-   * Finish writes the durable flag.
+   * **Every way of closing it counts.** An earlier version treated only
+   * Finish and Skip as durable, and remembered ✕ / Escape / clicking outside
+   * in component memory alone — described as "returns next sign-in". In
+   * practice a reload remounts the component, so a reader who closed the
+   * tour met it again on every refresh and every new tab, and could not tell
+   * which of the four ways of closing it would make it stay closed. Found by
+   * walking the product as a newcomer: closed on the dashboard, reopened on
+   * the next page. Replaying is one click away in Help, and the tour's last
+   * step says so, so closing need not be a decision anyone has to get right.
    */
-  const [dismissed, setDismissed] = React.useState(false);
   const [requested, setRequested] = React.useState(false);
 
-  const isOpen = requested || (!completed && !dismissed);
+  const isOpen = requested || !completed;
 
-  const setIsOpen = React.useCallback((next: boolean) => {
-    setRequested(next);
-    if (!next) setDismissed(true);
-  }, []);
+  const setIsOpen = React.useCallback(
+    (next: boolean) => {
+      setRequested(next);
+      if (!next) setCompleted(true);
+    },
+    [setCompleted],
+  );
 
   // Listen for manual trigger events from TopBar or Help page
   React.useEffect(() => {

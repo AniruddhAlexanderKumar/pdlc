@@ -1,109 +1,119 @@
 "use client";
 
-import React from "react";
+import * as React from "react";
 
 export const DEFAULT_LANDING_KEY = "pdlc:default-landing-module";
-export const EXPRESS_BAR_VISIBLE_KEY = "pdlc:express-bar-visible";
-export const FOCUS_MODE_KEY = "pdlc:focus-mode";
-
-export type FocusModeOption = "standard" | "compact" | "focus";
 
 export interface DefaultLandingOption {
+  /** Path under `/projects/:id`, or "" for the project's own page. */
   value: string;
   label: string;
   description: string;
 }
 
+/**
+ * Where "Open project" takes you. The one personal setting on this page
+ * that changes what happens elsewhere in the product.
+ */
 export const LANDING_MODULE_OPTIONS: ReadonlyArray<DefaultLandingOption> = [
+  {
+    value: "",
+    label: "Project page",
+    description: "The project's own page, which starts with the next thing to do. Best if you're new.",
+  },
   {
     value: "/command-center",
     label: "Command Center",
-    description: "Overview of attention items, baseline status, and active surveillance alerts (Default).",
+    description: "Everything that needs attention in the project, drawn from each engine that produced it.",
   },
   {
     value: "/requirements",
-    label: "Requirements Registry",
-    description: "Direct entry into requirements, quality health scores, and specification drafts.",
+    label: "Requirements",
+    description: "Straight into the list of things the product must do.",
   },
   {
     value: "/decisions",
-    label: "Decisions & Trade Studies",
-    description: "Focus on active engineering decisions, alternatives, and trade-off rationales.",
+    label: "Decisions",
+    description: "Engineering decisions, the alternatives considered, and why one was chosen.",
   },
   {
     value: "/sentinel",
-    label: "Decision Sentinel",
-    description: "Continuous surveillance alerts for broken assumptions and unverified changes.",
+    label: "Sentinel",
+    description: "Analyses a recent change has called into question.",
   },
   {
     value: "/traceability",
-    label: "Traceability Explorer",
-    description: "Graph view connecting requirements, design items, verification, and risks.",
-  },
-  {
-    value: "",
-    label: "Project Overview",
-    description: "High-level summary grid of all active engineering modules and team activity.",
+    label: "Traceability",
+    description: "How requirements, design, checks and risks connect to each other.",
   },
 ];
 
-export function useUserPersonalization() {
-  const [showExpressBarRaw, setShowExpressBarRaw] = React.useState<boolean>(true);
-  const [focusModeRaw, setFocusModeRaw] = React.useState<FocusModeOption>("standard");
-  const [landingModuleRaw, setLandingModuleRaw] = React.useState<string>("/command-center");
+/** New readers land on the project page, where the next step is spelled out. */
+const DEFAULT_LANDING = "";
 
-  React.useEffect(() => {
-    try {
-      const storedExpress = localStorage.getItem(EXPRESS_BAR_VISIBLE_KEY);
-      if (storedExpress !== null) {
-        setShowExpressBarRaw(storedExpress !== "false");
-      }
-      const storedLanding = localStorage.getItem(DEFAULT_LANDING_KEY);
-      if (storedLanding !== null) {
-        setLandingModuleRaw(storedLanding);
-      }
-      const storedFocus = localStorage.getItem(FOCUS_MODE_KEY) as FocusModeOption | null;
-      if (storedFocus && ["standard", "compact", "focus"].includes(storedFocus)) {
-        setFocusModeRaw(storedFocus);
-      }
-    } catch {
-      // Ignore SSR / restricted storage access errors
+const CHANGE_EVENT = `pdlc:local-string-changed:${DEFAULT_LANDING_KEY}`;
+
+/**
+ * Only a value that is one of the offered options is honoured. Anything else
+ * in storage — an option since removed, or a hand-edited value — falls back
+ * to the default rather than becoming a path the app navigates to.
+ */
+function readLanding(): string {
+  try {
+    const stored = window.localStorage.getItem(DEFAULT_LANDING_KEY);
+    if (stored !== null && LANDING_MODULE_OPTIONS.some((option) => option.value === stored)) {
+      return stored;
     }
+  } catch {
+    // Storage unavailable (private browsing, blocked): use the default.
+  }
+  return DEFAULT_LANDING;
+}
+
+function subscribe(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(CHANGE_EVENT, onChange);
+  };
+}
+
+/**
+ * Personal preferences that change behaviour elsewhere.
+ *
+ * This used to hold three settings and load them with a `useEffect` that
+ * called `setState` after mount — a second render on every page, and the
+ * pattern `use-stored-flag.ts` itself documents as the one to avoid. Two of
+ * the three did nothing:
+ *
+ * - `focusMode` ("standard" / "compact" / "focus") was stored and exposed,
+ *   and read by nothing anywhere in the product.
+ * - `showExpressBar` controlled a numbered "Express Workflows" menu in the
+ *   top bar whose second step linked to a simulated store integration, and
+ *   whose five links all led to the same page when no project was open.
+ *   That menu is gone; the project page's next-step panel does its job
+ *   from real data.
+ *
+ * What is left is read through `useSyncExternalStore`, so the server and
+ * the first client render agree and there is no post-mount correction.
+ * A string snapshot compares by value, so no caching is needed.
+ *
+ * The stored format is unchanged — a plain path string — so anyone who had
+ * already chosen a landing page keeps their choice.
+ */
+export function useUserPersonalization() {
+  const landingModule = React.useSyncExternalStore(subscribe, readLanding, () => DEFAULT_LANDING);
+
+  const setLandingModule = React.useCallback((href: string) => {
+    try {
+      window.localStorage.setItem(DEFAULT_LANDING_KEY, href);
+    } catch {
+      // Not remembered across visits, but the event below still updates
+      // every reader for the rest of this session.
+    }
+    window.dispatchEvent(new Event(CHANGE_EVENT));
   }, []);
 
-  const setShowExpressBar = (visible: boolean) => {
-    setShowExpressBarRaw(visible);
-    try {
-      localStorage.setItem(EXPRESS_BAR_VISIBLE_KEY, visible ? "true" : "false");
-    } catch {
-      // Ignore
-    }
-  };
-
-  const setLandingModule = (href: string) => {
-    setLandingModuleRaw(href);
-    try {
-      localStorage.setItem(DEFAULT_LANDING_KEY, href);
-    } catch {
-      // Ignore
-    }
-  };
-
-  const setFocusMode = (mode: FocusModeOption) => {
-    setFocusModeRaw(mode);
-    try {
-      localStorage.setItem(FOCUS_MODE_KEY, mode);
-    } catch {
-      // Ignore
-    }
-  };
-
-  return {
-    showExpressBar: showExpressBarRaw,
-    setShowExpressBar,
-    landingModule: landingModuleRaw,
-    setLandingModule,
-    focusMode: focusModeRaw,
-    setFocusMode,
-  };
+  return { landingModule, setLandingModule };
 }

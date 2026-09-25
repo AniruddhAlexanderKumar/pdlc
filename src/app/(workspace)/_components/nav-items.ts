@@ -9,7 +9,6 @@ import {
   Scale,
   ShieldAlert,
   ShieldCheck,
-  Store,
   Waypoints,
 } from "lucide-react";
 
@@ -29,7 +28,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Decisions", href: "/decisions", icon: Scale, labelKey: "decision" },
   { label: "Changes", href: "/changes", icon: GitBranch, labelKey: "changeRequest" },
   { label: "Suppliers", href: "/suppliers", icon: Factory, labelKey: "supplier" },
-  { label: "Integrations", href: "/integrations", icon: Store },
   { label: "Traceability", href: "/traceability", icon: Waypoints },
   { label: "Verification", href: "/verification", icon: ShieldCheck, labelKey: "verificationActivity" },
   { label: "Risks", href: "/risks", icon: ShieldAlert, labelKey: "risk" },
