@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256Hex } from "./sha256";
 import { z } from "zod";
 import type { AssumptionMonitoringStatus } from "./assumption-monitoring";
 import type { GraphEdgeType, GraphNodeType } from "./graph";
@@ -810,7 +810,7 @@ export interface VerificationReadinessBasis {
 // --- Fingerprint ------------------------------------------------------------
 
 function digest(parts: readonly string[]): string {
-  return createHash("sha256").update([...parts].sort().join("\n")).digest("hex");
+  return sha256Hex([...parts].sort().join("\n"));
 }
 
 /**

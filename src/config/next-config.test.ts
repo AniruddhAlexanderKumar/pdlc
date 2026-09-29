@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import nextConfig from "../../next.config";
 
 /**
@@ -31,6 +31,30 @@ describe("next.config security headers", () => {
 
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("default-src 'self'");
+  });
+
+  /**
+   * Development needs `'unsafe-eval'` for webpack's eval-wrapped modules;
+   * production must never have it. The config reads NODE_ENV once, when it
+   * is loaded, so each case loads a fresh copy under its own NODE_ENV.
+   */
+  it("never allows eval outside development, and allows it only in development", async () => {
+    const cspUnder = async (nodeEnv: string) => {
+      vi.resetModules();
+      vi.stubEnv("NODE_ENV", nodeEnv);
+      const { default: config } = await import("../../next.config");
+      const rules = await config.headers?.();
+      return rules?.[0]?.headers.find((h) => h.key === "Content-Security-Policy")?.value ?? "";
+    };
+
+    try {
+      expect(await cspUnder("production")).not.toContain("unsafe-eval");
+      expect(await cspUnder("test")).not.toContain("unsafe-eval");
+      expect(await cspUnder("development")).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'");
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
   });
 
   it("outputs a standalone server build for the production container", () => {

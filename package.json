@@ -3,14 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Aerospace Product Development Life Cycle (PDLC) platform — foundation shell.",
+  "description": "Product Development Life Cycle (PDLC) platform for regulated and complex engineering, in any industry.",
   "engines": {
     "node": ">=20.9.0"
   },
   "scripts": {
     "postinstall": "prisma generate",
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

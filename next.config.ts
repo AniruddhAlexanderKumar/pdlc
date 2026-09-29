@@ -18,10 +18,19 @@ import type { NextConfig } from "next";
  * `frame-ancestors 'none'` is the CSP-native clickjacking defense;
  * `X-Frame-Options: DENY` sits alongside it for the handful of older clients
  * that only understand the legacy header.
+ *
+ * `'unsafe-eval'` is added in development only, exactly as Next's own CSP
+ * guide prescribes (node_modules/next/dist/docs/.../content-security-policy.md):
+ * webpack's dev build wraps every module in `eval()`, so without it the
+ * browser refuses to run any of the app's JavaScript and nothing hydrates.
+ * Neither React nor Next uses `eval` in a production build, so the
+ * production policy — the one users get — never includes it.
  */
+const IS_DEVELOPMENT = process.env.NODE_ENV === "development";
+
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${IS_DEVELOPMENT ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
@@ -47,26 +56,13 @@ const nextConfig: NextConfig = {
   // production build — but it sat on top of real UI (the workspace's own
   // bottom-left corner) and read as part of the product rather than
   // tooling. Turned off so what a developer sees locally matches what a
-  // user sees in production.
+  // user sees in production. (Next's separate error indicator can't be
+  // turned off by design; it only appears when there is a real compile or
+  // runtime error to show.)
   devIndicators: false,
-  // `devIndicators: false` above only hides the suppressible route badge;
-  // Next's separate compile/runtime error indicator cannot be turned off by
-  // design (it must always be able to surface a real error), and it was
-  // showing 5 harmless "Node.js API/module ... not supported in the Edge
-  // Runtime" warnings from two files. Both are false positives, not real
-  // bugs: `instrumentation.ts` guards its Node-only code behind a
-  // `NEXT_RUNTIME` check (see that file's own doc comment) that Turbopack's
-  // static Edge-compatibility walk doesn't account for, and
-  // `generated/prisma/client.ts` is Prisma's own generated output, never
-  // imported from Edge code in this app. Fixing the root cause rather than
-  // the code shape: this targets exactly those two files, so a real new
-  // warning anywhere else still surfaces normally.
-  turbopack: {
-    ignoreIssue: [
-      { path: "**/src/instrumentation.ts", title: /Node\.js API is used/ },
-      { path: "**/src/generated/prisma/client.ts", title: /Node\.js module is loaded/ },
-    ],
-  },
+  // No `turbopack` block: this app builds with webpack (`--webpack` on
+  // `next dev` and `next build` in package.json), not Next 16's default
+  // Turbopack.
   // Native Node addon (Argon2) — must be required at runtime by the server,
   // not bundled. It is never reachable from client or edge code.
   serverExternalPackages: ["@node-rs/argon2"],

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256Hex } from "./sha256";
 import { z } from "zod";
 import type { GraphNodeType } from "./graph";
 import { artifactIdentifierSchema, entityIdSchema } from "./shared/identifier";
@@ -1095,9 +1095,9 @@ export interface CertificationReviewBasis {
 }
 
 function digest(parts: readonly string[]): string {
-  const hash = createHash("sha256");
-  for (const part of parts) hash.update(part).update("\n");
-  return hash.digest("hex");
+  // Each part followed by "\n" — the same bytes the earlier incremental
+  // `hash.update(part).update("\n")` fed in, so stored digests still match.
+  return sha256Hex(parts.map((part) => `${part}\n`).join(""));
 }
 
 /**

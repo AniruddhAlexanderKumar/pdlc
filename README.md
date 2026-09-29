@@ -40,6 +40,10 @@ npm run build
 `prisma generate` is required before the first typecheck or build because the
 generated client is not committed.
 
+`npm run dev` and `npm run build` use **webpack** (`next dev --webpack`,
+`next build --webpack`), not Next 16's default Turbopack — run them through
+npm rather than calling `next dev` directly, or you will get Turbopack.
+
 ## Running PostgreSQL locally (Docker — the supported path)
 
 Docker is not required to edit the code, but it is the supported way to

@@ -27,45 +27,18 @@
  *    behavior does not do is close the Prisma connection pool cleanly, so
  *    this adds exactly that, logged, before the process exits.
  *
- * The `NEXT_RUNTIME` check plus dynamic `import()` below is Next.js's own
- * documented pattern for keeping Node-only code out of the Edge build of
- * this file. Turbopack's build output still prints "Node.js API/module ...
- * not supported in the Edge Runtime" warnings for the modules reached this
- * way (Prisma, `process.on`) — a known, harmless over-eager diagnostic: it
- * still statically walks a dynamic import's target for this warning even
- * though the `if` above means that code never actually runs under
- * `NEXT_RUNTIME !== "nodejs"`. The build succeeds; nothing here is broken.
+ * The Node-only body lives in `instrumentation-node.ts`, imported inside an
+ * `if (NEXT_RUNTIME === "nodejs")` block — Next's own documented pattern
+ * (node_modules/next/dist/docs/.../guides/instrumentation.md). Webpack
+ * inlines `process.env.NEXT_RUNTIME` per build, so in the Edge build that
+ * branch is a constant `false` and the import is never followed. An earlier
+ * early-`return` guard with the imports after it did not get that
+ * treatment: webpack followed them into Prisma and `pg` for the Edge build
+ * and failed on `fs`.
  */
 export async function register(): Promise<void> {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-
-  const { env } = await import("@/config/env");
-  const { logger } = await import("@/lib/logger");
-  const { prisma } = await import("@/lib/db");
-
-  const log = logger.child({ module: "startup" });
-  log.info("Application starting", {
-    nodeEnv: env.NODE_ENV,
-    logLevel: env.LOG_LEVEL,
-    sessionTtlDays: env.SESSION_TTL_DAYS,
-  });
-
-  let shuttingDown = false;
-
-  async function shutdown(signal: string): Promise<void> {
-    if (shuttingDown) return;
-    shuttingDown = true;
-
-    log.info("Shutting down", { signal });
-    try {
-      await prisma.$disconnect();
-      log.info("Database connections closed");
-    } catch (error) {
-      log.error("Error while closing database connections", { err: error });
-    }
-    process.exit(0);
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { registerNode } = await import("./instrumentation-node");
+    registerNode();
   }
-
-  process.on("SIGTERM", () => void shutdown("SIGTERM"));
-  process.on("SIGINT", () => void shutdown("SIGINT"));
 }

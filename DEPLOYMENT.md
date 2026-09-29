@@ -120,7 +120,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 npm ci
 npx prisma generate
 npx prisma migrate deploy
-npm run build
+npm run build          # next build --webpack — this app builds with webpack, not Turbopack
 npm run start          # next start — binds :3000 by default
 ```
 

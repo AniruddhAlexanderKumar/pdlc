@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256Hex } from "./sha256";
 import { z } from "zod";
 import { type AssumptionStatus, assumptionStatusSchema } from "./decision-memory";
 import { GRAPH_EDGE_TYPES, type GraphEdgeType, type GraphNodeType } from "./graph";
@@ -327,7 +327,7 @@ export interface AssumptionBasis {
 // --- Fingerprints -----------------------------------------------------------
 
 function digest(parts: readonly string[]): string {
-  return createHash("sha256").update([...parts].sort().join("\n")).digest("hex");
+  return sha256Hex([...parts].sort().join("\n"));
 }
 
 function stampOf(object: BasisObject): string {

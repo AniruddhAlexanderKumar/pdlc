@@ -264,6 +264,13 @@ through, and Radix UI (a real dependency) sets inline `style` attributes
 for portalled positioning. Every other directive is as strict as the
 application allows, including `frame-ancestors 'none'` for clickjacking.
 
+In development only (`next dev`, `NODE_ENV=development`), `script-src` also
+allows `'unsafe-eval'`: the app builds with webpack, whose dev build wraps
+each module in `eval()`, and without it no client JavaScript runs at all.
+This follows Next.js's own CSP guidance. A production build never uses
+`eval` and its policy never includes `'unsafe-eval'` —
+`src/config/next-config.test.ts` checks both.
+
 ## Evidence storage limitation
 
 Stated here because a security document is exactly where this gets assumed

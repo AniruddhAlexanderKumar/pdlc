@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256Hex } from "./sha256";
 import { z } from "zod";
 import {
   GRAPH_NODE_TYPES,
@@ -1064,7 +1064,7 @@ export function compareDriftFindings(
 // --- Fingerprint ------------------------------------------------------------
 
 function digest(parts: readonly string[]): string {
-  return createHash("sha256").update([...parts].sort().join("\n")).digest("hex");
+  return sha256Hex([...parts].sort().join("\n"));
 }
 
 /**
@@ -1113,7 +1113,7 @@ export function objectFingerprint(fields: Readonly<Record<string, string | null>
   const parts = Object.entries(fields)
     .map(([key, value]) => `${key}=${value ?? "-"}`)
     .sort();
-  return createHash("sha256").update(parts.join("\n")).digest("hex");
+  return sha256Hex(parts.join("\n"));
 }
 
 /**
