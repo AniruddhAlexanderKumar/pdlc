@@ -11,7 +11,7 @@ export default function HelpPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Help"
-        description="Start with the task you're trying to finish. The ideas behind the product are further down, for when you want them."
+        description="Start with the task you're trying to finish. The ideas behind the product, and a live look at the real engine, are one tab over."
       />
       <HelpView />
     </div>

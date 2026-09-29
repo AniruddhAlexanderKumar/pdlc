@@ -157,6 +157,13 @@ on the right tab — the `{choice, under}` pattern compares the current
 so a fresh link always wins but a reader's own click is never silently
 overridden until a *new* link arrives.
 
+`(workspace)/help` (`HelpView`) got the same tab treatment for the same
+reason: task guides, product concepts, the live domain explorers, and the
+FAQ used to be one long scroll competing for the same page in the same
+order. Four tabs — Get started, How it works, Try it live, FAQ — with Get
+started (task-first, per `TaskGuides`) as the default, since that is what
+most visits are actually for.
+
 ## Relationship strategy
 
 Traceability lives in explicit relationship tables, so every edge is queryable

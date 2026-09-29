@@ -7,56 +7,24 @@ import { HelpView } from "./help-view";
  * The three embedded explorers (EdgeRegistryExplorer, LifecycleExplorer,
  * TraversalLimitsSimulator) already have their own dedicated test suites
  * in `src/components/domain-explorers/` — these tests only cover that this
- * page actually renders them and that its own new interactive content (the
- * FAQ accordion) genuinely expands and collapses, not their internal
- * correctness a second time.
+ * page actually renders them (inside the "Try it live" tab) and that its
+ * own new interactive content (tabs, the FAQ accordion) genuinely works,
+ * not their internal correctness a second time.
  */
 describe("HelpView", () => {
-  it("renders the real graph explorer, live", () => {
+  it("opens on Get started, with common tasks — not the concepts — as the default view", () => {
     render(<HelpView />);
-    expect(screen.getByLabelText(/choose a node type/i)).toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Common tasks" })).toBeInTheDocument();
+    // "What this is" is philosophy, one tab over — useful, but not what
+    // someone stuck on a task opened this page for.
+    expect(screen.queryByRole("heading", { name: "What this is" })).not.toBeInTheDocument();
   });
 
-  it("renders the lifecycle explorer, live", () => {
-    render(<HelpView />);
-    expect(screen.getByLabelText(/choose an artifact type/i)).toBeInTheDocument();
-  });
-
-  it("renders the traversal limits simulator, live", () => {
-    render(<HelpView />);
-    expect(screen.getByText("Request accepted")).toBeInTheDocument();
-  });
-
-  it("lists keyboard shortcuts, including the command palette", () => {
+  it("lists keyboard shortcuts, including the command palette, on the default tab", () => {
     render(<HelpView />);
     expect(screen.getByText("Ctrl K")).toBeInTheDocument();
     expect(screen.getByText(/jump-to command palette/i)).toBeInTheDocument();
-  });
-
-  it("the FAQ accordion starts collapsed and expands a question on click", async () => {
-    const user = userEvent.setup();
-    render(<HelpView />);
-
-    const question = "What's the difference between \"Simplify\" and removing a module?";
-    expect(screen.queryByText(/only way an occasional module/i)).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: question }));
-
-    expect(screen.getByText(/only way an occasional module/i)).toBeInTheDocument();
-  });
-
-  it("keeps the honest static content this page has always made", () => {
-    render(<HelpView />);
-    expect(screen.getByText(/Invent a severity score/)).toBeInTheDocument();
-  });
-
-  it("leads with common tasks, not with the concepts", () => {
-    render(<HelpView />);
-    const headings = screen.getAllByRole("heading").map((h) => h.textContent);
-    expect(headings[0]).toBe("Common tasks");
-    // "What this is" is philosophy — useful, but not what someone stuck
-    // on a task opened this page for.
-    expect(headings.indexOf("Common tasks")).toBeLessThan(headings.indexOf("What this is"));
   });
 
   it("a task guide expands into real, ordered steps", async () => {
@@ -86,5 +54,47 @@ describe("HelpView", () => {
     await user.click(screen.getByRole("button", { name: /my question isn't here/i }));
 
     expect(screen.getByRole("link", { name: /public documentation/i })).toHaveAttribute("href", "/docs");
+  });
+
+  it("How it works keeps the honest static content this page has always made", async () => {
+    const user = userEvent.setup();
+    render(<HelpView />);
+
+    await user.click(screen.getByRole("tab", { name: "How it works" }));
+
+    expect(screen.getByText(/Invent a severity score/)).toBeInTheDocument();
+  });
+
+  it("How it works describes the product without naming one industry exclusively", async () => {
+    const user = userEvent.setup();
+    render(<HelpView />);
+
+    await user.click(screen.getByRole("tab", { name: "How it works" }));
+
+    expect(screen.getByText(/regulated and complex engineering/i)).toBeInTheDocument();
+  });
+
+  it("Try it live renders the real graph explorer, lifecycle explorer, and traversal simulator, live", async () => {
+    const user = userEvent.setup();
+    render(<HelpView />);
+
+    await user.click(screen.getByRole("tab", { name: "Try it live" }));
+
+    expect(screen.getByLabelText(/choose a node type/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/choose an artifact type/i)).toBeInTheDocument();
+    expect(screen.getByText("Request accepted")).toBeInTheDocument();
+  });
+
+  it("the FAQ accordion starts collapsed and expands a question on click", async () => {
+    const user = userEvent.setup();
+    render(<HelpView />);
+
+    await user.click(screen.getByRole("tab", { name: "FAQ" }));
+    const question = "What's the difference between \"Simplify\" and removing a module?";
+    expect(screen.queryByText(/only way an occasional module/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: question }));
+
+    expect(screen.getByText(/only way an occasional module/i)).toBeInTheDocument();
   });
 });
