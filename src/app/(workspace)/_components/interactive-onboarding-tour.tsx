@@ -27,12 +27,12 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     title: "Welcome to PDLC Platform",
-    subtitle: "Aerospace Product Development Life Cycle Engine",
+    subtitle: "Product Development Life Cycle Engine",
     icon: <ShieldCheck className="size-8 text-primary" />,
     content: (
       <div className="flex flex-col gap-3 text-sm text-muted-foreground">
         <p>
-          PDLC Platform connects your entire aerospace engineering lifecycle — from stakeholder needs down to evidence and flight readiness — on a <strong className="text-foreground">connected engineering graph</strong>.
+          PDLC Platform connects your entire engineering lifecycle — from stakeholder needs down to evidence and release readiness — on a <strong className="text-foreground">connected engineering graph</strong>. Set your engineering industry once (Organization → Engineering industry) and this workspace speaks its vocabulary everywhere.
         </p>
         <div className="rounded-md border border-border bg-secondary/50 p-3 text-xs leading-relaxed text-foreground">
           <strong>Deterministic Guarantee:</strong> Every finding is an explicit graph path. No fake severity scores, no magic percentages, and no invented metrics.

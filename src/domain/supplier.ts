@@ -20,7 +20,7 @@ import { artifactIdentifierSchema, entityIdSchema } from "./shared/identifier";
  * contract, delivery, price, inventory level, vendor score or supplier health
  * rating anywhere in this module, and there will not be — those belong to a
  * procurement system, and modelling them here would turn an engineering
- * capability into a CRM with an aerospace vocabulary.
+ * capability into a CRM with an engineering-industry vocabulary.
  *
  * What this exists for is one question:
  *

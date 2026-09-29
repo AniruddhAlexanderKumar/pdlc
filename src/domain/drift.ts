@@ -20,7 +20,7 @@ import { artifactIdentifierSchema, entityIdSchema } from "./shared/identifier";
  * > *Where does the operational state that has since been recorded no longer
  * > match the engineering basis that was approved?*
  *
- * Aerospace systems drift without anyone changing the baseline. The actual
+ * Engineered systems drift without anyone changing the baseline. The actual
  * operating temperature stops matching the design assumption; a supplier's
  * process moves without an engineering change; the field configuration diverges
  * from the approved design. Nothing in the record is *wrong* — each individual

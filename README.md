@@ -1,6 +1,8 @@
 # PDLC Platform
 
-Aerospace Product Development Life Cycle platform. Modular monolith:
+Product Development Life Cycle platform for regulated and complex
+engineering across any industry — aerospace, automotive, medical devices,
+energy, and more. Modular monolith:
 Next.js (App Router) · TypeScript · Tailwind · Prisma · **PostgreSQL** ·
 self-hosted authentication.
 

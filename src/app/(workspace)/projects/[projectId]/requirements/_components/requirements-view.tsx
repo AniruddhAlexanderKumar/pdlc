@@ -231,7 +231,7 @@ export function RequirementsView({ projectId }: { projectId: string }) {
               string literal in the component, identical for every project
               in every organization, computed from nothing. This product
               refuses percentages and ratings precisely so that a number on
-              screen can be trusted; a fabricated one in an aerospace
+              screen can be trusted; a fabricated one in an engineering
               traceability tool is worse than a missing feature, because
               "92% complete" is a thing an engineer might act on.
 

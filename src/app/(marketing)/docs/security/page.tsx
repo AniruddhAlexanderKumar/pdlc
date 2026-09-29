@@ -70,10 +70,11 @@ export default function SecurityDocsPage() {
         <h2>Certifications</h2>
         <p>
           <Badge variant="outline">No certification held</Badge> This codebase holds no compliance
-          certification and claims none. Aerospace-domain terminology in this product — certification basis,
+          certification and claims none. Industry-specific terminology in this product — certification basis,
           compliance items, traceability — describes what the product helps an operator track about{" "}
-          <em>their own</em> certification process. It is not a claim that this software has itself been
-          certified against DO-178C, AS9100, SOC 2, ISO 27001, or any other standard.
+          <em>their own</em> certification process, in whichever engineering industry they operate in. It is
+          not a claim that this software has itself been certified against DO-178C, AS9100, ISO 26262,
+          SOC 2, ISO 27001, or any other standard.
         </p>
       </section>
 

@@ -141,7 +141,7 @@ export function StepByStepGuideModal() {
                     </Badge>
                   </div>
                   <DialogDescription className="text-xs text-muted-foreground">
-                    Interactive walkthroughs for aerospace requirements, change impact simulation, and compliance.
+                    Interactive walkthroughs for requirements, change impact simulation, and compliance tracking.
                   </DialogDescription>
                 </div>
               </div>

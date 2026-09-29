@@ -318,11 +318,12 @@ responsibility this codebase does not and cannot discharge for you.
 - **CSP requires `'unsafe-inline'`** for two directives — see "Security
   headers" above.
 - **This codebase holds no compliance certification and claims none.**
-  Aerospace-domain terminology in this product (certification basis,
+  Industry-specific terminology in this product (certification basis,
   compliance items, traceability) describes what the *product* helps an
-  operator track about *their own* certification process — it is not a
-  claim that this software itself has been certified against any standard
-  (DO-178C, AS9100, SOC 2, ISO 27001, or otherwise).
+  operator track about *their own* certification process, in whichever
+  engineering industry they operate in — it is not a claim that this
+  software itself has been certified against any standard (DO-178C,
+  AS9100, ISO 26262, SOC 2, ISO 27001, or otherwise).
 - **Organization terminology overrides are display-only, and only cover
   primary navigation and each module's own page title** — not every string
   in the product. An organization that renames "Risk" to "Hazard" will

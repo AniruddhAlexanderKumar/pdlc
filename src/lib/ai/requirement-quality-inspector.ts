@@ -39,7 +39,7 @@ export function inspectRequirementQuality(
       title: "Subjective or Imprecise Language Detected",
       description: `Statement uses non-verifiable subjective term(s): "${foundSubjective.join(
         '", "'
-      )}". Aerospace requirements must use objective, quantifiable targets.`,
+      )}". Requirements must use objective, quantifiable targets.`,
       flawedSnippet: foundSubjective.join(", "),
     });
   }

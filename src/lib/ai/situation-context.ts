@@ -178,7 +178,7 @@ export function extractSituationContext(
     primaryDomainEntity: "Workspace",
     userRole,
     projectId,
-    summary: "Aerospace Product Development Life Cycle Platform general workspace.",
+    summary: "Product Development Life Cycle Platform general workspace.",
     suggestedPrompts: [
       "What can I do in this workspace?",
       "How to create my first requirement and trace it?",

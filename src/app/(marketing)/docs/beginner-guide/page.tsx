@@ -13,14 +13,15 @@ export default function BeginnerGuidePage() {
   return (
     <DocsPage
       title="Beginner Guide"
-      description="An interactive introduction to the Aerospace Product Development Life Cycle Platform."
+      description="An interactive introduction to the Product Development Life Cycle Platform."
       lastUpdated="2026-09-17"
       sourcePath="src/app/(marketing)/docs/beginner-guide/page.tsx"
     >
       <section className="flex flex-col gap-4">
         <h2>Core Engineering Principles</h2>
         <p>
-          PDLC Platform is engineered specifically for mission-critical aerospace product development.
+          PDLC Platform is engineered for mission-critical product development in any regulated or
+          complex engineering discipline — aerospace, automotive, medical devices, energy, and more.
           Instead of treating requirements, decisions, and tests as isolated text documents, PDLC connects
           them on a deterministic graph.
         </p>

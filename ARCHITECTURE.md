@@ -2197,8 +2197,8 @@ the domain, the API or the interface — and no status value that implies one
 (`PREFERRED`, `APPROVED`, `BLACKLISTED` and `CONTRACTED` are all absent, and a
 domain test asserts their absence). Those belong to a procurement system.
 Modelling them here would turn an engineering capability into a CRM wearing
-aerospace vocabulary, and would put commercial relationships into a graph whose
-edges are supposed to mean _the product depends on this_.
+engineering-industry vocabulary, and would put commercial relationships into a
+graph whose edges are supposed to mean _the product depends on this_.
 
 The counterpart discipline: **no derived judgement**. Nothing computes a rating,
 ranks suppliers, or infers one record's state from another's.
@@ -2417,7 +2417,7 @@ one asks a backward-looking question about one project against one baseline:
 > Where does the operational state that has since been recorded no longer match
 > the engineering basis that was approved?
 
-Aerospace systems drift without anyone changing the baseline. The actual
+Engineered systems drift without anyone changing the baseline. The actual
 operating temperature stops matching the design assumption; a supplier's process
 moves without an engineering change; the field configuration diverges from the
 approved design. Nothing in the record is _wrong_ — each individual entry was

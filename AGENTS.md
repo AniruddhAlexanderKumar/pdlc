@@ -12,10 +12,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## 1. System Overview & Domain
 
-The **PDLC Platform** is an Aerospace Product Development Life Cycle platform designed as a modular monolith:
+The **PDLC Platform** is a Product Development Life Cycle platform designed as a modular monolith, for regulated and complex engineering across any industry — aerospace, automotive, medical devices, energy, rail, and more (`ENGINEERING_INDUSTRIES` in `src/domain/organization.ts` lists all fifteen; an organization picks its own, and the model, schema, and every engine are identical regardless of which):
 
 - **Tech Stack:** Next.js 16 (App Router, RSC), TypeScript, Tailwind CSS v4, Prisma 7, PostgreSQL 17, and Argon2id self-hosted auth.
-- **Domain:** Traceability across aerospace engineering lifecycles (`StakeholderNeed`, `Requirement`, `EngineeringDecision`, `DesignItem`, `InterfaceDefinition`, `VerificationActivity`, `Risk`, `Issue`, `ChangeRequest`, `Approval`, `Evidence`, `AuditLog`).
+- **Domain:** Traceability across regulated engineering lifecycles (`StakeholderNeed`, `Requirement`, `EngineeringDecision`, `DesignItem`, `InterfaceDefinition`, `VerificationActivity`, `Risk`, `Issue`, `ChangeRequest`, `Approval`, `Evidence`, `AuditLog`).
 
 ## 2. Mandatory Documentation Protocol for Agents
 

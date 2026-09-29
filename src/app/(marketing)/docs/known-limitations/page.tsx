@@ -36,7 +36,7 @@ const LIMITATIONS = [
   {
     id: "certifications",
     title: "No compliance certification held",
-    body: "DO-178C, AS9100, ISO 26262, SOC 2 — none are held. Aerospace terminology in this product describes what it helps an operator track about their own process, not a claim about this software's own certification status.",
+    body: "DO-178C, AS9100, ISO 26262, SOC 2 — none are held. Industry-specific terminology in this product (certification basis, verification method, and the like) describes what it helps an operator track about their own process, not a claim about this software's own certification status.",
   },
   {
     id: "terminology-scope",

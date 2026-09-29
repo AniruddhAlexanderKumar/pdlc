@@ -64,7 +64,7 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
       },
       {
         stepNumber: 3,
-        title: "Create an Aerospace Project Workspace",
+        title: "Create a Project Workspace",
         action: "Click 'Projects' in the top bar or sidebar, then select 'New Project'",
         uiTarget: "Projects -> New Project",
         description: "Specify project name, domain code (e.g. PROPULSION-2026), target system specifications, and initial security tier.",
@@ -84,7 +84,7 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     title: "Requirements & Quality Control",
     iconName: "FileCheck",
     badge: "Quality Gate 1",
-    shortDescription: "Author precise aerospace requirements, run real-time AI quality inspection against 12 engineering criteria, and fix subjective language.",
+    shortDescription: "Author precise requirements, run real-time AI quality inspection against 12 engineering criteria, and fix subjective language.",
     targetRoute: "/projects",
     routeLabel: "Go to Requirements",
     simpleSummary: {
