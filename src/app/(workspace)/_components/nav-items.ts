@@ -20,7 +20,12 @@ export interface NavItem {
   labelKey?: TerminologyLabelKey;
 }
 
-/** Primary engineering navigation hierarchy for the authenticated workspace shell. */
+/**
+ * The workspace's top-level pages — Dashboard, Projects, and the
+ * "pick a project, then open its X" pages — for the command palette and
+ * breadcrumbs. The sidebar itself shows only Dashboard and Projects outside
+ * a project; everything else is reached by opening one.
+ */
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Projects", href: "/projects", icon: FolderGit2 },

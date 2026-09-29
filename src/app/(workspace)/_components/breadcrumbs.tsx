@@ -4,8 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Check, ChevronRight, Copy, Home } from "lucide-react";
+import { useProject } from "@/lib/api/projects";
 import { cn } from "@/lib/utils";
+import { findProjectModule } from "../projects/_components/project-modules";
 import { NAV_ITEMS } from "./nav-items";
+import { useModuleLabel } from "./terminology-context";
 
 /** Opaque record ids (cuid) — long, unbroken, lowercase alphanumeric. */
 const OPAQUE_ID_PATTERN = /^[a-z0-9]{16,}$/;
@@ -27,6 +30,32 @@ function labelForSegment(segment: string): string {
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+/**
+ * The project's name, not its id — "cmu5kaa0…" in the trail told a reader
+ * nothing about which project they were in. The short id stands in while
+ * the name loads, or if it can't be loaded.
+ */
+function ProjectCrumbLabel({ projectId }: { projectId: string }) {
+  const { state } = useProject(projectId);
+  return <>{state.phase === "ready" ? state.data.name : labelForSegment(projectId)}</>;
+}
+
+/** A module's own name, as the sidebar tabs and the organization's own terminology say it. */
+function ModuleCrumbLabel({ segment }: { segment: string }) {
+  const projectModule = findProjectModule(`/${segment}`);
+  const label = useModuleLabel(projectModule?.labelKey, projectModule?.label ?? labelForSegment(segment));
+  return <>{label}</>;
+}
+
+/** Which label a crumb gets, by where it sits under `/projects/:id/...`. */
+function SegmentLabel({ segments, index }: { segments: readonly string[]; index: number }) {
+  const segment = segments[index]!;
+  const inProject = segments[0] === "projects";
+  if (inProject && index === 1) return <ProjectCrumbLabel projectId={segment} />;
+  if (inProject && index === 2) return <ModuleCrumbLabel segment={segment} />;
+  return <>{labelForSegment(segment)}</>;
 }
 
 /**
@@ -88,7 +117,7 @@ function Breadcrumbs() {
               <ChevronRight className="mx-1 size-3.5 shrink-0" aria-hidden="true" />
               {isLast ? (
                 <span className={cn("truncate font-medium text-foreground")} aria-current="page">
-                  {labelForSegment(segment)}
+                  <SegmentLabel segments={segments} index={index} />
                 </span>
               ) : (
                 <Link
@@ -98,7 +127,7 @@ function Breadcrumbs() {
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                 >
-                  {labelForSegment(segment)}
+                  <SegmentLabel segments={segments} index={index} />
                 </Link>
               )}
             </span>

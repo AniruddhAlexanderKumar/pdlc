@@ -85,38 +85,58 @@ boundary is a scope decision, not an oversight: retrofitting every string
 in the product was judged too large and too easy to get subtly wrong to
 attempt in one pass.
 
+## Navigation: a sidebar of places, tabs for the pages in each
+
+`PROJECT_SECTIONS` (`(workspace)/projects/_components/project-modules.ts`)
+is the whole navigation model, in one list. Each section is one sidebar
+entry, and its `modules` are that section's pages, in tab order. Inside a
+project the sidebar (`sidebar.tsx`) shows only the sections: Overview,
+Command Center, the six **numbered steps** of the work — Define, Design,
+Decide, Verify, Control change, Review & release, each with its plain
+question underneath — and then Project tools (Traceability, Engineering
+History, Decision Sentinel) and Team. Outside a project it shows Dashboard
+and Projects (and Executive, for someone who may open it).
+
+The steps are `PROGRESS_STAGE_DEFINITIONS` — the same six stages, in the
+same words, as the project page's "Start here" panel — so the sidebar and
+the next-step guidance are one workflow, not two vocabularies. Which
+step a module belongs to is the stage its own `MODULE_GUIDES` entry names,
+and `project-modules.test.ts` holds the three lists (sections, modules,
+guides) to each other: every module in exactly one section, every step's
+modules under the stage their guide gives.
+
+`ProjectSectionTabs`, rendered by `projects/[projectId]/layout.tsx` above
+every project page, is the other half: the current section's pages as
+tabs, and on a step, "Step N of 6 · <question>" with a link to the next
+step (the last step links to the release check instead). A section with
+one page and no step (Overview, Command Center, Team) gets no bar at all.
+`moduleForPath` maps any project URL — a record's own page, a deeper page,
+a supplier sub-page with its own top-level path — to the module whose tab
+is current.
+
+This replaced a sidebar that listed every module at once — nineteen links
+in six groups (Understand, Define, Decide, Prove, Change, Certify, which
+matched neither the stages nor the next-step panel), plus a search box to
+find one, a "Simplify" switch to hide most of them, and a "pin" control to
+bring one back. All three controls existed only to cope with the length of
+the list; with the list short, they were removed rather than kept as
+settings that no longer do anything.
+
 ## Personal navigation customization
 
 Layered on top of organization terminology, but a genuinely separate axis:
 `useNavCustomization` (`(workspace)/_components/nav-customization.ts`) is a
-per-browser, `useStoredJson`-backed preference — same tradeoff `useTheme`
-and the sidebar's own "Simplify" flag already make — holding two disjoint
-sets of module `href`s: `hidden` and `pinned`. A module is never in both;
-`setHidden`/`setPinned` each clear the other set's membership for that
-href on write, so the pair can never drift into a state with no coherent
-rendering.
-
-Both the sidebar (`sidebar.tsx`) and the command palette
-(`(workspace)/_components/command-palette.tsx`, `Ctrl`/`Cmd`+`K`) read the
-same hook, so "removed" means removed from every place a module could
-appear, not just one list left stale. Pinning is the more interesting
-half: it is the *only* way a `group: null` module (Suppliers, Members —
-see `project-modules.ts`'s own ranking) ever gains sidebar residency at
-all, and it survives what "Simplify" would otherwise collapse. One module,
-`/command-center`, is hard-excluded from both operations
-(`ALWAYS_VISIBLE_HREF`) — hiding the front door would strand navigation,
-and pinning something already always shown is meaningless.
-
-Both `setHidden` and `setPinned` are only ever called from one place: the
-Settings page's module checklist (`ModuleRow` in `settings-view.tsx`). An
-earlier version also put a pin toggle directly on every sidebar row (a
-small star, revealed on hover) — found to be exactly the kind of clutter
-a project with nineteen modules didn't need: nineteen near-invisible extra
-buttons alongside nineteen links. The sidebar (`NavLink`) now only ever
-*renders* the result of a pin or hide — a missing module, or a link inside
-its own "Pinned" section — never lets a reader change either from there.
-Settings' own checklist already covered both actions in full before this
-change, so nothing was lost, only where it lives.
+per-browser, `useStoredJson`-backed set of module `href`s a reader has
+hidden because they never use them — set from Settings → "Pages you use".
+The sidebar, the tab bar and the command palette
+(`(workspace)/_components/command-palette.tsx`, `Ctrl`/`Cmd`+`K`) all read
+it, so "hidden" means hidden everywhere a page could appear. A step whose
+first page is hidden links to its next page; a step with every page hidden
+drops out of the sidebar (the others keep their numbers); the page you are
+on keeps its tab even if hidden, so the tab bar always shows where you
+are. `/command-center` can never be hidden (`ALWAYS_VISIBLE_HREF`) — hiding
+the front door would strand navigation. Storage written by the pinning
+version (`{ hidden, pinned }`) still reads correctly; `pinned` is ignored.
 
 The command palette itself searches navigation *destinations* only
 (modules, `/settings`, `/organization`, ...), never a full-text index of
@@ -914,7 +934,7 @@ correctly uses a plain `<table>` instead.
 
 Column order, visibility, width and density, plus sort, persist to
 `localStorage` per browser per grid (`use-data-grid-state.ts`) — the same
-tradeoff `useStoredFlag`'s sidebar "Simplify" toggle already makes for this
+tradeoff `useStoredFlag`'s page-guide switch already makes for this
 class of preference, not a server-backed per-user setting. Filters live in
 the URL (`use-url-filter-state.ts`), so a filtered view is a plain
 shareable link; named, reusable presets on top of that
@@ -1401,9 +1421,10 @@ records (rejected, obsolete, superseded) are excluded throughout.
   readiness panel reads `?gate=` and a new link overrides a gate the reader
   picked earlier, without a remount, since the two sit on the same page.
 - **One vocabulary.** The dashboard's "How this works", each dashboard card,
-  the project page panel, the sidebar's Simplify set (`PROGRESS_MODULES`)
-  and the public site's workflow section all read these definitions, so the
-  explanation and the instruction cannot describe different workflows.
+  the project page panel, the sidebar's six numbered steps and their tab
+  bar (`PROJECT_SECTIONS`) and the public site's workflow section all read
+  these definitions, so the explanation and the instruction cannot describe
+  different workflows.
 - **"Learn" is deliberately absent.** The brief's model ends with it; the
   product has no lessons capability, and a stage that can never move would be
   a promise the software cannot keep.
@@ -1761,6 +1782,16 @@ taken a moment apart from an unchanged basis match. This is the deliberate
 improvement over the conservative project-wide fingerprint impact analysis uses:
 **an unrelated edit elsewhere in the project cannot stale a readiness
 assessment**, which is what makes a "stale" badge worth believing.
+
+Every domain-layer digest (this one, the gate, assumption-monitoring, drift
+and certification basis digests) is computed by `sha256Hex`
+(`src/domain/sha256.ts`), a plain-TypeScript SHA-256 — not `node:crypto`.
+`src/domain` must stay runtime-free, and client components import
+`@/domain`: a `node:crypto` import there broke the browser bundle once the
+app moved to webpack. Output is byte-identical to
+`createHash("sha256").update(input).digest("hex")` — `sha256.test.ts`
+checks it against `node:crypto` directly — so digests stored before the
+switch still match what is recomputed after it.
 
 One project-wide signal does enter, and only where it is genuinely part of the
 basis. When an assessment consumed a change request's impact analysis, that

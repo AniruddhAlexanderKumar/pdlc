@@ -57,28 +57,36 @@ export default function BeginnerGuidePage() {
 
       <section className="flex flex-col gap-4">
         <h2>Workspace Structure</h2>
-        <p>Inside any project, your navigation is grouped by engineering lifecycle activity:</p>
-        
-        <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
+        <p>
+          Inside any project, the sidebar is six numbered steps, in the order you do the work. Each
+          step&apos;s pages are tabs along the top of the page, beside a link to the next step:
+        </p>
+
+        <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm text-muted-foreground">
           <li>
-            <strong className="text-foreground">Understand:</strong> Command Center, Traceability Matrix, Decision Sentinel, and Engineering History.
+            <strong className="text-foreground">Define</strong> — what are we trying to build? Requirements and the stakeholder needs behind them.
           </li>
           <li>
-            <strong className="text-foreground">Define:</strong> Stakeholder Needs and Requirements specifications.
+            <strong className="text-foreground">Design</strong> — what are we creating? Design items, and the suppliers they depend on.
           </li>
           <li>
-            <strong className="text-foreground">Decide:</strong> Engineering Decisions (trade studies, assumptions, alternatives), Design Items, and Interfaces.
+            <strong className="text-foreground">Decide</strong> — why did we choose this approach? Engineering decisions and their reasons.
           </li>
           <li>
-            <strong className="text-foreground">Prove:</strong> Verification Activities, Evidence artifacts, and Execution Readiness.
+            <strong className="text-foreground">Verify</strong> — how do we know it works? Verification checks and the evidence behind them.
           </li>
           <li>
-            <strong className="text-foreground">Change:</strong> Change Requests, Baselines, and Operational Drift Assessment.
+            <strong className="text-foreground">Control change</strong> — what changed, and what does it affect? Changes, risks, issues, observations and drift.
           </li>
           <li>
-            <strong className="text-foreground">Certify:</strong> Certification Programs, Compliance Items, and Finding resolutions.
+            <strong className="text-foreground">Review &amp; release</strong> — is the work complete enough? Baselines and certification, then the release check.
           </li>
-        </ul>
+        </ol>
+        <p className="text-sm text-muted-foreground">
+          Above the steps are the project&apos;s Overview and Command Center (everything that needs
+          attention); below them, Project tools (Traceability, Engineering History, Decision
+          Sentinel) and Team.
+        </p>
       </section>
 
       <section className="flex flex-col gap-4">

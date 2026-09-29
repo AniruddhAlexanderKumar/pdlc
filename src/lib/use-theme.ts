@@ -30,7 +30,7 @@ function applyTheme(preference: ThemePreference) {
 /**
  * The user's personal appearance preference: follow the OS, or force
  * light/dark regardless of it. Per-browser (`useStoredJson`, the same
- * tradeoff `use-stored-flag.ts`'s "Simplify" toggle already makes for this
+ * tradeoff `use-stored-flag.ts`'s page-guide switch already makes for this
  * exact class of preference in this codebase) rather than a synced account
  * setting — light/dark is the kind of thing worth choosing per device
  * anyway (a phone read outdoors wants different defaults than a monitor in

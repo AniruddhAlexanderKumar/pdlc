@@ -12,10 +12,10 @@ import { TaskGuides } from "./task-guides";
 
 const FAQ: ReadonlyArray<{ id: string; question: string; answer: string }> = [
   {
-    id: "simplify-vs-remove",
-    question: "What's the difference between \"Simplify\" and removing a module?",
+    id: "hide-a-page",
+    question: "Can I hide a page I never use?",
     answer:
-      "Simplify is a single switch that collapses every group down to daily-tier modules — a blunt, all-or-nothing view. Removing a module (Settings → Modules) is permanent per module until you bring it back: it disappears from the sidebar, the outside-project picker, and the jump-to command palette alike, whether Simplify is on or off. Pinning is the opposite of removing — it keeps a module visible even under Simplify, and is the only way an occasional module like Suppliers or Members gets sidebar residency at all by default. Both pin and remove live only on the Settings page's checklist, not as a toggle on the sidebar itself.",
+      "Yes — untick it under Settings → Pages you use. It disappears from the sidebar, from its step's tabs, and from the jump-to search, until you tick it again. Nothing is deleted: the records on that page are untouched, and anyone else on the project still sees it. Command Center is the one page you can't hide, because it's where everything that needs attention is gathered.",
   },
   {
     id: "jump-to",
@@ -33,7 +33,7 @@ const FAQ: ReadonlyArray<{ id: string; question: string; answer: string }> = [
     id: "personal-vs-org",
     question: "Why does my Command Center look different from a teammate's?",
     answer:
-      "Theme, Simplify, which modules you've removed or pinned, and which Command Center tab you land on are all personal, per-browser preferences — remembered on this device, not synced to your account or shared with anyone else on the project. Sign in from another device and they start back at their defaults. Organization terminology and industry are the exception: an owner sets them once, and they apply to everyone.",
+      "Theme, which pages you've hidden, and which Command Center tab you land on are all personal, per-browser preferences — remembered on this device, not synced to your account or shared with anyone else on the project. Sign in from another device and they start back at their defaults. Organization terminology and industry are the exception: an owner sets them once, and they apply to everyone.",
   },
   {
     id: "no-scores",
@@ -194,25 +194,25 @@ export function HelpView() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
             <p>
-              Inside a project, the sidebar is grouped by what you are trying to do, not by which
-              table a record lives in: <strong className="text-foreground">Understand</strong> what
-              changed, <strong className="text-foreground">Define</strong> what&apos;s required,{" "}
+              Inside a project, the sidebar is the work itself, in order — six numbered steps:{" "}
+              <strong className="text-foreground">Define</strong> what you&apos;re building,{" "}
+              <strong className="text-foreground">Design</strong> its parts,{" "}
               <strong className="text-foreground">Decide</strong> and record why,{" "}
-              <strong className="text-foreground">Prove</strong> it, manage{" "}
-              <strong className="text-foreground">Change</strong>, and{" "}
-              <strong className="text-foreground">Certify</strong>.
+              <strong className="text-foreground">Verify</strong> it works,{" "}
+              <strong className="text-foreground">Control change</strong>, then{" "}
+              <strong className="text-foreground">Review &amp; release</strong>. Work down it from
+              the top.
             </p>
             <p>
-              <strong className="text-foreground">Command Center</strong> is where you land — its
-              tabs cover what needs attention across the whole project and compute nothing of their
-              own, so they are always exactly as current as the modules they read from.
+              Each step can hold more than one page — Verify has checks and the evidence behind
+              them, for example. Those pages are <strong className="text-foreground">tabs</strong>{" "}
+              along the top of the step, and the same bar says which step you&apos;re on and links
+              to the next one.
             </p>
             <p>
-              <strong className="text-foreground">Simplify</strong>,{" "}
-              <strong className="text-foreground">removing</strong> a module, and{" "}
-              <strong className="text-foreground">pinning</strong> one are three related but
-              different sidebar preferences, all set from the <strong className="text-foreground">
-              Settings</strong> page — see the FAQ for exactly how they differ.
+              <strong className="text-foreground">Command Center</strong> gathers everything that
+              needs someone&apos;s attention across the whole project. It computes nothing of its
+              own, so it is always exactly as current as the pages it reads from.
             </p>
             <p>
               A <strong className="text-foreground">Trace</strong> button on an object&apos;s detail

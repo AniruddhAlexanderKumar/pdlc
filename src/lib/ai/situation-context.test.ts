@@ -23,7 +23,7 @@ describe("situation-context", () => {
   it("extracts context for sentinel route", () => {
     const ctx = extractSituationContext("/sentinel", "REVIEWER");
     expect(ctx.moduleName).toBe("Decision Sentinel");
-    expect(ctx.moduleCategory).toBe("Understand");
+    expect(ctx.moduleCategory).toBe("Project tools");
     expect(ctx.primaryDomainEntity).toBe("SentinelEvent");
   });
 

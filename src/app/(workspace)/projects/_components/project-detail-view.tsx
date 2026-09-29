@@ -14,7 +14,7 @@ import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../_components/terminology-context";
-import { MODULE_GROUPS, PROJECT_MODULES, type ProjectModule } from "./project-modules";
+import { findProjectModule, PROJECT_SECTIONS, type ProjectModule } from "./project-modules";
 import { ProjectArchiveDialog } from "./project-archive-dialog";
 import { ProjectFormDialog } from "./project-form-dialog";
 import { NextStepPanel } from "./next-step-panel";
@@ -24,11 +24,17 @@ import { TechnicalReadinessPanel } from "./technical-readiness-panel";
 type ProjectTab = "start" | "readiness" | "modules";
 
 /**
- * The overview grid shows every module except Members — Members has its own
- * dedicated header button here (and its own tab in the project-scoped tab
- * bar), so listing it twice in the same grid would be redundant.
+ * Every section of the sidebar with its pages, except this page itself —
+ * the same grouping and order as the sidebar, so the two read as one
+ * navigation rather than two competing ones.
  */
-const OVERVIEW_MODULES = PROJECT_MODULES.filter((module) => module.href !== "/members");
+const MODULE_LIST = PROJECT_SECTIONS.filter((section) => section.id !== "overview").map((section) => ({
+  id: section.id,
+  label: section.step ? `Step ${section.step}: ${section.label}` : section.label,
+  modules: section.modules
+    .map((href) => findProjectModule(href))
+    .filter((module): module is ProjectModule => module !== undefined),
+}));
 
 /**
  * Project detail.
@@ -176,28 +182,18 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
             <CardHeader>
               <CardTitle>All modules</CardTitle>
               <CardDescription>
-                Everything in this project, including the modules that have no permanent place in
-                the sidebar. The sidebar is the faster way to whichever ones you use daily.
+                Everything in this project on one list, grouped the same way as the sidebar.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              {MODULE_GROUPS.map((group) => {
-                const members = OVERVIEW_MODULES.filter((module) => module.group === group.id);
-                if (members.length === 0) return null;
-                return (
-                  <ModuleLinkGroup
-                    key={group.id}
-                    label={group.label}
-                    modules={members}
-                    projectId={project.id}
-                  />
-                );
-              })}
-              <ModuleLinkGroup
-                label="Elsewhere"
-                modules={OVERVIEW_MODULES.filter((module) => module.group === null)}
-                projectId={project.id}
-              />
+              {MODULE_LIST.map((group) => (
+                <ModuleLinkGroup
+                  key={group.id}
+                  label={group.label}
+                  modules={group.modules}
+                  projectId={project.id}
+                />
+              ))}
             </CardContent>
           </Card>
 

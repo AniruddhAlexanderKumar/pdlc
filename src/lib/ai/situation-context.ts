@@ -6,7 +6,17 @@
 export interface SituationalContext {
   pathname: string;
   moduleName: string;
-  moduleCategory: "Understand" | "Define" | "Decide" | "Prove" | "Change" | "Certify" | "System";
+  /** The sidebar step or place this page sits under, in the sidebar's own words. */
+  moduleCategory:
+    | "Overview"
+    | "Define"
+    | "Design"
+    | "Decide"
+    | "Verify"
+    | "Control change"
+    | "Review & release"
+    | "Project tools"
+    | "System";
   primaryDomainEntity: string;
   userRole: string;
   projectId?: string;
@@ -49,7 +59,7 @@ export function extractSituationContext(
     return {
       pathname: cleanPath,
       moduleName: "Engineering Decisions & Architecture",
-      moduleCategory: "Decide",
+      moduleCategory: cleanPath.includes("/decisions") ? "Decide" : "Design",
       primaryDomainEntity: "EngineeringDecision",
       userRole,
       projectId,
@@ -66,7 +76,7 @@ export function extractSituationContext(
     return {
       pathname: cleanPath,
       moduleName: "Verification & Evidence",
-      moduleCategory: "Prove",
+      moduleCategory: "Verify",
       primaryDomainEntity: "VerificationActivity",
       userRole,
       projectId,
@@ -83,7 +93,7 @@ export function extractSituationContext(
     return {
       pathname: cleanPath,
       moduleName: "Change Control & Baselines",
-      moduleCategory: "Change",
+      moduleCategory: cleanPath.includes("/baselines") ? "Review & release" : "Control change",
       primaryDomainEntity: "ChangeRequest",
       userRole,
       projectId,
@@ -100,7 +110,7 @@ export function extractSituationContext(
     return {
       pathname: cleanPath,
       moduleName: "Decision Sentinel",
-      moduleCategory: "Understand",
+      moduleCategory: "Project tools",
       primaryDomainEntity: "SentinelEvent",
       userRole,
       projectId,
@@ -117,7 +127,7 @@ export function extractSituationContext(
     return {
       pathname: cleanPath,
       moduleName: "Certification & Compliance",
-      moduleCategory: "Certify",
+      moduleCategory: "Review & release",
       primaryDomainEntity: "CertificationProgram",
       userRole,
       projectId,
@@ -139,7 +149,7 @@ export function extractSituationContext(
     return {
       pathname: cleanPath,
       moduleName: "Command Center",
-      moduleCategory: "Understand",
+      moduleCategory: "Overview",
       primaryDomainEntity: "Project",
       userRole,
       projectId,
@@ -148,7 +158,7 @@ export function extractSituationContext(
       suggestedPrompts: [
         "What requires my attention in this project?",
         "Where do these counts come from?",
-        "How do I customize this layout?",
+        "What do the Command Center tabs show?",
       ],
     };
   }
@@ -157,7 +167,7 @@ export function extractSituationContext(
     return {
       pathname: cleanPath,
       moduleName: "Dashboard",
-      moduleCategory: "Understand",
+      moduleCategory: "Overview",
       primaryDomainEntity: "Project",
       userRole,
       projectId,
@@ -203,7 +213,7 @@ export function generateSituationalAnalysis(
   if (!query || query.includes("analyze") || query.includes("summary") || query.includes("overview")) {
     return {
       contextBanner: `📍 Aware of: ${context.moduleName} (${context.moduleCategory}) | Role: ${context.userRole}`,
-      answer: `You are currently in **${context.moduleName}** (${context.moduleCategory} Phase).\n\n` +
+      answer: `You are currently in **${context.moduleName}** (${context.moduleCategory}).\n\n` +
         `**Key Focus:** ${context.summary}\n\n` +
         `**Situation Insights:**\n` +
         `- Primary Entity: \`${context.primaryDomainEntity}\`\n` +

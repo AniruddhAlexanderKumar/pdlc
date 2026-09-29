@@ -14,7 +14,7 @@ import * as React from "react";
  * own bespoke hook.
  *
  * Scoped per browser, not per authenticated user or device — the same
- * accepted tradeoff `useStoredFlag`'s "Simplify" toggle already makes for
+ * accepted tradeoff `useStoredFlag`'s page-guide switch already makes for
  * this exact class of preference in this codebase. A value that fails to
  * parse (corrupted, or written by an older shape) falls back to `fallback`
  * rather than throwing.

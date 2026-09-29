@@ -5,16 +5,12 @@ import {
   BookOpen,
   CircleHelp,
   Columns2,
-  Eye,
-  EyeOff,
   Home,
   Laptop,
-  ListTree,
   Moon,
   RectangleHorizontal,
   RotateCcw,
   Sparkles,
-  Star,
   Sun,
   Wand2,
 } from "lucide-react";
@@ -25,12 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ALWAYS_VISIBLE_HREF, useNavCustomization } from "../../_components/nav-customization";
-import { SIMPLIFY_STORAGE_KEY } from "../../_components/sidebar";
 import { PAGE_GUIDES_HIDDEN_KEY } from "@/components/common/module-guide-panel";
 import { useModuleLabel } from "../../_components/terminology-context";
 import {
-  MODULE_GROUPS,
-  PROJECT_MODULES,
+  findProjectModule,
+  PROJECT_SECTIONS,
   type ProjectModule,
 } from "../../projects/_components/project-modules";
 import { useStoredFlag } from "@/lib/use-stored-flag";
@@ -64,9 +59,14 @@ const DENSITY_OPTIONS: ReadonlyArray<{
   },
 ];
 
-/** Every customizable module, grouped the same way the sidebar itself groups them, plus an "Other" bucket for the two that have no permanent sidebar residency by default (Suppliers, Members) — pinning from here is the only way either ever appears in the sidebar at all. Command Center is excluded everywhere: it can be neither hidden nor pinned. */
-const CUSTOMIZABLE_MODULES = PROJECT_MODULES.filter((module) => module.href !== ALWAYS_VISIBLE_HREF);
-const OTHER_MODULES = CUSTOMIZABLE_MODULES.filter((module) => module.group === null);
+/** Every page a reader can hide, grouped the way the sidebar groups them. Command Center is left out: it can never be hidden. */
+const HIDEABLE_SECTIONS = PROJECT_SECTIONS.map((section) => ({
+  section,
+  modules: section.modules
+    .filter((href) => href !== ALWAYS_VISIBLE_HREF)
+    .map((href) => findProjectModule(href))
+    .filter((module): module is ProjectModule => module !== undefined),
+})).filter(({ modules }) => modules.length > 0);
 
 /**
  * Two sections, deliberately separated: everything under "Personalization"
@@ -82,10 +82,8 @@ const OTHER_MODULES = CUSTOMIZABLE_MODULES.filter((module) => module.group === n
 export function SettingsView({ isOwner }: { isOwner: boolean }) {
   const [theme, setTheme] = useTheme();
   const [density, setDensity] = useLayoutDensity();
-  const [simplified, setSimplified] = useStoredFlag(SIMPLIFY_STORAGE_KEY);
   const [guidesHidden, setGuidesHidden] = useStoredFlag(PAGE_GUIDES_HIDDEN_KEY);
-  const { hidden, pinned, setHidden, setPinned, reset: resetNavCustomization } = useNavCustomization();
-  const hasCustomization = hidden.size > 0 || pinned.size > 0;
+  const { hidden, setHidden, reset: resetNavCustomization } = useNavCustomization();
 
   return (
     <div className="flex flex-col gap-8">
@@ -183,30 +181,6 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ListTree className="size-4" aria-hidden="true" />
-              Navigation
-            </CardTitle>
-            <CardDescription>
-              The same &ldquo;Simplify&rdquo; control the sidebar has. It hides the less-used pages
-              and keeps everything a project&apos;s next step can send you to.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <label className="flex w-fit items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={simplified}
-                onChange={(event) => setSimplified(event.target.checked)}
-                className="size-4 rounded border-input"
-              />
-              Simplify project navigation
-            </label>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
               <CircleHelp className="size-4" aria-hidden="true" />
               Page guides
             </CardTitle>
@@ -235,44 +209,32 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
-              <CardTitle>Modules</CardTitle>
+              <CardTitle>Pages you use</CardTitle>
               <CardDescription>
-                Remove a module from every sidebar it would otherwise appear in, or pin one — even
-                Suppliers or Members, which have no permanent sidebar spot by default — so it always
-                shows there, immune to Simplify. A module is never both at once.
+                Untick a page you never use to hide it from the sidebar, the tabs and the jump-to
+                search. Nothing is deleted — tick it again to bring it back.
               </CardDescription>
             </div>
-            {hasCustomization && (
+            {hidden.size > 0 && (
               <Button variant="outline" size="sm" onClick={resetNavCustomization} className="shrink-0">
                 <RotateCcw aria-hidden="true" />
-                Reset
+                Show all
               </Button>
             )}
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
-            {MODULE_GROUPS.map((group) => {
-              const members = CUSTOMIZABLE_MODULES.filter((module) => module.group === group.id);
-              if (members.length === 0) return null;
-              return (
-                <ModuleGroupList
-                  key={group.id}
-                  label={group.label}
-                  modules={members}
-                  hidden={hidden}
-                  pinned={pinned}
-                  setHidden={setHidden}
-                  setPinned={setPinned}
-                />
-              );
-            })}
-            <ModuleGroupList
-              label="Other — not shown by default"
-              modules={OTHER_MODULES}
-              hidden={hidden}
-              pinned={pinned}
-              setHidden={setHidden}
-              setPinned={setPinned}
-            />
+            {HIDEABLE_SECTIONS.map(({ section, modules }) => (
+              <fieldset key={section.id} className="flex flex-col gap-1.5">
+                <legend className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  {section.step ? `Step ${section.step}: ${section.label}` : section.label}
+                </legend>
+                <div className="flex flex-col divide-y divide-border rounded-md border border-border">
+                  {modules.map((module) => (
+                    <ModuleRow key={module.href} module={module} hidden={hidden} setHidden={setHidden} />
+                  ))}
+                </div>
+              </fieldset>
+            ))}
           </CardContent>
         </Card>
       </section>
@@ -305,86 +267,36 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
   );
 }
 
-interface NavCustomizationControls {
-  hidden: ReadonlySet<string>;
-  pinned: ReadonlySet<string>;
-  setHidden: (href: string, isHidden: boolean) => void;
-  setPinned: (href: string, isPinned: boolean) => void;
-}
-
-function ModuleGroupList({
-  label,
-  modules,
-  ...controls
-}: { label: string; modules: readonly ProjectModule[] } & NavCustomizationControls) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</span>
-      <div className="flex flex-col divide-y divide-border rounded-md border border-border">
-        {modules.map((module) => (
-          <ModuleRow key={module.href} module={module} {...controls} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ModuleRow({
   module,
   hidden,
-  pinned,
   setHidden,
-  setPinned,
-}: { module: ProjectModule } & NavCustomizationControls) {
+}: {
+  module: ProjectModule;
+  hidden: ReadonlySet<string>;
+  setHidden: (href: string, isHidden: boolean) => void;
+}) {
   const Icon = module.icon;
   const label = useModuleLabel(module.labelKey, module.label);
-  const isHidden = hidden.has(module.href);
-  const isPinned = pinned.has(module.href);
+  const isShown = !hidden.has(module.href);
+  const id = `show-page${module.href.replace(/\//g, "-")}`;
 
   return (
     <div className="flex items-center gap-3 px-3 py-2">
+      <input
+        id={id}
+        type="checkbox"
+        checked={isShown}
+        onChange={(event) => setHidden(module.href, !event.target.checked)}
+        className="size-4 shrink-0 rounded border-input"
+      />
       <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className={cn("truncate text-sm font-medium", isHidden ? "text-muted-foreground line-through" : "text-foreground")}>
+      <label htmlFor={id} className="flex min-w-0 flex-1 cursor-pointer flex-col">
+        <span className={cn("truncate text-sm font-medium", isShown ? "text-foreground" : "text-muted-foreground line-through")}>
           {label}
         </span>
         <span className="truncate text-xs text-muted-foreground">{module.description}</span>
-      </div>
-      {isPinned && (
-        <Badge variant="outline" className="shrink-0">
-          Pinned
-        </Badge>
-      )}
-      <div className="flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setPinned(module.href, !isPinned)}
-          aria-pressed={isPinned}
-          aria-label={isPinned ? `Unpin ${label}` : `Pin ${label}`}
-          title={isPinned ? "Unpin" : "Pin to sidebar"}
-          className={cn(
-            "flex size-8 items-center justify-center rounded-md transition-colors hover:bg-secondary",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            isPinned ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          <Star className={cn("size-4", isPinned && "fill-current")} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setHidden(module.href, !isHidden)}
-          aria-pressed={isHidden}
-          aria-label={isHidden ? `Show ${label}` : `Remove ${label}`}
-          title={isHidden ? "Show in sidebar" : "Remove from sidebar"}
-          className={cn(
-            "flex size-8 items-center justify-center rounded-md transition-colors hover:bg-secondary",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            isHidden ? "text-destructive" : "text-muted-foreground",
-          )}
-        >
-          {isHidden ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
-        </button>
-      </div>
+      </label>
     </div>
   );
 }

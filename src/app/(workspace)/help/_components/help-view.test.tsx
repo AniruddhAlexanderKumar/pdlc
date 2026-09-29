@@ -90,11 +90,20 @@ describe("HelpView", () => {
     render(<HelpView />);
 
     await user.click(screen.getByRole("tab", { name: "FAQ" }));
-    const question = "What's the difference between \"Simplify\" and removing a module?";
-    expect(screen.queryByText(/only way an occasional module/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Settings → Pages you use/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: question }));
+    await user.click(screen.getByRole("button", { name: "Can I hide a page I never use?" }));
 
-    expect(screen.getByText(/only way an occasional module/i)).toBeInTheDocument();
+    expect(screen.getByText(/Settings → Pages you use/)).toBeInTheDocument();
+  });
+
+  it("How it works describes the sidebar as the six steps of the work, with each step's pages as tabs", async () => {
+    const user = userEvent.setup();
+    render(<HelpView />);
+
+    await user.click(screen.getByRole("tab", { name: "How it works" }));
+
+    expect(screen.getByText(/six numbered steps/)).toBeInTheDocument();
+    expect(screen.queryByText(/Simplify/)).not.toBeInTheDocument();
   });
 });

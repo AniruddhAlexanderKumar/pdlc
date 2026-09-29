@@ -31,75 +31,51 @@ describe("SettingsView", () => {
     expect(screen.getByRole("radio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
   });
 
-  it("toggling Simplify persists the same preference the sidebar itself reads", async () => {
+  it("unticking a page hides it, with no Show all button until something is hidden", async () => {
     const user = userEvent.setup();
     render(<SettingsView isOwner={false} />);
 
-    const checkbox = screen.getByRole("checkbox", { name: "Simplify project navigation" });
-    expect(checkbox).not.toBeChecked();
+    expect(screen.queryByRole("button", { name: "Show all" })).not.toBeInTheDocument();
+    const risks = screen.getByRole("checkbox", { name: /^Risks/ });
+    expect(risks).toBeChecked();
 
-    await user.click(checkbox);
+    await user.click(risks);
 
-    expect(checkbox).toBeChecked();
-    expect(window.localStorage.getItem("pdlc:nav-simplified")).toBe("1");
+    expect(risks).not.toBeChecked();
+    expect(JSON.parse(window.localStorage.getItem("pdlc:nav-customization") ?? "{}")).toEqual({
+      hidden: ["/risks"],
+    });
+    expect(screen.getByRole("button", { name: "Show all" })).toBeInTheDocument();
   });
 
-  it("removing a module marks it removed, with no Reset button until something changes", async () => {
+  it("Show all brings back every hidden page", async () => {
     const user = userEvent.setup();
     render(<SettingsView isOwner={false} />);
 
-    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: /^Risks/ }));
+    await user.click(screen.getByRole("checkbox", { name: /^Suppliers/ }));
+    await user.click(screen.getByRole("button", { name: "Show all" }));
 
-    await user.click(screen.getByRole("button", { name: "Remove Risks" }));
-
-    expect(screen.getByRole("button", { name: "Show Risks" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /^Risks/ })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /^Suppliers/ })).toBeChecked();
+    expect(screen.queryByRole("button", { name: "Show all" })).not.toBeInTheDocument();
   });
 
-  it("pinning a module shows a Pinned badge next to it", async () => {
-    const user = userEvent.setup();
+  it("groups pages the way the sidebar does — by numbered step, then tools and team", () => {
     render(<SettingsView isOwner={false} />);
 
-    await user.click(screen.getByRole("button", { name: "Pin Suppliers" }));
-
-    expect(screen.getByRole("button", { name: "Unpin Suppliers" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getAllByText("Pinned")).not.toHaveLength(0);
+    expect(screen.getByRole("group", { name: "Step 1: Define" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Step 5: Control change" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Project tools" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /^Members/ })).toBeInTheDocument();
   });
 
-  it("pinning a removed module un-removes it — the two states are mutually exclusive", async () => {
-    const user = userEvent.setup();
+  it("never offers Command Center, and has none of the old Simplify or pin controls", () => {
     render(<SettingsView isOwner={false} />);
 
-    await user.click(screen.getByRole("button", { name: "Remove Risks" }));
-    await user.click(screen.getByRole("button", { name: "Pin Risks" }));
-
-    expect(screen.getByRole("button", { name: "Unpin Risks" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Remove Risks" })).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("Reset clears every removal and pin", async () => {
-    const user = userEvent.setup();
-    render(<SettingsView isOwner={false} />);
-
-    await user.click(screen.getByRole("button", { name: "Remove Risks" }));
-    await user.click(screen.getByRole("button", { name: "Pin Suppliers" }));
-    await user.click(screen.getByRole("button", { name: "Reset" }));
-
-    expect(screen.getByRole("button", { name: "Remove Risks" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Pin Suppliers" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
-  });
-
-  it("lists Suppliers and Members under an explicit 'not shown by default' group, not silently omitted", () => {
-    render(<SettingsView isOwner={false} />);
-    expect(screen.getByText(/not shown by default/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pin Suppliers" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pin Members" })).toBeInTheDocument();
-  });
-
-  it("Command Center is never offered as customizable", () => {
-    render(<SettingsView isOwner={false} />);
-    expect(screen.queryByRole("button", { name: /Command Center/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Command Center/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /simplify/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^pin|^unpin/i })).not.toBeInTheDocument();
   });
 
   it("tells a non-owner they cannot change organization-wide settings", () => {

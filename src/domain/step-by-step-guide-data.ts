@@ -89,7 +89,7 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     routeLabel: "Go to Requirements",
     simpleSummary: {
       whatItDoes: "Helps you write clear requirements and automatically catches vague or missing specifications.",
-      whereToClick: "Project Sidebar -> Requirements -> New Requirement / Inspect Quality",
+      whereToClick: "Project Sidebar -> 1. Define -> Requirements tab -> New Requirement / Inspect Quality",
       whatYouGet: "Flawless, measurable requirements with clear units and verification methods.",
     },
     steps: [
@@ -97,7 +97,7 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
         stepNumber: 1,
         title: "Open Requirements Module",
         action: "Select a project workspace and click 'Requirements' in the sidebar",
-        uiTarget: "Project Sidebar -> Define -> Requirements",
+        uiTarget: "Project Sidebar -> 1. Define -> Requirements",
         description: "Access your baseline requirements registry, quality health breakdown, and revision history.",
       },
       {
@@ -243,15 +243,15 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     routeLabel: "View Traceability Matrix",
     simpleSummary: {
       whatItDoes: "Shows how everything in your project connects—from top goals down to parts and test results.",
-      whereToClick: "Project Sidebar -> Understand -> Traceability Matrix",
+      whereToClick: "Project Sidebar -> Project tools -> Traceability tab",
       whatYouGet: "Complete visual map of dependencies and evidence for compliance audits.",
     },
     steps: [
       {
         stepNumber: 1,
         title: "Open Traceability Matrix",
-        action: "Click 'Traceability' in project sidebar under 'Understand'",
-        uiTarget: "Project Sidebar -> Understand -> Traceability",
+        action: "Click 'Project tools' in the project sidebar, then the 'Traceability' tab",
+        uiTarget: "Project Sidebar -> Project tools -> Traceability",
         description: "Load the complete dependency graph spanning all 14 engineering artifact types.",
       },
       {
@@ -346,7 +346,7 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
     routeLabel: "View Verification Plans",
     simpleSummary: {
       whatItDoes: "Records test plans and attaches real proof documents showing requirements are met.",
-      whereToClick: "Project Sidebar -> Prove -> Verification -> Assign Method / Attach Evidence",
+      whereToClick: "Project Sidebar -> 4. Verify -> Verification tab -> Assign Method / Attach Evidence",
       whatYouGet: "Verifiable proof that your product passes all engineering tests.",
     },
     steps: [
@@ -354,7 +354,7 @@ export const GUIDE_CATEGORIES: ReadonlyArray<GuideCategory> = [
         stepNumber: 1,
         title: "Open Verification Module",
         action: "Click 'Verification' under 'Prove' in project sidebar",
-        uiTarget: "Project Sidebar -> Prove -> Verification",
+        uiTarget: "Project Sidebar -> 4. Verify -> Verification",
         description: "Track requirement verification status across Test, Analysis, Inspection, and Demonstration.",
       },
       {

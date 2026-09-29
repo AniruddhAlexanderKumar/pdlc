@@ -1,12 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The sidebar is the workspace's one navigation list — it switches its own
- * contents by context (outside vs. inside a project) rather than adding a
- * second surface alongside it. These tests cover that switch and the
- * active-state logic it depends on.
+ * The sidebar holds places, not pages: outside a project just Dashboard and
+ * Projects; inside one, Overview, Command Center, the six numbered steps
+ * of the work, and the tools and team behind them. The pages inside each
+ * place are tabs above the content (`project-section-tabs.test.tsx`).
  */
 let pathname = "/dashboard";
 vi.mock("next/navigation", () => ({
@@ -15,327 +15,156 @@ vi.mock("next/navigation", () => ({
 
 const { Sidebar } = await import("./sidebar");
 
+const PROJECT = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+
 afterEach(() => {
   pathname = "/dashboard";
   window.localStorage.clear();
 });
 
+function primaryNav() {
+  return within(screen.getByRole("navigation", { name: "Primary" }));
+}
+
 describe("Sidebar", () => {
-  it("shows the global project pickers outside any project", () => {
+  it("outside a project shows only the global places, and says where the steps are", () => {
     pathname = "/dashboard";
     render(<Sidebar />);
 
-    expect(screen.getByRole("link", { name: /^Requirements$/ })).toHaveAttribute(
-      "href",
-      "/requirements",
-    );
-    expect(screen.getByRole("link", { name: /^Risks$/ })).toHaveAttribute("href", "/risks");
-    // Modules that only exist once a project is open (Command Center,
-    // Certification, ...) have nowhere to point outside one, so they are
-    // not shown at all rather than shown broken.
-    expect(screen.queryByRole("link", { name: /Command Center/ })).not.toBeInTheDocument();
+    const nav = primaryNav();
+    expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
+    expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("href", "/projects");
+    expect(nav.getAllByRole("link")).toHaveLength(2);
+    expect(screen.getByText(/open a project to see its steps/i)).toBeInTheDocument();
   });
 
-  it("switches to every real module of the current project once inside one", () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa/requirements/req1aaaaaaaaaaaaaaaaaaaa";
-    render(<Sidebar />);
+  it("shows Executive only to a reader who can open it", () => {
+    const { unmount } = render(<Sidebar />);
+    expect(screen.queryByRole("link", { name: "Executive" })).not.toBeInTheDocument();
+    unmount();
 
-    expect(screen.getByRole("link", { name: /^Requirements$/ })).toHaveAttribute(
-      "href",
-      "/projects/proj1aaaaaaaaaaaaaaaaaaa/requirements",
-    );
-    expect(screen.getByRole("link", { name: /Command Center/ })).toHaveAttribute(
-      "href",
-      "/projects/proj1aaaaaaaaaaaaaaaaaaa/command-center",
-    );
-    expect(screen.getByRole("link", { name: /Decision Sentinel/ })).toHaveAttribute(
-      "href",
-      "/projects/proj1aaaaaaaaaaaaaaaaaaa/sentinel",
-    );
-    expect(screen.getByRole("link", { name: /Overview/ })).toHaveAttribute(
-      "href",
-      "/projects/proj1aaaaaaaaaaaaaaaaaaa",
-    );
+    render(<Sidebar showPortfolio />);
+    expect(screen.getByRole("link", { name: "Executive" })).toHaveAttribute("href", "/executive");
   });
 
-  it("never rewrites Dashboard or Projects — they are always the global pages", () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa/requirements";
+  it("inside a project lists the six steps in order, each landing on its first page", () => {
+    pathname = PROJECT;
     render(<Sidebar />);
 
-    expect(screen.getByRole("link", { name: /Dashboard/ })).toHaveAttribute("href", "/dashboard");
-    expect(screen.getByRole("link", { name: /Projects/ })).toHaveAttribute("href", "/projects");
+    const steps = primaryNav().getAllByRole("link", { name: /^Step \d/ });
+    expect(steps.map((link) => link.getAttribute("href"))).toEqual([
+      `${PROJECT}/requirements`,
+      `${PROJECT}/design-items`,
+      `${PROJECT}/decisions`,
+      `${PROJECT}/verification`,
+      `${PROJECT}/changes`,
+      `${PROJECT}/baselines`,
+    ]);
   });
 
-  it("marks the current module active, and nothing else, on a module list page", () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa/risks";
+  it("shows each step's plain question, so the sidebar reads as the order of the work", () => {
+    pathname = PROJECT;
     render(<Sidebar />);
 
-    expect(screen.getByRole("link", { name: /^Risks$/ })).toHaveAttribute("aria-current", "page");
-    const current = screen.getAllByRole("link").filter((link) => link.getAttribute("aria-current"));
+    expect(screen.getByText("What are we trying to build?")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Step 4: Verify — How do we know it works?" })).toBeInTheDocument();
+  });
+
+  it("is a short list — places, not every page", () => {
+    pathname = PROJECT;
+    render(<Sidebar />);
+
+    // Dashboard, Projects, Overview, Command Center, six steps, tools, team.
+    expect(primaryNav().getAllByRole("link")).toHaveLength(12);
+    // No per-page links, and none of the controls the old long list needed.
+    expect(screen.queryByRole("link", { name: /^Risks$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /simplify|show all modules/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^pin|^unpin/i })).not.toBeInTheDocument();
+  });
+
+  it("links Overview, Command Center, tools and team", () => {
+    pathname = PROJECT;
+    render(<Sidebar />);
+
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("href", PROJECT);
+    expect(screen.getByRole("link", { name: "Command Center" })).toHaveAttribute(
+      "href",
+      `${PROJECT}/command-center`,
+    );
+    expect(screen.getByRole("link", { name: "Project tools" })).toHaveAttribute(
+      "href",
+      `${PROJECT}/traceability`,
+    );
+    expect(screen.getByRole("link", { name: "Team" })).toHaveAttribute("href", `${PROJECT}/members`);
+  });
+
+  it("marks the step you are in as current — on any of its pages, including a record's own page", () => {
+    pathname = `${PROJECT}/risks/risk1aaaaaaaaaaaaaaaaaaaa`;
+    render(<Sidebar />);
+
+    const current = primaryNav()
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("aria-current") === "page");
     expect(current).toHaveLength(1);
+    expect(current[0]).toHaveAccessibleName(/Step 5: Control change/);
   });
 
-  it("keeps a module active on its own detail sub-page, without also activating Overview", () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa/risks/risk1aaaaaaaaaaaaaaaaaaaa";
+  it("counts a supplied item's page as part of the Design step, where Suppliers is", () => {
+    pathname = `${PROJECT}/supplied-items/item1aaaaaaaaaaaaaaaaaaaa`;
     render(<Sidebar />);
 
-    expect(screen.getByRole("link", { name: /^Risks$/ })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: /Overview/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /Step 2: Design/ })).toHaveAttribute("aria-current", "page");
   });
 
-  it("marks Overview active on the project's own page only", () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+  it("marks Overview current on the project's own page only", () => {
+    pathname = PROJECT;
     render(<Sidebar />);
 
-    expect(screen.getByRole("link", { name: /Overview/ })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: /^Requirements$/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /Step 1: Define/ })).not.toHaveAttribute("aria-current");
   });
 
-  it("Simplify collapses to the essential modules, and remembers the choice", async () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    const user = userEvent.setup();
-    const { unmount } = render(<Sidebar />);
+  it("never marks Projects current once inside a project — the project's own places say where you are", () => {
+    pathname = `${PROJECT}/requirements`;
+    render(<Sidebar />);
 
-    // Weekly/occasional-tier modules are present by default.
-    expect(screen.getByRole("link", { name: /Traceability/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Requirements$/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Projects" })).not.toHaveAttribute("aria-current");
+  });
 
-    await user.click(screen.getByRole("button", { name: "Simplify" }));
+  it("a step whose first page is hidden (in Settings) lands on its next page instead", () => {
+    pathname = PROJECT;
+    window.localStorage.setItem("pdlc:nav-customization", JSON.stringify({ hidden: ["/requirements"] }));
+    render(<Sidebar />);
 
-    expect(screen.queryByRole("link", { name: /Traceability/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Requirements$/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show all modules" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
+    expect(screen.getByRole("link", { name: /Step 1: Define/ })).toHaveAttribute(
+      "href",
+      `${PROJECT}/stakeholder-needs`,
     );
-
-    // A fresh mount (the next page navigation, in practice) reads the same
-    // stored choice back rather than resetting to "everything shown".
-    unmount();
-    render(<Sidebar />);
-    expect(await screen.findByRole("button", { name: "Show all modules" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Traceability/ })).not.toBeInTheDocument();
   });
 
-  /**
-   * Simplify used to keep the daily tier alone, which hid Verification,
-   * Evidence and Changes — exactly where the project page's next step sends
-   * a reader for stages two to four. Someone who simplified their sidebar
-   * and then clicked "Plan checks" landed on a page their sidebar hid.
-   */
-  it("keeps every module the next-step panel can send you to, even when simplified", async () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+  it("a step whose every page is hidden drops out, rather than linking nowhere", () => {
+    pathname = PROJECT;
+    window.localStorage.setItem("pdlc:nav-customization", JSON.stringify({ hidden: ["/decisions"] }));
+    render(<Sidebar />);
+
+    expect(screen.queryByRole("link", { name: /Step 3: Decide/ })).not.toBeInTheDocument();
+    // The other steps keep their own numbers.
+    expect(screen.getByRole("link", { name: /Step 4: Verify/ })).toBeInTheDocument();
+  });
+
+  it("collapses to an icon rail that still names every link, and expands again", async () => {
+    pathname = PROJECT;
     const user = userEvent.setup();
     render(<Sidebar />);
-
-    await user.click(screen.getByRole("button", { name: "Simplify" }));
-
-    for (const name of [/^Requirements$/, /^Verification$/, /^Evidence$/, /^Changes$/]) {
-      expect(screen.getByRole("link", { name })).toBeInTheDocument();
-    }
-  });
-
-  /**
-   * Pin/unpin moved off the sidebar entirely (see `NavLink`'s own doc
-   * comment) — the sidebar only ever renders the *result* of a pin stored
-   * on the Settings page's checklist, so these tests drive that same
-   * `pdlc:nav-customization` key directly, exactly as Settings' own
-   * `setPinned` would leave it.
-   */
-  it("a module pinned via stored preference gets its own Pinned section, and survives Simplify", async () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    window.localStorage.setItem(
-      "pdlc:nav-customization",
-      JSON.stringify({ hidden: [], pinned: ["/traceability"] }),
-    );
-    const user = userEvent.setup();
-    render(<Sidebar />);
-
-    expect(screen.getByText("Pinned")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Traceability/ })).toBeInTheDocument();
-
-    // Traceability is weekly-tier — normally the first thing Simplify
-    // collapses away, which is exactly why this is a real test of "pinned
-    // survives Simplify" and not just "pinned is visible".
-    await user.click(screen.getByRole("button", { name: "Simplify" }));
-    expect(screen.getByRole("link", { name: /Traceability/ })).toBeInTheDocument();
-  });
-
-  it("unpinning (from Settings, in practice) removes the module from the Pinned section live", async () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    window.localStorage.setItem(
-      "pdlc:nav-customization",
-      JSON.stringify({ hidden: [], pinned: ["/traceability"] }),
-    );
-    render(<Sidebar />);
-    expect(screen.getByText("Pinned")).toBeInTheDocument();
-
-    // The sidebar and Settings read the same localStorage key live, in
-    // separate mounted trees — this is Settings' own write, replayed here
-    // without needing to mount that page too.
-    window.localStorage.setItem("pdlc:nav-customization", JSON.stringify({ hidden: [], pinned: [] }));
-    window.dispatchEvent(new Event("pdlc:local-json-changed:pdlc:nav-customization"));
-
-    await waitFor(() => expect(screen.queryByText("Pinned")).not.toBeInTheDocument());
-  });
-
-  it("a pinned module is remembered across a fresh mount", async () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    window.localStorage.setItem(
-      "pdlc:nav-customization",
-      JSON.stringify({ hidden: [], pinned: ["/traceability"] }),
-    );
-    const { unmount } = render(<Sidebar />);
-    expect(screen.getByText("Pinned")).toBeInTheDocument();
-    unmount();
-
-    render(<Sidebar />);
-    expect(await screen.findByText("Pinned")).toBeInTheDocument();
-  });
-
-  it("a module with no default sidebar residency (Suppliers — occasional tier, no group) can be pinned via stored preference (the Settings page, in practice), and then appears even under Simplify", async () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    window.localStorage.setItem(
-      "pdlc:nav-customization",
-      JSON.stringify({ hidden: [], pinned: ["/suppliers"] }),
-    );
-    const user = userEvent.setup();
-    render(<Sidebar />);
-
-    expect(screen.getByRole("link", { name: /Suppliers/ })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Simplify" }));
-    expect(screen.getByRole("link", { name: /Suppliers/ })).toBeInTheDocument();
-  });
-
-  it("a module hidden via stored preference (the Settings page, in practice) is absent everywhere, including Command Center's own residency exception never applying to it", () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    window.localStorage.setItem(
-      "pdlc:nav-customization",
-      JSON.stringify({ hidden: ["/risks"], pinned: [] }),
-    );
-    render(<Sidebar />);
-
-    expect(screen.queryByRole("link", { name: /^Risks$/ })).not.toBeInTheDocument();
-  });
-
-  it("Command Center can never be hidden or pinned, even via directly-written storage", () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    window.localStorage.setItem(
-      "pdlc:nav-customization",
-      JSON.stringify({ hidden: ["/command-center"], pinned: ["/command-center"] }),
-    );
-    render(<Sidebar />);
-
-    expect(screen.getByRole("link", { name: /Command Center/ })).toBeInTheDocument();
-    // Not duplicated into a Pinned section either — it stays in its one,
-    // fixed, always-visible spot.
-    expect(screen.queryByText("Pinned")).not.toBeInTheDocument();
-  });
-
-  it("a hidden module disappears from the outside-project picker list too — one preference, everywhere the module could appear", () => {
-    pathname = "/dashboard";
-    window.localStorage.setItem(
-      "pdlc:nav-customization",
-      JSON.stringify({ hidden: ["/risks"], pinned: [] }),
-    );
-    render(<Sidebar />);
-
-    expect(screen.queryByRole("link", { name: /^Risks$/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Requirements$/ })).toBeInTheDocument();
-  });
-
-  it("a pinned module's link survives collapsing the sidebar to the icon rail", async () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    window.localStorage.setItem(
-      "pdlc:nav-customization",
-      JSON.stringify({ hidden: [], pinned: ["/traceability"] }),
-    );
-    const user = userEvent.setup();
-    render(<Sidebar />);
-
-    expect(screen.getByRole("link", { name: /Traceability/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
 
-    // The "Pinned" section label is text-only chrome, hidden on the icon
-    // rail same as every other group heading — the link itself stays.
-    expect(screen.queryByText("Pinned")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Traceability" })).toBeInTheDocument();
-  });
+    expect(screen.queryByText("What are we trying to build?")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Step 1: Define/ })).toHaveAttribute("href", `${PROJECT}/requirements`);
+    expect(screen.getByRole("link", { name: "Command Center" })).toBeInTheDocument();
 
-  it("expands to search modules in the sidebar", async () => {
-    pathname = "/dashboard";
-    const user = userEvent.setup();
-    render(<Sidebar />);
-
-    // The search box only exists in the expanded sidebar — the collapsed
-    // icon rail has no room for it, and every icon already has a tooltip.
-    expect(screen.getByRole("searchbox", { name: "Search modules" })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
-
-    expect(screen.queryByRole("searchbox", { name: "Search modules" })).not.toBeInTheDocument();
-  });
-
-  it("filters the outside-project module pickers as you type", async () => {
-    pathname = "/dashboard";
-    const user = userEvent.setup();
-    render(<Sidebar />);
-
-    await user.type(screen.getByRole("searchbox", { name: "Search modules" }), "requ");
-
-    expect(screen.getByRole("link", { name: /^Requirements$/ })).toHaveAttribute(
-      "href",
-      "/requirements",
-    );
-    expect(screen.queryByRole("link", { name: /^Risks$/ })).not.toBeInTheDocument();
-  });
-
-  it("finds a module with no default sidebar residency when searching inside a project", async () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    const user = userEvent.setup();
-    render(<Sidebar />);
-
-    // Suppliers is occasional-tier with no group, so it has no permanent
-    // sidebar spot — under a search it must still be findable.
-    expect(screen.queryByRole("link", { name: /^Suppliers$/ })).not.toBeInTheDocument();
-
-    await user.type(screen.getByRole("searchbox", { name: "Search modules" }), "supplier");
-
-    expect(screen.getByRole("link", { name: /^Suppliers$/ })).toHaveAttribute(
-      "href",
-      "/projects/proj1aaaaaaaaaaaaaaaaaaa/suppliers",
-    );
-  });
-
-  it("flattens grouped modules into one Results list while searching, and does not show crumb separators or Simplify", async () => {
-    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    const user = userEvent.setup();
-    render(<Sidebar />);
-
-    await user.type(screen.getByRole("searchbox", { name: "Search modules" }), "risks");
-
-    // The grouped "Change" header is replaced by a single Results section.
-    expect(screen.getByText("Results")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Risks$/ })).toHaveAttribute(
-      "href",
-      "/projects/proj1aaaaaaaaaaaaaaaaaaa/risks",
-    );
-  });
-
-  it("shows a no-results message for a search that matches nothing, and recovers when cleared", async () => {
-    pathname = "/dashboard";
-    const user = userEvent.setup();
-    render(<Sidebar />);
-
-    await user.type(screen.getByRole("searchbox", { name: "Search modules" }), "zzz-none");
-    expect(screen.getByText(/No modules match/)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Requirements$/ })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Clear search" }));
-
-    expect(screen.queryByText(/No modules match/)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Requirements$/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    expect(screen.getByText("What are we trying to build?")).toBeInTheDocument();
   });
 });

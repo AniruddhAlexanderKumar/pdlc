@@ -49,9 +49,9 @@ export type ProgressStage = (typeof PROGRESS_STAGES)[number];
 
 /**
  * The module each stage's work lives in — the path suffix under
- * `/projects/:id`. Exported so anything that decides which modules are
- * essential (the sidebar's Simplify mode) agrees with the stages by
- * construction, not by someone remembering to update two lists.
+ * `/projects/:id`. Exported so the project navigation's tests can check
+ * every stage destination is a page the navigation actually offers, by
+ * construction rather than by someone remembering to update two lists.
  */
 export const PROGRESS_MODULES = [
   "requirements",

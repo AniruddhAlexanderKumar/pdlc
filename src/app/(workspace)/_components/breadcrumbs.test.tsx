@@ -39,6 +39,30 @@ describe("Breadcrumbs", () => {
     expect(screen.getByText("Risks")).toHaveAttribute("aria-current", "page");
   });
 
+  it("names the project, not its id — the short id only stands in until the name loads", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ project: { id: "proj1aaaaaaaaaaaaaaaaaaa", name: "Upper Stage Propulsion" } }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa/design-items";
+
+    try {
+      render(<Breadcrumbs />);
+
+      expect(screen.getByRole("link", { name: "proj1aaa…" })).toBeInTheDocument();
+      expect(await screen.findByRole("link", { name: "Upper Stage Propulsion" })).toHaveAttribute(
+        "href",
+        "/projects/proj1aaaaaaaaaaaaaaaaaaa",
+      );
+      // A module crumb uses the module's own name, as its tab does.
+      expect(screen.getByText("Design items")).toHaveAttribute("aria-current", "page");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("copies the current path to the clipboard and shows transient feedback", async () => {
     writeText.mockResolvedValue(undefined);
     pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa/risks";

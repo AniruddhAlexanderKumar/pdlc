@@ -7,31 +7,31 @@ import { useStoredJson } from "@/lib/use-stored-json";
 export const NAV_CUSTOMIZATION_STORAGE_KEY = "pdlc:nav-customization";
 
 /**
- * A module a user can never remove or pin — the front door itself. Hiding
- * it would strand navigation, and pinning something already always shown
- * is meaningless. Every other entry in `PROJECT_MODULES` and `NAV_ITEMS` is
- * fair game.
+ * A module a user can never hide — the front door itself. Hiding it would
+ * strand navigation. Every other entry in `PROJECT_MODULES` and `NAV_ITEMS`
+ * is fair game.
  */
 export const ALWAYS_VISIBLE_HREF = "/command-center";
 
 interface NavCustomizationState {
   hidden: string[];
-  pinned: string[];
 }
 
-const DEFAULT_STATE: NavCustomizationState = { hidden: [], pinned: [] };
+const DEFAULT_STATE: NavCustomizationState = { hidden: [] };
 
 /**
- * Per-browser navigation customization — which modules a user has removed
- * from their sidebar, and which they have pinned to it regardless of what
- * "Simplify" would otherwise collapse. Same tradeoff `use-theme.ts` and
- * `sidebar.tsx`'s own "Simplify" flag already make for this exact class of
- * preference: remembered per device, not synced to the account.
+ * Per-browser navigation customization: which pages a user has hidden
+ * because they never use them. A hidden page drops out of the sidebar, the
+ * tab bar and the command palette alike. Same tradeoff `use-theme.ts`
+ * already makes for this class of preference: remembered per device, not
+ * synced to the account.
  *
- * Hidden and pinned are mutually exclusive by construction — `setHidden`
- * and `setPinned` each clear the other set's membership for that href, so
- * a module can never be both "removed" and "pinned" at once, a state that
- * would have no coherent meaning to render.
+ * There used to be a second half — "pinning" a module into its own sidebar
+ * section, and a "Simplify" switch that collapsed the sidebar — both
+ * workarounds for a sidebar that listed every module at once. The sidebar
+ * now lists a handful of places with each one's pages as tabs, so neither
+ * had anything left to do. Storage written by that version (with a
+ * `pinned` list) still reads fine: the extra field is ignored.
  */
 export function useNavCustomization() {
   const [stored, setStored] = useStoredJson<NavCustomizationState>(
@@ -39,36 +39,22 @@ export function useNavCustomization() {
     DEFAULT_STATE,
   );
 
-  const hidden = React.useMemo(() => new Set(stored.hidden), [stored.hidden]);
-  const pinned = React.useMemo(() => new Set(stored.pinned), [stored.pinned]);
+  const hidden = React.useMemo(() => new Set(stored.hidden ?? []), [stored.hidden]);
 
   const setHidden = React.useCallback(
     (href: string, isHidden: boolean) => {
       if (href === ALWAYS_VISIBLE_HREF) return;
-      setStored((prev) => ({
-        hidden: isHidden
-          ? [...new Set([...prev.hidden, href])]
-          : prev.hidden.filter((entry) => entry !== href),
-        pinned: isHidden ? prev.pinned.filter((entry) => entry !== href) : prev.pinned,
-      }));
-    },
-    [setStored],
-  );
-
-  const setPinned = React.useCallback(
-    (href: string, isPinned: boolean) => {
-      if (href === ALWAYS_VISIBLE_HREF) return;
-      setStored((prev) => ({
-        pinned: isPinned
-          ? [...new Set([...prev.pinned, href])]
-          : prev.pinned.filter((entry) => entry !== href),
-        hidden: isPinned ? prev.hidden.filter((entry) => entry !== href) : prev.hidden,
-      }));
+      setStored((prev) => {
+        const previous = prev.hidden ?? [];
+        return {
+          hidden: isHidden ? [...new Set([...previous, href])] : previous.filter((entry) => entry !== href),
+        };
+      });
     },
     [setStored],
   );
 
   const reset = React.useCallback(() => setStored(DEFAULT_STATE), [setStored]);
 
-  return { hidden, pinned, setHidden, setPinned, reset };
+  return { hidden, setHidden, reset };
 }

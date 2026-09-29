@@ -42,12 +42,15 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     title: "Navigating Your Workspace",
-    subtitle: "Command Center & Jump-to Palette",
+    subtitle: "Six steps, one at a time",
     icon: <Layers className="size-8 text-primary" />,
     content: (
       <div className="flex flex-col gap-3 text-sm text-muted-foreground">
         <p>
-          Your sidebar is grouped by what you want to achieve: <strong className="text-foreground">Understand</strong>, <strong className="text-foreground">Define</strong>, <strong className="text-foreground">Decide</strong>, <strong className="text-foreground">Prove</strong>, <strong className="text-foreground">Change</strong>, and <strong className="text-foreground">Certify</strong>.
+          Open a project and the sidebar becomes six numbered steps, in the order you do them: <strong className="text-foreground">Define</strong>, <strong className="text-foreground">Design</strong>, <strong className="text-foreground">Decide</strong>, <strong className="text-foreground">Verify</strong>, <strong className="text-foreground">Control change</strong>, and <strong className="text-foreground">Review &amp; release</strong>.
+        </p>
+        <p>
+          A step&apos;s pages are tabs along the top, next to a <strong className="text-foreground">Next step</strong> link — so you always know where you are and where to go.
         </p>
         <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-xs font-mono text-foreground">
           <Zap className="size-4 shrink-0 text-primary" />
