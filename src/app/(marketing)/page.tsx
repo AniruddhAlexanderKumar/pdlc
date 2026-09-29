@@ -1,42 +1,55 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  Boxes,
   FileText,
   GitPullRequest,
-  HelpCircle,
+  Lightbulb,
   Lock,
+  Scale,
   Server,
   ShieldCheck,
   TestTube2,
-  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InteractiveShowcase } from "./_components/interactive-showcase";
+import { InteractiveWorkflowStepper } from "./_components/interactive-workflow-stepper";
 
 export default function LandingPage() {
   return (
     <div className="relative overflow-hidden bg-transparent text-white selection:bg-cyan-500 selection:text-black font-sans">
-      {/* SECTION 1: HERO (MINIMALIST SPACEX TYPOGRAPHY) */}
+      {/* SECTION 1: HERO */}
       <section className="relative min-h-[85vh] flex flex-col justify-center items-center py-28 sm:py-36 border-b border-white/10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl text-center">
-          {/* Main Headline: THE MORNINGSTAR SOLUTION */}
-          <h1 className="text-5xl sm:text-7xl lg:text-9xl font-black uppercase text-white tracking-tight leading-[0.92]">
+          {/* Company identity: who built it. What it does comes next, explicitly. */}
+          <div className="font-mono text-sm sm:text-base text-cyan-400 font-extrabold tracking-[0.4em] uppercase">
+            5 MAN MISSION
+          </div>
+
+          <h1 className="mt-5 text-4xl sm:text-6xl lg:text-8xl font-black uppercase text-white tracking-tight leading-[0.95]">
             THE MORNINGSTAR <br className="hidden sm:inline" />
             <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
               SOLUTION.
             </span>
           </h1>
 
-          {/* Subheadline Tag: 5 Man Mission */}
-          <div className="mt-5 font-mono text-sm sm:text-base text-cyan-400 font-extrabold tracking-[0.4em] uppercase">
-            5 MAN MISSION
-          </div>
-
-          {/* Core Description */}
-          <p className="mt-8 text-sm sm:text-lg text-slate-300 font-normal leading-relaxed max-w-2xl mx-auto uppercase tracking-wide font-mono">
-            PDLC CONNECTS REQUIREMENTS, QUESTIONS, EVIDENCE, DECISIONS AND DEPENDENCIES INTO ONE INTELLIGENT PRODUCT DEVELOPMENT SYSTEM.
+          {/*
+            The explicit statement the previous hero never made: what kind of
+            software this is. "Product Development Life Cycle" is spelled
+            out once, here, before the PDLC abbreviation is used anywhere
+            else on the page — a visitor who has never heard the term should
+            not have to guess what it stands for.
+          */}
+          <p className="mt-8 text-base sm:text-xl text-white font-semibold leading-relaxed max-w-3xl mx-auto">
+            A Product Development Life Cycle (PDLC) platform for hardware and software teams:
+            requirements, design, decisions, verification, evidence and change, connected by real
+            links instead of tribal knowledge.
           </p>
 
-          {/* Action CTAs */}
+          <p className="mt-4 text-xs sm:text-sm text-slate-400 font-normal leading-relaxed max-w-2xl mx-auto uppercase tracking-wide font-mono">
+            SELF-HOSTED. YOUR POSTGRESQL. NO THIRD PARTY EVER SEES YOUR RECORDS.
+          </p>
+
           <div className="mt-12 flex flex-wrap items-center justify-center gap-5 font-mono text-xs font-extrabold uppercase tracking-widest">
             <Button
               asChild
@@ -44,7 +57,7 @@ export default function LandingPage() {
               className="h-14 px-10 rounded-none bg-white text-black hover:bg-slate-200 font-mono text-xs font-black uppercase tracking-widest transition-all border border-white"
             >
               <Link href="/sign-up" className="flex items-center gap-3">
-                EXPLORE MORNINGSTAR
+                START A PROJECT
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -55,29 +68,37 @@ export default function LandingPage() {
               size="lg"
               className="h-14 px-10 rounded-none border border-white/30 bg-black/60 hover:bg-white hover:text-black font-mono text-xs font-extrabold text-white uppercase tracking-widest transition-all backdrop-blur-xs"
             >
-              <a href="#manifesto" className="flex items-center gap-3">
-                READ MANIFESTO
+              <a href="#how-it-works" className="flex items-center gap-3">
+                SEE HOW IT WORKS
               </a>
             </Button>
           </div>
 
-          {/* TELEMETRY BAR */}
+          {/*
+            A four-tile stat strip stood here reading "0 MS / UNVERIFIED
+            GAPS" and "100% TRACEABLE LINEAGE" — an invented metric paired
+            with a nonsensical unit, and a percentage this product's own
+            tests explicitly forbid anywhere in its output
+            (no-fabricated-metrics.test.ts). What replaces it states real,
+            checkable properties instead of manufactured statistics — none
+            of these can go stale the way a specific number could.
+          */}
           <div className="mt-20 pt-10 border-t border-white/10 grid grid-cols-2 md:grid-cols-4 gap-8 text-center font-mono uppercase tracking-wider">
             <div className="flex flex-col gap-1">
-              <span className="text-3xl sm:text-4xl font-black text-white">1 GRAPH</span>
-              <span className="text-[10px] text-slate-400 font-bold">SINGLE SYSTEM TRUTH</span>
+              <span className="text-base sm:text-lg font-black text-white">SELF-HOSTED</span>
+              <span className="text-[10px] text-slate-400 font-bold">YOUR DATABASE, YOUR CONTROL</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-3xl sm:text-4xl font-black text-cyan-400">6 PRIMITIVES</span>
-              <span className="text-[10px] text-slate-400 font-bold">CORE ONTOLOGY</span>
+              <span className="text-base sm:text-lg font-black text-cyan-400">NO INVENTED SCORES</span>
+              <span className="text-[10px] text-slate-400 font-bold">REAL LINKS OR AN HONEST GAP</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-3xl sm:text-4xl font-black text-white">0 MS</span>
-              <span className="text-[10px] text-slate-400 font-bold">UNVERIFIED GAPS</span>
+              <span className="text-base sm:text-lg font-black text-white">APPEND-ONLY AUDIT</span>
+              <span className="text-[10px] text-slate-400 font-bold">NOTHING IS EVER EDITED OUT</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-3xl sm:text-4xl font-black text-indigo-400">100%</span>
-              <span className="text-[10px] text-slate-400 font-bold">TRACEABLE LINEAGE</span>
+              <span className="text-base sm:text-lg font-black text-indigo-400">NO AI JUDGMENT</span>
+              <span className="text-[10px] text-slate-400 font-bold">RULES YOU CAN READ, NOT A MODEL</span>
             </div>
           </div>
         </div>
@@ -100,161 +121,132 @@ export default function LandingPage() {
             THE MORNINGSTAR MANIFESTO
           </span>
           <h2 className="mt-8 text-3xl sm:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-[1.08]">
-            “ENGINEERING DECISIONS SHOULDN’T BE BURIED IN SPREADSHEETS OR SCATTERED ACROSS CHAT LOGS. THEY MUST BE A LIVING, DEFENSIBLE GRAPH.”
+            “ENGINEERING DECISIONS SHOULDN’T BE BURIED IN SPREADSHEETS OR SCATTERED ACROSS CHAT LOGS. THEY BELONG IN ONE CONNECTED RECORD.”
           </h2>
           <p className="mt-8 font-mono text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto leading-relaxed uppercase tracking-wider">
-            MORNINGSTAR REPLACES FRAGMENTED DOCUMENTATION WITH A DETERMINISTIC GRAPH ENGINE. EVERY PARAMETER CHANGE PROPAGATES DOWNSTREAM IN REAL-TIME, PREVENTING HARDWARE SCRAP AND GUARANTEEING AUDIT DEFENSIBILITY.
+            MORNINGSTAR REPLACES FRAGMENTED DOCUMENTATION WITH REAL RELATIONSHIPS BETWEEN REQUIREMENTS,
+            DESIGN, DECISIONS, VERIFICATION AND EVIDENCE. WHEN SOMETHING CHANGES, IT SHOWS YOU WHAT THAT
+            CHANGE TOUCHES — WHEN YOU ASK, NEVER AUTOMATICALLY, AND NEVER BY GUESSING.
           </p>
         </div>
       </section>
 
-      {/* SECTION 3: THE 6 PRIMITIVES */}
+      {/* SECTION 3: CORE CONCEPTS */}
       <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="font-mono text-xs font-bold tracking-[0.4em] text-cyan-400 uppercase">
-              THE MORNINGSTAR ONTOLOGY
+              THE MORNINGSTAR RECORD
             </span>
             <h2 className="mt-4 text-4xl sm:text-6xl font-black uppercase text-white tracking-tight">
-              SIX PRIMITIVES. ONE SYSTEM.
+              SIX RECORD TYPES. ONE LIFECYCLE.
             </h2>
             <p className="mt-4 font-mono text-xs text-slate-400 uppercase tracking-wider">
-              EVERY TECHNICAL ASSET ACROSS HARDWARE, SOFTWARE, AND SYSTEMS ENGINEERING IS MAPPED INTO 6 CONNECTED GRAPH PRIMITIVES.
+              EVERY PROJECT IS BUILT FROM THE SAME SIX KINDS OF RECORD — THE ONES YOU WILL ACTUALLY
+              OPEN INSIDE THE PRODUCT, NOT A MARKETING SIMPLIFICATION OF IT.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-mono text-xs">
             <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-cyan-400 uppercase tracking-widest">PRIMITIVE 01</span>
-                <FileText className="size-5 text-white" />
+                <span className="font-bold text-cyan-400 uppercase tracking-widest">RECORD 01</span>
+                <Lightbulb className="size-5 text-white" />
               </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">REQUIREMENT</h3>
+              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">STAKEHOLDER NEED</h3>
               <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                Verifiable operational limits, interface boundaries, and engineering constraints across sub-systems.
+                What someone actually asked for, in their own words, before it becomes a formal
+                requirement.
               </p>
             </div>
 
             <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-amber-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-amber-400 uppercase tracking-widest">PRIMITIVE 02</span>
-                <HelpCircle className="size-5 text-white" />
+                <span className="font-bold text-amber-400 uppercase tracking-widest">RECORD 02</span>
+                <FileText className="size-5 text-white" />
               </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">QUESTION</h3>
+              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">REQUIREMENT</h3>
               <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                Unresolved ambiguity or parameter gaps explicitly tracked until backed by technical verification evidence.
+                One thing the product must do, specific enough that someone could check whether it
+                was met.
               </p>
             </div>
 
             <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-emerald-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-emerald-400 uppercase tracking-widest">PRIMITIVE 03</span>
-                <TestTube2 className="size-5 text-white" />
+                <span className="font-bold text-emerald-400 uppercase tracking-widest">RECORD 03</span>
+                <Boxes className="size-5 text-white" />
               </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">EVIDENCE</h3>
+              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">DESIGN ITEM</h3>
               <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                Hot fire test logs, CAD stress calculations, FEA runs, or supplier ICDs backing design safety margins.
+                A part of the product — system, assembly, component or software — that a
+                requirement is allocated to by a real link.
               </p>
             </div>
 
             <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-indigo-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-indigo-400 uppercase tracking-widest">PRIMITIVE 04</span>
-                <GitPullRequest className="size-5 text-white" />
+                <span className="font-bold text-indigo-400 uppercase tracking-widest">RECORD 04</span>
+                <Scale className="size-5 text-white" />
               </div>
               <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">DECISION</h3>
               <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                Architectural choices and baseline trade studies recorded with full evidence lineage and rationale.
+                What was chosen, what alternatives were considered, and why — kept so the next
+                engineer does not have to guess.
               </p>
             </div>
 
             <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-purple-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-purple-400 uppercase tracking-widest">PRIMITIVE 05</span>
-                <ShieldCheck className="size-5 text-white" />
+                <span className="font-bold text-purple-400 uppercase tracking-widest">RECORD 05</span>
+                <TestTube2 className="size-5 text-white" />
               </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">APPROVAL GATE</h3>
+              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">EVIDENCE</h3>
               <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                Dual-custody verification sign-offs requiring multi-disciplinary approval before release to production.
+                The test report, calculation or inspection record that proves a check was carried
+                out. Locked once validated — a correction supersedes it, never overwrites it.
               </p>
             </div>
 
             <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-cyan-400 uppercase tracking-widest">PRIMITIVE 06</span>
-                <Zap className="size-5 text-white" />
+                <span className="font-bold text-cyan-400 uppercase tracking-widest">RECORD 06</span>
+                <GitPullRequest className="size-5 text-white" />
               </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">CHANGE DELTA</h3>
+              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">CHANGE REQUEST</h3>
               <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                Propagated modification recalculating blast radius across all connected hardware and software subcomponents.
+                A change, recorded before it is made. What it would affect is shown by following
+                real links outward — before anyone edits anything.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SECTION 4: ENGINE ADVANTAGE */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl font-mono">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-5 flex flex-col gap-6 font-sans">
-              <span className="text-xs font-bold tracking-[0.4em] text-cyan-400 uppercase font-mono">
-                DETERMINISTIC GRAPH ENGINE
-              </span>
-              <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight">
-                ENGINEERING TRUTH IN SUB-5MS GRAPH QUERIES.
-              </h2>
-              <p className="text-slate-400 leading-relaxed text-xs uppercase tracking-wider font-mono">
-                MORNINGSTAR MAINTAINS AN IN-MEMORY DIRECTED GRAPH OF EVERY REQUIREMENT, QUESTION, EVIDENCE FILE, AND SIGN-OFF DECISION ACROSS YOUR ENTIRE ENGINEERING ORGANIZATION.
-              </p>
-            </div>
-
-            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="flex flex-col gap-3 rounded-none border border-white/15 bg-black/90 p-6">
-                <span className="text-cyan-400 font-bold text-base">01</span>
-                <h3 className="font-black text-white text-sm uppercase font-sans">SUB-5MS GRAPH WALK</h3>
-                <p className="text-slate-400 leading-relaxed font-normal">
-                  Traverse thousands of complex dependency edges to find unverified requirements and stale test reports instantly.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 rounded-none border border-white/15 bg-black/90 p-6">
-                <span className="text-indigo-400 font-bold text-base">02</span>
-                <h3 className="font-black text-white text-sm uppercase font-sans">PRE-RELEASE BLAST RADIUS</h3>
-                <p className="text-slate-400 leading-relaxed font-normal">
-                  Know exactly which test plans, CAD models, and supplier contracts break before releasing hardware changes.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 rounded-none border border-white/15 bg-black/90 p-6">
-                <span className="text-emerald-400 font-bold text-base">03</span>
-                <h3 className="font-black text-white text-sm uppercase font-sans">DUAL-CUSTODY APPROVALS</h3>
-                <p className="text-slate-400 leading-relaxed font-normal">
-                  Enforce multi-disciplinary review gates that guarantee Systems Safety and Chief Engineers sign off before milestone gates.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 rounded-none border border-white/15 bg-black/90 p-6">
-                <span className="text-purple-400 font-bold text-base">04</span>
-                <h3 className="font-black text-white text-sm uppercase font-sans">CRYPTOGRAPHIC AUDIT LEDGER</h3>
-                <p className="text-slate-400 leading-relaxed font-normal">
-                  Immutable historical recording of every parameter update, rationale note, and evidence attachment.
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* SECTION 4: HOW IT WORKS — the real six-stage lifecycle, interactive */}
+      <section id="how-it-works" className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <InteractiveWorkflowStepper />
         </div>
       </section>
 
-      {/*
-        An "Integrations Constellation" section stood here, listing Amazon,
-        DigiKey, Mouser and McMaster-Carr as "LIVE CONNECTED" and IBM DOORS,
-        Jira, Siemens Teamcenter and Ansys as "READY", each behind a
-        "1-CLICK CONNECT" button that only toggled local state. None of those
-        integrations exists. Importing from DOORS in particular is a known,
-        unbuilt gap — the thing a prospect evaluating this product is most
-        likely to try first. Removed until one of them is real.
-      */}
+      {/* SECTION 5: TRY IT LIVE */}
+      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
+          <div className="text-center max-w-3xl mx-auto mb-12 font-sans">
+            <span className="font-mono text-xs font-bold tracking-[0.4em] text-cyan-400 uppercase">
+              NO ACCOUNT REQUIRED
+            </span>
+            <h2 className="mt-4 text-3xl sm:text-5xl font-black uppercase text-white tracking-tight">
+              TRY THE REAL RULES.
+            </h2>
+            <p className="mt-4 text-slate-400 leading-relaxed">
+              Not a video, not a script. This runs the same functions the signed-in product does.
+            </p>
+          </div>
+          <InteractiveShowcase />
+        </div>
+      </section>
 
       {/* SECTION 6: SECURITY */}
       <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
@@ -304,11 +296,12 @@ export default function LandingPage() {
           </span>
 
           <h2 className="mt-8 text-4xl sm:text-7xl font-black text-white uppercase tracking-tight leading-[0.95]">
-            BUILD DEFENSIBLE ENGINEERING DECISIONS.
+            RUN YOUR PDLC ON RECORDS, NOT MEMORY.
           </h2>
 
           <p className="mt-8 font-mono text-xs sm:text-sm text-slate-400 leading-relaxed max-w-2xl mx-auto uppercase tracking-wider">
-            ELIMINATE UNVERIFIED REQUIREMENTS, SILENT CHANGE PROPAGATION, AND MISSING EVIDENCE GAPS ACROSS YOUR ENTIRE LIFECYCLE.
+            UNVERIFIED REQUIREMENTS, SILENT CHANGE IMPACT, AND MISSING EVIDENCE — NAMED, NOT GUESSED AT,
+            ACROSS YOUR ENTIRE PRODUCT DEVELOPMENT LIFE CYCLE.
           </p>
 
           <div className="mt-12 flex flex-wrap items-center justify-center gap-5 font-mono text-xs font-extrabold uppercase tracking-widest">

@@ -58,6 +58,7 @@ export function MembersView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/members"
         title="Members"
         description={
           projectName

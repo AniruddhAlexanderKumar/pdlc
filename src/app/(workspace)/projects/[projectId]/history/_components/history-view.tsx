@@ -81,6 +81,7 @@ export function HistoryView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/history"
         title="Engineering History"
         description={
           projectName

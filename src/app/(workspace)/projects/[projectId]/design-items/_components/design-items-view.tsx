@@ -38,6 +38,7 @@ export function DesignItemsView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/design-items"
         title={title}
         description={
           projectName

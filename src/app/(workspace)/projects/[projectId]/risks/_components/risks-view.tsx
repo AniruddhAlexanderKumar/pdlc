@@ -48,6 +48,7 @@ export function RisksView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/risks"
         title={title}
         description={
           projectName

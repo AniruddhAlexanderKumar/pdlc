@@ -93,7 +93,8 @@ export function InteractiveWorkflowStepper() {
           HOW PRODUCT TEAMS WORK WITH PDLC
         </h3>
         <p className="mt-3 text-xs text-slate-400 uppercase tracking-wider">
-          CLICK THROUGH THE 5-STEP LIFECYCLE TO SEE HOW PARAMETERS TURN INTO DEFENSIBLE DECISIONS.
+          CLICK THROUGH THE {WORKFLOW_STEPS.length}-STAGE LIFECYCLE — THE SAME ONE EVERY PROJECT
+          FOLLOWS INSIDE THE PRODUCT, NOT A SIMPLIFICATION OF IT.
         </p>
       </div>
 

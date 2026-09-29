@@ -9,15 +9,22 @@ interface ParticleNode {
   vx: number;
   vy: number;
   label: string;
+  /**
+   * A real node type from `GRAPH_NODE_TYPES` (`src/domain/graph.ts`) — this
+   * ambient background used to include "QUESTION" and "APPROVAL", neither
+   * of which is a type this product's graph actually has. Every label here
+   * now names something real, even though the animation itself is
+   * decorative and does not read live data.
+   */
   type: string;
 }
 
 const INITIAL_NODES: ParticleNode[] = [
   { id: 1, x: 15, y: 20, vx: 0.02, vy: 0.01, label: "REQ-1042", type: "REQUIREMENT" },
-  { id: 2, x: 35, y: 15, vx: -0.015, vy: 0.02, label: "QST-089", type: "QUESTION" },
+  { id: 2, x: 35, y: 15, vx: -0.015, vy: 0.02, label: "RSK-089", type: "RISK" },
   { id: 3, x: 65, y: 25, vx: 0.01, vy: -0.015, label: "EVD-402", type: "EVIDENCE" },
   { id: 4, x: 85, y: 35, vx: -0.02, vy: 0.01, label: "DEC-019", type: "DECISION" },
-  { id: 5, x: 25, y: 55, vx: 0.015, vy: -0.02, label: "APP-005", type: "APPROVAL" },
+  { id: 5, x: 25, y: 55, vx: 0.015, vy: -0.02, label: "BL-005", type: "BASELINE" },
   { id: 6, x: 50, y: 70, vx: -0.01, vy: 0.015, label: "CR-112", type: "CHANGE" },
   { id: 7, x: 75, y: 75, vx: 0.02, vy: -0.01, label: "SUP-014", type: "SUPPLIER" },
   { id: 8, x: 90, y: 85, vx: -0.015, vy: -0.015, label: "ICD-401", type: "INTERFACE" },
@@ -92,15 +99,17 @@ export function UINatureBackground() {
           })
         )}
 
-        {/* Floating UI Nodes */}
+        {/*
+          Floating nodes. Each circle already positions itself with
+          percentage `cx`/`cy`; an earlier version wrapped them in a `<g>`
+          with its own pixel `transform`, which pushed every node further
+          from its plotted position than the connecting lines (drawn with
+          the same percentages, no such offset) expected — a real, visible
+          misalignment between the dots and the mesh lines joining them.
+        */}
         {nodes.map((n) => (
-          <g key={n.id} transform={`translate(${n.x * 10}, ${n.y * 10})`}>
-            <circle
-              cx={`${n.x}%`}
-              cy={`${n.y}%`}
-              r="4"
-              className="fill-cyan-400 opacity-60"
-            />
+          <g key={n.id}>
+            <circle cx={`${n.x}%`} cy={`${n.y}%`} r="4" className="fill-cyan-400 opacity-60" />
             <circle
               cx={`${n.x}%`}
               cy={`${n.y}%`}
@@ -112,16 +121,13 @@ export function UINatureBackground() {
         ))}
       </svg>
 
-      {/* 4. Monospace Telemetry UI Metadata Overlay */}
-      <div className="absolute top-6 left-6 font-mono text-[9px] font-bold text-zinc-600 uppercase tracking-widest flex flex-col gap-1">
-        <span>UI_CANVAS // ACTIVE_MESH</span>
-        <span>GRID_RES: 48PX • MESH_NODES: 8</span>
-      </div>
-
-      <div className="absolute bottom-6 right-6 font-mono text-[9px] font-bold text-zinc-600 uppercase tracking-widest flex flex-col gap-1 text-right">
-        <span>MORNINGSTAR_UI_KERNEL v4.2</span>
-        <span>STATE: GRAPH_SYNCHRONIZED</span>
-      </div>
+      {/*
+        A "MORNINGSTAR_UI_KERNEL v4.2 / STATE: GRAPH_SYNCHRONIZED" readout
+        sat in the corner here, on every marketing page — an invented
+        version number and a status that was never checked, styled exactly
+        like the real telemetry this product refuses to fabricate anywhere
+        else. Purely decorative background needs no status line at all.
+      */}
     </div>
   );
 }

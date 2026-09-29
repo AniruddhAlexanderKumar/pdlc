@@ -2,7 +2,17 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyProgressFacts, nextProgressStep, progressSteps } from "@/domain/project-progress";
-import { ProjectDetailView } from "./project-detail-view";
+
+/**
+ * The page reads `?gate=` (see `TechnicalReadinessPanel`'s own doc comment)
+ * to decide whether a release-check link should open the Readiness tab.
+ * Empty unless a test sets it, matching every other test's expectation of
+ * landing on the default "Start here" tab.
+ */
+let searchParams = new URLSearchParams();
+vi.mock("next/navigation", () => ({ useSearchParams: () => searchParams }));
+
+const { ProjectDetailView } = await import("./project-detail-view");
 
 const PROJECT = {
   id: "proj1aaaaaaaaaaaaaaaaaaa",
@@ -118,16 +128,21 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  searchParams = new URLSearchParams();
 });
 
 describe("ProjectDetailView", () => {
   it("renders the project record from the API", async () => {
     routeProject(PROJECT);
+    const user = userEvent.setup();
 
     render(<ProjectDetailView projectId={PROJECT.id} />);
 
     expect(await screen.findByRole("heading", { name: PROJECT.name })).toBeInTheDocument();
-    expect(screen.getByText("2026-01-15")).toBeInTheDocument();
+    // The record — status, dates, identifier — lives on the "All modules" tab now, not
+    // stacked below the fold on the page's default "Start here" tab.
+    await user.click(screen.getByRole("tab", { name: "All modules" }));
+    expect(await screen.findByText("2026-01-15")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`/api/projects/${PROJECT.id}`);
   });
@@ -199,7 +214,8 @@ describe("ProjectDetailView", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(archiveCalls()).toHaveLength(0);
-    expect(screen.getByText("Active")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "All modules" }));
+    expect(await screen.findByText("Active")).toBeInTheDocument();
   });
 
   it("archives only after explicit confirmation and shows the new status", async () => {
@@ -214,6 +230,7 @@ describe("ProjectDetailView", () => {
 
     await user.click(await screen.findByRole("button", { name: /archive project/i }));
 
+    await user.click(screen.getByRole("tab", { name: "All modules" }));
     expect(await screen.findByText("Archived")).toBeInTheDocument();
     expect(archiveCalls()).toHaveLength(1);
     expect(archiveCalls()[0]?.[1].method).toBe("POST");
@@ -223,24 +240,23 @@ describe("ProjectDetailView", () => {
 
   it("lists Decision Sentinel as an engineering workspace module, linking to its own page", async () => {
     routeProject(PROJECT);
+    const user = userEvent.setup();
 
     render(<ProjectDetailView projectId={PROJECT.id} />);
     await screen.findByRole("heading", { name: PROJECT.name });
+    await user.click(screen.getByRole("tab", { name: "All modules" }));
 
-    // Appears twice: once as the module row, once as the summary card's title.
-    expect(screen.getAllByText("Decision Sentinel").length).toBeGreaterThanOrEqual(1);
-    const openLinks = screen.getAllByRole("link", { name: /^open$/i });
-    const sentinelLink = openLinks.find((link) =>
-      link.getAttribute("href")?.endsWith("/sentinel"),
-    );
+    const sentinelLink = await screen.findByRole("link", { name: "Decision Sentinel" });
     expect(sentinelLink).toHaveAttribute("href", `/projects/${PROJECT.id}/sentinel`);
   });
 
   it("shows an honest empty state on the Decision Sentinel card when nothing is open", async () => {
     routeProject(PROJECT);
+    const user = userEvent.setup();
 
     render(<ProjectDetailView projectId={PROJECT.id} />);
     await screen.findByRole("heading", { name: PROJECT.name });
+    await user.click(screen.getByRole("tab", { name: "Readiness" }));
 
     expect(await screen.findByText(/no open surveillance signals/i)).toBeInTheDocument();
   });
@@ -252,12 +268,52 @@ describe("ProjectDetailView", () => {
       if (isProgressCall(url)) return progressResponse();
       return response(200, { project: PROJECT });
     });
+    const user = userEvent.setup();
 
     render(<ProjectDetailView projectId={PROJECT.id} />);
     await screen.findByRole("heading", { name: PROJECT.name });
+    await user.click(screen.getByRole("tab", { name: "Readiness" }));
 
     expect(await screen.findByText("3")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/\d+%|confidence|risk score/i);
+  });
+
+  /**
+   * The project page's own promise: "Run the release check" from the
+   * next-step panel links here with `?gate=RELEASE_READY#release-check`.
+   * That link must land on the Readiness tab, not on the default "Start
+   * here" tab with the panel it names hidden behind a click.
+   */
+  it("opens on the Readiness tab when a release-check link asks for a gate", async () => {
+    searchParams = new URLSearchParams("gate=RELEASE_READY");
+    routeProject(PROJECT);
+
+    render(<ProjectDetailView projectId={PROJECT.id} />);
+    await screen.findByRole("heading", { name: PROJECT.name });
+
+    expect(screen.getByRole("tab", { name: "Readiness" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Start here" })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("opens on Start here when no gate is named", async () => {
+    routeProject(PROJECT);
+
+    render(<ProjectDetailView projectId={PROJECT.id} />);
+    await screen.findByRole("heading", { name: PROJECT.name });
+
+    expect(screen.getByRole("tab", { name: "Start here" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("a reader's own tab click overrides the link's gate, until a new link arrives", async () => {
+    searchParams = new URLSearchParams("gate=RELEASE_READY");
+    routeProject(PROJECT);
+    const user = userEvent.setup();
+
+    render(<ProjectDetailView projectId={PROJECT.id} />);
+    await screen.findByRole("heading", { name: PROJECT.name });
+    await user.click(screen.getByRole("tab", { name: "All modules" }));
+
+    expect(screen.getByRole("tab", { name: "All modules" })).toHaveAttribute("aria-selected", "true");
   });
 });

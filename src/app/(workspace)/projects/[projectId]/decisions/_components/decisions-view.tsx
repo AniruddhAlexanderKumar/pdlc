@@ -42,6 +42,7 @@ export function DecisionsView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/decisions"
         title={title}
         description={
           projectName

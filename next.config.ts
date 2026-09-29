@@ -42,6 +42,13 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // The floating "N" build-status badge Next.js overlays in the bottom
+  // corner during `next dev`. Dev-mode only — it never renders in a
+  // production build — but it sat on top of real UI (the workspace's own
+  // bottom-left corner) and read as part of the product rather than
+  // tooling. Turned off so what a developer sees locally matches what a
+  // user sees in production.
+  devIndicators: false,
   // Native Node addon (Argon2) — must be required at runtime by the server,
   // not bundled. It is never reachable from client or edge code.
   serverExternalPackages: ["@node-rs/argon2"],

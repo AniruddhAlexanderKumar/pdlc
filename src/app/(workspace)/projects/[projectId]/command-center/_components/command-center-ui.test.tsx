@@ -104,7 +104,7 @@ describe("CommandCenterView", () => {
 
     render(<CommandCenterView projectId={PROJECT_ID} />);
 
-    expect(await screen.findByText("Nothing requires attention right now")).toBeInTheDocument();
+    expect(await screen.findByText("Nothing needs attention right now")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Upper Stage Propulsion" })).toBeInTheDocument();
   });
 
@@ -146,10 +146,9 @@ describe("CommandCenterView", () => {
     render(<CommandCenterView projectId={PROJECT_ID} />);
 
     expect(await screen.findByText("Risk RSK-001 is OPEN")).toBeInTheDocument();
-    const openLinks = screen.getAllByRole("link", { name: "Open" });
-    expect(openLinks.some((link) => link.getAttribute("href") === `/projects/${PROJECT_ID}/risks/rk1`)).toBe(
-      true,
-    );
+    // A risk's attention item says what to do about it, not a bare "Open".
+    const actionLink = screen.getByRole("link", { name: /decide how to handle it/i });
+    expect(actionLink).toHaveAttribute("href", `/projects/${PROJECT_ID}/risks/rk1`);
   });
 
   it("filters the attention list by source module", async () => {
@@ -212,8 +211,11 @@ describe("CommandCenterView", () => {
         },
       }),
     );
+    const user = userEvent.setup();
 
     render(<CommandCenterView projectId={PROJECT_ID} />);
+    await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
+    await user.click(screen.getByRole("tab", { name: "Configuration baseline" }));
 
     expect(await screen.findByText("Baseline BL-001")).toBeInTheDocument();
     expect(screen.getByText(/3 member\(s\) · 1 changed · 0 no longer resolvable/)).toBeInTheDocument();
@@ -225,8 +227,11 @@ describe("CommandCenterView", () => {
 
   it("shows an honest empty state when the project has no active baseline", async () => {
     routeGets(baseView());
+    const user = userEvent.setup();
 
     render(<CommandCenterView projectId={PROJECT_ID} />);
+    await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
+    await user.click(screen.getByRole("tab", { name: "Configuration baseline" }));
 
     expect(await screen.findByText("No active baseline exists yet for this project.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open baseline workspace" })).toHaveAttribute(
@@ -263,47 +268,44 @@ describe("CommandCenterView", () => {
     expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
   });
 
-  it("Customize layout can remove a section, and it stays gone on a fresh mount of the same project", async () => {
+  it("shows one detail section at a time, behind tabs, with Readiness open by default", async () => {
+    routeGets(baseView());
+    render(<CommandCenterView projectId={PROJECT_ID} />);
+
+    await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
+
+    // Readiness is showing without a click…
+    expect(screen.getByRole("heading", { name: "Technical readiness" })).toBeInTheDocument();
+    // …and the other five are not stacked underneath it.
+    expect(screen.queryByRole("heading", { name: "Suppliers" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Decision Sentinel" })).not.toBeInTheDocument();
+  });
+
+  it("switches sections on a tab click, and remembers the choice on a fresh mount of the same project", async () => {
     routeGets(baseView());
     const user = userEvent.setup();
     const { unmount } = render(<CommandCenterView projectId={PROJECT_ID} />);
 
-    await screen.findByRole("heading", { name: "Suppliers" });
+    await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
+    await user.click(screen.getByRole("tab", { name: "Suppliers" }));
 
-    await user.click(screen.getByRole("button", { name: /customize layout/i }));
-    await user.click(screen.getByRole("checkbox", { name: "Suppliers" }));
-
-    expect(screen.queryByRole("heading", { name: "Suppliers" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Suppliers" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Technical readiness" })).not.toBeInTheDocument();
 
     unmount();
     render(<CommandCenterView projectId={PROJECT_ID} />);
     await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
-    expect(screen.queryByRole("heading", { name: "Suppliers" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Suppliers" })).toBeInTheDocument();
   });
 
-  it("re-checking a removed section brings it back", async () => {
+  it("Needs attention is never one of the tabs — it is always shown, not something to switch to", async () => {
     routeGets(baseView());
-    const user = userEvent.setup();
-    render(<CommandCenterView projectId={PROJECT_ID} />);
-
-    await screen.findByRole("heading", { name: "Suppliers" });
-    await user.click(screen.getByRole("button", { name: /customize layout/i }));
-    await user.click(screen.getByRole("checkbox", { name: "Suppliers" }));
-    expect(screen.queryByRole("heading", { name: "Suppliers" })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("checkbox", { name: "Suppliers" }));
-    expect(screen.getByRole("heading", { name: "Suppliers" })).toBeInTheDocument();
-  });
-
-  it("never offers to remove the page's own point — Attention required has no checkbox", async () => {
-    routeGets(baseView());
-    const user = userEvent.setup();
     render(<CommandCenterView projectId={PROJECT_ID} />);
 
     await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
-    await user.click(screen.getByRole("button", { name: /customize layout/i }));
 
-    expect(screen.queryByRole("checkbox", { name: /attention/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Needs attention" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /attention/i })).not.toBeInTheDocument();
   });
 
   /** Walks up from `el` to the nearest ancestor whose own class list includes "grid". */
@@ -318,24 +320,32 @@ describe("CommandCenterView", () => {
 
   it("defaults to the comfortable multi-column layout when no global preference is set", async () => {
     routeGets(baseView());
+    const user = userEvent.setup();
     render(<CommandCenterView projectId={PROJECT_ID} />);
+    await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
 
-    const heading = await screen.findByRole("heading", { name: "Technical readiness" });
-    const grid = closestGrid(heading);
-    expect(grid?.className).toMatch(/lg:grid-cols-2/);
+    const readinessHeading = await screen.findByRole("heading", { name: "Technical readiness" });
+    expect(closestGrid(readinessHeading)?.className).toMatch(/lg:grid-cols-2/);
+
+    await user.click(screen.getByRole("tab", { name: "Risks & Issues" }));
+    const risksHeading = await screen.findByRole("heading", { name: "Risks" });
+    expect(closestGrid(risksHeading)?.className).toMatch(/lg:grid-cols-2/);
   });
 
   it("the global 'compact' Layout preference (Settings → Personalization) reduces Command Center's own grids to one column", async () => {
     window.localStorage.setItem("pdlc:layout-density", JSON.stringify("compact"));
     routeGets(baseView());
+    const user = userEvent.setup();
     render(<CommandCenterView projectId={PROJECT_ID} />);
+    await screen.findByRole("heading", { name: "Upper Stage Propulsion" });
 
-    const heading = await screen.findByRole("heading", { name: "Technical readiness" });
-    const grid = closestGrid(heading);
-    expect(grid).not.toBeNull();
-    expect(grid?.className).not.toMatch(/lg:grid-cols-2/);
+    const readinessHeading = await screen.findByRole("heading", { name: "Technical readiness" });
+    const readinessGrid = closestGrid(readinessHeading);
+    expect(readinessGrid).not.toBeNull();
+    expect(readinessGrid?.className).not.toMatch(/lg:grid-cols-2/);
 
-    const risksHeading = screen.getByRole("heading", { name: "Risks" });
+    await user.click(screen.getByRole("tab", { name: "Risks & Issues" }));
+    const risksHeading = await screen.findByRole("heading", { name: "Risks" });
     const risksGrid = closestGrid(risksHeading);
     expect(risksGrid).not.toBeNull();
     expect(risksGrid?.className).not.toMatch(/lg:grid-cols-2/);

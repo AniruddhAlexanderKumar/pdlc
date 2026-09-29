@@ -120,6 +120,7 @@ export function DriftView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/drift"
         title={title}
         description="Where the operational state that has since been recorded no longer matches the engineering basis that was approved."
       />

@@ -150,11 +150,18 @@ function MatrixBody({
 
   const visibleRows = showOnlyUncovered ? matrix.rows.filter((r) => uncoveredRowSet.has(r.id)) : matrix.rows;
 
+  // Both empties used to explain the problem and stop there. Each now offers
+  // the one step that would fill the table.
   if (matrix.rows.length === 0) {
     return (
       <EmptyState
         title="No requirements yet"
-        description="This project has no requirements to check verification coverage against."
+        description="This table shows how each requirement will be proven. Once the project has requirements, they appear down the side."
+        action={
+          <Button asChild>
+            <Link href={`/projects/${projectId}/requirements`}>Write the first requirement</Link>
+          </Button>
+        }
       />
     );
   }
@@ -162,8 +169,13 @@ function MatrixBody({
     return (
       <EmptyState
         icon={<TriangleAlert aria-hidden="true" />}
-        title="No verification activities recorded"
-        description={`Every one of ${matrix.rows.length} requirement(s) is uncovered — there is nothing in this project to verify against yet.`}
+        title="No checks planned yet"
+        description={`None of the ${matrix.rows.length === 1 ? "1 requirement has" : `${matrix.rows.length} requirements have`} a way to prove it yet. Plan a test, analysis, inspection or demonstration for each one.`}
+        action={
+          <Button asChild>
+            <Link href={`/projects/${projectId}/verification`}>Plan the first check</Link>
+          </Button>
+        }
       />
     );
   }

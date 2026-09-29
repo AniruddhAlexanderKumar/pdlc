@@ -1,256 +1,195 @@
 "use client";
 
 import * as React from "react";
-import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  FileCheck,
-  GitBranch,
-  Layers,
-  Play,
-  ShieldCheck,
-  Sparkles,
-  Zap,
-} from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, FileCheck, GitBranch, Layers, Play, ShieldCheck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { requirementFlawTypeSchema } from "@/domain/requirement-quality";
+import { inspectRequirementQuality } from "@/lib/ai/requirement-quality-inspector";
 import { EdgeRegistryExplorer } from "@/components/domain-explorers/edge-registry-explorer";
 import { TraversalLimitsSimulator } from "@/components/domain-explorers/traversal-limits-simulator";
 import { LifecycleExplorer } from "@/components/domain-explorers/lifecycle-explorer";
 
+const QUALITY_FLAW_COUNT = requirementFlawTypeSchema.options.length;
+
 /**
- * Enhanced interactive showcase component for the marketing landing page.
- * Houses live domain explorers and live feature test sandboxes.
+ * Four things a visitor can actually run, in the browser, before signing up
+ * — not a demo reel. Three of the four import the same pure functions and
+ * constants the product itself reads (see each explorer's own doc comment);
+ * there is nothing here to fall out of sync with the real thing because it
+ * is the real thing.
+ *
+ * This used to be five tabs, and the first two ran on a `setTimeout` that
+ * returned the same hardcoded paragraph regardless of what was typed —
+ * exactly the "looks live, is not" pattern this product refuses everywhere
+ * else. The quality check below now calls `inspectRequirementQuality`
+ * directly; a change-impact simulator that would need real project data was
+ * removed rather than faked.
  */
 export function InteractiveShowcase() {
-  const [qualityInput, setQualityInput] = React.useState(
-    "The propulsion valve shall open fast enough to maintain adequate fuel pressure during engine startup."
+  const [statement, setStatement] = React.useState(
+    "The propulsion valve shall open fast enough to maintain adequate fuel pressure during engine startup.",
   );
-  const [qualityOutput, setQualityOutput] = React.useState<string | null>(null);
-  const [isQualityRunning, setIsQualityRunning] = React.useState(false);
 
-  const [impactInput, setImpactInput] = React.useState(
-    "Increase REQ-PROP-001 (Chamber Pressure) baseline from 100 bar to 125 bar."
+  /**
+   * `inspectRequirementQuality` also flags a missing owner, verification
+   * method and rationale — real checks, but not ones this demo lets a
+   * visitor edit. Left unset, those three would flag on every statement
+   * regardless of what was typed, so no text could ever show "no flaws
+   * found" and the live-ness of the demo would be impossible to see. Fixed
+   * stand-in values keep every remaining flaw tied to the one field a
+   * visitor actually controls.
+   */
+  const result = React.useMemo(
+    () =>
+      inspectRequirementQuality({
+        title: "Sample requirement",
+        statement,
+        rationale: "Demonstrates the live quality check on this page.",
+        ownerId: "demo",
+        verificationMethod: "TEST",
+      }),
+    [statement],
   );
-  const [impactOutput, setImpactOutput] = React.useState<string | null>(null);
-  const [isImpactRunning, setIsImpactRunning] = React.useState(false);
-
-  const handleRunQualityCheck = () => {
-    setIsQualityRunning(true);
-    setQualityOutput(null);
-
-    setTimeout(() => {
-      setIsQualityRunning(false);
-      setQualityOutput(
-        "FLAGGED 3 QUALITY FLAWS:\n• Ambiguity / Subjective: 'fast enough'\n• Ambiguity / Subjective: 'adequate'\n• Missing Units: Response time limit (ms) & Pressure tolerance (bar/kPa)\n\nRECOMMENDED REWRITE:\n'The propulsion valve shall actuate from fully closed to 100% open in <= 45 ms to maintain fuel manifold pressure at 120 ± 0.5 bar during ignition sequence T-0.'"
-      );
-    }, 500);
-  };
-
-  const handleRunImpactSim = () => {
-    setIsImpactRunning(true);
-    setImpactOutput(null);
-
-    setTimeout(() => {
-      setIsImpactRunning(false);
-      setImpactOutput(
-        "BLAST RADIUS ANALYSIS RESULT:\n• 1st Order (Direct): 3 Downstream Requirements (REQ-042, REQ-089, REQ-104)\n• 2nd Order (Cross-Domain): 2 Design Decisions (DEC-012, DEC-018)\n• 3rd Order (Verification): 4 Test Plans & 3 Component Specifications\n• Status: 12 downstream items marked as APPROVAL_POTENTIALLY_INVALIDATED\n• Checklist: Revalidation Plan SCN-REVAL-902 generated."
-      );
-    }, 600);
-  };
 
   return (
     <div className="flex flex-col gap-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      {/* Component Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-5 py-3.5 sm:px-6">
         <div className="flex items-center gap-2.5">
           <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
             <Layers className="size-4" aria-hidden="true" />
           </div>
-          <span className="text-sm font-bold text-foreground">
-            Interactive Domain & Feature Bench
-          </span>
+          <span className="text-sm font-bold text-foreground">Try it without an account</span>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            PostgreSQL 17 Engine Online
-          </span>
-          <span className="hidden sm:inline font-mono text-[11px]">Deterministic O(V+E)</span>
-        </div>
+        <span className="text-xs text-muted-foreground">
+          Each tab runs the same logic the signed-in product uses.
+        </span>
       </div>
 
-      {/* Tabs Switcher */}
       <div className="p-4 sm:p-6">
         <Tabs defaultValue="quality" className="w-full">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+          <div className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-base font-semibold text-foreground">Interactive Feature Bench</h3>
+              <h3 className="text-base font-semibold text-foreground">Interactive bench</h3>
               <p className="text-xs text-muted-foreground">
-                Test live requirement quality analysis, change impact simulation, and graph rules in your browser.
+                Requirement quality checking, the real relationship registry, traversal limits, and
+                lifecycle rules — all in your browser.
               </p>
             </div>
 
-            <TabsList className="bg-secondary/60 flex flex-wrap h-auto p-1">
+            <TabsList className="flex h-auto flex-wrap bg-secondary/60 p-1">
               <TabsTrigger value="quality" className="gap-1.5 text-xs font-medium">
                 <FileCheck className="size-3.5 text-primary" aria-hidden="true" />
-                <span>Quality Inspector</span>
-              </TabsTrigger>
-              <TabsTrigger value="impact" className="gap-1.5 text-xs font-medium">
-                <Zap className="size-3.5 text-primary" aria-hidden="true" />
-                <span>Impact Simulator</span>
+                <span>Quality check</span>
               </TabsTrigger>
               <TabsTrigger value="registry" className="gap-1.5 text-xs font-medium">
                 <GitBranch className="size-3.5 text-primary" aria-hidden="true" />
-                <span>Relationship Registry</span>
+                <span>Relationships</span>
               </TabsTrigger>
               <TabsTrigger value="limits" className="gap-1.5 text-xs font-medium">
                 <ShieldCheck className="size-3.5 text-primary" aria-hidden="true" />
-                <span>Safety Engine</span>
+                <span>Traversal limits</span>
               </TabsTrigger>
               <TabsTrigger value="lifecycles" className="gap-1.5 text-xs font-medium">
                 <Layers className="size-3.5 text-primary" aria-hidden="true" />
-                <span>State Machines</span>
+                <span>Lifecycle rules</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
-          {/* 1. Quality Inspector Tab */}
           <TabsContent value="quality" className="pt-3">
             <div className="flex flex-col gap-4 rounded-lg border border-border bg-secondary/20 p-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-primary" />
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                    Requirements Quality & Ambiguity Inspector
-                  </span>
-                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                  Requirement quality check
+                </span>
                 <Badge variant="outline" className="text-[10px]">
-                  12 Quality Criteria
+                  {QUALITY_FLAW_COUNT} checks, run live
                 </Badge>
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-medium text-muted-foreground">Sample Requirement Statement:</label>
+                <label htmlFor="showcase-quality-input" className="text-xs font-medium text-muted-foreground">
+                  Type or edit a requirement statement:
+                </label>
                 <input
+                  id="showcase-quality-input"
                   type="text"
-                  value={qualityInput}
-                  onChange={(e) => setQualityInput(e.target.value)}
+                  value={statement}
+                  onChange={(event) => setStatement(event.target.value)}
                   className="w-full rounded-md border border-input bg-background p-2.5 font-mono text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
+                <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <Play className="size-3 shrink-0" aria-hidden="true" />
+                  Updates as you type — this is the real check, not a scripted example.
+                </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <Button
-                  size="sm"
-                  onClick={handleRunQualityCheck}
-                  disabled={isQualityRunning}
-                  className="gap-1.5 text-xs"
-                >
-                  <Play className="size-3.5" />
-                  {isQualityRunning ? "Analyzing Criteria..." : "Run Quality Inspection"}
-                </Button>
-              </div>
-
-              {qualityOutput && (
+              {result.flaws.length === 0 ? (
                 <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs">
                   <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
-                    <CheckCircle2 className="size-4" /> Inspection Result:
+                    <CheckCircle2 className="size-4" aria-hidden="true" /> No flaws found
                   </div>
-                  <pre className="mt-1 font-mono text-[11px] text-foreground leading-relaxed whitespace-pre-wrap">
-                    {qualityOutput}
-                  </pre>
+                  <p className="mt-1 text-foreground">
+                    Status: <span className="font-mono">{result.qualityStatus}</span>
+                  </p>
                 </div>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* 2. Impact Simulator Tab */}
-          <TabsContent value="impact" className="pt-3">
-            <div className="flex flex-col gap-4 rounded-lg border border-border bg-secondary/20 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Zap className="size-4 text-primary" />
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                    Requirement Change Impact Simulator
-                  </span>
-                </div>
-                <Badge variant="outline" className="text-[10px]">
-                  Blast Radius Graph
-                </Badge>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-medium text-muted-foreground">Proposed Change Statement:</label>
-                <input
-                  type="text"
-                  value={impactInput}
-                  onChange={(e) => setImpactInput(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background p-2.5 font-mono text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Button
-                  size="sm"
-                  onClick={handleRunImpactSim}
-                  disabled={isImpactRunning}
-                  className="gap-1.5 text-xs"
-                >
-                  <Play className="size-3.5" />
-                  {isImpactRunning ? "Traversing Knowledge Graph..." : "Simulate Downstream Blast Radius"}
-                </Button>
-              </div>
-
-              {impactOutput && (
+              ) : (
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs">
                   <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
-                    <AlertTriangle className="size-4" /> Graph Traversal Result:
+                    <AlertTriangle className="size-4" aria-hidden="true" />
+                    {result.flaws.length} flaw{result.flaws.length === 1 ? "" : "s"} found
                   </div>
-                  <pre className="mt-1 font-mono text-[11px] text-foreground leading-relaxed whitespace-pre-wrap">
-                    {impactOutput}
-                  </pre>
+                  <ul className="mt-2 flex flex-col gap-1.5">
+                    {result.flaws.map((flaw) => (
+                      <li key={flaw.flawType} className="text-foreground">
+                        <span className="font-mono text-[10px] text-muted-foreground">{flaw.flawType}</span>
+                        <br />
+                        {flaw.description}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
           </TabsContent>
 
-          {/* 3. Registry Tab */}
           <TabsContent value="registry" className="pt-2">
             <div className="flex flex-col gap-3">
               <div className="flex items-start gap-2 rounded-md bg-secondary/30 p-3 text-xs text-muted-foreground">
                 <Activity className="size-4 shrink-0 text-primary mt-0.5" aria-hidden="true" />
                 <p>
-                  Every relationship below is enforced by a PostgreSQL foreign key. Select any domain node type to view its authoritative incoming and outgoing edges, verified by the runtime traversal engine.
+                  Pick any object type to see every relationship it can have — read live from the
+                  same registry the real traversal engine reads, so this page changes automatically
+                  if a relationship is ever added or removed.
                 </p>
               </div>
               <EdgeRegistryExplorer />
             </div>
           </TabsContent>
 
-          {/* 4. Refusal Engine Tab */}
           <TabsContent value="limits" className="pt-2">
             <div className="flex flex-col gap-3">
               <div className="flex items-start gap-2 rounded-md bg-secondary/30 p-3 text-xs text-muted-foreground">
                 <ShieldCheck className="size-4 shrink-0 text-primary mt-0.5" aria-hidden="true" />
                 <p>
-                  Safety-critical systems require predictable computational boundaries. Move the sliders beyond the safety thresholds to observe deterministic refusal instead of silent truncation or memory exhaustion.
+                  Every graph traversal has a real, enforced cap on depth, nodes and edges. Move a
+                  slider past one to see the exact refusal the real API gives — never a silent
+                  truncation.
                 </p>
               </div>
               <TraversalLimitsSimulator />
             </div>
           </TabsContent>
 
-          {/* 5. Lifecycle FSM Tab */}
           <TabsContent value="lifecycles" className="pt-2">
             <div className="flex flex-col gap-3">
               <div className="flex items-start gap-2 rounded-md bg-secondary/30 p-3 text-xs text-muted-foreground">
                 <Layers className="size-4 shrink-0 text-primary mt-0.5" aria-hidden="true" />
                 <p>
-                  Artifact lifecycles follow mathematical finite state machines (FSM). Unauthorized transitions are strictly prevented by transactional domain rules, ensuring compliance with airworthiness review baselines.
+                  Every status a requirement, decision, risk, issue, baseline or piece of evidence
+                  can hold, and every move between them the server actually allows — the same
+                  transition tables each service checks against before writing anything.
                 </p>
               </div>
               <LifecycleExplorer />

@@ -51,6 +51,7 @@ export function SuppliersView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/suppliers"
         title={title}
         description={
           projectName

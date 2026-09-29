@@ -42,6 +42,7 @@ export function VerificationView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/verification"
         title={title}
         description={
           projectName

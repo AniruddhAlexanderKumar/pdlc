@@ -7,69 +7,67 @@ afterEach(() => {
 });
 
 describe("useCommandCenterLayout", () => {
-  it("defaults to nothing hidden — every section shows", () => {
+  it("defaults to the Readiness tab", () => {
     const { result } = renderHook(() => useCommandCenterLayout("proj1"));
-    expect(result.current.hidden.size).toBe(0);
+    expect(result.current.activeTab).toBe("readiness");
   });
 
-  it("hides a section", () => {
-    const { result } = renderHook(() => useCommandCenterLayout("proj1"));
-
-    act(() => {
-      result.current.setHidden("suppliers", true);
-    });
-
-    expect(result.current.hidden.has("suppliers")).toBe(true);
-  });
-
-  it("un-hides a section", () => {
+  it("switches tabs", () => {
     const { result } = renderHook(() => useCommandCenterLayout("proj1"));
 
     act(() => {
-      result.current.setHidden("suppliers", true);
-    });
-    act(() => {
-      result.current.setHidden("suppliers", false);
+      result.current.setActiveTab("suppliers");
     });
 
-    expect(result.current.hidden.has("suppliers")).toBe(false);
+    expect(result.current.activeTab).toBe("suppliers");
   });
 
-  it("reset clears every hidden section", () => {
-    const { result } = renderHook(() => useCommandCenterLayout("proj1"));
-
-    act(() => {
-      result.current.setHidden("suppliers", true);
-      result.current.setHidden("evidence", true);
-    });
-    act(() => {
-      result.current.reset();
-    });
-
-    expect(result.current.hidden.size).toBe(0);
-  });
-
-  it("is scoped per project — hiding a section in one project does not touch another", () => {
+  it("is scoped per project — the open tab in one project does not affect another", () => {
     const a = renderHook(() => useCommandCenterLayout("proj1"));
     const b = renderHook(() => useCommandCenterLayout("proj2"));
 
     act(() => {
-      a.result.current.setHidden("suppliers", true);
+      a.result.current.setActiveTab("suppliers");
     });
 
-    expect(a.result.current.hidden.has("suppliers")).toBe(true);
-    expect(b.result.current.hidden.has("suppliers")).toBe(false);
+    expect(a.result.current.activeTab).toBe("suppliers");
+    expect(b.result.current.activeTab).toBe("readiness");
   });
 
   it("persists across a fresh mount", () => {
     const { result, unmount } = renderHook(() => useCommandCenterLayout("proj1"));
 
     act(() => {
-      result.current.setHidden("sentinel", true);
+      result.current.setActiveTab("sentinel");
     });
     unmount();
 
     const { result: fresh } = renderHook(() => useCommandCenterLayout("proj1"));
-    expect(fresh.current.hidden.has("sentinel")).toBe(true);
+    expect(fresh.current.activeTab).toBe("sentinel");
+  });
+
+  /**
+   * The storage key changed shape (an array of hidden sections → a single
+   * tab key) when this became a tab selector. A value left over from the
+   * old feature, or anything hand-edited into localStorage, must not
+   * select a tab that doesn't exist — it falls back to the default.
+   */
+  it("falls back to Readiness for a value that names no real tab", () => {
+    window.localStorage.setItem(
+      "pdlc:command-center-tab:proj1",
+      JSON.stringify("not-a-real-section"),
+    );
+
+    const { result } = renderHook(() => useCommandCenterLayout("proj1"));
+
+    expect(result.current.activeTab).toBe("readiness");
+  });
+
+  it("falls back to Readiness for old array-shaped data left over from the hide-toggle feature", () => {
+    window.localStorage.setItem("pdlc:command-center-tab:proj1", JSON.stringify(["suppliers"]));
+
+    const { result } = renderHook(() => useCommandCenterLayout("proj1"));
+
+    expect(result.current.activeTab).toBe("readiness");
   });
 });

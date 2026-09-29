@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Archive, ArrowLeft, LayoutDashboard, Pencil, UserCog } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { ProjectStatusBadge } from "@/components/common/project-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
 import { formatIsoDate } from "@/lib/utils";
@@ -18,6 +20,8 @@ import { ProjectFormDialog } from "./project-form-dialog";
 import { NextStepPanel } from "./next-step-panel";
 import { SentinelSummaryCard } from "./sentinel-summary-card";
 import { TechnicalReadinessPanel } from "./technical-readiness-panel";
+
+type ProjectTab = "start" | "readiness" | "modules";
 
 /**
  * The overview grid shows every module except Members — Members has its own
@@ -38,6 +42,27 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
   const { state, set } = useProject(projectId);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = React.useState(false);
+
+  /**
+   * Which tab is open: the one a link asked for, unless the reader has
+   * picked another since that link was followed.
+   *
+   * Mirrors `TechnicalReadinessPanel`'s own `?gate=` handling exactly, and
+   * for the same reason — the project page's own "Run the release check"
+   * button links here with `?gate=RELEASE_READY#release-check`, on the same
+   * page, so following it changes only the query string; nothing remounts.
+   * A gate reference in the URL always means the Readiness tab; a reader's
+   * own click overrides it until a *new* link arrives.
+   */
+  const searchParams = useSearchParams();
+  const requestedGate = searchParams?.get("gate") ?? null;
+  const [choice, setChoice] = React.useState<{ tab: ProjectTab; under: string | null } | null>(null);
+  const activeTab: ProjectTab =
+    choice && choice.under === requestedGate ? choice.tab : requestedGate ? "readiness" : "start";
+
+  function selectTab(tab: string) {
+    setChoice({ tab: tab as ProjectTab, under: requestedGate });
+  }
 
   if (state.phase === "loading") {
     return <LoadingState label="Loading project…" />;
@@ -114,82 +139,111 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         </p>
       )}
 
-      {!isArchived && <NextStepPanel projectId={project.id} />}
+      {/*
+        Three tabs instead of five sections stacked the full height of the
+        page — the next step, then a readiness panel long enough to scroll
+        through on its own, then every module link, then a record card. A
+        newcomer landed in the middle of all of it with no sense of where
+        one section ended and the next began. "Start here" is the default:
+        the one thing to do, in a project a newcomer has never opened.
+      */}
+      <Tabs value={activeTab} onValueChange={selectTab}>
+        <TabsList>
+          <TabsTrigger value="start">Start here</TabsTrigger>
+          <TabsTrigger value="readiness">Readiness</TabsTrigger>
+          <TabsTrigger value="modules">All modules</TabsTrigger>
+        </TabsList>
 
-      <SentinelSummaryCard projectId={project.id} />
+        <TabsContent value="start" className="flex flex-col gap-6">
+          {isArchived ? (
+            <p className="text-sm text-muted-foreground">
+              This project is archived and read-only, so there is no next step to suggest. Open{" "}
+              <span className="font-medium text-foreground">All modules</span> to look at what it
+              holds.
+            </p>
+          ) : (
+            <NextStepPanel projectId={project.id} />
+          )}
+        </TabsContent>
 
-      <TechnicalReadinessPanel projectId={project.id} />
+        <TabsContent value="readiness" className="flex flex-col gap-6">
+          <SentinelSummaryCard projectId={project.id} />
+          <TechnicalReadinessPanel projectId={project.id} />
+        </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All modules</CardTitle>
-          <CardDescription>
-            Everything in this project, including the modules that have no permanent place in the
-            sidebar. The sidebar is the faster way to whichever ones you use daily.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {MODULE_GROUPS.map((group) => {
-            const members = OVERVIEW_MODULES.filter((module) => module.group === group.id);
-            if (members.length === 0) return null;
-            return (
+        <TabsContent value="modules" className="flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>All modules</CardTitle>
+              <CardDescription>
+                Everything in this project, including the modules that have no permanent place in
+                the sidebar. The sidebar is the faster way to whichever ones you use daily.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {MODULE_GROUPS.map((group) => {
+                const members = OVERVIEW_MODULES.filter((module) => module.group === group.id);
+                if (members.length === 0) return null;
+                return (
+                  <ModuleLinkGroup
+                    key={group.id}
+                    label={group.label}
+                    modules={members}
+                    projectId={project.id}
+                  />
+                );
+              })}
               <ModuleLinkGroup
-                key={group.id}
-                label={group.label}
-                modules={members}
+                label="Elsewhere"
+                modules={OVERVIEW_MODULES.filter((module) => module.group === null)}
                 projectId={project.id}
               />
-            );
-          })}
-          <ModuleLinkGroup
-            label="Elsewhere"
-            modules={OVERVIEW_MODULES.filter((module) => module.group === null)}
-            projectId={project.id}
-          />
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Project record</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex flex-col gap-1">
-              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Status
-              </dt>
-              <dd>
-                <ProjectStatusBadge status={project.status} />
-              </dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Created
-              </dt>
-              <dd className="font-mono text-sm text-foreground" title={project.createdAt}>
-                {formatIsoDate(project.createdAt)}
-              </dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Updated
-              </dt>
-              <dd className="font-mono text-sm text-foreground" title={project.updatedAt}>
-                {formatIsoDate(project.updatedAt)}
-              </dd>
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Identifier
-              </dt>
-              <dd className="truncate font-mono text-sm text-foreground" title={project.id}>
-                {project.id}
-              </dd>
-            </div>
-          </dl>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Project record</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="flex flex-col gap-1">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Status
+                  </dt>
+                  <dd>
+                    <ProjectStatusBadge status={project.status} />
+                  </dd>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Created
+                  </dt>
+                  <dd className="font-mono text-sm text-foreground" title={project.createdAt}>
+                    {formatIsoDate(project.createdAt)}
+                  </dd>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Updated
+                  </dt>
+                  <dd className="font-mono text-sm text-foreground" title={project.updatedAt}>
+                    {formatIsoDate(project.updatedAt)}
+                  </dd>
+                </div>
+                <div className="flex min-w-0 flex-col gap-1">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Identifier
+                  </dt>
+                  <dd className="truncate font-mono text-sm text-foreground" title={project.id}>
+                    {project.id}
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <ProjectFormDialog
         mode="edit"

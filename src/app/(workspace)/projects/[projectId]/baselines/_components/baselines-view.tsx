@@ -44,6 +44,7 @@ export function BaselinesView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/baselines"
         title={title}
         description={
           projectName

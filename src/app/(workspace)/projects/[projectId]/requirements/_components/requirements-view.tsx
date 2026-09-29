@@ -200,6 +200,7 @@ export function RequirementsView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/requirements"
         title={title}
         description={
           projectName

@@ -115,6 +115,37 @@ palette does not pretend otherwise. It resolves labels through the same
 findable under the name an organization actually sees, not this product's
 internal default.
 
+## Module guides and tab-based layouts
+
+Two related answers to the same problem — a reader new to lifecycle
+software meeting twenty modules with names like "Baselines" and "Drift",
+and content-heavy pages that put everything on screen at once.
+
+`MODULE_GUIDES` (`src/domain/module-guide.ts`) is one file holding three
+plain-language sentences per module — what it is, why it matters, what to
+do first — plus the real engineering term where the plain framing differs
+from it (e.g. "A locked version of the product's design" /
+`technicalName: "Engineering baseline"`). `ModuleGuidePanel`
+(`src/components/common/module-guide-panel.tsx`) renders it under a page's
+`PageHeader` when that header is given a `guide` prop; a page opts in with
+one word. `module-guide.test.ts` asserts every navigable module has a
+guide, so a new module cannot ship without one. The panel is open by
+default — dismissing it is a per-page, per-browser choice
+(`useStoredFlag`), and Settings has one switch to hide every page's guide
+at once; a "What is this page?" link is always the way back, never more
+than one click away.
+
+Where a single page previously rendered several dense sections at once —
+the Engineering Command Center's six sections, a project's overview and
+module list — those now sit behind Radix `Tabs` instead
+(`use-command-center-layout.ts`'s persisted `activeTab`, and the analogous
+pattern in `project-detail-view.tsx`). A reader arriving via a deep link
+(e.g. a release-check pointing at a specific readiness gate) still lands
+on the right tab — the `{choice, under}` pattern compares the current
+`useSearchParams()` value against the tab the reader last picked by hand,
+so a fresh link always wins but a reader's own click is never silently
+overridden until a *new* link arrives.
+
 ## Relationship strategy
 
 Traceability lives in explicit relationship tables, so every edge is queryable
@@ -5546,14 +5577,23 @@ visibility of just these pages, alongside the disclosed, verified
 production path (Docker, self-hosted) for the product itself — not a
 conflict to resolve, an existing accommodation.
 
-- **`/`** — the landing page. Every factual claim is sourced to either a
-  live domain export (`GRAPH_NODE_TYPES.length`, `GRAPH_EDGE_TYPES.length`,
-  `GRAPH_LIMITS`) or `SECURITY.md`, never a number typed once and left to
-  drift. "Show the product" is a live, interactive component
-  (`EdgeRegistryExplorer`) reading the real edge registry, not a
-  screenshot — this environment cannot currently capture one (a Chromium
-  download for Playwright silently fails here), and a real interactive
-  component beats a static image of a feature claim regardless.
+- **`/`** — the landing page. States explicitly, in the hero, that this is
+  a Product Development Life Cycle (PDLC) platform — earlier copy relied
+  on the brand name alone. Every factual claim is sourced to either a live
+  domain export (`GRAPH_NODE_TYPES.length`, `GRAPH_EDGE_TYPES.length`,
+  `GRAPH_LIMITS`, `requirementFlawTypeSchema.options.length`) or
+  `SECURITY.md`, never a number typed once and left to drift.
+  `InteractiveShowcase` (`(marketing)/_components/interactive-showcase.tsx`)
+  is the "try it live" section — its quality-check tab calls
+  `inspectRequirementQuality` directly on whatever a visitor types, not a
+  scripted demo, alongside the same `EdgeRegistryExplorer`,
+  `TraversalLimitsSimulator` and `LifecycleExplorer` the docs pages use. An
+  earlier version of this page and five now-deleted hero components
+  described a fictional data model (a "Question" primitive, dual-custody
+  "Approval" sign-offs) that never matched this product's real domain —
+  removed rather than reconciled, since the real domain already had an
+  honest six-entity story to tell (Stakeholder Need, Requirement, Design
+  Item, Decision, Evidence, Change Request).
 - **`/docs`** — public documentation. Not `/help`: the existing in-app,
   authenticated help page (`(workspace)/help`) already owns that path, and
   Next.js correctly refuses to build two route groups resolving to the

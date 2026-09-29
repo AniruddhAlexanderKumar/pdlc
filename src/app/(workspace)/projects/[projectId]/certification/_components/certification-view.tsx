@@ -49,6 +49,7 @@ export function CertificationView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/certification"
         title={title}
         description={
           projectName

@@ -4,14 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowRight,
   Eye,
   Factory,
   FileText,
   GitBranch,
   History,
-  LayoutPanelTop,
   RefreshCw,
-  RotateCcw,
   ShieldAlert,
   ShieldCheck,
   Waypoints,
@@ -29,11 +28,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { LoadingState } from "@/components/ui/loading-state";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatIsoDate } from "@/lib/utils";
 import { useLayoutDensity } from "@/lib/use-layout-density";
-import { COMMAND_CENTER_SECTIONS, useCommandCenterLayout } from "./use-command-center-layout";
+import {
+  COMMAND_CENTER_SECTIONS,
+  type CommandCenterSectionKey,
+  useCommandCenterLayout,
+} from "./use-command-center-layout";
 
 /**
  * The Engineering Command Center.
@@ -76,11 +79,11 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Engineering Command Center"
-        description={`${data.project.name} — real, current state composed from every engine this product already runs. Nothing here is a new verdict.`}
+        guide="/command-center"
+        title="Command Center"
+        description={`What needs attention in ${data.project.name}, why, and what to do about it.`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <LayoutCustomizer layout={layout} />
             <Button asChild variant="outline">
               <Link href={data.historyHref}>
                 <History aria-hidden="true" />
@@ -97,27 +100,15 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
         }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <span className="relative flex size-2.5">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
-          </span>
-          <span className="font-mono text-xs font-bold tracking-wider text-foreground uppercase">
-            MISSION CONTROL TELEMETRY
-          </span>
-          <Badge variant="outline" className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
-            NOMINAL
-          </Badge>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-mono">
-          <span>ATTENTION: <strong className="text-foreground">{data.attentionItems.length}</strong></span>
-          <span>•</span>
-          <span>BASELINE: <strong className="text-foreground">{data.configuration.hasActiveBaseline ? "ACTIVE" : "NONE"}</strong></span>
-          <span>•</span>
-          <span>SURVEILLANCE: <strong className="text-foreground">{data.sentinel.openCount} OPEN</strong></span>
-        </div>
-      </div>
+      {/*
+        A "MISSION CONTROL TELEMETRY" strip stood here: a pulsing green light
+        and a badge reading "NOMINAL" that was static markup — it said
+        nominal beside a failed check, or with the database down. The same
+        defect as the "SYSTEM: NOMINAL" light removed from the top bar. The
+        real figures beside it are all still on this page, from the same
+        data: attention and surveillance in the strip below, the baseline in
+        the configuration section.
+      */}
 
       <ProjectHeaderCard project={data.project} />
 
@@ -125,83 +116,68 @@ export function CommandCenterView({ projectId }: { projectId: string }) {
 
       <AttentionSection items={data.attentionItems} />
 
-      {!layout.hidden.has("readiness") && <ReadinessSection projectId={projectId} data={data} />}
-
-      {!layout.hidden.has("configuration") && <ConfigurationSection data={data} />}
-
-      {!layout.hidden.has("risksIssues") && <RisksIssuesSection data={data} />}
-
-      {!layout.hidden.has("suppliers") && <SuppliersSection data={data} />}
-
-      {!layout.hidden.has("evidence") && <EvidenceSection projectId={projectId} data={data} />}
-
-      {!layout.hidden.has("sentinel") && <SentinelSection data={data} />}
+      <CommandCenterDetailTabs projectId={projectId} data={data} layout={layout} />
     </div>
   );
 }
 
+const SECTION_CONTENT: Record<
+  CommandCenterSectionKey,
+  (props: { projectId: string; data: CommandCenterDto }) => React.ReactElement
+> = {
+  readiness: ({ projectId, data }) => <ReadinessSection projectId={projectId} data={data} />,
+  configuration: ({ data }) => <ConfigurationSection data={data} />,
+  risksIssues: ({ data }) => <RisksIssuesSection data={data} />,
+  suppliers: ({ data }) => <SuppliersSection data={data} />,
+  evidence: ({ projectId, data }) => <EvidenceSection projectId={projectId} data={data} />,
+  sentinel: ({ data }) => <SentinelSection data={data} />,
+};
+
 /**
- * "Customize layout" — hides or restores any of the six removable Command
- * Center sections (see `use-command-center-layout.ts` for exactly which
- * three are excluded, and why). A popover, not a navigation away from the
- * page, so a reader sees the effect of a toggle immediately behind it.
+ * The six detail sections, one at a time instead of six cards stacked down
+ * the page.
+ *
+ * This page used to render every section every time, with a "Customize
+ * layout" popover to hide the ones a reader didn't want — which meant the
+ * *default* experience, before anyone touched that popover, was still all
+ * six stacked underneath Attention required. Tabs make "look at one thing
+ * at a time" the default instead of an opt-in, without losing anything: the
+ * same six sections, the same data, still one click away.
  *
  * A deliberately different concern from the "Layout" density choice in
  * Settings' Personalization section (`useLayoutDensity` — comfortable vs.
- * compact column count, read independently by `ProjectHeaderCard`,
- * `AtAGlanceStrip`, `ReadinessSection`, and `RisksIssuesSection` below):
- * this popover changes *which* sections show, scoped to this one project;
- * that preference changes how densely they're arranged, the same
- * everywhere. Mixing the two into one control would make a global choice
- * look like a per-project one.
+ * compact column count, read independently inside `ReadinessSection` and
+ * `RisksIssuesSection`): that preference changes how densely *one* section
+ * is arranged, everywhere it appears; this changes *which* section is in
+ * front of the reader, on this one project.
  */
-function LayoutCustomizer({ layout }: { layout: ReturnType<typeof useCommandCenterLayout> }) {
-  const hasHidden = layout.hidden.size > 0;
+function CommandCenterDetailTabs({
+  projectId,
+  data,
+  layout,
+}: {
+  projectId: string;
+  data: CommandCenterDto;
+  layout: ReturnType<typeof useCommandCenterLayout>;
+}) {
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline">
-          <LayoutPanelTop aria-hidden="true" />
-          Customize layout
-          {hasHidden && (
-            <Badge variant="outline" className="ml-1">
-              {layout.hidden.size}
-            </Badge>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-foreground">Sections</span>
-          {hasHidden && (
-            <button
-              type="button"
-              onClick={layout.reset}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <RotateCcw className="size-3" aria-hidden="true" />
-              Reset
-            </button>
-          )}
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Remembered in this browser, for this project only.
-        </p>
-        <div className="mt-3 flex flex-col gap-1.5">
-          {COMMAND_CENTER_SECTIONS.map((section) => (
-            <label key={section.key} className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={!layout.hidden.has(section.key)}
-                onChange={(event) => layout.setHidden(section.key, !event.target.checked)}
-                className="size-4 rounded border-input"
-              />
-              {section.label}
-            </label>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <Tabs value={layout.activeTab} onValueChange={layout.setActiveTab}>
+      <TabsList>
+        {COMMAND_CENTER_SECTIONS.map((section) => (
+          <TabsTrigger key={section.key} value={section.key}>
+            {section.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {COMMAND_CENTER_SECTIONS.map((section) => {
+        const Content = SECTION_CONTENT[section.key];
+        return (
+          <TabsContent key={section.key} value={section.key}>
+            <Content projectId={projectId} data={data} />
+          </TabsContent>
+        );
+      })}
+    </Tabs>
   );
 }
 
@@ -324,6 +300,32 @@ const SOURCE_MODULE_LABELS: Record<string, string> = {
   SUPPLIER: "Suppliers",
 };
 
+/**
+ * What to do about an item, in place of a bare "Open".
+ *
+ * Each source raises items for one kind of reason, so the next move is the
+ * same for all of them: a risk needs a decision about how to handle it, a
+ * stale impact analysis needs re-running, a readiness finding needs reading.
+ * The button still goes to the same place — this only says why you'd go.
+ */
+const NEXT_ACTIONS: Record<string, string> = {
+  SENTINEL: "Review what changed",
+  TECHNICAL_READINESS: "See what's in the way",
+  VERIFICATION_READINESS: "See what's missing",
+  CERTIFICATION: "Review the finding",
+  CHANGE_IMPACT: "Review the impact",
+  ASSUMPTION_MONITORING: "Check the assumption",
+  DRIFT: "Review the difference",
+  RISK: "Decide how to handle it",
+  ISSUE: "Work on the problem",
+  SUPPLIER: "Review the supplier",
+};
+
+export function attentionNextAction(sourceModule: string, state: string): string {
+  if (sourceModule === "CHANGE_IMPACT" && state === "STALE") return "Check the impact again";
+  return NEXT_ACTIONS[sourceModule] ?? "Open";
+}
+
 function AttentionSection({ items }: { items: AttentionItemDto[] }) {
   const [moduleFilter, setModuleFilter] = React.useState("");
 
@@ -338,10 +340,10 @@ function AttentionSection({ items }: { items: AttentionItemDto[] }) {
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col gap-1.5">
-            <CardTitle>Attention required</CardTitle>
+            <CardTitle>Needs attention</CardTitle>
             <CardDescription>
-              Every item below names a real, already-recorded state from the workspace that owns
-              it — nothing is generated and nothing is ranked against anything else.
+              Each item is something recorded in this project that is waiting on someone, with the
+              reason it was raised and what to do next.
             </CardDescription>
           </div>
           {items.length > 0 && (
@@ -370,14 +372,14 @@ function AttentionSection({ items }: { items: AttentionItemDto[] }) {
         {items.length === 0 ? (
           <EmptyState
             icon={<ShieldCheck aria-hidden="true" />}
-            title="Nothing requires attention right now"
-            description="No open surveillance target, blocking readiness finding, stale impact analysis, review-required assumption, detected drift, open risk, high/critical issue, or supplier under review was found. This reflects what has been recorded, not a guarantee that everything is fine."
+            title="Nothing needs attention right now"
+            description="Nothing recorded in this project is waiting on anyone. That reflects what has been recorded — it is not a guarantee that nothing is wrong."
           />
         ) : (
           <ul className="flex flex-col divide-y divide-border">
             {filtered.map((item) => (
-              <li key={item.key} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
-                <div className="flex min-w-0 flex-col gap-0.5">
+              <li key={item.key} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="flex min-w-0 flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">{SOURCE_MODULE_LABELS[item.sourceModule] ?? item.sourceModule}</Badge>
                     <StateBadge state={item.state} />
@@ -387,10 +389,16 @@ function AttentionSection({ items }: { items: AttentionItemDto[] }) {
                       {item.title}
                     </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{item.reason}</span>
+                  <span className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">Why: </span>
+                    {item.reason}
+                  </span>
                 </div>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={item.href}>Open</Link>
+                <Button asChild variant="outline" size="sm" className="shrink-0">
+                  <Link href={item.href}>
+                    {attentionNextAction(item.sourceModule, item.state)}
+                    <ArrowRight aria-hidden="true" />
+                  </Link>
                 </Button>
               </li>
             ))}
@@ -439,8 +447,6 @@ function ReadinessSection({ projectId, data }: { projectId: string; data: Comman
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Readiness</h2>
-
       <div className={gridClass}>
         <Card>
           <CardHeader>

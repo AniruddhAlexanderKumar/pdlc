@@ -21,26 +21,34 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
       <UINatureBackground />
 
       {/* SpaceX-Inspired Top Navbar */}
+      {/*
+        `min-w-0` on both children, a shortened brand mark below `sm:`, and
+        a shortened CTA label below `sm:` — found as a real 390px horizontal
+        page overflow: the two-line brand text and "CREATE ORGANIZATION"
+        both refused to shrink or wrap, so together with "SIGN IN" they
+        pushed this row wider than the viewport on every marketing page.
+      */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl print:static">
-        <Shell className="flex h-16 items-center justify-between">
+        <Shell className="flex h-16 items-center justify-between gap-3">
           <Link
             href="/"
-            className="flex items-center gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            className="group flex min-w-0 shrink items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <div className="flex size-8 shrink-0 items-center justify-center rounded border border-white/20 bg-white/5 text-white group-hover:border-white transition-all">
               <Waypoints className="size-4 text-cyan-400" aria-hidden="true" />
             </div>
-            <div className="flex flex-col font-mono">
-              <span className="text-xs font-extrabold tracking-[0.25em] text-white uppercase">
-                THE MORNINGSTAR SOLUTION
+            <div className="flex min-w-0 flex-col font-mono">
+              <span className="truncate text-xs font-extrabold tracking-[0.25em] text-white uppercase">
+                <span className="sm:hidden">MORNINGSTAR</span>
+                <span className="hidden sm:inline">THE MORNINGSTAR SOLUTION</span>
               </span>
-              <span className="text-[9px] font-bold text-cyan-400 tracking-[0.3em] uppercase -mt-0.5">
+              <span className="hidden text-[9px] font-bold text-cyan-400 tracking-[0.3em] uppercase -mt-0.5 sm:block">
                 5 MAN MISSION
               </span>
             </div>
           </Link>
 
-          <nav className="flex items-center gap-4 print:hidden sm:gap-6 font-mono text-xs font-bold uppercase tracking-wider">
+          <nav className="flex shrink-0 items-center gap-2 print:hidden sm:gap-6 font-mono text-xs font-bold uppercase tracking-wider">
             <Link
               href="/docs"
               className="hidden text-slate-300 hover:text-white transition-colors sm:inline"
@@ -57,17 +65,18 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
               asChild
               variant="ghost"
               size="sm"
-              className="font-mono text-xs font-bold uppercase text-slate-300 hover:bg-white/10 hover:text-white"
+              className="hidden font-mono text-xs font-bold uppercase text-slate-300 hover:bg-white/10 hover:text-white sm:inline-flex"
             >
               <Link href="/sign-in">SIGN IN</Link>
             </Button>
             <Button
               asChild
               size="sm"
-              className="bg-white text-black hover:bg-slate-200 font-mono text-xs font-extrabold uppercase tracking-wider transition-all border border-white px-5 py-2 rounded-none"
+              className="bg-white text-black hover:bg-slate-200 font-mono text-xs font-extrabold uppercase tracking-wider transition-all border border-white px-4 py-2 sm:px-5 rounded-none"
             >
               <Link href="/sign-up">
-                <span>CREATE ORGANIZATION</span>
+                <span className="sm:hidden">SIGN UP</span>
+                <span className="hidden sm:inline">CREATE ORGANIZATION</span>
               </Link>
             </Button>
           </nav>

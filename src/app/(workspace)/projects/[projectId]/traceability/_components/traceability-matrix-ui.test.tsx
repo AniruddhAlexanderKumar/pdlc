@@ -133,15 +133,19 @@ describe("TraceabilityMatrixView", () => {
     expect(await screen.findByText("Confirmed in run 3")).toBeInTheDocument();
   });
 
-  it("shows an honest empty state when the project has no requirements", async () => {
+  it("shows an honest empty state when the project has no requirements, with the step that fills it", async () => {
     currentMatrix = baseMatrix();
 
     render(<TraceabilityMatrixView projectId={PROJECT_ID} />);
 
     expect(await screen.findByText("No requirements yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Write the first requirement" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT_ID}/requirements`,
+    );
   });
 
-  it("shows an honest empty state when nothing verifies anything yet", async () => {
+  it("shows an honest empty state when nothing verifies anything yet, with the step that fills it", async () => {
     currentMatrix = baseMatrix({
       rows: [{ id: "r1", identifier: "REQ-001", title: "x" }],
       uncoveredRowIds: ["r1"],
@@ -149,7 +153,11 @@ describe("TraceabilityMatrixView", () => {
 
     render(<TraceabilityMatrixView projectId={PROJECT_ID} />);
 
-    expect(await screen.findByText("No verification activities recorded")).toBeInTheDocument();
+    expect(await screen.findByText("No checks planned yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Plan the first check" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT_ID}/verification`,
+    );
   });
 
   it("never renders a percentage anywhere on the page", async () => {

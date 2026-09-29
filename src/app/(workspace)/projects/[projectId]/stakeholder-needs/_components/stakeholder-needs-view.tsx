@@ -44,6 +44,7 @@ export function StakeholderNeedsView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/stakeholder-needs"
         title={title}
         description={
           projectName

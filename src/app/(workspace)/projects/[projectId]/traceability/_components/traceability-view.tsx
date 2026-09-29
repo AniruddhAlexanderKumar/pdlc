@@ -83,6 +83,7 @@ export function TraceabilityView({ projectId }: { projectId: string }) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader
+          guide="/traceability"
           title="Traceability"
           description="Trace real relationships between this project's engineering objects."
         />
@@ -141,6 +142,7 @@ export function TraceabilityView({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        guide="/traceability"
         title="Traceability"
         description={
           projectName

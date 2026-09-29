@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   BookOpen,
+  CircleHelp,
   Columns2,
   Eye,
   EyeOff,
@@ -25,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import { ALWAYS_VISIBLE_HREF, useNavCustomization } from "../../_components/nav-customization";
 import { SIMPLIFY_STORAGE_KEY } from "../../_components/sidebar";
+import { PAGE_GUIDES_HIDDEN_KEY } from "@/components/common/module-guide-panel";
 import { useModuleLabel } from "../../_components/terminology-context";
 import {
   MODULE_GROUPS,
@@ -81,6 +83,7 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
   const [theme, setTheme] = useTheme();
   const [density, setDensity] = useLayoutDensity();
   const [simplified, setSimplified] = useStoredFlag(SIMPLIFY_STORAGE_KEY);
+  const [guidesHidden, setGuidesHidden] = useStoredFlag(PAGE_GUIDES_HIDDEN_KEY);
   const { hidden, pinned, setHidden, setPinned, reset: resetNavCustomization } = useNavCustomization();
   const hasCustomization = hidden.size > 0 || pinned.size > 0;
 
@@ -184,8 +187,8 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
               Navigation
             </CardTitle>
             <CardDescription>
-              The same &ldquo;Simplify&rdquo; control the sidebar itself has, surfaced here too —
-              collapses project navigation down to daily-tier modules only.
+              The same &ldquo;Simplify&rdquo; control the sidebar has. It hides the less-used pages
+              and keeps everything a project&apos;s next step can send you to.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -197,6 +200,31 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
                 className="size-4 rounded border-input"
               />
               Simplify project navigation
+            </label>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CircleHelp className="size-4" aria-hidden="true" />
+              Page guides
+            </CardTitle>
+            <CardDescription>
+              A short &ldquo;what is this, why it matters, where to start&rdquo; at the top of each
+              page. Hide a single page&apos;s guide from the page itself, or all of them here. Either
+              way, &ldquo;What is this page?&rdquo; brings one back.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <label className="flex w-fit items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={!guidesHidden}
+                onChange={(event) => setGuidesHidden(!event.target.checked)}
+                className="size-4 rounded border-input"
+              />
+              Show a guide at the top of each page
             </label>
           </CardContent>
         </Card>
