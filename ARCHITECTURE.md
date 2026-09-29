@@ -107,6 +107,17 @@ all, and it survives what "Simplify" would otherwise collapse. One module,
 (`ALWAYS_VISIBLE_HREF`) — hiding the front door would strand navigation,
 and pinning something already always shown is meaningless.
 
+Both `setHidden` and `setPinned` are only ever called from one place: the
+Settings page's module checklist (`ModuleRow` in `settings-view.tsx`). An
+earlier version also put a pin toggle directly on every sidebar row (a
+small star, revealed on hover) — found to be exactly the kind of clutter
+a project with nineteen modules didn't need: nineteen near-invisible extra
+buttons alongside nineteen links. The sidebar (`NavLink`) now only ever
+*renders* the result of a pin or hide — a missing module, or a link inside
+its own "Pinned" section — never lets a reader change either from there.
+Settings' own checklist already covered both actions in full before this
+change, so nothing was lost, only where it lives.
+
 The command palette itself searches navigation *destinations* only
 (modules, `/settings`, `/organization`, ...), never a full-text index of
 engineering data — this product has no search endpoint for that, and the

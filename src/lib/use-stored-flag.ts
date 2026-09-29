@@ -20,15 +20,17 @@ function changeEventName(key: string): string {
   return `pdlc:local-flag-changed:${key}`;
 }
 
-function readFlag(key: string): boolean {
+function readFlag(key: string, defaultValue: boolean): boolean {
   try {
-    return window.localStorage.getItem(key) === "1";
+    const raw = window.localStorage.getItem(key);
+    return raw === null ? defaultValue : raw === "1";
   } catch {
-    return false;
+    return defaultValue;
   }
 }
 
-export function useStoredFlag(key: string): [boolean, (value: boolean) => void] {
+/** @param defaultValue What an unset key reads as — before anyone has ever touched this preference. */
+export function useStoredFlag(key: string, defaultValue = false): [boolean, (value: boolean) => void] {
   const subscribe = React.useCallback(
     (onChange: () => void) => {
       const eventName = changeEventName(key);
@@ -42,8 +44,8 @@ export function useStoredFlag(key: string): [boolean, (value: boolean) => void] 
     [key],
   );
 
-  const getSnapshot = React.useCallback(() => readFlag(key), [key]);
-  const getServerSnapshot = () => false;
+  const getSnapshot = React.useCallback(() => readFlag(key, defaultValue), [key, defaultValue]);
+  const getServerSnapshot = React.useCallback(() => defaultValue, [defaultValue]);
 
   const value = React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 

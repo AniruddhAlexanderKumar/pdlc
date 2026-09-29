@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -135,46 +135,58 @@ describe("Sidebar", () => {
     }
   });
 
-  it("pinning a module moves it into its own Pinned section, and survives Simplify", async () => {
+  /**
+   * Pin/unpin moved off the sidebar entirely (see `NavLink`'s own doc
+   * comment) — the sidebar only ever renders the *result* of a pin stored
+   * on the Settings page's checklist, so these tests drive that same
+   * `pdlc:nav-customization` key directly, exactly as Settings' own
+   * `setPinned` would leave it.
+   */
+  it("a module pinned via stored preference gets its own Pinned section, and survives Simplify", async () => {
     pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    window.localStorage.setItem(
+      "pdlc:nav-customization",
+      JSON.stringify({ hidden: [], pinned: ["/traceability"] }),
+    );
     const user = userEvent.setup();
     render(<Sidebar />);
 
-    expect(screen.queryByText("Pinned")).not.toBeInTheDocument();
-
-    // Traceability is weekly-tier — normally visible, but the first thing
-    // Simplify collapses away, which is exactly why it is a real test of
-    // "pinned survives Simplify" and not just "pinned is visible".
-    await user.click(screen.getByRole("button", { name: "Pin Traceability" }));
-
     expect(screen.getByText("Pinned")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Unpin Traceability" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("link", { name: /Traceability/ })).toBeInTheDocument();
 
+    // Traceability is weekly-tier — normally the first thing Simplify
+    // collapses away, which is exactly why this is a real test of "pinned
+    // survives Simplify" and not just "pinned is visible".
     await user.click(screen.getByRole("button", { name: "Simplify" }));
     expect(screen.getByRole("link", { name: /Traceability/ })).toBeInTheDocument();
   });
 
-  it("unpinning removes the module from the Pinned section", async () => {
+  it("unpinning (from Settings, in practice) removes the module from the Pinned section live", async () => {
     pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    const user = userEvent.setup();
+    window.localStorage.setItem(
+      "pdlc:nav-customization",
+      JSON.stringify({ hidden: [], pinned: ["/traceability"] }),
+    );
     render(<Sidebar />);
-
-    await user.click(screen.getByRole("button", { name: "Pin Traceability" }));
     expect(screen.getByText("Pinned")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Unpin Traceability" }));
-    expect(screen.queryByText("Pinned")).not.toBeInTheDocument();
+    // The sidebar and Settings read the same localStorage key live, in
+    // separate mounted trees — this is Settings' own write, replayed here
+    // without needing to mount that page too.
+    window.localStorage.setItem("pdlc:nav-customization", JSON.stringify({ hidden: [], pinned: [] }));
+    window.dispatchEvent(new Event("pdlc:local-json-changed:pdlc:nav-customization"));
+
+    await waitFor(() => expect(screen.queryByText("Pinned")).not.toBeInTheDocument());
   });
 
   it("a pinned module is remembered across a fresh mount", async () => {
     pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
-    const user = userEvent.setup();
+    window.localStorage.setItem(
+      "pdlc:nav-customization",
+      JSON.stringify({ hidden: [], pinned: ["/traceability"] }),
+    );
     const { unmount } = render(<Sidebar />);
-
-    await user.click(screen.getByRole("button", { name: "Pin Traceability" }));
+    expect(screen.getByText("Pinned")).toBeInTheDocument();
     unmount();
 
     render(<Sidebar />);
@@ -233,16 +245,23 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: /^Requirements$/ })).toBeInTheDocument();
   });
 
-  it("the pin toggle only appears once the sidebar is expanded, not on the collapsed icon rail", async () => {
+  it("a pinned module's link survives collapsing the sidebar to the icon rail", async () => {
     pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+    window.localStorage.setItem(
+      "pdlc:nav-customization",
+      JSON.stringify({ hidden: [], pinned: ["/traceability"] }),
+    );
     const user = userEvent.setup();
     render(<Sidebar />);
 
-    expect(screen.getByRole("button", { name: "Pin Traceability" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Traceability/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
 
-    expect(screen.queryByRole("button", { name: "Pin Traceability" })).not.toBeInTheDocument();
+    // The "Pinned" section label is text-only chrome, hidden on the icon
+    // rail same as every other group heading — the link itself stays.
+    expect(screen.queryByText("Pinned")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Traceability" })).toBeInTheDocument();
   });
 
   it("expands to search modules in the sidebar", async () => {
