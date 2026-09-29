@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
 
-// `crypto.randomUUID()` below is the Web Crypto API global, not `node:crypto`
-// — middleware runs in the Edge runtime, which does not expose Node built-ins.
+// `crypto.randomUUID()` below is the Web Crypto API global — available in
+// both runtimes Proxy can run in, so this needs no change now that Proxy
+// defaults to the Node.js runtime (Next.js 16) rather than Edge.
 
 /**
- * Edge middleware: three cheap, header-only concerns. No database access, no
- * crypto beyond generating an id, no session validation — the authoritative
+ * Proxy (formerly "Middleware", renamed by Next.js 16 — see
+ * node_modules/next/dist/docs/.../proxy.md): three cheap, header-only
+ * concerns. No database access, no crypto beyond generating an id, no
+ * session validation — the authoritative
  * session check is always the server-side `requireAuthenticatedContext()` in
  * route handlers and the workspace layout.
  *
@@ -75,7 +78,7 @@ function withRequestId(response: NextResponse, requestId: string): NextResponse 
   return response;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const requestId = crypto.randomUUID();
 

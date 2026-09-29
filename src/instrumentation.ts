@@ -1,9 +1,11 @@
 /**
  * Next.js's own server lifecycle hook — not a custom process manager, just
  * the one function Next.js already calls once when the server process
- * starts. Two things happen here, both Node-runtime only (this file also
- * loads under the Edge runtime for middleware, where neither Prisma nor
- * `process.on` exist):
+ * starts. Two things happen here, both Node-runtime only (this file loads
+ * under every runtime Next.js builds for the app, including Edge if
+ * anything ever opts into it — `proxy.ts` itself defaults to the Node.js
+ * runtime since Next.js 16, but nothing guarantees that stays true forever,
+ * so the guard below stays):
  *
  * 1. **Startup order, made visible.** Importing `@/config/env` here forces
  *    its eager, validated singleton to run (it may already have run as a

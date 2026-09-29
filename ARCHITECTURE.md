@@ -278,7 +278,7 @@ data is sent anywhere else. The only external code in the path is
 **Request flow**
 
 ```
-browser  ──HttpOnly cookie (opaque token)──▶  middleware (cheap: cookie present? origin ok?)
+browser  ──HttpOnly cookie (opaque token)──▶  proxy (cheap: cookie present? origin ok?)
                                               │
                                               ▼
                           getAuthenticatedContext()   ← the one place this happens
@@ -326,7 +326,7 @@ identity; neither reaches into the other's layer.
 
 **CSRF.** `SameSite=Lax` is the primary defence — the session cookie is not
 attached to cross-site POSTs at all. A second layer lives centrally in
-`src/middleware.ts`: any state-changing `/api` request whose `Origin` disagrees
+`src/proxy.ts`: any state-changing `/api` request whose `Origin` disagrees
 with its `Host` is rejected with 403. A request with no `Origin` is allowed,
 because browsers always attach one to cross-site state-changing fetches, so its
 absence means the caller is not a cross-site browser context. No token
@@ -355,7 +355,7 @@ cannot see returns 404, never 403, so the API does not confirm the existence of
 records outside the tenancy.
 
 Access control has three layers, and only the last two are authoritative.
-Middleware redirects a cookie-less visitor away from workspace routes, which is
+Proxy redirects a cookie-less visitor away from workspace routes, which is
 a UX shortcut and proves nothing. The real checks are server-side: the
 workspace layout resolves the session before any page renders, and every API
 route calls `requireAuthenticatedContext()` — unauthenticated page access
@@ -5245,7 +5245,7 @@ dependency outside it. The distinction exists so a database blip makes a
 load balancer stop routing traffic to an instance without an orchestrator
 concluding the instance itself is dead and restarting it.
 
-**Request correlation.** `src/middleware.ts` now stamps every request with
+**Request correlation.** `src/proxy.ts` now stamps every request with
 a server-generated id (never a client-supplied one — nothing about it is
 trusted from outside), logs it once per request, forwards it to route
 handlers via a request header, and echoes it back as the `x-request-id`
@@ -5253,8 +5253,9 @@ response header for support correlation.
 
 **Startup and shutdown.** `src/instrumentation.ts` (new) is Next.js's own
 lifecycle hook, not a custom process manager: on the Node runtime only (this
-file also loads under the Edge runtime for middleware, where it does
-nothing), it logs application startup — forcing `@/config/env`'s validated
+file loads under every runtime Next.js builds for the app — `proxy.ts`
+itself defaults to the Node.js runtime since Next.js 16, not Edge, but the
+guard stays in case that ever changes), it logs application startup — forcing `@/config/env`'s validated
 singleton to resolve, so an invalid environment fails loudly before the
 server would otherwise start serving — and registers `SIGTERM`/`SIGINT`
 handlers that close the Prisma connection pool cleanly before the process
@@ -5268,7 +5269,7 @@ sanitization (`src/server/errors.ts`, `src/server/api/response.ts` —
 internal exceptions logged server-side in full, clients get a generic
 message, stack traces never leave development), secure/httpOnly/SameSite
 session cookies (`src/server/auth/cookies.ts`), the CSRF origin check
-(`src/middleware.ts`), Argon2id password hashing at OWASP-recommended
+(`src/proxy.ts`), Argon2id password hashing at OWASP-recommended
 parameters (`src/server/auth/password.ts`), and the singleton Prisma client
 via `@prisma/adapter-pg` (`src/lib/db.ts`, one connection pool for the
 process, never one per request) were all already in place from earlier
@@ -5860,7 +5861,7 @@ src/server/
                                     scoped) + listAuditEventsForProjectArtifacts
                                     (one batched OR query over AuditLog);
                                     read-only, writes nothing
-src/middleware.ts             Edge: CSRF origin check + cookie-less redirect
+src/proxy.ts             CSRF origin check + cookie-less redirect
 
 src/app/
   (marketing)/                Public landing page

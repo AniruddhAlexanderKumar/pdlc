@@ -15,7 +15,7 @@ export const SESSION_COOKIE_NAME = "pdlc_session";
  * - `httpOnly` keeps the token out of reach of any script, so an XSS bug
  *   cannot exfiltrate a session.
  * - `sameSite: "lax"` means the cookie is not attached to cross-site POSTs,
- *   which is the primary CSRF defence (see the origin check in middleware).
+ *   which is the primary CSRF defence (see the origin check in proxy.ts).
  * - `secure` everywhere except development, where localhost is plain HTTP.
  * - `path: "/"` so the whole application sees it.
  */

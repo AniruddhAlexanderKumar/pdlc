@@ -162,7 +162,7 @@ specifically so the proxy is the only public entry point) and have it:
   choice is the common self-hosted path);
 - forward `Host`, and either forward `X-Forwarded-Proto`/`X-Forwarded-For`
   or terminate TLS such that the app sees `https` — the CSRF origin check in
-  `src/middleware.ts` compares the request's `Origin` header against `Host`,
+  `src/proxy.ts` compares the request's `Origin` header against `Host`,
   so the proxy must not rewrite `Host` to something the app does not expect;
 - **not** silently allow both HTTP and HTTPS to the app without redirecting
   HTTP to HTTPS — `secure` cookies (enforced in production, see
@@ -197,7 +197,7 @@ provides (`docker logs`, `journald`, your cloud provider's log collector —
 all of these already know how to capture a process's stdout).
 
 What is logged: application startup and shutdown (`src/instrumentation.ts`),
-every request's method/path/correlation id (`src/middleware.ts`),
+every request's method/path/correlation id (`src/proxy.ts`),
 authentication and rate-limit events (`src/server/services/auth.service.ts`),
 and every unexpected server error, in full, server-side only
 (`src/server/api/response.ts`).
@@ -215,7 +215,7 @@ this system stores evidence as metadata/reference records to begin with
 the process to accidentally log.
 
 **Request correlation.** Every request gets a server-generated id
-(`src/middleware.ts` — never one supplied by the client, which would let a
+(`src/proxy.ts` — never one supplied by the client, which would let a
 caller inject arbitrary values into server logs), logged once per request
 and returned to the caller as the `x-request-id` response header. When a
 user reports an error, that header is what support can grep the logs for.

@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * The one lifecycle hook Next.js calls automatically. Two things are worth
  * proving without actually starting a server or killing the test process:
- * that it does nothing outside the Node runtime (the Edge bundle for
- * middleware also loads this file), and that a shutdown signal actually
+ * that it does nothing outside the Node runtime (an Edge bundle, were one
+ * ever built, would also load this file), and that a shutdown signal actually
  * closes the database connection before the process would exit.
  */
 
@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe("register()", () => {
-  it("does nothing outside the Node runtime — the Edge middleware bundle also loads this file", async () => {
+  it("does nothing outside the Node runtime — an Edge bundle would also load this file", async () => {
     process.env.NEXT_RUNTIME = "edge";
     const { register } = await import("./instrumentation");
 

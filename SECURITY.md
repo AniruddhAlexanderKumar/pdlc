@@ -27,7 +27,7 @@ Trust boundaries this system actually has, and what crosses each:
 | Authenticated user → organization | Session cookie resolves to a `User` row | `resolveSession` against the hashed token, server-side expiry |
 | Organization member → project | `ProjectMembership` row, or an implicit grant from `OWNER`/`EXECUTIVE` | `authorization.service.ts`'s `requireProject*Access` |
 | Project role → mutation tier | `VIEWER`/`REVIEWER`/`ENGINEER`/`MANAGER` | Per-action `require*Access` call at every service entry point |
-| Browser ↔ API | Cookie, CSRF origin check | `SameSite=Lax` + `src/middleware.ts`'s origin comparison |
+| Browser ↔ API | Cookie, CSRF origin check | `SameSite=Lax` + `src/proxy.ts`'s origin comparison |
 | Application ↔ PostgreSQL | The one thing every layer above ultimately gates | Prisma, parameterized, project/org id always in the `WHERE` |
 | Evidence reference ↔ reality | Never crossed by this system | No fetch, no verification — see "Evidence storage limitation" |
 | CI/deployment environment | Build- and deploy-time secrets | See "Dependency and CI/CD supply chain" below |
@@ -99,7 +99,7 @@ of any kind (`src/server/services/auth.service.ts`, `src/server/auth/`).
   claim to. Documented in the module itself, not silently assumed.
 - **Origin checking**: every state-changing (`POST`/`PUT`/`PATCH`/`DELETE`)
   request to `/api/*` is rejected if its `Origin` header disagrees with its
-  `Host` (`src/middleware.ts`) — the second CSRF layer behind
+  `Host` (`src/proxy.ts`) — the second CSRF layer behind
   `SameSite=Lax`, which already stops the cookie riding along on a
   cross-site POST.
 - **Error messages**: every sign-in failure — unknown email, no credential
