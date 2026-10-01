@@ -64,11 +64,12 @@ test.describe.serial("Full V1 acceptance scenario", () => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, "REQ-001");
-    await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
+    await page.getByLabel("Short name").fill("Maximum chamber pressure");
     await page
-      .getByLabel(/^Statement/)
+      .getByLabel("What must it do?")
       .fill("The engine shall not exceed 120 bar chamber pressure.");
-    await page.getByLabel("Rationale").fill("Structural margin of the chamber wall.");
+    await page.getByText("More details (optional)").click();
+    await page.getByLabel("Why is it needed?").fill("Structural margin of the chamber wall.");
     await page.getByRole("button", { name: "Create requirement" }).click();
     await expect(page).toHaveURL(/\/requirements\/[a-z0-9]+$/);
     requirementUrl = page.url();
@@ -79,9 +80,9 @@ test.describe.serial("Full V1 acceptance scenario", () => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, "REQ-002");
-    await page.getByLabel(/^Title/).fill("Igniter reliability under restart");
+    await page.getByLabel("Short name").fill("Igniter reliability under restart");
     await page
-      .getByLabel(/^Statement/)
+      .getByLabel("What must it do?")
       .fill("The igniter shall achieve reliable relight across three consecutive restarts.");
     await page.getByRole("button", { name: "Create requirement" }).click();
     await expect(page).toHaveURL(/\/requirements\/[a-z0-9]+$/);

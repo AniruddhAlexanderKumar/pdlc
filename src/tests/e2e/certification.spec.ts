@@ -115,9 +115,9 @@ test.describe.serial("Certification workspace", () => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, "REQ-001");
-    await page.getByLabel(/^Title/).fill("Cabin pressurization limits");
+    await page.getByLabel("Short name").fill("Cabin pressurization limits");
     await page
-      .getByLabel(/^Statement/)
+      .getByLabel("What must it do?")
       .fill("The cabin altitude shall not exceed 8,000 ft during normal operation.");
     await page.getByRole("button", { name: "Create requirement" }).click();
     await expect(page).toHaveURL(/\/requirements\/[a-z0-9]+$/);
@@ -126,7 +126,7 @@ test.describe.serial("Certification workspace", () => {
     await page.getByRole("button", { name: "New check" }).first().click();
     await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Cabin altitude analysis");
-    await page.getByLabel(/^Method/).selectOption("ANALYSIS");
+    await page.getByLabel(/^How will it be checked/).selectOption("ANALYSIS");
     await page.getByRole("button", { name: "Create check" }).click();
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
 

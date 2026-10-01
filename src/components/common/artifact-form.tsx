@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -163,6 +163,44 @@ export function RecordNumberField({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * The optional part of a form, folded away until wanted.
+ *
+ * A create form shows what it needs to save — usually one or two fields —
+ * and keeps everything optional (owner, priority, source, rationale…)
+ * under "More details", so a newcomer is not asked twelve questions to
+ * record one thing. Opens by itself when a field inside it has an error,
+ * and starts open when it already holds something (an edit of a record
+ * that has those details), so nothing filled in is ever hidden.
+ */
+export function MoreDetails({
+  children,
+  startOpen = false,
+  hasErrors = false,
+  summary = "More details (optional)",
+}: {
+  children: React.ReactNode;
+  startOpen?: boolean;
+  hasErrors?: boolean;
+  summary?: string;
+}) {
+  const [open, setOpen] = React.useState(startOpen);
+
+  return (
+    <details
+      open={open || hasErrors}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      className="group rounded-md border border-border"
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground select-none hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden="true" />
+        {summary}
+      </summary>
+      <div className="flex flex-col gap-4 border-t border-border p-3">{children}</div>
+    </details>
   );
 }
 

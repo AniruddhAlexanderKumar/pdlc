@@ -49,8 +49,8 @@ test.describe.serial("Cross-domain graph", () => {
     await page.goto(`/projects/${projectId}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, "REQ-001");
-    await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
-    await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
+    await page.getByLabel("Short name").fill("Maximum chamber pressure");
+    await page.getByLabel("What must it do?").fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();
     await expect(page).toHaveURL(/\/requirements\/[a-z0-9]+$/);
     requirementId = page.url().split("/").pop()!;

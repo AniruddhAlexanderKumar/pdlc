@@ -10,7 +10,16 @@ import {
   updateDecision,
 } from "@/lib/api/decisions";
 import { useOrganizationMembers } from "@/lib/api/requirements";
-import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
+import {
+  FormError,
+  FormField,
+  RecordNumberField,
+  describedBy,
+  identifierOrAuto,
+  toFieldErrors,
+  type FieldErrors,
+  MoreDetails,
+} from "@/components/common/artifact-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -222,46 +231,48 @@ function FormBody({
           />
         </FormField>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField
-            id="decision-decided-at"
-            label="Decided date"
-            error={fieldErrors["decidedAt"]}
-            hint="Optional. Set automatically on approval if left blank."
-          >
-            <Input
+        <MoreDetails startOpen={!isCreate && decidedAt !== ""} hasErrors={Boolean(fieldErrors["decidedAt"])}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
               id="decision-decided-at"
-              type="date"
-              value={decidedAt}
-              onChange={(event) => setDecidedAt(event.target.value)}
-              disabled={isSubmitting}
-              aria-describedby={describedBy(
-                "decision-decided-at",
-                fieldErrors["decidedAt"],
-                "hint",
-              )}
-            />
-          </FormField>
-
-          {isCreate && (
-            <FormField id="decision-owner" label="Owner">
-              <Select
-                id="decision-owner"
-                value={ownerId}
-                onChange={(event) => setOwnerId(event.target.value)}
-                disabled={isSubmitting || members.state.phase !== "ready"}
-              >
-                <option value="">Unassigned</option>
-                {members.state.phase === "ready" &&
-                  members.state.data.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name} ({member.email})
-                    </option>
-                  ))}
-              </Select>
+              label="Decided date"
+              error={fieldErrors["decidedAt"]}
+              hint="Optional. Set automatically on approval if left blank."
+            >
+              <Input
+                id="decision-decided-at"
+                type="date"
+                value={decidedAt}
+                onChange={(event) => setDecidedAt(event.target.value)}
+                disabled={isSubmitting}
+                aria-describedby={describedBy(
+                  "decision-decided-at",
+                  fieldErrors["decidedAt"],
+                  "hint",
+                )}
+              />
             </FormField>
-          )}
-        </div>
+
+            {isCreate && (
+              <FormField id="decision-owner" label="Owner">
+                <Select
+                  id="decision-owner"
+                  value={ownerId}
+                  onChange={(event) => setOwnerId(event.target.value)}
+                  disabled={isSubmitting || members.state.phase !== "ready"}
+                >
+                  <option value="">Unassigned</option>
+                  {members.state.phase === "ready" &&
+                    members.state.data.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name} ({member.email})
+                      </option>
+                    ))}
+                </Select>
+              </FormField>
+            )}
+          </div>
+        </MoreDetails>
       </div>
 
       <DialogFooter>

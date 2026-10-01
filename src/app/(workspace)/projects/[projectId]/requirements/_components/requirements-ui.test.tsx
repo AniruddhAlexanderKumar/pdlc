@@ -211,8 +211,8 @@ describe("RequirementsView", () => {
     // A number of their own: the field is automatic until asked for.
     await user.click(await screen.findByRole("button", { name: "Use my own number" }));
     await user.type(screen.getByLabelText(/^Number/), "REQ-001");
-    await user.type(screen.getByLabelText(/^title/i), "Maximum chamber pressure");
-    await user.type(screen.getByLabelText(/statement/i), "The engine shall not exceed 120 bar.");
+    await user.type(screen.getByLabelText(/^Short name/), "Maximum chamber pressure");
+    await user.type(screen.getByLabelText(/What must it do/), "The engine shall not exceed 120 bar.");
 
     fetchMock.mockImplementationOnce(async () => ok({ requirement: requirement() }));
     await user.click(screen.getByRole("button", { name: /create requirement/i }));
@@ -240,8 +240,8 @@ describe("RequirementsView", () => {
     await user.click(screen.getAllByRole("button", { name: /new requirement/i })[0]!);
     expect(await screen.findByText(/Numbered automatically/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/^Number/)).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText(/^title/i), "Maximum chamber pressure");
-    await user.type(screen.getByLabelText(/statement/i), "The engine shall not exceed 120 bar.");
+    await user.type(screen.getByLabelText(/^Short name/), "Maximum chamber pressure");
+    await user.type(screen.getByLabelText(/What must it do/), "The engine shall not exceed 120 bar.");
 
     fetchMock.mockImplementationOnce(async () => ok({ requirement: requirement() }));
     await user.click(screen.getByRole("button", { name: /create requirement/i }));
@@ -287,6 +287,37 @@ describe("RequirementsView", () => {
     });
   });
 
+  it("needs only the sentence: a blank short name is taken from its first words", async () => {
+    routeGets();
+    const user = userEvent.setup();
+
+    render(<RequirementsView projectId={PROJECT_ID} />);
+    await screen.findByText("No requirements yet");
+
+    await user.click(screen.getAllByRole("button", { name: /new requirement/i })[0]!);
+    await user.type(
+      await screen.findByLabelText(/What must it do/),
+      "The pump shall deliver at least 5 litres per minute. Quietly.",
+    );
+    // The blank field previews the name it will get.
+    expect(screen.getByLabelText(/^Short name/)).toHaveAttribute(
+      "placeholder",
+      "The pump shall deliver at least 5 litres per minute",
+    );
+    // Everything optional stays folded away.
+    expect(screen.getByLabelText("Why is it needed?")).not.toBeVisible();
+
+    fetchMock.mockImplementationOnce(async () => ok({ requirement: requirement() }));
+    await user.click(screen.getByRole("button", { name: /create requirement/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(JSON.parse(post![1].body)).toMatchObject({
+      title: "The pump shall deliver at least 5 litres per minute",
+      statement: "The pump shall deliver at least 5 litres per minute. Quietly.",
+    });
+  });
+
   it("goes back to automatic numbering when a typed number is abandoned", async () => {
     routeGets();
     const user = userEvent.setup();
@@ -298,8 +329,8 @@ describe("RequirementsView", () => {
     await user.click(await screen.findByRole("button", { name: "Use my own number" }));
     await user.type(screen.getByLabelText(/^Number/), "REQ-777");
     await user.click(screen.getByRole("button", { name: "Number it for me" }));
-    await user.type(screen.getByLabelText(/^title/i), "Maximum chamber pressure");
-    await user.type(screen.getByLabelText(/statement/i), "The engine shall not exceed 120 bar.");
+    await user.type(screen.getByLabelText(/^Short name/), "Maximum chamber pressure");
+    await user.type(screen.getByLabelText(/What must it do/), "The engine shall not exceed 120 bar.");
 
     fetchMock.mockImplementationOnce(async () => ok({ requirement: requirement() }));
     await user.click(screen.getByRole("button", { name: /create requirement/i }));

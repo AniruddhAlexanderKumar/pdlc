@@ -53,11 +53,12 @@ test.describe.serial("Requirement lifecycle", () => {
 
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, identifier);
-    await page.getByLabel("Title").fill("Maximum chamber pressure");
+    await page.getByLabel("Short name").fill("Maximum chamber pressure");
     await page
-      .getByLabel("Statement")
+      .getByLabel("What must it do?")
       .fill("The engine shall not exceed 120 bar chamber pressure.");
-    await page.getByLabel("Rationale").fill("Structural margin of the chamber wall.");
+    await page.getByText("More details (optional)").click();
+    await page.getByLabel("Why is it needed?").fill("Structural margin of the chamber wall.");
     await page.getByRole("button", { name: "Create requirement" }).click();
 
     // Creation navigates to the requirement that was actually created.
@@ -71,8 +72,8 @@ test.describe.serial("Requirement lifecycle", () => {
 
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, identifier);
-    await page.getByLabel("Title").fill("Duplicate attempt");
-    await page.getByLabel("Statement").fill("This identifier is already taken.");
+    await page.getByLabel("Short name").fill("Duplicate attempt");
+    await page.getByLabel("What must it do?").fill("This identifier is already taken.");
     await page.getByRole("button", { name: "Create requirement" }).click();
 
     await expect(page.getByRole("alert")).toContainText(/already exists/i);

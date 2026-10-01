@@ -15,7 +15,16 @@ import {
 } from "@/lib/api/artifacts";
 import { useOrganizationMembers } from "@/lib/api/requirements";
 import { artifactLabel } from "@/components/common/artifact-badges";
-import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
+import {
+  FormError,
+  FormField,
+  RecordNumberField,
+  describedBy,
+  identifierOrAuto,
+  toFieldErrors,
+  type FieldErrors,
+  MoreDetails,
+} from "@/components/common/artifact-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -184,34 +193,37 @@ function FormBody({
           />
         </FormField>
 
-        <FormField
-          id="verification-description"
-          label="Description"
-          error={fieldErrors["description"]}
-        >
-          <Textarea
-            id="verification-description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
+        <FormField id="verification-method" label="How will it be checked?" required>
+          <Select
+            id="verification-method"
+            value={method}
+            onChange={(event) => setMethod(event.target.value as typeof method)}
             disabled={isSubmitting}
-            rows={3}
-          />
+          >
+            {VERIFICATION_METHODS.map((value) => (
+              <option key={value} value={value}>
+                {artifactLabel(value)}
+              </option>
+            ))}
+          </Select>
         </FormField>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField id="verification-method" label="Method" required>
-            <Select
-              id="verification-method"
-              value={method}
-              onChange={(event) => setMethod(event.target.value as typeof method)}
+        <MoreDetails
+          startOpen={!isCreate && (description !== "" || plannedDate !== "")}
+          hasErrors={Boolean(fieldErrors["description"] || fieldErrors["plannedDate"])}
+        >
+          <FormField
+            id="verification-description"
+            label="Description"
+            error={fieldErrors["description"]}
+          >
+            <Textarea
+              id="verification-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
               disabled={isSubmitting}
-            >
-              {VERIFICATION_METHODS.map((value) => (
-                <option key={value} value={value}>
-                  {artifactLabel(value)}
-                </option>
-              ))}
-            </Select>
+              rows={3}
+            />
           </FormField>
 
           <FormField
@@ -233,26 +245,26 @@ function FormBody({
               )}
             />
           </FormField>
-        </div>
 
-        {isCreate && (
-          <FormField id="verification-owner" label="Owner">
-            <Select
-              id="verification-owner"
-              value={ownerId}
-              onChange={(event) => setOwnerId(event.target.value)}
-              disabled={isSubmitting || members.state.phase !== "ready"}
-            >
-              <option value="">Unassigned</option>
-              {members.state.phase === "ready" &&
-                members.state.data.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name} ({member.email})
-                  </option>
-                ))}
-            </Select>
-          </FormField>
-        )}
+          {isCreate && (
+            <FormField id="verification-owner" label="Owner">
+              <Select
+                id="verification-owner"
+                value={ownerId}
+                onChange={(event) => setOwnerId(event.target.value)}
+                disabled={isSubmitting || members.state.phase !== "ready"}
+              >
+                <option value="">Unassigned</option>
+                {members.state.phase === "ready" &&
+                  members.state.data.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name} ({member.email})
+                    </option>
+                  ))}
+              </Select>
+            </FormField>
+          )}
+        </MoreDetails>
       </div>
 
       <DialogFooter>

@@ -19,7 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { RecordNumberField, identifierOrAuto } from "@/components/common/artifact-form";
+import {
+  RecordNumberField,
+  identifierOrAuto,
+  MoreDetails,
+} from "@/components/common/artifact-form";
 
 type FieldErrors = Record<string, string>;
 
@@ -198,51 +202,53 @@ function RiskFormBody({
           />
         </Field>
 
-        <Field id="risk-cause" label="Cause" error={fieldErrors["cause"]} hint="Why this could happen. Optional.">
-          <Textarea
-            id="risk-cause"
-            value={cause}
-            onChange={(event) => setCause(event.target.value)}
-            disabled={isSubmitting}
-            rows={3}
-            aria-describedby="risk-cause-hint"
-          />
-        </Field>
-
-        <Field
-          id="risk-consequence"
-          label="Consequence"
-          error={fieldErrors["consequence"]}
-          hint="What would happen if it occurred. Optional."
-        >
-          <Textarea
-            id="risk-consequence"
-            value={consequence}
-            onChange={(event) => setConsequence(event.target.value)}
-            disabled={isSubmitting}
-            rows={3}
-            aria-describedby="risk-consequence-hint"
-          />
-        </Field>
-
-        {isCreate && (
-          <Field id="risk-owner" label="Owner">
-            <Select
-              id="risk-owner"
-              value={ownerId}
-              onChange={(event) => setOwnerId(event.target.value)}
-              disabled={isSubmitting || members.state.phase !== "ready"}
-            >
-              <option value="">Unassigned</option>
-              {members.state.phase === "ready" &&
-                members.state.data.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name} ({member.email})
-                  </option>
-                ))}
-            </Select>
+        <MoreDetails startOpen={!isCreate && (cause !== "" || consequence !== "")} hasErrors={Boolean(fieldErrors["cause"] || fieldErrors["consequence"])}>
+          <Field id="risk-cause" label="Cause" error={fieldErrors["cause"]} hint="Why this could happen. Optional.">
+            <Textarea
+              id="risk-cause"
+              value={cause}
+              onChange={(event) => setCause(event.target.value)}
+              disabled={isSubmitting}
+              rows={3}
+              aria-describedby="risk-cause-hint"
+            />
           </Field>
-        )}
+
+          <Field
+            id="risk-consequence"
+            label="Consequence"
+            error={fieldErrors["consequence"]}
+            hint="What would happen if it occurred. Optional."
+          >
+            <Textarea
+              id="risk-consequence"
+              value={consequence}
+              onChange={(event) => setConsequence(event.target.value)}
+              disabled={isSubmitting}
+              rows={3}
+              aria-describedby="risk-consequence-hint"
+            />
+          </Field>
+
+          {isCreate && (
+            <Field id="risk-owner" label="Owner">
+              <Select
+                id="risk-owner"
+                value={ownerId}
+                onChange={(event) => setOwnerId(event.target.value)}
+                disabled={isSubmitting || members.state.phase !== "ready"}
+              >
+                <option value="">Unassigned</option>
+                {members.state.phase === "ready" &&
+                  members.state.data.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name} ({member.email})
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+          )}
+        </MoreDetails>
       </div>
 
       <DialogFooter>

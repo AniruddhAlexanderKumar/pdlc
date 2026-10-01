@@ -84,7 +84,8 @@ test.describe.serial("Foundational artifacts and traceability", () => {
     await page.getByRole("button", { name: "New check" }).first().click();
     await fillRecordNumber(page, "VER-001");
     await page.getByLabel(/^Title/).fill("Chamber pressure hot-fire test");
-    await page.getByLabel(/^Method/).selectOption("TEST");
+    await page.getByLabel(/^How will it be checked/).selectOption("TEST");
+    await page.getByText("More details (optional)").click();
     await page.getByLabel(/^Planned date/).fill("2026-04-01");
     await page.getByRole("button", { name: "Create check" }).click();
 
@@ -101,8 +102,8 @@ test.describe.serial("Foundational artifacts and traceability", () => {
 
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, "REQ-001");
-    await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
-    await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
+    await page.getByLabel("Short name").fill("Maximum chamber pressure");
+    await page.getByLabel("What must it do?").fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();
 
     await expect(page).toHaveURL(/\/requirements\/[a-z0-9]+$/);

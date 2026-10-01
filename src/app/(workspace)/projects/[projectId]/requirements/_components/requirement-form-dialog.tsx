@@ -5,6 +5,7 @@ import { AlertTriangle } from "lucide-react";
 import {
   REQUIREMENT_PRIORITIES,
   createRequirementRequestSchema,
+  deriveRequirementTitle,
   updateRequirementRequestSchema,
 } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
@@ -28,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { RecordNumberField, identifierOrAuto } from "@/components/common/artifact-form";
+import { MoreDetails, RecordNumberField, identifierOrAuto } from "@/components/common/artifact-form";
 
 type FieldErrors = Record<string, string>;
 
@@ -110,6 +111,9 @@ function RequirementFormBody({
   const [source, setSource] = React.useState(requirement?.source ?? "");
   const [ownerId, setOwnerId] = React.useState(requirement?.ownerId ?? "");
 
+  /** Used when the short name is left blank — every word from the statement itself. */
+  const derivedTitle = statement.trim() === "" ? "" : deriveRequirementTitle(statement);
+
   const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
   const [formError, setFormError] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -119,7 +123,7 @@ function RequirementFormBody({
     if (isSubmitting) return;
 
     const shared = {
-      title,
+      title: title.trim() === "" ? derivedTitle : title,
       statement,
       rationale: rationale.trim() === "" ? null : rationale,
       priority,
@@ -185,32 +189,21 @@ function RequirementFormBody({
           />
         )}
 
-        <Field id="requirement-title" label="Title" required error={fieldErrors["title"]}>
-          <Input
-            id="requirement-title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            disabled={isSubmitting}
-            placeholder="Maximum chamber pressure"
-            aria-invalid={fieldErrors["title"] ? true : undefined}
-            aria-describedby={fieldErrors["title"] ? "requirement-title-error" : undefined}
-          />
-        </Field>
-
         <Field
           id="requirement-statement"
-          label="Statement"
+          label="What must it do?"
           required
           error={fieldErrors["statement"]}
-          hint="The normative text — what the system shall do."
+          hint="One clear sentence someone could check — for example “The pump shall deliver at least 5 litres per minute.”"
         >
           <Textarea
             id="requirement-statement"
             value={statement}
             onChange={(event) => setStatement(event.target.value)}
             disabled={isSubmitting}
-            rows={4}
-            placeholder="The system shall …"
+            rows={3}
+            placeholder="The product shall …"
+            autoFocus={isCreate}
             aria-invalid={fieldErrors["statement"] ? true : undefined}
             aria-describedby={
               fieldErrors["statement"] ? "requirement-statement-error" : "requirement-statement-hint"
@@ -219,71 +212,93 @@ function RequirementFormBody({
         </Field>
 
         <Field
-          id="requirement-rationale"
-          label="Rationale"
-          error={fieldErrors["rationale"]}
-          hint="Why this requirement exists. Optional, but it is what lets a later reader judge a proposed change."
+          id="requirement-title"
+          label="Short name"
+          error={fieldErrors["title"]}
+          hint="How it appears in lists. Leave it blank to use the first words above."
         >
-          <Textarea
-            id="requirement-rationale"
-            value={rationale}
-            onChange={(event) => setRationale(event.target.value)}
+          <Input
+            id="requirement-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
             disabled={isSubmitting}
-            rows={3}
-            aria-describedby="requirement-rationale-hint"
+            placeholder={derivedTitle || "Maximum chamber pressure"}
+            aria-invalid={fieldErrors["title"] ? true : undefined}
+            aria-describedby={fieldErrors["title"] ? "requirement-title-error" : "requirement-title-hint"}
           />
         </Field>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field id="requirement-priority" label="Priority">
-            <Select
-              id="requirement-priority"
-              value={priority}
-              onChange={(event) => setPriority(event.target.value as typeof priority)}
-              disabled={isSubmitting}
-            >
-              {REQUIREMENT_PRIORITIES.map((value) => (
-                <option key={value} value={value}>
-                  {value.charAt(0) + value.slice(1).toLowerCase()}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
+        <MoreDetails
+          startOpen={!isCreate && (rationale !== "" || source !== "")}
+          hasErrors={Boolean(fieldErrors["rationale"] || fieldErrors["source"])}
+        >
           <Field
-            id="requirement-source"
-            label="Source"
-            error={fieldErrors["source"]}
-            hint="Originating document or standard."
+            id="requirement-rationale"
+            label="Why is it needed?"
+            error={fieldErrors["rationale"]}
+            hint="Lets whoever reads it later judge whether a proposed change is safe."
           >
-            <Input
-              id="requirement-source"
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
+            <Textarea
+              id="requirement-rationale"
+              value={rationale}
+              onChange={(event) => setRationale(event.target.value)}
               disabled={isSubmitting}
-              aria-describedby="requirement-source-hint"
+              rows={3}
+              aria-describedby="requirement-rationale-hint"
             />
           </Field>
-        </div>
 
-        {isCreate && (
-          <Field id="requirement-owner" label="Owner">
-            <Select
-              id="requirement-owner"
-              value={ownerId}
-              onChange={(event) => setOwnerId(event.target.value)}
-              disabled={isSubmitting || members.state.phase !== "ready"}
-            >
-              <option value="">Unassigned</option>
-              {members.state.phase === "ready" &&
-                members.state.data.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name} ({member.email})
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field id="requirement-priority" label="Priority">
+              <Select
+                id="requirement-priority"
+                value={priority}
+                onChange={(event) => setPriority(event.target.value as typeof priority)}
+                disabled={isSubmitting}
+              >
+                {REQUIREMENT_PRIORITIES.map((value) => (
+                  <option key={value} value={value}>
+                    {value.charAt(0) + value.slice(1).toLowerCase()}
                   </option>
                 ))}
-            </Select>
-          </Field>
-        )}
+              </Select>
+            </Field>
+
+            <Field
+              id="requirement-source"
+              label="Where it came from"
+              error={fieldErrors["source"]}
+              hint="A document, standard, customer or meeting."
+            >
+              <Input
+                id="requirement-source"
+                value={source}
+                onChange={(event) => setSource(event.target.value)}
+                disabled={isSubmitting}
+                aria-describedby="requirement-source-hint"
+              />
+            </Field>
+          </div>
+
+          {isCreate && (
+            <Field id="requirement-owner" label="Owner">
+              <Select
+                id="requirement-owner"
+                value={ownerId}
+                onChange={(event) => setOwnerId(event.target.value)}
+                disabled={isSubmitting || members.state.phase !== "ready"}
+              >
+                <option value="">Unassigned</option>
+                {members.state.phase === "ready" &&
+                  members.state.data.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name} ({member.email})
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+          )}
+        </MoreDetails>
       </div>
 
       <DialogFooter>

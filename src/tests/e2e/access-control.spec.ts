@@ -117,8 +117,8 @@ test.describe.serial("Engineering Access Control", () => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, "REQ-001");
-    await page.getByLabel("Title").fill("Maximum chamber pressure");
-    await page.getByLabel("Statement").fill("The engine shall not exceed 120 bar chamber pressure.");
+    await page.getByLabel("Short name").fill("Maximum chamber pressure");
+    await page.getByLabel("What must it do?").fill("The engine shall not exceed 120 bar chamber pressure.");
     await page.getByRole("button", { name: "Create requirement" }).click();
     await expect(page).toHaveURL(/\/requirements\/[a-z0-9]+$/);
     requirementUrl = page.url();
@@ -172,8 +172,8 @@ test.describe.serial("Engineering Access Control", () => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, "REQ-002");
-    await page.getByLabel("Title").fill("Should never be created");
-    await page.getByLabel("Statement").fill("A reviewer has no write authority.");
+    await page.getByLabel("Short name").fill("Should never be created");
+    await page.getByLabel("What must it do?").fill("A reviewer has no write authority.");
     await page.getByRole("button", { name: "Create requirement" }).click();
     await expect(page.getByRole("alert").getByText(/blocked/i)).toBeVisible();
 
@@ -198,8 +198,8 @@ test.describe.serial("Engineering Access Control", () => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, "REQ-003");
-    await page.getByLabel("Title").fill("Should never be created");
-    await page.getByLabel("Statement").fill("A viewer has no write authority.");
+    await page.getByLabel("Short name").fill("Should never be created");
+    await page.getByLabel("What must it do?").fill("A viewer has no write authority.");
     await page.getByRole("button", { name: "Create requirement" }).click();
     await expect(page.getByRole("alert").getByText(/blocked/i)).toBeVisible();
   });
@@ -224,8 +224,8 @@ test.describe.serial("Engineering Access Control", () => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
     await fillRecordNumber(page, "REQ-XSS");
-    await page.getByLabel("Title").fill(payload);
-    await page.getByLabel("Statement").fill("The system shall reject nothing typed into a text field.");
+    await page.getByLabel("Short name").fill(payload);
+    await page.getByLabel("What must it do?").fill("The system shall reject nothing typed into a text field.");
     await page.getByRole("button", { name: "Create requirement" }).click();
     await expect(page).toHaveURL(/\/requirements\/[a-z0-9]+$/);
 
