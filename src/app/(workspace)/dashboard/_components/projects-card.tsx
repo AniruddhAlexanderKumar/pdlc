@@ -1,7 +1,9 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, FolderGit2, FolderOpen, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, ArrowRight, FolderGit2, FolderOpen, Plus, RefreshCw } from "lucide-react";
 import { ProjectStatusBadge } from "@/components/common/project-status-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -10,6 +12,7 @@ import { describeApiError } from "@/lib/api/client";
 import { progressDestinationHref } from "@/domain/project-progress";
 import { useProjectProgress } from "@/lib/api/project-progress";
 import { ProgressStateChip } from "../../projects/_components/next-step-panel";
+import { ProjectFormDialog } from "../../projects/_components/project-form-dialog";
 import { type ProjectDto, useProjects } from "@/lib/api/projects";
 import { useUserPersonalization } from "@/lib/use-user-personalization";
 import { cn } from "@/lib/utils";
@@ -29,6 +32,11 @@ const PREVIEW_LIMIT = 6;
  */
 export function ProjectsCard() {
   const { state, reload } = useProjects();
+  const router = useRouter();
+  // Started right here, not on the Projects page one click away: the
+  // dashboard is where a newcomer lands, and "make a project" is the one
+  // thing they can do before anything else exists.
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
   return (
     <section className="flex flex-col gap-3">
@@ -41,14 +49,22 @@ export function ProjectsCard() {
             </span>
           )}
         </h2>
-        {state.phase === "ready" && state.data.length > PREVIEW_LIMIT && (
-          <Button asChild variant="outline" size="sm">
-            <Link href="/projects">
-              View all
-              <ArrowRight aria-hidden="true" />
-            </Link>
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {state.phase === "ready" && state.data.length > PREVIEW_LIMIT && (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/projects">
+                View all
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+          )}
+          {state.phase === "ready" && state.data.length > 0 && (
+            <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+              <Plus aria-hidden="true" />
+              New project
+            </Button>
+          )}
+        </div>
       </div>
 
       {state.phase === "loading" && <LoadingState label="Loading projects…" />}
@@ -74,10 +90,11 @@ export function ProjectsCard() {
           <EmptyState
             icon={<FolderGit2 aria-hidden="true" />}
             title="No projects yet"
-            description="A project is the container for everything else — requirements, decisions, verification, risk. Create one to start."
+            description="A project holds everything about one product you are building — what it must do, how it is designed, and how you know it works. Start one to begin."
             action={
-              <Button asChild>
-                <Link href="/projects">Create the first project</Link>
+              <Button onClick={() => setIsCreateOpen(true)}>
+                <Plus aria-hidden="true" />
+                Start your first project
               </Button>
             }
           />
@@ -96,6 +113,17 @@ export function ProjectsCard() {
             ))}
           </div>
         ))}
+
+      <ProjectFormDialog
+        mode="create"
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onSaved={(project) => {
+          reload();
+          // Straight into the new project, where "Start here" says what to do first.
+          router.push(`/projects/${project.id}`);
+        }}
+      />
     </section>
   );
 }

@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
 import { formatIsoDate } from "@/lib/utils";
+import { useWorkflowExperience } from "@/lib/use-workflow-experience";
 import { useModuleLabel } from "../../_components/terminology-context";
 import { findProjectModule, PROJECT_SECTIONS, type ProjectModule } from "./project-modules";
 import { ProjectArchiveDialog } from "./project-archive-dialog";
@@ -46,6 +47,7 @@ const MODULE_LIST = PROJECT_SECTIONS.filter((section) => section.id !== "overvie
  */
 export function ProjectDetailView({ projectId }: { projectId: string }) {
   const { state, set } = useProject(projectId);
+  const { isSimpleMode } = useWorkflowExperience();
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = React.useState(false);
 
@@ -104,16 +106,24 @@ export function ProjectDetailView({ projectId }: { projectId: string }) {
         description={project.description ?? "No description."}
         actions={
           <>
-            <Button asChild>
-              <Link href={`/projects/${project.id}/command-center`}>
-                <LayoutDashboard aria-hidden="true" />
-                Command Center
-              </Link>
-            </Button>
+            {/*
+              Command Center was the primary button here. In Simple view the
+              "Your next step" panel below does its job for a newcomer, so it
+              only appears once all tools are shown — and never as the page's
+              main action, which is the next step itself.
+            */}
+            {!isSimpleMode && (
+              <Button asChild variant="outline">
+                <Link href={`/projects/${project.id}/command-center`}>
+                  <LayoutDashboard aria-hidden="true" />
+                  Command Center
+                </Link>
+              </Button>
+            )}
             <Button asChild variant="outline">
               <Link href={`/projects/${project.id}/members`}>
                 <UserCog aria-hidden="true" />
-                Members
+                Team
               </Link>
             </Button>
             <Button
