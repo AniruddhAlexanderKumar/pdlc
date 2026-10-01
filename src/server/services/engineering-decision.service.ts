@@ -48,6 +48,7 @@ import {
   requireProjectApproveAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /** Only APPROVED represents the decision passing under review authority; every other transition is ordinary content work. */
 const APPROVAL_TRANSITIONS = new Set<DecisionStatus>(["APPROVED"]);
@@ -156,30 +157,32 @@ export async function createDecision(
     await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
-  return prisma.$transaction(async (tx) => {
-    const decision = await decisionRepository.createDecision(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        title: data.title,
-        statement: data.statement,
-        rationale: data.rationale,
-        ownerId: data.ownerId ?? null,
-        decidedAt: data.decidedAt ?? null,
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "decision", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const decision = await decisionRepository.createDecision(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          title: data.title,
+          statement: data.statement,
+          rationale: data.rationale,
+          ownerId: data.ownerId ?? null,
+          decidedAt: data.decidedAt ?? null,
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      audit(context, DECISION_AUDIT_ACTIONS.created, decision.id, {
-        identifier: decision.identifier,
-        projectId: scopedProjectId,
-      }),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        audit(context, DECISION_AUDIT_ACTIONS.created, decision.id, {
+          identifier: decision.identifier,
+          projectId: scopedProjectId,
+        }),
+        tx,
+      );
 
-    return decision;
-  });
+      return decision;
+    }),
+  );
 }
 
 export async function listDecisions(

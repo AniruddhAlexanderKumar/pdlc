@@ -162,7 +162,9 @@ describe("RisksView", () => {
     await screen.findByText("No risks yet");
 
     await user.click(screen.getAllByRole("button", { name: /new risk/i })[0]!);
-    await user.type(await screen.findByLabelText(/identifier/i), "RSK-001");
+    // A number of their own: the field is automatic until asked for.
+    await user.click(await screen.findByRole("button", { name: "Use my own number" }));
+    await user.type(screen.getByLabelText(/^Number/), "RSK-001");
     await user.type(screen.getByLabelText(/^title/i), "Coolant supply interruption");
     await user.type(screen.getByLabelText(/description/i), "The coolant loop may lose flow.");
 

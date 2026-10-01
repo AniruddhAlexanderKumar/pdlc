@@ -15,13 +15,7 @@ import {
 } from "@/lib/api/artifacts";
 import { useOrganizationMembers } from "@/lib/api/requirements";
 import { artifactLabel } from "@/components/common/artifact-badges";
-import {
-  type FieldErrors,
-  FormError,
-  FormField,
-  describedBy,
-  toFieldErrors,
-} from "@/components/common/artifact-form";
+import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -135,7 +129,7 @@ function FormBody({
     const parsed = isCreate
       ? createVerificationActivityRequestSchema.safeParse({
           ...shared,
-          identifier,
+          identifier: identifierOrAuto(identifier),
           ownerId: ownerId === "" ? null : ownerId,
         })
       : updateVerificationActivityRequestSchema.safeParse(shared);
@@ -168,28 +162,14 @@ function FormBody({
         {formError && <FormError message={formError} />}
 
         {isCreate && (
-          <FormField
+          <RecordNumberField
             id="verification-identifier"
-            label="Identifier"
-            required
+            prefix="VER"
+            value={identifier}
+            onChange={setIdentifier}
             error={fieldErrors["identifier"]}
-            hint="Project-scoped key, e.g. VER-001."
-          >
-            <Input
-              id="verification-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="VER-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={describedBy(
-                "verification-identifier",
-                fieldErrors["identifier"],
-                "hint",
-              )}
-            />
-          </FormField>
+            disabled={isSubmitting}
+          />
         )}
 
         <FormField id="verification-title" label="Title" required error={fieldErrors["title"]}>

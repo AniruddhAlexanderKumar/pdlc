@@ -178,7 +178,9 @@ describe("DecisionsView", () => {
       await screen.findByText("No decisions recorded yet");
 
       await user.click(screen.getAllByRole("button", { name: /new decision/i })[0]!);
-      await user.type(await screen.findByLabelText(/identifier/i), "ED-001");
+      // A number of their own: the field is automatic until asked for.
+      await user.click(await screen.findByRole("button", { name: "Use my own number" }));
+      await user.type(screen.getByLabelText(/^Number/), "ED-001");
       await user.type(screen.getByLabelText(/^Title/), "Use regenerative cooling");
       await user.type(screen.getByLabelText(/^Statement/), "The chamber will be cooled.");
       await user.type(screen.getByLabelText(/^Rationale/), "Ablative mass was prohibitive.");

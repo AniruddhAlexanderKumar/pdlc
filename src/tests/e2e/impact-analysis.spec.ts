@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, fillRecordNumber } from "./helpers";
 
 /**
  * Change → graph → computed impact, end to end:
@@ -46,21 +46,21 @@ test.describe.serial("Change impact analysis", () => {
 
     await page.goto(`${projectUrl}/design-items`);
     await page.getByRole("button", { name: "New design item" }).first().click();
-    await page.getByLabel("Identifier").fill("DI-001");
+    await fillRecordNumber(page, "DI-001");
     await page.getByLabel(/^Name/).fill("Combustion chamber");
     await page.getByRole("button", { name: "Create design item" }).click();
     await expect(page).toHaveURL(/\/design-items\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/verification`);
     await page.getByRole("button", { name: "New activity" }).first().click();
-    await page.getByLabel("Identifier").fill("VA-001");
+    await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Hot fire test");
     await page.getByRole("button", { name: "Create activity" }).click();
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/decisions`);
     await page.getByRole("button", { name: "New decision" }).first().click();
-    await page.getByLabel("Identifier").fill("ED-001");
+    await fillRecordNumber(page, "ED-001");
     await page.getByLabel(/^Title/).fill("Use regenerative cooling");
     await page.getByLabel(/^Statement/).fill("The chamber will be regeneratively cooled.");
     await page.getByLabel(/^Rationale/).fill("Ablative liner mass was prohibitive.");
@@ -69,7 +69,7 @@ test.describe.serial("Change impact analysis", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -90,7 +90,7 @@ test.describe.serial("Change impact analysis", () => {
   test("raises a change and declares the requirement as impacted", async ({ page }) => {
     await page.goto(`${projectUrl}/changes`);
     await page.getByRole("button", { name: "New change" }).first().click();
-    await page.getByLabel(/^Identifier/).fill("CR-001");
+    await fillRecordNumber(page, "CR-001");
     await page.getByLabel(/^Title/).fill("Raise the chamber pressure limit");
     await page.getByLabel(/^Description/).fill("Raise the limit from 120 to 130 bar.");
     await page.getByLabel(/^Reason/).fill("Performance shortfall found in hot fire.");

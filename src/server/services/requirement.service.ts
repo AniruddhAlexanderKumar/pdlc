@@ -34,6 +34,7 @@ import type {
   RequirementOwnerSummary,
 } from "@/server/repositories/requirement.repository";
 import { parseOrThrow } from "@/server/validation";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Requirement application service.
@@ -127,33 +128,35 @@ export async function createRequirement(
     await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
-  return prisma.$transaction(async (tx) => {
-    const requirement = await requirementRepository.createRequirement(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        title: data.title,
-        statement: data.statement,
-        rationale: data.rationale ?? null,
-        // A requirement always begins as a draft; callers cannot choose.
-        status: "DRAFT",
-        priority: data.priority ?? "MEDIUM",
-        source: data.source ?? null,
-        ownerId: data.ownerId ?? null,
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "requirement", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const requirement = await requirementRepository.createRequirement(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          title: data.title,
+          statement: data.statement,
+          rationale: data.rationale ?? null,
+          // A requirement always begins as a draft; callers cannot choose.
+          status: "DRAFT",
+          priority: data.priority ?? "MEDIUM",
+          source: data.source ?? null,
+          ownerId: data.ownerId ?? null,
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      auditEvent(context, REQUIREMENT_AUDIT_ACTIONS.created, requirement.id, {
-        identifier: requirement.identifier,
-        projectId: scopedProjectId,
-      }),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        auditEvent(context, REQUIREMENT_AUDIT_ACTIONS.created, requirement.id, {
+          identifier: requirement.identifier,
+          projectId: scopedProjectId,
+        }),
+        tx,
+      );
 
-    return requirement;
-  });
+      return requirement;
+    }),
+  );
 }
 
 export async function listRequirements(

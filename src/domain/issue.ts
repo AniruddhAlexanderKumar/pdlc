@@ -139,7 +139,8 @@ export function areIssueLinksEditable(status: IssueStatus): boolean {
  * dropping them.
  */
 export const createIssueRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1, "An issue title is required").max(300),
   description: z.string().trim().min(1, "An issue description is required").max(10_000),
   severity: issueSeveritySchema,

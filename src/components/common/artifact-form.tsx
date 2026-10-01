@@ -1,7 +1,8 @@
 "use client";
 
-import type * as React from "react";
+import * as React from "react";
 import { AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 /**
@@ -70,6 +71,105 @@ export function FormField({
       ) : null}
     </div>
   );
+}
+
+/**
+ * The record's number (`REQ-004`) on a create form.
+ *
+ * Numbered automatically by default: the server assigns the next number
+ * when none is sent (see `withRecordIdentifier`), so the form shows that
+ * as a fact instead of an empty required box someone has to invent a key
+ * for. "Use my own number" reveals the old free-text field for teams
+ * carrying identifiers over from another system; clearing it, or "Number
+ * it for me", goes back to automatic.
+ *
+ * Send `value.trim() || undefined` as the identifier — see
+ * {@link identifierOrAuto}.
+ */
+export function RecordNumberField({
+  id,
+  prefix,
+  value,
+  onChange,
+  error,
+  disabled = false,
+}: {
+  id: string;
+  /** The record type's prefix, e.g. "REQ" — only used for the example shown. */
+  prefix: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string | undefined;
+  disabled?: boolean;
+}) {
+  const [custom, setCustom] = React.useState(value.trim() !== "" || Boolean(error));
+  const showInput = custom || Boolean(error);
+
+  if (!showInput) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium leading-none text-foreground">Number</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-sm">
+          <span className="text-muted-foreground">
+            Numbered automatically{" "}
+            <span className="font-mono text-foreground">({prefix}-001, {prefix}-002, …)</span>
+          </span>
+          <button
+            type="button"
+            className="text-xs font-medium text-primary underline-offset-4 hover:underline disabled:opacity-50"
+            onClick={() => setCustom(true)}
+            disabled={disabled}
+          >
+            Use my own number
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const hintId = `${id}-hint`;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>Number</Label>
+      <Input
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value.toUpperCase())}
+        disabled={disabled}
+        placeholder={`${prefix}-001`}
+        className="font-mono"
+        autoFocus={!error}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : hintId}
+      />
+      {error ? (
+        <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : (
+        <p id={hintId} className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+          <span>Leave it blank and it is numbered for you.</span>
+          <button
+            type="button"
+            className="font-medium text-primary underline-offset-4 hover:underline disabled:opacity-50"
+            onClick={() => {
+              onChange("");
+              setCustom(false);
+            }}
+            disabled={disabled}
+          >
+            Number it for me
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** What a create form sends as `identifier`: the typed one, or nothing so the server numbers it. */
+export function identifierOrAuto(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
 }
 
 /** Standard describedby wiring for a field that may show an error or a hint. */

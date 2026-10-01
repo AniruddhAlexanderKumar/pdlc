@@ -153,7 +153,8 @@ export function areEvidenceLinksEditable(status: EvidenceStatus): boolean {
  * field: evidence is recorded, not assigned.
  */
 export const createEvidenceRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1, "A title is required").max(300),
   description: z.string().trim().max(10_000).nullish(),
   evidenceType: evidenceTypeSchema,

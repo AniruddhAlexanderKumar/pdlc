@@ -18,6 +18,7 @@ import {
   requireProjectReadAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Stakeholder need application service.
@@ -64,32 +65,34 @@ export async function createStakeholderNeed(
   const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createStakeholderNeedRequestSchema, input, "Invalid stakeholder need");
 
-  return prisma.$transaction(async (tx) => {
-    const need = await needRepository.createStakeholderNeed(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        title: data.title,
-        description: data.description,
-        stakeholder: data.stakeholder,
-        status: data.status,
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "stakeholderNeed", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const need = await needRepository.createStakeholderNeed(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          title: data.title,
+          description: data.description,
+          stakeholder: data.stakeholder,
+          status: data.status,
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      artifactAuditEvent(
-        context,
-        STAKEHOLDER_NEED_AUDIT_ACTIONS.created,
-        STAKEHOLDER_NEED_ENTITY_TYPE,
-        need.id,
-        { identifier: need.identifier, projectId: scopedProjectId },
-      ),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        artifactAuditEvent(
+          context,
+          STAKEHOLDER_NEED_AUDIT_ACTIONS.created,
+          STAKEHOLDER_NEED_ENTITY_TYPE,
+          need.id,
+          { identifier: need.identifier, projectId: scopedProjectId },
+        ),
+        tx,
+      );
 
-    return need;
-  });
+      return need;
+    }),
+  );
 }
 
 export async function listStakeholderNeeds(

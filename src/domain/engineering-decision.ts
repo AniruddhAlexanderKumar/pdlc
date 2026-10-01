@@ -164,7 +164,8 @@ export function isDecisionOwnerAssignable(status: DecisionStatus): boolean {
  * PROPOSED), and timestamps from the database.
  */
 export const createDecisionRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1, "A decision title is required").max(300),
   statement: z.string().trim().min(1, "A decision statement is required").max(10_000),
   rationale: z.string().trim().min(1, "A decision must record its rationale").max(10_000),

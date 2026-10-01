@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RecordNumberField, identifierOrAuto } from "@/components/common/artifact-form";
 
 /**
  * Certification findings against one compliance item.
@@ -177,13 +178,13 @@ function CreateFindingFormBody({
     event.preventDefault();
     if (isSubmitting) return;
     const parsed = createCertificationFindingRequestSchema.safeParse({
-      identifier,
+      identifier: identifierOrAuto(identifier),
       title,
       description: description.trim() === "" ? null : description,
       severity,
     });
     if (!parsed.success) {
-      setError("Check the identifier and title.");
+      setError("Give the finding a title (and check the number, if you typed one).");
       return;
     }
     setIsSubmitting(true);
@@ -202,10 +203,13 @@ function CreateFindingFormBody({
     <form onSubmit={handleSubmit} noValidate>
       <div className="flex flex-col gap-4">
         {error && <p className="text-destructive text-sm">{error}</p>}
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground text-xs">Identifier</span>
-          <Input value={identifier} onChange={(event) => setIdentifier(event.target.value.toUpperCase())} disabled={isSubmitting} className="font-mono" placeholder="CF-001" />
-        </label>
+        <RecordNumberField
+          id="finding-identifier"
+          prefix="CF"
+          value={identifier}
+          onChange={setIdentifier}
+          disabled={isSubmitting}
+        />
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground text-xs">Title</span>
           <Input value={title} onChange={(event) => setTitle(event.target.value)} disabled={isSubmitting} />

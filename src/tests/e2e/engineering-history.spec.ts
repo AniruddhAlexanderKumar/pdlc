@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount, signOut } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, signOut, fillRecordNumber } from "./helpers";
 
 /**
  * Engineering History, end to end:
@@ -45,7 +45,7 @@ test.describe.serial("Engineering History", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -57,7 +57,7 @@ test.describe.serial("Engineering History", () => {
 
     await page.goto(`${projectUrl}/risks`);
     await page.getByRole("button", { name: "New risk" }).first().click();
-    await page.getByLabel("Identifier").fill("RSK-001");
+    await fillRecordNumber(page, "RSK-001");
     await page.getByLabel(/^Title/).fill("Coolant supply interruption");
     await page.getByLabel(/^Description/).fill("The coolant loop may lose flow under vibration.");
     await page.getByRole("button", { name: "Create risk" }).click();

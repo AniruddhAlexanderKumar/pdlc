@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signUpNewAccount, fillRecordNumber } from "./helpers";
 
 /**
  * Requirements module browser flow.
@@ -52,7 +52,7 @@ test.describe.serial("Requirement lifecycle", () => {
     await page.goto(requirementsUrl);
 
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill(identifier);
+    await fillRecordNumber(page, identifier);
     await page.getByLabel("Title").fill("Maximum chamber pressure");
     await page
       .getByLabel("Statement")
@@ -70,7 +70,7 @@ test.describe.serial("Requirement lifecycle", () => {
     await page.goto(requirementsUrl);
 
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill(identifier);
+    await fillRecordNumber(page, identifier);
     await page.getByLabel("Title").fill("Duplicate attempt");
     await page.getByLabel("Statement").fill("This identifier is already taken.");
     await page.getByRole("button", { name: "Create requirement" }).click();

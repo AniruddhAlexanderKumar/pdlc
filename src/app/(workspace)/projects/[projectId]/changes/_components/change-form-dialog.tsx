@@ -9,13 +9,7 @@ import {
   createChangeRequest,
   updateChangeRequest,
 } from "@/lib/api/changes";
-import {
-  type FieldErrors,
-  FormError,
-  FormField,
-  describedBy,
-  toFieldErrors,
-} from "@/components/common/artifact-form";
+import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -114,7 +108,7 @@ function FormBody({
     const shared = { title, description, reason };
 
     const parsed = isCreate
-      ? createChangeRequestRequestSchema.safeParse({ ...shared, identifier })
+      ? createChangeRequestRequestSchema.safeParse({ ...shared, identifier: identifierOrAuto(identifier) })
       : updateChangeRequestRequestSchema.safeParse(shared);
 
     if (!parsed.success) {
@@ -145,24 +139,14 @@ function FormBody({
         {formError && <FormError message={formError} />}
 
         {isCreate && (
-          <FormField
+          <RecordNumberField
             id="change-identifier"
-            label="Identifier"
-            required
+            prefix="CR"
+            value={identifier}
+            onChange={setIdentifier}
             error={fieldErrors["identifier"]}
-            hint="Project-scoped key, e.g. CR-001."
-          >
-            <Input
-              id="change-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="CR-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={describedBy("change-identifier", fieldErrors["identifier"], "hint")}
-            />
-          </FormField>
+            disabled={isSubmitting}
+          />
         )}
 
         <FormField id="change-title" label="Title" required error={fieldErrors["title"]}>

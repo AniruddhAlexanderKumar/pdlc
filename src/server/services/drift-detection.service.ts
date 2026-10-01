@@ -62,6 +62,7 @@ import {
   requireProjectApproveAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * The design / operations drift engine.
@@ -169,31 +170,33 @@ export class DriftDetectionService {
     const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(createBaselineRequestSchema, input, "Invalid baseline");
 
-    return prisma.$transaction(async (tx) => {
-      const baseline = await baselineRepository.createBaseline(
-        {
-          projectId: scopedProjectId,
-          identifier: data.identifier,
-          name: data.name,
-          description: data.description ?? null,
-          createdById: context.actorId,
-        },
-        tx,
-      );
+    return withRecordIdentifier(data.identifier, "baseline", scopedProjectId, (identifier) =>
+      prisma.$transaction(async (tx) => {
+        const baseline = await baselineRepository.createBaseline(
+          {
+            projectId: scopedProjectId,
+            identifier,
+            name: data.name,
+            description: data.description ?? null,
+            createdById: context.actorId,
+          },
+          tx,
+        );
 
-      await auditLogRepository.recordAuditEvent(
-        artifactAuditEvent(
-          context,
-          DRIFT_AUDIT_ACTIONS.baselineCreated,
-          BASELINE_ENTITY_TYPE,
-          baseline.id,
-          { identifier: baseline.identifier, projectId: scopedProjectId },
-        ),
-        tx,
-      );
+        await auditLogRepository.recordAuditEvent(
+          artifactAuditEvent(
+            context,
+            DRIFT_AUDIT_ACTIONS.baselineCreated,
+            BASELINE_ENTITY_TYPE,
+            baseline.id,
+            { identifier: baseline.identifier, projectId: scopedProjectId },
+          ),
+          tx,
+        );
 
-      return baseline;
-    });
+        return baseline;
+      }),
+    );
   }
 
   async listBaselines(
@@ -588,58 +591,60 @@ export class DriftDetectionService {
     const scopedProjectId = await requireProjectWriteAccess(context, projectId);
     const data = parseOrThrow(createObservationRequestSchema, input, "Invalid observation");
 
-    return prisma.$transaction(async (tx) => {
-      const subject = data.subject ?? null;
-      if (subject) {
-        const exists = await observationRepository.observationSubjectExistsInProject(
-          subject.type,
-          subject.id,
-          scopedProjectId,
+    return withRecordIdentifier(data.identifier, "observation", scopedProjectId, (identifier) =>
+      prisma.$transaction(async (tx) => {
+        const subject = data.subject ?? null;
+        if (subject) {
+          const exists = await observationRepository.observationSubjectExistsInProject(
+            subject.type,
+            subject.id,
+            scopedProjectId,
+            tx,
+          );
+          if (!exists) {
+            throw new ValidationError(
+              `That ${subject.type.replaceAll("_", " ").toLowerCase()} does not exist in this project.`,
+            );
+          }
+        }
+
+        const observation = await observationRepository.createObservation(
+          {
+            projectId: scopedProjectId,
+            identifier,
+            title: data.title,
+            description: data.description,
+            observationType: data.observationType,
+            source: data.source ?? null,
+            observedAt: new Date(data.observedAt),
+            subjectLabel: data.subjectLabel ?? null,
+            numericValue: data.numericValue ?? null,
+            unit: data.unit ?? null,
+            textValue: data.textValue ?? null,
+            subject,
+            createdById: context.actorId,
+          },
           tx,
         );
-        if (!exists) {
-          throw new ValidationError(
-            `That ${subject.type.replaceAll("_", " ").toLowerCase()} does not exist in this project.`,
-          );
-        }
-      }
 
-      const observation = await observationRepository.createObservation(
-        {
-          projectId: scopedProjectId,
-          identifier: data.identifier,
-          title: data.title,
-          description: data.description,
-          observationType: data.observationType,
-          source: data.source ?? null,
-          observedAt: new Date(data.observedAt),
-          subjectLabel: data.subjectLabel ?? null,
-          numericValue: data.numericValue ?? null,
-          unit: data.unit ?? null,
-          textValue: data.textValue ?? null,
-          subject,
-          createdById: context.actorId,
-        },
-        tx,
-      );
+        await auditLogRepository.recordAuditEvent(
+          artifactAuditEvent(
+            context,
+            DRIFT_AUDIT_ACTIONS.observationCreated,
+            OBSERVATION_ENTITY_TYPE,
+            observation.id,
+            {
+              identifier: observation.identifier,
+              observationType: observation.observationType,
+              projectId: scopedProjectId,
+            },
+          ),
+          tx,
+        );
 
-      await auditLogRepository.recordAuditEvent(
-        artifactAuditEvent(
-          context,
-          DRIFT_AUDIT_ACTIONS.observationCreated,
-          OBSERVATION_ENTITY_TYPE,
-          observation.id,
-          {
-            identifier: observation.identifier,
-            observationType: observation.observationType,
-            projectId: scopedProjectId,
-          },
-        ),
-        tx,
-      );
-
-      return observation;
-    });
+        return observation;
+      }),
+    );
   }
 
   async listObservations(

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, fillRecordNumber } from "./helpers";
 
 /**
  * Decision Sentinel, end to end:
@@ -59,7 +59,7 @@ test.describe.serial("Decision Sentinel", () => {
 
     await page.goto(`${projectUrl}/verification`);
     await page.getByRole("button", { name: "New activity" }).first().click();
-    await page.getByLabel("Identifier").fill("VA-001");
+    await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Proof pressure test");
     await page.getByRole("button", { name: "Create activity" }).click();
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
@@ -67,7 +67,7 @@ test.describe.serial("Decision Sentinel", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -190,7 +190,7 @@ test.describe.serial("Decision Sentinel", () => {
   test("raises no signal for an object nothing consumes", async ({ page }) => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-002");
+    await fillRecordNumber(page, "REQ-002");
     await page.getByLabel(/^Title/).fill("Unrelated requirement");
     await page.getByLabel(/^Statement/).fill("Never linked to anything this project assesses.");
     await page.getByRole("button", { name: "Create requirement" }).click();

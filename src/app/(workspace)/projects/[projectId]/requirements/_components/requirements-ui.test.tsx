@@ -208,7 +208,9 @@ describe("RequirementsView", () => {
     await screen.findByText("No requirements yet");
 
     await user.click(screen.getAllByRole("button", { name: /new requirement/i })[0]!);
-    await user.type(await screen.findByLabelText(/identifier/i), "REQ-001");
+    // A number of their own: the field is automatic until asked for.
+    await user.click(await screen.findByRole("button", { name: "Use my own number" }));
+    await user.type(screen.getByLabelText(/^Number/), "REQ-001");
     await user.type(screen.getByLabelText(/^title/i), "Maximum chamber pressure");
     await user.type(screen.getByLabelText(/statement/i), "The engine shall not exceed 120 bar.");
 
@@ -221,10 +223,56 @@ describe("RequirementsView", () => {
 
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
     const payload = JSON.parse(post![1].body);
+    expect(payload.identifier).toBe("REQ-001");
     // Identity and lifecycle are never sent by the client.
     expect(payload).not.toHaveProperty("status");
     expect(payload).not.toHaveProperty("organizationId");
     expect(payload).not.toHaveProperty("projectId");
+  });
+
+  it("leaves the number to the server unless someone asks to type one", async () => {
+    routeGets();
+    const user = userEvent.setup();
+
+    render(<RequirementsView projectId={PROJECT_ID} />);
+    await screen.findByText("No requirements yet");
+
+    await user.click(screen.getAllByRole("button", { name: /new requirement/i })[0]!);
+    expect(await screen.findByText(/Numbered automatically/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Number/)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/^title/i), "Maximum chamber pressure");
+    await user.type(screen.getByLabelText(/statement/i), "The engine shall not exceed 120 bar.");
+
+    fetchMock.mockImplementationOnce(async () => ok({ requirement: requirement() }));
+    await user.click(screen.getByRole("button", { name: /create requirement/i }));
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(`/projects/${PROJECT_ID}/requirements/${REQUIREMENT_ID}`),
+    );
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(JSON.parse(post![1].body)).not.toHaveProperty("identifier");
+  });
+
+  it("goes back to automatic numbering when a typed number is abandoned", async () => {
+    routeGets();
+    const user = userEvent.setup();
+
+    render(<RequirementsView projectId={PROJECT_ID} />);
+    await screen.findByText("No requirements yet");
+
+    await user.click(screen.getAllByRole("button", { name: /new requirement/i })[0]!);
+    await user.click(await screen.findByRole("button", { name: "Use my own number" }));
+    await user.type(screen.getByLabelText(/^Number/), "REQ-777");
+    await user.click(screen.getByRole("button", { name: "Number it for me" }));
+    await user.type(screen.getByLabelText(/^title/i), "Maximum chamber pressure");
+    await user.type(screen.getByLabelText(/statement/i), "The engine shall not exceed 120 bar.");
+
+    fetchMock.mockImplementationOnce(async () => ok({ requirement: requirement() }));
+    await user.click(screen.getByRole("button", { name: /create requirement/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(JSON.parse(post![1].body)).not.toHaveProperty("identifier");
   });
 });
 

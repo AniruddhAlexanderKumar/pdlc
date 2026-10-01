@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signUpNewAccount, fillRecordNumber } from "./helpers";
 
 /**
  * Decision memory, end to end:
@@ -46,7 +46,7 @@ test.describe.serial("Decision memory", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -54,7 +54,7 @@ test.describe.serial("Decision memory", () => {
 
     await page.goto(`${projectUrl}/design-items`);
     await page.getByRole("button", { name: "New design item" }).first().click();
-    await page.getByLabel("Identifier").fill("DI-001");
+    await fillRecordNumber(page, "DI-001");
     await page.getByLabel(/^Name/).fill("Combustion chamber");
     await page.getByRole("button", { name: "Create design item" }).click();
     await expect(page).toHaveURL(/\/design-items\/[a-z0-9]+$/);
@@ -65,7 +65,7 @@ test.describe.serial("Decision memory", () => {
     await expect(page.getByText("No decisions recorded yet")).toBeVisible();
 
     await page.getByRole("button", { name: "New decision" }).first().click();
-    await page.getByLabel("Identifier").fill("ED-001");
+    await fillRecordNumber(page, "ED-001");
     await page.getByLabel(/^Title/).fill("Use regenerative cooling");
     await page.getByLabel(/^Statement/).fill("The chamber will be regeneratively cooled.");
     await page.getByLabel(/^Rationale/).fill("Ablative liner mass was prohibitive.");

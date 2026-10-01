@@ -16,6 +16,7 @@ import {
   requireProjectReadAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * The certification workspace's project-level anchor.
@@ -52,38 +53,40 @@ export class CertificationProgramService {
       await requireAssignableOwner(context, scopedProjectId, data.ownerId);
     }
 
-    return prisma.$transaction(async (tx) => {
-      const existing = await programRepository.findProgramInProject(scopedProjectId, tx);
-      if (existing) {
-        throw new ConflictError(
-          "A certification program already exists for this project. Update it instead of creating another.",
+    return withRecordIdentifier(data.identifier, "certificationProgram", scopedProjectId, (identifier) =>
+      prisma.$transaction(async (tx) => {
+        const existing = await programRepository.findProgramInProject(scopedProjectId, tx);
+        if (existing) {
+          throw new ConflictError(
+            "A certification program already exists for this project. Update it instead of creating another.",
+          );
+        }
+
+        const program = await programRepository.createProgram(
+          {
+            projectId: scopedProjectId,
+            identifier,
+            name: data.name,
+            description: data.description ?? null,
+            ownerId: data.ownerId ?? null,
+          },
+          tx,
         );
-      }
 
-      const program = await programRepository.createProgram(
-        {
-          projectId: scopedProjectId,
-          identifier: data.identifier,
-          name: data.name,
-          description: data.description ?? null,
-          ownerId: data.ownerId ?? null,
-        },
-        tx,
-      );
+        await auditLogRepository.recordAuditEvent(
+          artifactAuditEvent(
+            context,
+            CERTIFICATION_PROGRAM_AUDIT_ACTIONS.created,
+            CERTIFICATION_PROGRAM_ENTITY_TYPE,
+            program.id,
+            { identifier: program.identifier, projectId: scopedProjectId },
+          ),
+          tx,
+        );
 
-      await auditLogRepository.recordAuditEvent(
-        artifactAuditEvent(
-          context,
-          CERTIFICATION_PROGRAM_AUDIT_ACTIONS.created,
-          CERTIFICATION_PROGRAM_ENTITY_TYPE,
-          program.id,
-          { identifier: program.identifier, projectId: scopedProjectId },
-        ),
-        tx,
-      );
-
-      return program;
-    });
+        return program;
+      }),
+    );
   }
 
   /** Distinct from "not found" at the route layer: a project simply may not have one yet. */

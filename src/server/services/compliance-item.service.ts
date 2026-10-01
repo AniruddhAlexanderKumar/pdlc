@@ -25,6 +25,7 @@ import {
   requireProjectInOrganization,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * The central certification obligation, and the typed relationships that
@@ -57,30 +58,32 @@ export class ComplianceItemService {
     const basis = await this.requireBasisInProject(scopedProjectId, basisId ?? null);
     const data = parseOrThrow(createComplianceItemRequestSchema, input, "Invalid compliance item");
 
-    return prisma.$transaction(async (tx) => {
-      const item = await itemRepository.createItem(
-        {
-          certificationBasisId: basis.id,
-          identifier: data.identifier,
-          title: data.title,
-          description: data.description ?? null,
-        },
-        tx,
-      );
+    return withRecordIdentifier(data.identifier, "complianceItem", basis.id, (identifier) =>
+      prisma.$transaction(async (tx) => {
+        const item = await itemRepository.createItem(
+          {
+            certificationBasisId: basis.id,
+            identifier,
+            title: data.title,
+            description: data.description ?? null,
+          },
+          tx,
+        );
 
-      await auditLogRepository.recordAuditEvent(
-        artifactAuditEvent(
-          context,
-          COMPLIANCE_ITEM_AUDIT_ACTIONS.created,
-          COMPLIANCE_ITEM_ENTITY_TYPE,
-          item.id,
-          { identifier: item.identifier, certificationBasisId: basis.id },
-        ),
-        tx,
-      );
+        await auditLogRepository.recordAuditEvent(
+          artifactAuditEvent(
+            context,
+            COMPLIANCE_ITEM_AUDIT_ACTIONS.created,
+            COMPLIANCE_ITEM_ENTITY_TYPE,
+            item.id,
+            { identifier: item.identifier, certificationBasisId: basis.id },
+          ),
+          tx,
+        );
 
-      return item;
-    });
+        return item;
+      }),
+    );
   }
 
   async listItems(context: OrganizationContext, projectId: unknown, basisId: unknown = null) {

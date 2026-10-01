@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RecordNumberField, identifierOrAuto } from "@/components/common/artifact-form";
 
 type FieldErrors = Record<string, string>;
 
@@ -106,7 +107,7 @@ function IssueFormBody({
     const parsed = isCreate
       ? createIssueRequestSchema.safeParse({
           ...shared,
-          identifier,
+          identifier: identifierOrAuto(identifier),
           ownerId: ownerId === "" ? null : ownerId,
         })
       : updateIssueRequestSchema.safeParse(shared);
@@ -152,18 +153,14 @@ function IssueFormBody({
         )}
 
         {isCreate && (
-          <Field id="issue-identifier" label="Identifier" required error={fieldErrors["identifier"]} hint="Project-scoped key, e.g. ISS-001.">
-            <Input
-              id="issue-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="ISS-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={fieldErrors["identifier"] ? "issue-identifier-error" : "issue-identifier-hint"}
-            />
-          </Field>
+          <RecordNumberField
+            id="issue-identifier"
+            prefix="ISS"
+            value={identifier}
+            onChange={setIdentifier}
+            error={fieldErrors["identifier"]}
+            disabled={isSubmitting}
+          />
         )}
 
         <Field id="issue-title" label="Title" required error={fieldErrors["title"]}>

@@ -222,7 +222,9 @@ describe("StakeholderNeedsView", () => {
     await screen.findByText("No stakeholder needs yet");
 
     await user.click(screen.getAllByRole("button", { name: /new stakeholder need/i })[0]!);
-    await user.type(await screen.findByLabelText(/identifier/i), "SN-001");
+    // A number of their own: the field is automatic until asked for.
+    await user.click(await screen.findByRole("button", { name: "Use my own number" }));
+    await user.type(screen.getByLabelText(/^Number/), "SN-001");
     await user.type(screen.getByLabelText(/^title/i), "Payload mass capability");
     // Anchored and case-sensitive: the dialog itself is labelled "New
     // stakeholder need", and the field's own label carries a required marker.

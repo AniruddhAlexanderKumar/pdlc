@@ -11,13 +11,7 @@ import {
 import { describeApiError } from "@/lib/api/client";
 import { type ObservationDto, createObservation, updateObservation } from "@/lib/api/drift";
 import { useBaselineMemberTargets } from "@/lib/api/drift";
-import {
-  type FieldErrors,
-  FormError,
-  FormField,
-  describedBy,
-  toFieldErrors,
-} from "@/components/common/artifact-form";
+import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
 import { driftLabel } from "@/components/common/drift-badges";
 import { Button } from "@/components/ui/button";
 import {
@@ -148,7 +142,7 @@ function FormBody({
 
     const parsed = isCreate
       ? createObservationRequestSchema.safeParse({
-          identifier,
+          identifier: identifierOrAuto(identifier),
           title,
           description,
           observationType,
@@ -198,24 +192,14 @@ function FormBody({
         {formError && <FormError message={formError} />}
 
         {isCreate && (
-          <FormField
+          <RecordNumberField
             id="obs-identifier"
-            label="Identifier"
-            required
+            prefix="OBS"
+            value={identifier}
+            onChange={setIdentifier}
             error={fieldErrors["identifier"]}
-            hint="Project-scoped key, e.g. OBS-001."
-          >
-            <Input
-              id="obs-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="OBS-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={describedBy("obs-identifier", fieldErrors["identifier"], "hint")}
-            />
-          </FormField>
+            disabled={isSubmitting}
+          />
         )}
 
         <FormField id="obs-title" label="Title" required error={fieldErrors["title"]}>

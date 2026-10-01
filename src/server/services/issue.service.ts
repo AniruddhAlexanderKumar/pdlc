@@ -31,6 +31,7 @@ import {
   requireProjectWriteAccess,
 } from "./project-scope";
 import { parseOrThrow } from "@/server/validation";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Issue application service.
@@ -108,31 +109,33 @@ export async function createIssue(context: OrganizationContext, projectId: unkno
     await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
-  return prisma.$transaction(async (tx) => {
-    const issue = await issueRepository.createIssue(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        title: data.title,
-        description: data.description,
-        severity: data.severity,
-        // An issue always begins open; callers cannot choose.
-        status: "OPEN",
-        ownerId: data.ownerId ?? null,
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "issue", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const issue = await issueRepository.createIssue(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          title: data.title,
+          description: data.description,
+          severity: data.severity,
+          // An issue always begins open; callers cannot choose.
+          status: "OPEN",
+          ownerId: data.ownerId ?? null,
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      auditEvent(context, ISSUE_AUDIT_ACTIONS.created, issue.id, {
-        identifier: issue.identifier,
-        projectId: scopedProjectId,
-      }),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        auditEvent(context, ISSUE_AUDIT_ACTIONS.created, issue.id, {
+          identifier: issue.identifier,
+          projectId: scopedProjectId,
+        }),
+        tx,
+      );
 
-    return issue;
-  });
+      return issue;
+    }),
+  );
 }
 
 export async function listIssues(

@@ -31,6 +31,7 @@ import {
   requireProjectReadAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Supplied item application service.
@@ -104,42 +105,44 @@ export async function createSuppliedItem(
   const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createSuppliedItemRequestSchema, input, "Invalid supplied item");
 
-  return prisma.$transaction(async (tx) => {
-    // Server-validated inside the transaction, so the supplier cannot be
-    // removed between the check and the write.
-    await requireSupplierInProject(scopedProjectId, data.supplierId, tx);
+  return withRecordIdentifier(data.identifier, "suppliedItem", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      // Server-validated inside the transaction, so the supplier cannot be
+      // removed between the check and the write.
+      await requireSupplierInProject(scopedProjectId, data.supplierId, tx);
 
-    const item = await suppliedItemRepository.createSuppliedItem(
-      {
-        projectId: scopedProjectId,
-        supplierId: data.supplierId,
-        identifier: data.identifier,
-        name: data.name,
-        description: data.description ?? null,
-        itemType: data.itemType,
-        status: data.status,
-      },
-      tx,
-    );
-
-    await auditLogRepository.recordAuditEvent(
-      artifactAuditEvent(
-        context,
-        SUPPLIED_ITEM_AUDIT_ACTIONS.created,
-        SUPPLIED_ITEM_ENTITY_TYPE,
-        item.id,
+      const item = await suppliedItemRepository.createSuppliedItem(
         {
-          identifier: item.identifier,
-          itemType: item.itemType,
-          supplierId: item.supplierId,
           projectId: scopedProjectId,
+          supplierId: data.supplierId,
+          identifier,
+          name: data.name,
+          description: data.description ?? null,
+          itemType: data.itemType,
+          status: data.status,
         },
-      ),
-      tx,
-    );
+        tx,
+      );
 
-    return item;
-  });
+      await auditLogRepository.recordAuditEvent(
+        artifactAuditEvent(
+          context,
+          SUPPLIED_ITEM_AUDIT_ACTIONS.created,
+          SUPPLIED_ITEM_ENTITY_TYPE,
+          item.id,
+          {
+            identifier: item.identifier,
+            itemType: item.itemType,
+            supplierId: item.supplierId,
+            projectId: scopedProjectId,
+          },
+        ),
+        tx,
+      );
+
+      return item;
+    }),
+  );
 }
 
 export async function listSuppliedItems(

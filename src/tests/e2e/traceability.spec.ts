@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount, signOut } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, signOut, fillRecordNumber } from "./helpers";
 
 /**
  * The Traceability workspace, end to end:
@@ -47,7 +47,7 @@ test.describe.serial("Traceability workspace", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -56,14 +56,14 @@ test.describe.serial("Traceability workspace", () => {
 
     await page.goto(`${projectUrl}/design-items`);
     await page.getByRole("button", { name: "New design item" }).first().click();
-    await page.getByLabel("Identifier").fill("DI-001");
+    await fillRecordNumber(page, "DI-001");
     await page.getByLabel(/^Name/).fill("Combustion chamber");
     await page.getByRole("button", { name: "Create design item" }).click();
     await expect(page).toHaveURL(/\/design-items\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/decisions`);
     await page.getByRole("button", { name: "New decision" }).first().click();
-    await page.getByLabel("Identifier").fill("ED-001");
+    await fillRecordNumber(page, "ED-001");
     await page.getByLabel(/^Title/).fill("Use regenerative cooling");
     await page.getByLabel(/^Statement/).fill("The chamber will be regeneratively cooled.");
     await page.getByLabel(/^Rationale/).fill("Ablative liner mass was prohibitive.");
@@ -73,7 +73,7 @@ test.describe.serial("Traceability workspace", () => {
 
     await page.goto(`${projectUrl}/risks`);
     await page.getByRole("button", { name: "New risk" }).first().click();
-    await page.getByLabel("Identifier").fill("RSK-001");
+    await fillRecordNumber(page, "RSK-001");
     await page.getByLabel(/^Title/).fill("Coolant supply interruption");
     await page.getByLabel(/^Description/).fill("The coolant loop may lose flow under vibration.");
     await page.getByRole("button", { name: "Create risk" }).click();
@@ -85,7 +85,7 @@ test.describe.serial("Traceability workspace", () => {
 
     await page.goto(`${projectUrl}/issues`);
     await page.getByRole("button", { name: "New issue" }).first().click();
-    await page.getByLabel("Identifier").fill("ISS-002");
+    await fillRecordNumber(page, "ISS-002");
     await page.getByLabel(/^Title/).fill("Ablative liner mass estimate");
     await page.getByLabel(/^Description/).fill("The original mass estimate for the rejected option was wrong.");
     await page.getByLabel(/^Severity/).selectOption("LOW");

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount, signOut } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, signOut, fillRecordNumber } from "./helpers";
 
 /**
  * Design / operations drift, end to end:
@@ -57,7 +57,7 @@ test.describe.serial("Design / operations drift", () => {
 
     await page.goto(`${projectUrl}/design-items`);
     await page.getByRole("button", { name: "New design item" }).first().click();
-    await page.getByLabel("Identifier").fill("DI-001");
+    await fillRecordNumber(page, "DI-001");
     await page.getByLabel(/^Name/).fill("Combustion chamber");
     await page.getByRole("button", { name: "Create design item" }).click();
     await expect(page).toHaveURL(/\/design-items\/[a-z0-9]+$/);
@@ -65,7 +65,7 @@ test.describe.serial("Design / operations drift", () => {
 
     await page.goto(`${projectUrl}/decisions`);
     await page.getByRole("button", { name: "New decision" }).first().click();
-    await page.getByLabel("Identifier").fill("ED-001");
+    await fillRecordNumber(page, "ED-001");
     await page.getByLabel(/^Title/).fill("Use regenerative cooling");
     await page.getByLabel(/^Statement/).fill("The chamber will be regeneratively cooled.");
     await page.getByLabel(/^Rationale/).fill("Ablative liner mass was prohibitive.");
@@ -92,7 +92,7 @@ test.describe.serial("Design / operations drift", () => {
   }) => {
     await page.goto(`${projectUrl}/baselines`);
     await page.getByRole("button", { name: "New baseline" }).first().click();
-    await page.getByLabel("Identifier").fill("BL-001");
+    await fillRecordNumber(page, "BL-001");
     await page.getByLabel("Name").fill("Preliminary design baseline");
     await page.getByRole("button", { name: "Create baseline" }).click();
 
@@ -130,7 +130,7 @@ test.describe.serial("Design / operations drift", () => {
     // Tied to the design item. A plain configuration record — nothing here
     // compares a design item observation against anything by itself.
     await page.getByRole("button", { name: "Record observation" }).first().click();
-    await page.getByLabel("Identifier").fill("OBS-001");
+    await fillRecordNumber(page, "OBS-001");
     await page.getByLabel("Title").fill("As-built inspection, combustion chamber");
     await page
       .getByLabel("Description")
@@ -143,7 +143,7 @@ test.describe.serial("Design / operations drift", () => {
 
     // Tied to the expectation, well within its ≤ 800 K bound.
     await page.getByRole("button", { name: "Record observation" }).first().click();
-    await page.getByLabel("Identifier").fill("OBS-002");
+    await fillRecordNumber(page, "OBS-002");
     await page.getByLabel("Title").fill("Peak chamber wall temperature, static fire 1");
     await page
       .getByLabel("Description")
@@ -239,7 +239,7 @@ test.describe.serial("Design / operations drift", () => {
     await page.goto(`${projectUrl}/observations`);
 
     await page.getByRole("button", { name: "Record observation" }).first().click();
-    await page.getByLabel("Identifier").fill("OBS-003");
+    await fillRecordNumber(page, "OBS-003");
     await page.getByLabel("Title").fill("Peak chamber wall temperature, static fire 2");
     await page
       .getByLabel("Description")
@@ -280,7 +280,7 @@ test.describe.serial("Design / operations drift", () => {
     // able to move the drift fingerprint for BL-001.
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-500");
+    await fillRecordNumber(page, "REQ-500");
     await page.getByLabel(/^Title/).fill("Ground support telemetry rate");
     await page
       .getByLabel(/^Statement/)
@@ -315,7 +315,7 @@ test.describe.serial("Design / operations drift", () => {
   }) => {
     await page.goto(`${projectUrl}/baselines`);
     await page.getByRole("button", { name: "New baseline" }).first().click();
-    await page.getByLabel("Identifier").fill("BL-002");
+    await fillRecordNumber(page, "BL-002");
     await page.getByLabel("Name").fill("Revised design baseline");
     await page.getByRole("button", { name: "Create baseline" }).click();
     await expect(page).toHaveURL(/\/baselines\/[a-z0-9]+$/);

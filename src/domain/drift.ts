@@ -1149,7 +1149,8 @@ export function driftSignature(report: DriftReport): string {
 // --- Request contracts ------------------------------------------------------
 
 export const createBaselineRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   name: z.string().trim().min(1, "A baseline name is required").max(300),
   description: z.string().trim().max(10_000).nullish(),
 });
@@ -1199,7 +1200,8 @@ export type ActivateBaselineRequest = z.infer<typeof activateBaselineRequestSche
 
 export const createObservationRequestSchema = z
   .strictObject({
-    identifier: artifactIdentifierSchema,
+    // Optional: omitted, the service numbers it (see auto-identifier.ts).
+    identifier: artifactIdentifierSchema.optional(),
     title: z.string().trim().min(1, "An observation title is required").max(300),
     description: z.string().trim().min(1, "Record what was observed").max(10_000),
     observationType: observationTypeSchema,

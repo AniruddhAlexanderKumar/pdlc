@@ -101,7 +101,8 @@ export interface CertificationProgram {
 }
 
 export const createCertificationProgramRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(4000).nullish(),
   ownerId: entityIdSchema.nullish(),
@@ -180,7 +181,8 @@ export interface CertificationBasis {
 }
 
 export const createCertificationBasisRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().min(1).max(4000).nullish(),
   revision: z.string().trim().min(1).max(120),
@@ -307,7 +309,8 @@ export interface ComplianceItem {
 }
 
 export const createComplianceItemRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1).max(300),
   description: z.string().trim().min(1).max(8000).nullish(),
 });
@@ -456,7 +459,8 @@ export interface CertificationFinding {
 }
 
 export const createCertificationFindingRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1).max(300),
   description: z.string().trim().min(1).max(8000).nullish(),
   severity: certificationFindingSeveritySchema,

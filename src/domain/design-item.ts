@@ -11,7 +11,8 @@ import { artifactIdentifierSchema, entityIdSchema } from "./shared/identifier";
  * real to be allocated to.
  */
 export const createDesignItemRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   name: z.string().trim().min(1, "A name is required").max(300),
   description: z.string().trim().max(10_000).nullish(),
   itemType: designItemTypeSchema,

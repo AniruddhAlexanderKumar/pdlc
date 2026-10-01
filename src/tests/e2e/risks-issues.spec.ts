@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, fillRecordNumber } from "./helpers";
 
 /**
  * Risks and Issues, end to end:
@@ -53,7 +53,7 @@ test.describe.serial("Risks and Issues", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -62,14 +62,14 @@ test.describe.serial("Risks and Issues", () => {
 
     await page.goto(`${projectUrl}/design-items`);
     await page.getByRole("button", { name: "New design item" }).first().click();
-    await page.getByLabel("Identifier").fill("DI-001");
+    await fillRecordNumber(page, "DI-001");
     await page.getByLabel(/^Name/).fill("Combustion chamber");
     await page.getByRole("button", { name: "Create design item" }).click();
     await expect(page).toHaveURL(/\/design-items\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/decisions`);
     await page.getByRole("button", { name: "New decision" }).first().click();
-    await page.getByLabel("Identifier").fill("ED-001");
+    await fillRecordNumber(page, "ED-001");
     await page.getByLabel(/^Title/).fill("Use regenerative cooling");
     await page.getByLabel(/^Statement/).fill("The chamber will be regeneratively cooled.");
     await page.getByLabel(/^Rationale/).fill("Ablative liner mass was prohibitive.");
@@ -80,7 +80,7 @@ test.describe.serial("Risks and Issues", () => {
   test("creates a Risk and an Issue", async ({ page }) => {
     await page.goto(`${projectUrl}/risks`);
     await page.getByRole("button", { name: "New risk" }).first().click();
-    await page.getByLabel("Identifier").fill("RSK-001");
+    await fillRecordNumber(page, "RSK-001");
     await page.getByLabel(/^Title/).fill("Coolant supply interruption");
     await page.getByLabel(/^Description/).fill("The coolant loop may lose flow under vibration.");
     await page.getByRole("button", { name: "Create risk" }).click();
@@ -91,7 +91,7 @@ test.describe.serial("Risks and Issues", () => {
 
     await page.goto(`${projectUrl}/issues`);
     await page.getByRole("button", { name: "New issue" }).first().click();
-    await page.getByLabel("Identifier").fill("ISS-001");
+    await fillRecordNumber(page, "ISS-001");
     await page.getByLabel(/^Title/).fill("Chamber wall crack found");
     await page.getByLabel(/^Description/).fill("A hairline crack was found during post-test inspection.");
     await page.getByLabel("Severity").selectOption("CRITICAL");
@@ -148,7 +148,7 @@ test.describe.serial("Risks and Issues", () => {
   test("creates a Change and declares it affects the Risk and the Issue", async ({ page }) => {
     await page.goto(`${projectUrl}/changes`);
     await page.getByRole("button", { name: "New change" }).first().click();
-    await page.getByLabel("Identifier").fill("CR-001");
+    await fillRecordNumber(page, "CR-001");
     await page.getByLabel(/^Title/).fill("Raise the pressure limit");
     await page.getByLabel(/^Description/).fill("Raise the chamber pressure limit to 130 bar.");
     await page.getByLabel(/^Reason/).fill("Performance shortfall found in hot fire.");
@@ -223,13 +223,13 @@ test.describe.serial("Risks and Issues", () => {
   test("links a certification compliance item to the Risk and the Issue", async ({ page }) => {
     await page.goto(`${projectUrl}/certification`);
     await page.getByRole("button", { name: "Create programme" }).click();
-    await page.getByLabel("Identifier").fill("CERT-001");
+    await fillRecordNumber(page, "CERT-001");
     await page.getByLabel("Name").fill("Cabin systems certification effort");
     await page.getByRole("button", { name: "Create programme" }).click();
     await expect(page.getByText("Cabin systems certification effort")).toBeVisible();
 
     await page.getByRole("button", { name: "New basis" }).click();
-    await page.getByLabel("Identifier").fill("CB-001");
+    await fillRecordNumber(page, "CB-001");
     await page.getByLabel("Title").fill("Part 25 Amdt 25-141");
     await page.getByLabel("Revision").fill("Amdt 25-141");
     await page.getByLabel("Source reference").fill("14 CFR Part 25");
@@ -239,7 +239,7 @@ test.describe.serial("Risks and Issues", () => {
 
     await page.goto(`${projectUrl}/certification/items`);
     await page.getByRole("button", { name: "New compliance item" }).click();
-    await page.getByLabel("Identifier").fill("CI-001");
+    await fillRecordNumber(page, "CI-001");
     await page.getByLabel("Title").fill("Coolant system integrity");
     await page.getByRole("button", { name: "Create item" }).click();
     await expect(page).toHaveURL(/\/certification\/items\/[a-z0-9]+$/);

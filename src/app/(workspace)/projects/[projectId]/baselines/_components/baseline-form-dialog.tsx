@@ -9,13 +9,7 @@ import {
   createBaseline,
   updateBaseline,
 } from "@/lib/api/drift";
-import {
-  type FieldErrors,
-  FormError,
-  FormField,
-  describedBy,
-  toFieldErrors,
-} from "@/components/common/artifact-form";
+import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -111,7 +105,7 @@ function FormBody({
     const description_ = description.trim() === "" ? null : description;
 
     const parsed = isCreate
-      ? createBaselineRequestSchema.safeParse({ identifier, name, description: description_ })
+      ? createBaselineRequestSchema.safeParse({ identifier: identifierOrAuto(identifier), name, description: description_ })
       : updateBaselineRequestSchema.safeParse({ name, description: description_ });
 
     if (!parsed.success) {
@@ -142,28 +136,14 @@ function FormBody({
         {formError && <FormError message={formError} />}
 
         {isCreate && (
-          <FormField
+          <RecordNumberField
             id="baseline-identifier"
-            label="Identifier"
-            required
+            prefix="BL"
+            value={identifier}
+            onChange={setIdentifier}
             error={fieldErrors["identifier"]}
-            hint="Project-scoped key, e.g. BL-001."
-          >
-            <Input
-              id="baseline-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="BL-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={describedBy(
-                "baseline-identifier",
-                fieldErrors["identifier"],
-                "hint",
-              )}
-            />
-          </FormField>
+            disabled={isSubmitting}
+          />
         )}
 
         <FormField id="baseline-name" label="Name" required error={fieldErrors["name"]}>

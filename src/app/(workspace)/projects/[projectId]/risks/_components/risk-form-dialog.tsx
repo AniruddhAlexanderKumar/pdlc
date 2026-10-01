@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RecordNumberField, identifierOrAuto } from "@/components/common/artifact-form";
 
 type FieldErrors = Record<string, string>;
 
@@ -111,7 +112,7 @@ function RiskFormBody({
     const parsed = isCreate
       ? createRiskRequestSchema.safeParse({
           ...shared,
-          identifier,
+          identifier: identifierOrAuto(identifier),
           ownerId: ownerId === "" ? null : ownerId,
         })
       : updateRiskRequestSchema.safeParse(shared);
@@ -157,18 +158,14 @@ function RiskFormBody({
         )}
 
         {isCreate && (
-          <Field id="risk-identifier" label="Identifier" required error={fieldErrors["identifier"]} hint="Project-scoped key, e.g. RSK-001.">
-            <Input
-              id="risk-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="RSK-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={fieldErrors["identifier"] ? "risk-identifier-error" : "risk-identifier-hint"}
-            />
-          </Field>
+          <RecordNumberField
+            id="risk-identifier"
+            prefix="RSK"
+            value={identifier}
+            onChange={setIdentifier}
+            error={fieldErrors["identifier"]}
+            disabled={isSubmitting}
+          />
         )}
 
         <Field id="risk-title" label="Title" required error={fieldErrors["title"]}>

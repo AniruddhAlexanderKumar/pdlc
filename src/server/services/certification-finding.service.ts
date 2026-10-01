@@ -21,6 +21,7 @@ import {
   requireProjectApproveAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Certification/compliance findings.
@@ -53,33 +54,39 @@ export class CertificationFindingService {
       "Invalid certification finding",
     );
 
-    return prisma.$transaction(async (tx) => {
-      const item = await complianceItemService.requireItem(scopedProjectId, itemId, tx);
+    // Resolved once up front only to know which item's numbers to continue —
+    // the authoritative check still runs inside the transaction below.
+    const numberingScope = await complianceItemService.requireItem(scopedProjectId, itemId);
 
-      const finding = await findingRepository.createFinding(
-        {
-          complianceItemId: item.id,
-          identifier: data.identifier,
-          title: data.title,
-          description: data.description ?? null,
-          severity: data.severity,
-        },
-        tx,
-      );
+    return withRecordIdentifier(data.identifier, "certificationFinding", numberingScope.id, (identifier) =>
+      prisma.$transaction(async (tx) => {
+        const item = await complianceItemService.requireItem(scopedProjectId, itemId, tx);
 
-      await auditLogRepository.recordAuditEvent(
-        artifactAuditEvent(
-          context,
-          CERTIFICATION_FINDING_AUDIT_ACTIONS.created,
-          CERTIFICATION_FINDING_ENTITY_TYPE,
-          finding.id,
-          { identifier: finding.identifier, severity: finding.severity, complianceItemId: item.id },
-        ),
-        tx,
-      );
+        const finding = await findingRepository.createFinding(
+          {
+            complianceItemId: item.id,
+            identifier,
+            title: data.title,
+            description: data.description ?? null,
+            severity: data.severity,
+          },
+          tx,
+        );
 
-      return finding;
-    });
+        await auditLogRepository.recordAuditEvent(
+          artifactAuditEvent(
+            context,
+            CERTIFICATION_FINDING_AUDIT_ACTIONS.created,
+            CERTIFICATION_FINDING_ENTITY_TYPE,
+            finding.id,
+            { identifier: finding.identifier, severity: finding.severity, complianceItemId: item.id },
+          ),
+          tx,
+        );
+
+        return finding;
+      }),
+    );
   }
 
   async listFindings(

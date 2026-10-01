@@ -150,7 +150,8 @@ export function areLinksEditable(status: RequirementStatus): boolean {
  * so `strictObject` rejects all of them rather than silently dropping them.
  */
 export const createRequirementRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1, "A requirement title is required").max(300),
   statement: z.string().trim().min(1, "A requirement statement is required").max(10_000),
   rationale: z.string().trim().max(10_000).nullish(),

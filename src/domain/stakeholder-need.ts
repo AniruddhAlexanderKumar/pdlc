@@ -13,7 +13,8 @@ import { artifactIdentifierSchema } from "./shared/identifier";
  * `strictObject` rejects both rather than silently dropping them.
  */
 export const createStakeholderNeedRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1, "A title is required").max(300),
   description: z.string().trim().min(1, "A description is required").max(10_000),
   stakeholder: z.string().trim().min(1, "A stakeholder is required").max(200),

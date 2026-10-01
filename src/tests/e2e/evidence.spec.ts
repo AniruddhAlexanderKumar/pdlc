@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount, signOut } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, signOut, fillRecordNumber } from "./helpers";
 
 /**
  * Evidence, end to end:
@@ -46,7 +46,7 @@ test.describe.serial("Evidence", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -55,7 +55,7 @@ test.describe.serial("Evidence", () => {
 
     await page.goto(`${projectUrl}/evidence`);
     await page.getByRole("button", { name: "Record evidence" }).first().click();
-    await page.getByLabel("Identifier").fill("EV-001");
+    await fillRecordNumber(page, "EV-001");
     await page.getByLabel(/^Title/).fill("Hot fire test report");
     await page.getByLabel(/Source reference/).fill("TR-2026-014");
     await page.getByRole("button", { name: /^record evidence$/i }).click();
@@ -100,7 +100,7 @@ test.describe.serial("Evidence", () => {
   test("supersedes the evidence with a second, real record", async ({ page }) => {
     await page.goto(`${projectUrl}/evidence`);
     await page.getByRole("button", { name: "Record evidence" }).first().click();
-    await page.getByLabel("Identifier").fill("EV-002");
+    await fillRecordNumber(page, "EV-002");
     await page.getByLabel(/^Title/).fill("Corrected hot fire test report");
     await page.getByLabel(/Source reference/).fill("TR-2026-014-REV-A");
     await page.getByRole("button", { name: /^record evidence$/i }).click();

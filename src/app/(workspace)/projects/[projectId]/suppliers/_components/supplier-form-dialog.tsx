@@ -13,13 +13,7 @@ import {
   createSupplier,
   updateSupplier,
 } from "@/lib/api/suppliers";
-import {
-  type FieldErrors,
-  FormError,
-  FormField,
-  describedBy,
-  toFieldErrors,
-} from "@/components/common/artifact-form";
+import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
 import { supplierLabel } from "@/components/common/supplier-badges";
 import { Button } from "@/components/ui/button";
 import {
@@ -117,7 +111,7 @@ function FormBody({
     const description_ = description.trim() === "" ? null : description;
 
     const parsed = isCreate
-      ? createSupplierRequestSchema.safeParse({ identifier, name, description: description_ })
+      ? createSupplierRequestSchema.safeParse({ identifier: identifierOrAuto(identifier), name, description: description_ })
       : updateSupplierRequestSchema.safeParse({ name, description: description_, status });
 
     if (!parsed.success) {
@@ -148,28 +142,14 @@ function FormBody({
         {formError && <FormError message={formError} />}
 
         {isCreate && (
-          <FormField
+          <RecordNumberField
             id="supplier-identifier"
-            label="Identifier"
-            required
+            prefix="SUP"
+            value={identifier}
+            onChange={setIdentifier}
             error={fieldErrors["identifier"]}
-            hint="Project-scoped key, e.g. SUP-001."
-          >
-            <Input
-              id="supplier-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="SUP-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={describedBy(
-                "supplier-identifier",
-                fieldErrors["identifier"],
-                "hint",
-              )}
-            />
-          </FormField>
+            disabled={isSubmitting}
+          />
         )}
 
         <FormField id="supplier-name" label="Name" required error={fieldErrors["name"]}>

@@ -192,7 +192,9 @@ describe("ChangesView", () => {
     await screen.findByText("No change requests raised yet");
 
     await user.click(screen.getAllByRole("button", { name: "New change" })[0]!);
-    await user.type(await screen.findByLabelText(/^Identifier/), "CR-001");
+    // A number of their own: the field is automatic until asked for.
+    await user.click(await screen.findByRole("button", { name: "Use my own number" }));
+    await user.type(screen.getByLabelText(/^Number/), "CR-001");
     await user.type(screen.getByLabelText(/^Title/), "Raise the chamber pressure limit");
     await user.type(screen.getByLabelText(/^Description/), "Raise the limit to 130 bar.");
     await user.type(screen.getByLabelText(/^Reason/), "Performance shortfall.");

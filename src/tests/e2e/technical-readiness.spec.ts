@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, fillRecordNumber } from "./helpers";
 
 /**
  * Project → gates, end to end:
@@ -50,7 +50,7 @@ test.describe.serial("Technical readiness", () => {
 
     await page.goto(`${projectUrl}/stakeholder-needs`);
     await page.getByRole("button", { name: "New stakeholder need" }).first().click();
-    await page.getByLabel("Identifier").fill("SN-001");
+    await fillRecordNumber(page, "SN-001");
     await page.getByLabel(/^Title/).fill("Survive ascent loads");
     await page.getByLabel(/^Description/).fill("The vehicle must survive max q.");
     await page.getByLabel(/^Stakeholder/).fill("Chief Engineer");
@@ -59,7 +59,7 @@ test.describe.serial("Technical readiness", () => {
 
     await page.goto(`${projectUrl}/design-items`);
     await page.getByRole("button", { name: "New design item" }).first().click();
-    await page.getByLabel("Identifier").fill("DI-001");
+    await fillRecordNumber(page, "DI-001");
     await page.getByLabel(/^Name/).fill("Combustion chamber");
     await page.getByRole("button", { name: "Create design item" }).click();
     await expect(page).toHaveURL(/\/design-items\/[a-z0-9]+$/);
@@ -67,7 +67,7 @@ test.describe.serial("Technical readiness", () => {
 
     await page.goto(`${projectUrl}/decisions`);
     await page.getByRole("button", { name: "New decision" }).first().click();
-    await page.getByLabel("Identifier").fill("ED-001");
+    await fillRecordNumber(page, "ED-001");
     await page.getByLabel(/^Title/).fill("Use regenerative cooling");
     await page.getByLabel(/^Statement/).fill("The chamber will be regeneratively cooled.");
     await page.getByLabel(/^Rationale/).fill("Ablative liner mass was prohibitive.");
@@ -76,7 +76,7 @@ test.describe.serial("Technical readiness", () => {
 
     await page.goto(`${projectUrl}/verification`);
     await page.getByRole("button", { name: "New activity" }).first().click();
-    await page.getByLabel("Identifier").fill("VA-001");
+    await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Proof pressure test");
     await page.getByRole("button", { name: "Create activity" }).click();
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
@@ -84,7 +84,7 @@ test.describe.serial("Technical readiness", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();

@@ -68,7 +68,8 @@ export function isVerificationEditable(status: VerificationStatus): boolean {
 const planDate = z.coerce.date().nullish();
 
 export const createVerificationActivityRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1, "A title is required").max(300),
   description: z.string().trim().max(10_000).nullish(),
   method: verificationMethodSchema,

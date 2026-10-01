@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RecordNumberField, identifierOrAuto } from "@/components/common/artifact-form";
 
 type FieldErrors = Record<string, string>;
 
@@ -118,7 +119,7 @@ function EvidenceFormBody({
     };
 
     const parsed = isCreate
-      ? createEvidenceRequestSchema.safeParse({ ...shared, identifier })
+      ? createEvidenceRequestSchema.safeParse({ ...shared, identifier: identifierOrAuto(identifier) })
       : updateEvidenceRequestSchema.safeParse(shared);
 
     if (!parsed.success) {
@@ -162,26 +163,14 @@ function EvidenceFormBody({
         )}
 
         {isCreate && (
-          <Field
+          <RecordNumberField
             id="evidence-identifier"
-            label="Identifier"
-            required
+            prefix="EV"
+            value={identifier}
+            onChange={setIdentifier}
             error={fieldErrors["identifier"]}
-            hint="Project-scoped key, e.g. EV-001."
-          >
-            <Input
-              id="evidence-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="EV-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={
-                fieldErrors["identifier"] ? "evidence-identifier-error" : "evidence-identifier-hint"
-              }
-            />
-          </Field>
+            disabled={isSubmitting}
+          />
         )}
 
         <Field id="evidence-title" label="Title" required error={fieldErrors["title"]}>

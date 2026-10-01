@@ -15,13 +15,7 @@ import {
   updateSuppliedItem,
   useSuppliers,
 } from "@/lib/api/suppliers";
-import {
-  type FieldErrors,
-  FormError,
-  FormField,
-  describedBy,
-  toFieldErrors,
-} from "@/components/common/artifact-form";
+import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
 import { supplierLabel } from "@/components/common/supplier-badges";
 import { Button } from "@/components/ui/button";
 import {
@@ -133,7 +127,7 @@ function FormBody({
     const parsed = isCreate
       ? createSuppliedItemRequestSchema.safeParse({
           supplierId: selectedSupplier,
-          identifier,
+          identifier: identifierOrAuto(identifier),
           name,
           description: description_,
           itemType,
@@ -199,24 +193,14 @@ function FormBody({
               </Select>
             </FormField>
 
-            <FormField
+            <RecordNumberField
               id="item-identifier"
-              label="Identifier"
-              required
+              prefix="SI"
+              value={identifier}
+              onChange={setIdentifier}
               error={fieldErrors["identifier"]}
-              hint="Project-scoped key, e.g. SI-001."
-            >
-              <Input
-                id="item-identifier"
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-                disabled={isSubmitting}
-                placeholder="SI-001"
-                className="font-mono"
-                aria-invalid={fieldErrors["identifier"] ? true : undefined}
-                aria-describedby={describedBy("item-identifier", fieldErrors["identifier"], "hint")}
-              />
-            </FormField>
+              disabled={isSubmitting}
+            />
           </>
         )}
 

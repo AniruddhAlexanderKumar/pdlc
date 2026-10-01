@@ -32,6 +32,7 @@ import {
   requireProjectApproveAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /** APPROVED and REJECTED are the change's disposition — the decision a reviewer, not any author, makes. */
 const APPROVAL_TRANSITIONS = new Set<ChangeRequestStatus>(["APPROVED", "REJECTED"]);
@@ -132,30 +133,32 @@ export async function createChangeRequest(
     throw new ValidationError("A change request must record who requested it.");
   }
 
-  return prisma.$transaction(async (tx) => {
-    const change = await changeRepository.createChangeRequest(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        title: data.title,
-        description: data.description,
-        reason: data.reason,
-        status: "DRAFT",
-        requestedById,
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "changeRequest", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const change = await changeRepository.createChangeRequest(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          title: data.title,
+          description: data.description,
+          reason: data.reason,
+          status: "DRAFT",
+          requestedById,
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      audit(context, CHANGE_AUDIT_ACTIONS.created, change.id, {
-        identifier: change.identifier,
-        projectId: scopedProjectId,
-      }),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        audit(context, CHANGE_AUDIT_ACTIONS.created, change.id, {
+          identifier: change.identifier,
+          projectId: scopedProjectId,
+        }),
+        tx,
+      );
 
-    return change;
-  });
+      return change;
+    }),
+  );
 }
 
 export async function listChangeRequests(

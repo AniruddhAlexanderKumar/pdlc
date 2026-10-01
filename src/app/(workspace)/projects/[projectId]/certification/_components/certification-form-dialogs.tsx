@@ -22,6 +22,8 @@ import {
   FormField,
   describedBy,
   toFieldErrors,
+  RecordNumberField,
+  identifierOrAuto,
 } from "@/components/common/artifact-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,7 +117,7 @@ function ProgramFormBody({
     const description_ = description.trim() === "" ? null : description;
 
     const parsed = isCreate
-      ? createCertificationProgramRequestSchema.safeParse({ identifier, name, description: description_ })
+      ? createCertificationProgramRequestSchema.safeParse({ identifier: identifierOrAuto(identifier), name, description: description_ })
       : updateCertificationProgramRequestSchema.safeParse({ name, description: description_ });
 
     if (!parsed.success) {
@@ -144,18 +146,14 @@ function ProgramFormBody({
       <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
         {formError && <FormError message={formError} />}
         {isCreate && (
-          <FormField id="program-identifier" label="Identifier" required error={fieldErrors["identifier"]}>
-            <Input
-              id="program-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="CERT-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={describedBy("program-identifier", fieldErrors["identifier"])}
-            />
-          </FormField>
+          <RecordNumberField
+            id="program-identifier"
+            prefix="CERT"
+            value={identifier}
+            onChange={setIdentifier}
+            error={fieldErrors["identifier"]}
+            disabled={isSubmitting}
+          />
         )}
         <FormField id="program-name" label="Name" required error={fieldErrors["name"]}>
           <Input
@@ -266,7 +264,7 @@ function BasisFormBody({
 
     const parsed = isCreate
       ? createCertificationBasisRequestSchema.safeParse({
-          identifier,
+          identifier: identifierOrAuto(identifier),
           title,
           description: description_,
           revision,
@@ -306,18 +304,14 @@ function BasisFormBody({
       <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
         {formError && <FormError message={formError} />}
         {isCreate && (
-          <FormField id="basis-identifier" label="Identifier" required error={fieldErrors["identifier"]}>
-            <Input
-              id="basis-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="CB-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={describedBy("basis-identifier", fieldErrors["identifier"])}
-            />
-          </FormField>
+          <RecordNumberField
+            id="basis-identifier"
+            prefix="CB"
+            value={identifier}
+            onChange={setIdentifier}
+            error={fieldErrors["identifier"]}
+            disabled={isSubmitting}
+          />
         )}
         <FormField id="basis-title" label="Title" required error={fieldErrors["title"]}>
           <Input

@@ -4,13 +4,7 @@ import * as React from "react";
 import { createComplianceItemRequestSchema } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import { type ComplianceItemDto, createItem } from "@/lib/api/certification";
-import {
-  type FieldErrors,
-  FormError,
-  FormField,
-  describedBy,
-  toFieldErrors,
-} from "@/components/common/artifact-form";
+import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -87,7 +81,7 @@ function ItemFormBody({
     event.preventDefault();
     if (isSubmitting) return;
     const description_ = description.trim() === "" ? null : description;
-    const parsed = createComplianceItemRequestSchema.safeParse({ identifier, title, description: description_ });
+    const parsed = createComplianceItemRequestSchema.safeParse({ identifier: identifierOrAuto(identifier), title, description: description_ });
     if (!parsed.success) {
       setFieldErrors(toFieldErrors(parsed.error.issues));
       setFormError(null);
@@ -110,18 +104,14 @@ function ItemFormBody({
     <form onSubmit={handleSubmit} noValidate>
       <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
         {formError && <FormError message={formError} />}
-        <FormField id="item-identifier" label="Identifier" required error={fieldErrors["identifier"]}>
-          <Input
-            id="item-identifier"
-            value={identifier}
-            onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-            disabled={isSubmitting}
-            placeholder="CI-001"
-            className="font-mono"
-            aria-invalid={fieldErrors["identifier"] ? true : undefined}
-            aria-describedby={describedBy("item-identifier", fieldErrors["identifier"])}
-          />
-        </FormField>
+        <RecordNumberField
+          id="item-identifier"
+          prefix="CI"
+          value={identifier}
+          onChange={setIdentifier}
+          error={fieldErrors["identifier"]}
+          disabled={isSubmitting}
+        />
         <FormField id="item-title" label="Title" required error={fieldErrors["title"]}>
           <Input
             id="item-title"

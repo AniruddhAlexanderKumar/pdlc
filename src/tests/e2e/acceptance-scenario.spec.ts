@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, fillRecordNumber } from "./helpers";
 
 /**
  * The full V1 acceptance tour (Prompt 30 §18), end to end.
@@ -63,7 +63,7 @@ test.describe.serial("Full V1 acceptance scenario", () => {
   test("3: creates the two requirements this scenario traces throughout", async ({ page }) => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page
       .getByLabel(/^Statement/)
@@ -78,7 +78,7 @@ test.describe.serial("Full V1 acceptance scenario", () => {
     // later, since an APPROVED requirement can no longer be edited at all.
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-002");
+    await fillRecordNumber(page, "REQ-002");
     await page.getByLabel(/^Title/).fill("Igniter reliability under restart");
     await page
       .getByLabel(/^Statement/)
@@ -95,14 +95,14 @@ test.describe.serial("Full V1 acceptance scenario", () => {
   }) => {
     await page.goto(`${projectUrl}/design-items`);
     await page.getByRole("button", { name: "New design item" }).first().click();
-    await page.getByLabel("Identifier").fill("DI-001");
+    await fillRecordNumber(page, "DI-001");
     await page.getByLabel(/^Name/).fill("Combustion chamber assembly");
     await page.getByRole("button", { name: "Create design item" }).click();
     await expect(page).toHaveURL(/\/design-items\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/decisions`);
     await page.getByRole("button", { name: "New decision" }).first().click();
-    await page.getByLabel("Identifier").fill("ED-001");
+    await fillRecordNumber(page, "ED-001");
     await page.getByLabel(/^Title/).fill("Use regenerative cooling");
     await page.getByLabel(/^Statement/).fill("The chamber will be regeneratively cooled.");
     await page
@@ -157,7 +157,7 @@ test.describe.serial("Full V1 acceptance scenario", () => {
   }) => {
     await page.goto(`${projectUrl}/verification`);
     await page.getByRole("button", { name: "New activity" }).first().click();
-    await page.getByLabel("Identifier").fill("VA-001");
+    await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Proof pressure and hot-fire test series");
     await page.getByRole("button", { name: "Create activity" }).click();
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
@@ -200,7 +200,7 @@ test.describe.serial("Full V1 acceptance scenario", () => {
   }) => {
     await page.goto(`${projectUrl}/suppliers`);
     await page.getByRole("button", { name: "New supplier" }).first().click();
-    await page.getByLabel("Identifier").fill("SUP-001");
+    await fillRecordNumber(page, "SUP-001");
     await page.getByLabel(/^Name/).fill("Vulcan Alloys");
     await page
       .getByLabel(/^Description/)
@@ -209,7 +209,7 @@ test.describe.serial("Full V1 acceptance scenario", () => {
     await expect(page).toHaveURL(/\/suppliers\/[a-z0-9]+$/);
 
     await page.getByRole("button", { name: "New supplied item" }).click();
-    await page.getByLabel("Identifier").fill("SI-001");
+    await fillRecordNumber(page, "SI-001");
     await page.getByLabel(/^Name/).fill("Inconel 718 billet");
     await page.getByLabel("Item type").selectOption("MATERIAL");
     await page.getByRole("button", { name: "Create supplied item" }).click();
@@ -232,7 +232,7 @@ test.describe.serial("Full V1 acceptance scenario", () => {
   }) => {
     await page.goto(`${projectUrl}/evidence`);
     await page.getByRole("button", { name: "Record evidence" }).first().click();
-    await page.getByLabel("Identifier").fill("EV-001");
+    await fillRecordNumber(page, "EV-001");
     await page.getByLabel(/^Title/).fill("Hot fire test report, series 1");
     await page.getByLabel(/Source reference/).fill("TR-2026-014");
     await page.getByRole("button", { name: /^record evidence$/i }).click();
@@ -254,7 +254,7 @@ test.describe.serial("Full V1 acceptance scenario", () => {
   }) => {
     await page.goto(`${projectUrl}/baselines`);
     await page.getByRole("button", { name: "New baseline" }).first().click();
-    await page.getByLabel("Identifier").fill("BL-001");
+    await fillRecordNumber(page, "BL-001");
     await page.getByLabel("Name").fill("Preliminary design baseline");
     await page.getByRole("button", { name: "Create baseline" }).click();
     await expect(page).toHaveURL(/\/baselines\/[a-z0-9]+$/);
@@ -282,7 +282,7 @@ test.describe.serial("Full V1 acceptance scenario", () => {
   }) => {
     await page.goto(`${projectUrl}/changes`);
     await page.getByRole("button", { name: "New change" }).first().click();
-    await page.getByLabel(/^Identifier/).fill("CR-001");
+    await fillRecordNumber(page, "CR-001");
     await page.getByLabel(/^Title/).fill("Raise the chamber pressure limit");
     await page
       .getByLabel(/^Description/)
@@ -343,13 +343,13 @@ test.describe.serial("Full V1 acceptance scenario", () => {
   }) => {
     await page.goto(`${projectUrl}/certification`);
     await page.getByRole("button", { name: "Create programme" }).click();
-    await page.getByLabel("Identifier").fill("CERT-001");
+    await fillRecordNumber(page, "CERT-001");
     await page.getByLabel("Name").fill("Propulsion certification effort (fictional program)");
     await page.getByRole("button", { name: "Create programme" }).click();
     await expect(page.getByText(/fictional program/i)).toBeVisible();
 
     await page.getByRole("button", { name: "New basis" }).click();
-    await page.getByLabel("Identifier").fill("CB-001");
+    await fillRecordNumber(page, "CB-001");
     await page.getByLabel("Title").fill("Fictional propulsion certification basis");
     await page.getByLabel("Revision").fill("Rev A");
     await page.getByLabel("Source reference").fill("INTERNAL-FICTIONAL-001");
@@ -359,7 +359,7 @@ test.describe.serial("Full V1 acceptance scenario", () => {
 
     await page.goto(`${projectUrl}/certification/items`);
     await page.getByRole("button", { name: "New compliance item" }).click();
-    await page.getByLabel("Identifier").fill("CI-001");
+    await fillRecordNumber(page, "CI-001");
     await page.getByLabel("Title").fill("Maximum chamber pressure compliance");
     await page.getByRole("button", { name: "Create item" }).click();
     await expect(page).toHaveURL(/\/certification\/items\/[a-z0-9]+$/);

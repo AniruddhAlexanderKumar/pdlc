@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signUpNewAccount, fillRecordNumber } from "./helpers";
 
 /**
  * The full foundational chain, end to end:
@@ -54,7 +54,7 @@ test.describe.serial("Foundational artifacts and traceability", () => {
     await expect(page.getByText("No stakeholder needs yet")).toBeVisible();
 
     await page.getByRole("button", { name: "New stakeholder need" }).first().click();
-    await page.getByLabel("Identifier").fill("SN-001");
+    await fillRecordNumber(page, "SN-001");
     await page.getByLabel(/^Title/).fill("Payload mass capability");
     await page.getByLabel(/^Stakeholder/).fill("Launch customer");
     await page.getByLabel(/^Description/).fill("The launch customer needs 4 t to LEO.");
@@ -68,7 +68,7 @@ test.describe.serial("Foundational artifacts and traceability", () => {
     await page.goto(`${projectUrl}/design-items`);
 
     await page.getByRole("button", { name: "New design item" }).first().click();
-    await page.getByLabel("Identifier").fill("DI-001");
+    await fillRecordNumber(page, "DI-001");
     await page.getByLabel(/^Name/).fill("Combustion chamber");
     await page.getByLabel(/^Item type/).selectOption("COMPONENT");
     await page.getByRole("button", { name: "Create design item" }).click();
@@ -82,7 +82,7 @@ test.describe.serial("Foundational artifacts and traceability", () => {
     await page.goto(`${projectUrl}/verification`);
 
     await page.getByRole("button", { name: "New activity" }).first().click();
-    await page.getByLabel("Identifier").fill("VER-001");
+    await fillRecordNumber(page, "VER-001");
     await page.getByLabel(/^Title/).fill("Chamber pressure hot-fire test");
     await page.getByLabel(/^Method/).selectOption("TEST");
     await page.getByLabel(/^Planned date/).fill("2026-04-01");
@@ -100,7 +100,7 @@ test.describe.serial("Foundational artifacts and traceability", () => {
     await page.goto(`${projectUrl}/requirements`);
 
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Maximum chamber pressure");
     await page.getByLabel(/^Statement/).fill("The engine shall not exceed 120 bar.");
     await page.getByRole("button", { name: "Create requirement" }).click();

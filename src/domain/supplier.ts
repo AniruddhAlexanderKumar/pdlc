@@ -138,7 +138,8 @@ export interface SupplierQualification {
 const description = z.string().trim().max(10_000).nullish();
 
 export const createSupplierRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   name: z.string().trim().min(1, "A supplier name is required").max(300),
   description,
   status: supplierStatusSchema.optional(),
@@ -163,7 +164,8 @@ export type UpdateSupplierRequest = z.infer<typeof updateSupplierRequestSchema>;
  */
 export const createSuppliedItemRequestSchema = z.strictObject({
   supplierId: entityIdSchema,
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   name: z.string().trim().min(1, "A supplied item name is required").max(300),
   description,
   itemType: suppliedItemTypeSchema,

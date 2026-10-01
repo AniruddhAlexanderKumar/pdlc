@@ -50,7 +50,12 @@ vi.mock("@/server/repositories/project-artifacts.repository", () => ({
   listLinkTargets: vi.fn(),
 }));
 
+vi.mock("@/server/repositories/record-identifier.repository", () => ({
+  listIdentifiersWithPrefix: vi.fn(),
+}));
+
 const projectRepository = await import("@/server/repositories/project.repository");
+const recordIdentifierRepository = await import("@/server/repositories/record-identifier.repository");
 const requirementRepository = await import("@/server/repositories/requirement.repository");
 const userRepository = await import("@/server/repositories/user.repository");
 const membershipRepository = await import("@/server/repositories/project-membership.repository");
@@ -129,6 +134,32 @@ describe("createRequirement", () => {
         status: "DRAFT",
         priority: "MEDIUM", // defaulted
       }),
+      TX,
+    );
+  });
+
+  it("numbers the requirement automatically when no identifier is given", async () => {
+    vi.mocked(recordIdentifierRepository.listIdentifiersWithPrefix).mockResolvedValue(["REQ-001", "REQ-002"]);
+    vi.mocked(requirementRepository.createRequirement).mockResolvedValue(requirement({ identifier: "REQ-003" }));
+    const { identifier: _omitted, ...withoutIdentifier } = VALID_CREATE;
+
+    await service.createRequirement(CONTEXT, PROJECT.id, withoutIdentifier);
+
+    expect(recordIdentifierRepository.listIdentifiersWithPrefix).toHaveBeenCalledWith("requirement", PROJECT.id, "REQ-");
+    expect(requirementRepository.createRequirement).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: PROJECT.id, identifier: "REQ-003" }),
+      TX,
+    );
+  });
+
+  it("keeps an identifier the caller chose, without numbering anything", async () => {
+    vi.mocked(requirementRepository.createRequirement).mockResolvedValue(requirement());
+
+    await service.createRequirement(CONTEXT, PROJECT.id, VALID_CREATE);
+
+    expect(recordIdentifierRepository.listIdentifiersWithPrefix).not.toHaveBeenCalled();
+    expect(requirementRepository.createRequirement).toHaveBeenCalledWith(
+      expect.objectContaining({ identifier: VALID_CREATE.identifier }),
       TX,
     );
   });

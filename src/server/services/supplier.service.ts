@@ -22,6 +22,7 @@ import {
   requireProjectReadAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Supplier application service.
@@ -91,28 +92,30 @@ export async function createSupplier(
   const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createSupplierRequestSchema, input, "Invalid supplier");
 
-  return prisma.$transaction(async (tx) => {
-    const supplier = await supplierRepository.createSupplier(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        name: data.name,
-        description: data.description ?? null,
-        status: data.status,
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "supplier", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const supplier = await supplierRepository.createSupplier(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          name: data.name,
+          description: data.description ?? null,
+          status: data.status,
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      artifactAuditEvent(context, SUPPLIER_AUDIT_ACTIONS.created, SUPPLIER_ENTITY_TYPE, supplier.id, {
-        identifier: supplier.identifier,
-        projectId: scopedProjectId,
-      }),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        artifactAuditEvent(context, SUPPLIER_AUDIT_ACTIONS.created, SUPPLIER_ENTITY_TYPE, supplier.id, {
+          identifier: supplier.identifier,
+          projectId: scopedProjectId,
+        }),
+        tx,
+      );
 
-    return supplier;
-  });
+      return supplier;
+    }),
+  );
 }
 
 export async function listSuppliers(

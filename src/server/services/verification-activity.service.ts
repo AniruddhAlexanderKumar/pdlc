@@ -38,6 +38,7 @@ import {
   requireProjectInOrganization,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Verification activity application service.
@@ -105,34 +106,36 @@ export async function createVerificationActivity(
     await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
-  return prisma.$transaction(async (tx) => {
-    const activity = await verificationRepository.createVerificationActivity(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        title: data.title,
-        description: data.description ?? null,
-        method: data.method,
-        plannedDate: data.plannedDate ?? null,
-        ownerId: data.ownerId ?? null,
-        // Status is not accepted from callers: an activity always starts PLANNED.
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "verificationActivity", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const activity = await verificationRepository.createVerificationActivity(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          title: data.title,
+          description: data.description ?? null,
+          method: data.method,
+          plannedDate: data.plannedDate ?? null,
+          ownerId: data.ownerId ?? null,
+          // Status is not accepted from callers: an activity always starts PLANNED.
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      artifactAuditEvent(
-        context,
-        VERIFICATION_AUDIT_ACTIONS.created,
-        VERIFICATION_ENTITY_TYPE,
-        activity.id,
-        { identifier: activity.identifier, method: activity.method, projectId: scopedProjectId },
-      ),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        artifactAuditEvent(
+          context,
+          VERIFICATION_AUDIT_ACTIONS.created,
+          VERIFICATION_ENTITY_TYPE,
+          activity.id,
+          { identifier: activity.identifier, method: activity.method, projectId: scopedProjectId },
+        ),
+        tx,
+      );
 
-    return activity;
-  });
+      return activity;
+    }),
+  );
 }
 
 /**

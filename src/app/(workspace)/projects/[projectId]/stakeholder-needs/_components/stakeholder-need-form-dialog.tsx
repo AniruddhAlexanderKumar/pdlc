@@ -14,13 +14,7 @@ import {
   updateStakeholderNeed,
 } from "@/lib/api/artifacts";
 import { artifactLabel } from "@/components/common/artifact-badges";
-import {
-  type FieldErrors,
-  FormError,
-  FormField,
-  describedBy,
-  toFieldErrors,
-} from "@/components/common/artifact-form";
+import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -114,7 +108,7 @@ function FormBody({
 
     const parsed = isCreate
       ? createStakeholderNeedRequestSchema.safeParse({
-          identifier,
+          identifier: identifierOrAuto(identifier),
           title,
           description,
           stakeholder,
@@ -154,28 +148,14 @@ function FormBody({
         {formError && <FormError message={formError} />}
 
         {isCreate && (
-          <FormField
+          <RecordNumberField
             id="need-identifier"
-            label="Identifier"
-            required
+            prefix="SN"
+            value={identifier}
+            onChange={setIdentifier}
             error={fieldErrors["identifier"]}
-            hint="Project-scoped key, e.g. SN-001."
-          >
-            <Input
-              id="need-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="SN-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={describedBy(
-                "need-identifier",
-                fieldErrors["identifier"],
-                "hint",
-              )}
-            />
-          </FormField>
+            disabled={isSubmitting}
+          />
         )}
 
         <FormField id="need-title" label="Title" required error={fieldErrors["title"]}>

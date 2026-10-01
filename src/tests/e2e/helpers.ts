@@ -59,3 +59,13 @@ export async function signOut(page: Page): Promise<void> {
   await page.getByRole("button", { name: /^Account:/ }).click();
   await page.getByRole("button", { name: /sign out/i }).click();
 }
+
+/**
+ * Gives the record being created a specific number. Create forms number
+ * records automatically unless asked otherwise ("Use my own number"), and
+ * these specs refer back to records by the numbers they chose.
+ */
+export async function fillRecordNumber(page: Page, identifier: string): Promise<void> {
+  await page.getByRole("button", { name: "Use my own number" }).click();
+  await page.getByLabel("Number", { exact: true }).fill(identifier);
+}

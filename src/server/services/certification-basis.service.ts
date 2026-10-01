@@ -21,6 +21,7 @@ import {
   requireProjectApproveAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * The tracked certification standard/basis lifecycle: DRAFT (editable) ->
@@ -50,33 +51,35 @@ export class CertificationBasisService {
     const program = await this.requireProgram(scopedProjectId);
     const data = parseOrThrow(createCertificationBasisRequestSchema, input, "Invalid certification basis");
 
-    return prisma.$transaction(async (tx) => {
-      const basis = await basisRepository.createBasis(
-        {
-          certificationProgramId: program.id,
-          identifier: data.identifier,
-          title: data.title,
-          description: data.description ?? null,
-          revision: data.revision,
-          sourceReference: data.sourceReference ?? null,
-          createdById: context.actorId,
-        },
-        tx,
-      );
+    return withRecordIdentifier(data.identifier, "certificationBasis", program.id, (identifier) =>
+      prisma.$transaction(async (tx) => {
+        const basis = await basisRepository.createBasis(
+          {
+            certificationProgramId: program.id,
+            identifier,
+            title: data.title,
+            description: data.description ?? null,
+            revision: data.revision,
+            sourceReference: data.sourceReference ?? null,
+            createdById: context.actorId,
+          },
+          tx,
+        );
 
-      await auditLogRepository.recordAuditEvent(
-        artifactAuditEvent(
-          context,
-          CERTIFICATION_BASIS_AUDIT_ACTIONS.created,
-          CERTIFICATION_BASIS_ENTITY_TYPE,
-          basis.id,
-          { identifier: basis.identifier, certificationProgramId: program.id },
-        ),
-        tx,
-      );
+        await auditLogRepository.recordAuditEvent(
+          artifactAuditEvent(
+            context,
+            CERTIFICATION_BASIS_AUDIT_ACTIONS.created,
+            CERTIFICATION_BASIS_ENTITY_TYPE,
+            basis.id,
+            { identifier: basis.identifier, certificationProgramId: program.id },
+          ),
+          tx,
+        );
 
-      return basis;
-    });
+        return basis;
+      }),
+    );
   }
 
   async listBases(context: OrganizationContext, projectId: unknown): Promise<CertificationBasis[]> {

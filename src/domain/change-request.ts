@@ -196,7 +196,8 @@ export function areDeclaredImpactsEditable(status: ChangeRequestStatus): boolean
  * quietly dropped — a silent drop hides an attempt worth failing loudly on.
  */
 export const createChangeRequestRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1, "A change request title is required").max(300),
   description: z
     .string()

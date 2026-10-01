@@ -153,7 +153,9 @@ describe("EvidenceView", () => {
     await screen.findByText("No evidence recorded yet");
 
     await user.click(screen.getAllByRole("button", { name: /record evidence/i })[0]!);
-    await user.type(await screen.findByLabelText(/identifier/i), "EV-001");
+    // A number of their own: the field is automatic until asked for.
+    await user.click(await screen.findByRole("button", { name: "Use my own number" }));
+    await user.type(screen.getByLabelText(/^Number/), "EV-001");
     await user.type(screen.getByLabelText(/^title/i), "Hot fire test report");
     await user.type(screen.getByLabelText(/source reference/i), "TR-2026-014");
 

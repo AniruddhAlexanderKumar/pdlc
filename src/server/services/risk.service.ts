@@ -30,6 +30,7 @@ import {
 import * as riskRepository from "@/server/repositories/risk.repository";
 import type { RiskListItem, RiskOwnerSummary } from "@/server/repositories/risk.repository";
 import { parseOrThrow } from "@/server/validation";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Risk application service.
@@ -106,32 +107,34 @@ export async function createRisk(context: OrganizationContext, projectId: unknow
     await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
-  return prisma.$transaction(async (tx) => {
-    const risk = await riskRepository.createRisk(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        title: data.title,
-        description: data.description,
-        cause: data.cause ?? null,
-        consequence: data.consequence ?? null,
-        // A risk always begins open; callers cannot choose.
-        status: "OPEN",
-        ownerId: data.ownerId ?? null,
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "risk", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const risk = await riskRepository.createRisk(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          title: data.title,
+          description: data.description,
+          cause: data.cause ?? null,
+          consequence: data.consequence ?? null,
+          // A risk always begins open; callers cannot choose.
+          status: "OPEN",
+          ownerId: data.ownerId ?? null,
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      auditEvent(context, RISK_AUDIT_ACTIONS.created, risk.id, {
-        identifier: risk.identifier,
-        projectId: scopedProjectId,
-      }),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        auditEvent(context, RISK_AUDIT_ACTIONS.created, risk.id, {
+          identifier: risk.identifier,
+          projectId: scopedProjectId,
+        }),
+        tx,
+      );
 
-    return risk;
-  });
+      return risk;
+    }),
+  );
 }
 
 export async function listRisks(

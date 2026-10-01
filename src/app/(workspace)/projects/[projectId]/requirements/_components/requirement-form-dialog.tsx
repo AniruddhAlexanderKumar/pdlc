@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { RecordNumberField, identifierOrAuto } from "@/components/common/artifact-form";
 
 type FieldErrors = Record<string, string>;
 
@@ -128,7 +129,7 @@ function RequirementFormBody({
     const parsed = isCreate
       ? createRequirementRequestSchema.safeParse({
           ...shared,
-          identifier,
+          identifier: identifierOrAuto(identifier),
           ownerId: ownerId === "" ? null : ownerId,
         })
       : updateRequirementRequestSchema.safeParse(shared);
@@ -174,28 +175,14 @@ function RequirementFormBody({
         )}
 
         {isCreate && (
-          <Field
+          <RecordNumberField
             id="requirement-identifier"
-            label="Identifier"
-            required
+            prefix="REQ"
+            value={identifier}
+            onChange={setIdentifier}
             error={fieldErrors["identifier"]}
-            hint="Project-scoped key, e.g. REQ-001."
-          >
-            <Input
-              id="requirement-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="REQ-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={
-                fieldErrors["identifier"]
-                  ? "requirement-identifier-error"
-                  : "requirement-identifier-hint"
-              }
-            />
-          </Field>
+            disabled={isSubmitting}
+          />
         )}
 
         <Field id="requirement-title" label="Title" required error={fieldErrors["title"]}>

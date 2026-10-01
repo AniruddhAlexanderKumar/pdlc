@@ -165,7 +165,9 @@ describe("IssuesView", () => {
     await screen.findByText("No issues yet");
 
     await user.click(screen.getAllByRole("button", { name: /new issue/i })[0]!);
-    await user.type(await screen.findByLabelText(/identifier/i), "ISS-001");
+    // A number of their own: the field is automatic until asked for.
+    await user.click(await screen.findByRole("button", { name: "Use my own number" }));
+    await user.type(screen.getByLabelText(/^Number/), "ISS-001");
     await user.type(screen.getByLabelText(/^title/i), "Chamber wall crack found");
     await user.type(screen.getByLabelText(/description/i), "A hairline crack was found.");
 

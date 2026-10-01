@@ -136,7 +136,8 @@ export function areRiskLinksEditable(status: RiskStatus): boolean {
  * dropping them.
  */
 export const createRiskRequestSchema = z.strictObject({
-  identifier: artifactIdentifierSchema,
+  // Optional: omitted, the service numbers it (see auto-identifier.ts).
+  identifier: artifactIdentifierSchema.optional(),
   title: z.string().trim().min(1, "A risk title is required").max(300),
   description: z.string().trim().min(1, "A risk description is required").max(10_000),
   cause: z.string().trim().max(10_000).nullish(),

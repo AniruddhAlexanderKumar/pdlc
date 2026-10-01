@@ -25,6 +25,7 @@ import {
   requireProjectInOrganization,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Design item application service.
@@ -78,33 +79,35 @@ export async function createDesignItem(
     await requireAssignableOwner(context, scopedProjectId, data.ownerId);
   }
 
-  return prisma.$transaction(async (tx) => {
-    const item = await designItemRepository.createDesignItem(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        name: data.name,
-        description: data.description ?? null,
-        itemType: data.itemType,
-        status: data.status,
-        ownerId: data.ownerId ?? null,
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "designItem", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const item = await designItemRepository.createDesignItem(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          name: data.name,
+          description: data.description ?? null,
+          itemType: data.itemType,
+          status: data.status,
+          ownerId: data.ownerId ?? null,
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      artifactAuditEvent(
-        context,
-        DESIGN_ITEM_AUDIT_ACTIONS.created,
-        DESIGN_ITEM_ENTITY_TYPE,
-        item.id,
-        { identifier: item.identifier, itemType: item.itemType, projectId: scopedProjectId },
-      ),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        artifactAuditEvent(
+          context,
+          DESIGN_ITEM_AUDIT_ACTIONS.created,
+          DESIGN_ITEM_ENTITY_TYPE,
+          item.id,
+          { identifier: item.identifier, itemType: item.itemType, projectId: scopedProjectId },
+        ),
+        tx,
+      );
 
-    return item;
-  });
+      return item;
+    }),
+  );
 }
 
 export async function listDesignItems(

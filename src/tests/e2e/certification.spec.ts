@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, fillRecordNumber } from "./helpers";
 
 /**
  * Certification workspace, end to end:
@@ -59,14 +59,14 @@ test.describe.serial("Certification workspace", () => {
     await expect(page.getByText("No certification programme yet")).toBeVisible();
 
     await page.getByRole("button", { name: "Create programme" }).click();
-    await page.getByLabel("Identifier").fill("CERT-001");
+    await fillRecordNumber(page, "CERT-001");
     await page.getByLabel("Name").fill("Cabin systems certification effort");
     await page.getByRole("button", { name: "Create programme" }).click();
 
     await expect(page.getByText("Cabin systems certification effort")).toBeVisible();
 
     await page.getByRole("button", { name: "New basis" }).click();
-    await page.getByLabel("Identifier").fill("CB-001");
+    await fillRecordNumber(page, "CB-001");
     await page.getByLabel("Title").fill("Part 25 Amdt 25-141");
     await page.getByLabel("Revision").fill("Amdt 25-141");
     await page.getByLabel("Source reference").fill("14 CFR Part 25");
@@ -82,7 +82,7 @@ test.describe.serial("Certification workspace", () => {
   }) => {
     await page.goto(`${projectUrl}/certification/items`);
     await page.getByRole("button", { name: "New compliance item" }).click();
-    await page.getByLabel("Identifier").fill("CI-001");
+    await fillRecordNumber(page, "CI-001");
     await page.getByLabel("Title").fill("Cabin pressurization limits");
     await page.getByRole("button", { name: "Create item" }).click();
 
@@ -114,7 +114,7 @@ test.describe.serial("Certification workspace", () => {
   }) => {
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel(/^Title/).fill("Cabin pressurization limits");
     await page
       .getByLabel(/^Statement/)
@@ -124,7 +124,7 @@ test.describe.serial("Certification workspace", () => {
 
     await page.goto(`${projectUrl}/verification`);
     await page.getByRole("button", { name: "New activity" }).first().click();
-    await page.getByLabel("Identifier").fill("VA-001");
+    await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Cabin altitude analysis");
     await page.getByLabel(/^Method/).selectOption("ANALYSIS");
     await page.getByRole("button", { name: "Create activity" }).click();
@@ -162,7 +162,7 @@ test.describe.serial("Certification workspace", () => {
     await page.getByRole("link", { name: "CI-001" }).click();
 
     await page.getByRole("button", { name: "New finding" }).click();
-    await page.getByLabel("Identifier").fill("CF-001");
+    await fillRecordNumber(page, "CF-001");
     await page.getByLabel("Title").fill("Analysis assumptions not independently checked");
     await page.getByLabel("Severity").selectOption("HIGH");
     await page.getByRole("button", { name: "Create finding" }).click();

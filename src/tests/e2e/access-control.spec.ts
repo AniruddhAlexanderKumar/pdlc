@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount, type E2EAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, type E2EAccount, fillRecordNumber } from "./helpers";
 
 /**
  * Engineering Access Control, end to end:
@@ -116,7 +116,7 @@ test.describe.serial("Engineering Access Control", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-001");
+    await fillRecordNumber(page, "REQ-001");
     await page.getByLabel("Title").fill("Maximum chamber pressure");
     await page.getByLabel("Statement").fill("The engine shall not exceed 120 bar chamber pressure.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -138,7 +138,7 @@ test.describe.serial("Engineering Access Control", () => {
     await signIn(page, engineer);
     await page.goto(`${projectUrl}/suppliers`);
     await page.getByRole("button", { name: "New supplier" }).first().click();
-    await page.getByLabel("Identifier").fill("SUP-001");
+    await fillRecordNumber(page, "SUP-001");
     await page.getByLabel(/^Name/).fill("Vulcan Alloys");
     await page.getByLabel(/^Description/).fill("Nickel superalloy billet and forgings.");
     await page.getByRole("button", { name: "Create supplier" }).click();
@@ -151,7 +151,7 @@ test.describe.serial("Engineering Access Control", () => {
 
     await page.goto(`${projectUrl}/suppliers`);
     await page.getByRole("button", { name: "New supplier" }).first().click();
-    await page.getByLabel("Identifier").fill("SUP-002");
+    await fillRecordNumber(page, "SUP-002");
     await page.getByLabel(/^Name/).fill("Should never be created");
     await page.getByLabel(/^Description/).fill("A viewer has no write authority.");
     await page.getByRole("button", { name: "Create supplier" }).click();
@@ -171,7 +171,7 @@ test.describe.serial("Engineering Access Control", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-002");
+    await fillRecordNumber(page, "REQ-002");
     await page.getByLabel("Title").fill("Should never be created");
     await page.getByLabel("Statement").fill("A reviewer has no write authority.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -197,7 +197,7 @@ test.describe.serial("Engineering Access Control", () => {
 
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-003");
+    await fillRecordNumber(page, "REQ-003");
     await page.getByLabel("Title").fill("Should never be created");
     await page.getByLabel("Statement").fill("A viewer has no write authority.");
     await page.getByRole("button", { name: "Create requirement" }).click();
@@ -223,7 +223,7 @@ test.describe.serial("Engineering Access Control", () => {
     const payload = '<img src=x onerror="window.__xssFired = true">Injected';
     await page.goto(`${projectUrl}/requirements`);
     await page.getByRole("button", { name: "New requirement" }).first().click();
-    await page.getByLabel("Identifier").fill("REQ-XSS");
+    await fillRecordNumber(page, "REQ-XSS");
     await page.getByLabel("Title").fill(payload);
     await page.getByLabel("Statement").fill("The system shall reject nothing typed into a text field.");
     await page.getByRole("button", { name: "Create requirement" }).click();

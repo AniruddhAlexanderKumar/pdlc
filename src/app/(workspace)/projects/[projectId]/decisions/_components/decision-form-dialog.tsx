@@ -10,13 +10,7 @@ import {
   updateDecision,
 } from "@/lib/api/decisions";
 import { useOrganizationMembers } from "@/lib/api/requirements";
-import {
-  type FieldErrors,
-  FormError,
-  FormField,
-  describedBy,
-  toFieldErrors,
-} from "@/components/common/artifact-form";
+import { FormError, FormField, RecordNumberField, describedBy, identifierOrAuto, toFieldErrors, type FieldErrors } from "@/components/common/artifact-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -129,7 +123,7 @@ function FormBody({
     const parsed = isCreate
       ? createDecisionRequestSchema.safeParse({
           ...shared,
-          identifier,
+          identifier: identifierOrAuto(identifier),
           ownerId: ownerId === "" ? null : ownerId,
         })
       : updateDecisionRequestSchema.safeParse(shared);
@@ -162,28 +156,14 @@ function FormBody({
         {formError && <FormError message={formError} />}
 
         {isCreate && (
-          <FormField
+          <RecordNumberField
             id="decision-identifier"
-            label="Identifier"
-            required
+            prefix="ED"
+            value={identifier}
+            onChange={setIdentifier}
             error={fieldErrors["identifier"]}
-            hint="Project-scoped key, e.g. ED-001."
-          >
-            <Input
-              id="decision-identifier"
-              value={identifier}
-              onChange={(event) => setIdentifier(event.target.value.toUpperCase())}
-              disabled={isSubmitting}
-              placeholder="ED-001"
-              className="font-mono"
-              aria-invalid={fieldErrors["identifier"] ? true : undefined}
-              aria-describedby={describedBy(
-                "decision-identifier",
-                fieldErrors["identifier"],
-                "hint",
-              )}
-            />
-          </FormField>
+            disabled={isSubmitting}
+          />
         )}
 
         <FormField id="decision-title" label="Title" required error={fieldErrors["title"]}>

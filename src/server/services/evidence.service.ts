@@ -31,6 +31,7 @@ import {
   requireProjectApproveAccess,
   requireProjectWriteAccess,
 } from "./project-scope";
+import { withRecordIdentifier } from "./record-identifier";
 
 /**
  * Evidence application service.
@@ -117,32 +118,34 @@ export async function createEvidence(
   const scopedProjectId = await requireProjectWriteAccess(context, projectId);
   const data = parseOrThrow(createEvidenceRequestSchema, input, "Invalid evidence");
 
-  return prisma.$transaction(async (tx) => {
-    const evidence = await evidenceRepository.createEvidence(
-      {
-        projectId: scopedProjectId,
-        identifier: data.identifier,
-        title: data.title,
-        description: data.description ?? null,
-        evidenceType: data.evidenceType,
-        sourceReference: data.sourceReference,
-        // Provenance, not a client-supplied field: whoever is authenticated
-        // right now is who recorded it.
-        recordedById: context.actorId,
-      },
-      tx,
-    );
+  return withRecordIdentifier(data.identifier, "evidence", scopedProjectId, (identifier) =>
+    prisma.$transaction(async (tx) => {
+      const evidence = await evidenceRepository.createEvidence(
+        {
+          projectId: scopedProjectId,
+          identifier,
+          title: data.title,
+          description: data.description ?? null,
+          evidenceType: data.evidenceType,
+          sourceReference: data.sourceReference,
+          // Provenance, not a client-supplied field: whoever is authenticated
+          // right now is who recorded it.
+          recordedById: context.actorId,
+        },
+        tx,
+      );
 
-    await auditLogRepository.recordAuditEvent(
-      auditEvent(context, EVIDENCE_AUDIT_ACTIONS.created, evidence.id, {
-        identifier: evidence.identifier,
-        projectId: scopedProjectId,
-      }),
-      tx,
-    );
+      await auditLogRepository.recordAuditEvent(
+        auditEvent(context, EVIDENCE_AUDIT_ACTIONS.created, evidence.id, {
+          identifier: evidence.identifier,
+          projectId: scopedProjectId,
+        }),
+        tx,
+      );
 
-    return evidence;
-  });
+      return evidence;
+    }),
+  );
 }
 
 export async function listEvidence(
