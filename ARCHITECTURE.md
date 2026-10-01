@@ -172,9 +172,26 @@ it, so "hidden" means hidden everywhere a page could appear. A step whose
 first page is hidden links to its next page; a step with every page hidden
 drops out of the sidebar (the others keep their numbers); the page you are
 on keeps its tab even if hidden, so the tab bar always shows where you
-are. `/command-center` can never be hidden (`ALWAYS_VISIBLE_HREF`) — hiding
-the front door would strand navigation. Storage written by the pinning
-version (`{ hidden, pinned }`) still reads correctly; `pinned` is ignored.
+are. `/command-center` can never be unticked in Settings
+(`ALWAYS_VISIBLE_HREF`). Storage written by the pinning version
+(`{ hidden, pinned }`) still reads correctly; `pinned` is ignored.
+
+**Simple view** sits on top of that choice. `useHiddenModules()` — what
+the sidebar and the tab bar actually read — is the reader's own hidden set
+plus `SIMPLE_VIEW_HIDDEN` while Simple view is on: Command Center and the
+specialist tools (stakeholder needs, suppliers, observations, drift,
+certification, Decision Sentinel, history, traceability). What remains is
+the core of the six steps. It is on by default and is the same per-browser
+preference that keeps the step-by-step guide to short summaries
+(`useWorkflowExperience`, stored inverted as `pdlc:workflow-advanced-mode`
+so an unset key reads as simple), so there is one "show me less" switch:
+"Show all tools" / "Simple view" at the foot of the sidebar, or Settings →
+Simple view. Nothing is blocked — links, the project's "All modules" tab
+and the command palette (which deliberately reads only the Settings choice,
+not Simple view) still reach every page — and the project page's header
+shows its Command Center button only with all tools shown. This differs
+from the old "Simplify" switch above: that one coped with a long list;
+this one decides which tools a newcomer meets at all.
 
 The command palette lists navigation destinations (modules, `/settings`,
 `/organization`, ...) instantly and records from `/api/search` a moment
@@ -223,6 +240,68 @@ builds as sentences ("Certification review is not ready"), record history
 ("Draft → Submitted", and unlisted audit actions such as
 `change.declared_impact_added` read as "Declared impact added"), and the
 impact table's object types.
+
+## Doing less by hand: numbering, pasted lists, planned checks
+
+Three automations for the work a newcomer finds most repetitive. Each
+creates only what a person would have created by hand — drafts and plans,
+never an approval, a pass or a verdict — through the same repositories,
+in one transaction, with the same audit events.
+
+**Automatic numbering.** `identifier` is optional on all seventeen create
+requests. Left out, `withRecordIdentifier` (`src/server/services/record-identifier.ts`)
+assigns the next number for that record type in its scope — `REQ-004`
+after `REQ-003` — using the prefixes the forms already suggested
+(`RECORD_IDENTIFIER_PREFIXES`, `src/domain/shared/auto-identifier.ts`).
+`nextIdentifier` follows the highest number of exactly the generated shape,
+so a hand-chosen `REQ-PROP-1` or an imported `SCN-42-REQ-001` neither
+advances nor collides with it, and a deleted number is never handed out
+twice. The scope is whatever the identifier is unique within: the project,
+or the program / basis / compliance item for certification records
+(`record-identifier.repository.ts`). Two saves racing for the same number:
+the unique constraint lets one win, the loser's `ConflictError` is retried
+with a fresh number — only when the conflict really was over that number
+(it is now taken), never for another conflict (a certification program
+that already exists) or for an identifier the caller typed. Forms show
+"Numbered automatically" (`RecordNumberField`, `artifact-form.tsx`) with
+"Use my own number" for teams carrying identifiers over from elsewhere.
+
+**Adding several requirements at once.** `POST
+/api/projects/:id/requirements/bulk` with `{ statements: string[] }` (1–200)
+adds each as a DRAFT requirement, numbered consecutively and titled from
+its own first words (`deriveRequirementTitle` — the first sentence, cut at
+a word boundary, never rewritten). `parseRequirementLines` turns pasted
+text into statements, dropping list markers and blank lines; the "Add
+several" dialog on Requirements previews exactly what will be created. All
+or nothing: the transaction (30s timeout, for a long paste over a slow
+link) is retried whole with fresh numbers if a concurrent save took one.
+
+**Planning a check for each requirement.** `GET
+/api/projects/:id/verification-activities/plan` lists the requirements no
+verification activity is linked to yet (obsolete ones excluded);
+`POST` with `{ method, requirementIds? }` creates one PLANNED activity per
+requirement ("Check REQ-004: …") and links it, auditing both
+`verification_activity.created` and `requirement.link_added`. Without
+`requirementIds` it covers every requirement that has no check; with them,
+exactly those — each must be in the project and not obsolete, or nothing is
+created. The Verify page shows "N requirements have no check yet" with one
+button, and a requirement's "How it's checked" card plans one for itself.
+The method is chosen in plain words (`VERIFICATION_METHOD_CHOICES`: test,
+analyse, inspect, demonstrate).
+
+**Forms ask only what they need.** A new requirement asks "What must it
+do?" first; a blank short name becomes the statement's first words.
+Optional fields (rationale, priority, source, owner; a risk's cause and
+consequence; a check's description and planned date; a decision's date)
+are folded under "More details (optional)" (`MoreDetails`), which opens by
+itself on a validation error and starts open when editing a record that
+already has those details.
+
+Removed along the way: a "Requirements Starter" that filled in one fixed
+avionics requirement with a random number for every project in every
+industry, and a "Stakeholder Agreement Status" panel that was always handed
+an empty list and so always reported "No active stakeholder interpretation
+conflicts detected" — a verdict nothing computed.
 
 ## Module guides and tab-based layouts
 
@@ -336,12 +415,14 @@ context, calls a service, and hands the result to `src/server/api/response.ts`.
 
 | Endpoint                                                                      | Behavior                                                            |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `GET /api/projects`                                                           | List the organization's projects, newest first                      |
+| `GET /api/projects`                                                           | The projects the caller can open, newest first (all of them for an owner or executive; a member's own memberships) |
 | `POST /api/projects`                                                          | Create (201)                                                        |
 | `GET /api/projects/[projectId]`                                               | Fetch one, scoped to the organization                               |
 | `PATCH /api/projects/[projectId]`                                             | Update name and/or description                                      |
 | `POST /api/projects/[projectId]/archive`                                      | Transition to ARCHIVED                                              |
 | `GET                                                                          | POST /api/projects/[id]/requirements`                               | List (optional `?status=`) / create                          |
+| `POST /api/projects/[id]/requirements/bulk`                                  | Add several draft requirements from `{ statements }`, numbered and titled automatically (all or none) |
+| `GET / POST /api/projects/[id]/verification-activities/plan`                 | Requirements with no check yet / plan and link one check per requirement (`{ method, requirementIds? }`) |
 | `GET                                                                          | PATCH /api/projects/[id]/requirements/[rid]`                        | Detail (owner, links, transitions, history) / content update |
 | `POST …/requirements/[rid]/transition`                                        | The only path that changes status                                   |
 | `POST …/requirements/[rid]/owner`                                             | Assign or clear the owner                                           |
@@ -799,6 +880,17 @@ change-impact records"), and a real, disclosed inconsistency with the
 thirteen services that came before: retroactively tightening their reads
 too is future work, not done here, because it was not what either pass
 asked for.
+
+**The project list follows the same rule.** `listProjects` used to return
+every project in the organization, while opening one required a role on
+it — so a plain member's dashboard listed projects whose every page then
+answered "That project no longer exists, or you do not have access to it".
+It now returns all projects only for an owner or executive
+(`hasImplicitProjectAccess`) and otherwise only the caller's own
+memberships (`listProjectsForMember`). The development seed makes its
+account the organization's owner and an explicit MANAGER of the sample
+project for the same reason; re-running `npm run db:seed` repairs a
+database seeded before that.
 
 **System-derived evaluations are write-tier, mirroring the established
 `evaluateDrift` precedent — never approve-tier and never a plain read.**

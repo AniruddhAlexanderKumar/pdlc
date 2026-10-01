@@ -328,12 +328,15 @@ function verifyStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof Progr
   const { requirements: r, checks: c } = facts;
 
   if (c.total === 0) {
+    // With requirements to check, the Verify page itself offers to plan a
+    // check for every one of them at once, linked — so the link lands there
+    // instead of opening a blank form for a single check on top of it.
     return {
       state: "NOT_STARTED",
       facts: [r.total === 0 ? "Waiting on requirements — there is nothing to verify yet." : "No checks planned yet."],
-      actionLabel: "Plan the first check",
+      actionLabel: r.total === 0 ? "Plan the first check" : "Plan a check for each requirement",
       destination: "verification",
-      opensForm: true,
+      opensForm: r.total === 0,
     };
   }
 

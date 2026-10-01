@@ -142,6 +142,12 @@ refuse `VIEWER`) then refuse every write, approval, and membership change
 without being changed at all. Adding a fourth organization role means
 extending that one function, not auditing every call site.
 
+**Project listing.** `GET /api/projects` applies the same rule: every
+project for a caller with implicit access (`hasImplicitProjectAccess`),
+otherwise only the projects the caller holds a membership on. It used to
+list the whole organization to everyone, which disclosed the names and
+descriptions of projects a plain member could not open.
+
 **Role assignment.** Only an `OWNER` may change anyone's organization role
 (`setOrganizationMemberRole`, audited as `organization.member_role_changed`
 with both the old and new role, inside the mutation's own transaction).

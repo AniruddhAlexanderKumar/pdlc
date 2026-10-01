@@ -359,6 +359,16 @@ describe("progress links that create", () => {
     expect(progressDestinationHref("p1", define.destination, define.opensForm)).toBe("/projects/p1/requirements");
   });
 
+  it("sends a project with requirements but no checks to the Verify page, where one step plans them all", () => {
+    const facts = emptyProgressFacts();
+    facts.requirements = { ...facts.requirements, total: 3, withoutCheck: 3 };
+    const verify = progressSteps(facts).find((step) => step.stage === "VERIFY")!;
+
+    expect(verify.actionLabel).toBe("Plan a check for each requirement");
+    expect(verify.opensForm).toBe(false);
+    expect(progressDestinationHref("p1", verify.destination, verify.opensForm)).toBe("/projects/p1/verification");
+  });
+
   it("never adds the form parameter to the release check, which has no form", () => {
     expect(progressDestinationHref("p1", "release-check", true)).toBe(
       "/projects/p1?gate=RELEASE_READY#release-check",

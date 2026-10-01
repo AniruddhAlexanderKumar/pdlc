@@ -90,6 +90,11 @@ npm run db:seed
 npm run dev            # then sign in at http://localhost:3000/sign-in
 ```
 
+The seeded account is the organization's owner and a manager of the sample
+project. A database seeded by an older version gave it neither, so the
+sample project was listed but answered "no access" when opened — run
+`npm run db:seed` again to repair it (it is idempotent).
+
 You can skip the seed entirely and register through `/sign-up`, which creates
 an organization and its first administrator in one step. That is the preferred
 path for anything other than local development.
