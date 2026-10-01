@@ -14,7 +14,7 @@ import * as membershipRepository from "@/server/repositories/project-membership.
 import * as organizationRepository from "@/server/repositories/organization.repository";
 import * as projectRepository from "@/server/repositories/project.repository";
 import { parseOrThrow } from "@/server/validation";
-import { requireProjectAccess } from "./authorization.service";
+import { hasImplicitProjectAccess, requireProjectAccess } from "./authorization.service";
 
 /**
  * Project application service.
@@ -137,9 +137,23 @@ export async function createProject(
   });
 }
 
-/** Projects in the caller's organization, newest first. */
+/**
+ * The projects in the caller's organization that the caller can open,
+ * newest first.
+ *
+ * The same rule `getProject` enforces: an owner or executive reaches every
+ * project (`hasImplicitProjectAccess`); anyone else reaches only the
+ * projects they are an explicit member of. Listing every project in the
+ * organization instead showed a plain member projects whose every page then
+ * answered "That project no longer exists, or you do not have access to
+ * it" — a list of dead ends, and list data a non-member must not obtain.
+ */
 export async function listProjects(context: OrganizationContext): Promise<Project[]> {
-  return projectRepository.listProjectsByOrganization(context.organizationId);
+  if (await hasImplicitProjectAccess(context)) {
+    return projectRepository.listProjectsByOrganization(context.organizationId);
+  }
+  if (!context.actorId) return [];
+  return projectRepository.listProjectsForMember(context.organizationId, context.actorId);
 }
 
 export async function getProject(

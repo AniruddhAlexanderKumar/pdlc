@@ -22,6 +22,7 @@ vi.mock("@/server/repositories/project.repository", () => ({
   createProject: vi.fn(),
   findProjectInOrganization: vi.fn(),
   listProjectsByOrganization: vi.fn(),
+  listProjectsForMember: vi.fn(),
   updateProject: vi.fn(),
 }));
 
@@ -172,7 +173,8 @@ describe("createProject", () => {
 });
 
 describe("listProjects", () => {
-  it("lists only the caller's organization", async () => {
+  it("lists every project in the organization for an owner", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("OWNER");
     vi.mocked(projectRepository.listProjectsByOrganization).mockResolvedValue([PROJECT]);
 
     const projects = await projectService.listProjects(CONTEXT);
@@ -181,10 +183,43 @@ describe("listProjects", () => {
     expect(projectRepository.listProjectsByOrganization).toHaveBeenCalledWith(
       CONTEXT.organizationId,
     );
+    expect(projectRepository.listProjectsForMember).not.toHaveBeenCalled();
+  });
+
+  it("lists every project in the organization for an executive", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("EXECUTIVE");
+    vi.mocked(projectRepository.listProjectsByOrganization).mockResolvedValue([PROJECT]);
+
+    await expect(projectService.listProjects(CONTEXT)).resolves.toEqual([PROJECT]);
+    expect(projectRepository.listProjectsForMember).not.toHaveBeenCalled();
+  });
+
+  it("lists only the projects a plain member belongs to — never ones they cannot open", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+    vi.mocked(projectRepository.listProjectsForMember).mockResolvedValue([PROJECT]);
+
+    const projects = await projectService.listProjects(CONTEXT);
+
+    expect(projects).toEqual([PROJECT]);
+    expect(projectRepository.listProjectsForMember).toHaveBeenCalledWith(
+      CONTEXT.organizationId,
+      CONTEXT.actorId,
+    );
+    expect(projectRepository.listProjectsByOrganization).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty list for a caller with no actor rather than the whole organization", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue(null);
+
+    await expect(
+      projectService.listProjects({ organizationId: CONTEXT.organizationId, actorId: null }),
+    ).resolves.toEqual([]);
+    expect(projectRepository.listProjectsByOrganization).not.toHaveBeenCalled();
+    expect(projectRepository.listProjectsForMember).not.toHaveBeenCalled();
   });
 
   it("returns an empty list rather than failing when there are no projects", async () => {
-    vi.mocked(projectRepository.listProjectsByOrganization).mockResolvedValue([]);
+    vi.mocked(projectRepository.listProjectsForMember).mockResolvedValue([]);
     await expect(projectService.listProjects(CONTEXT)).resolves.toEqual([]);
   });
 });

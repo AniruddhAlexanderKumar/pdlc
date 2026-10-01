@@ -63,10 +63,20 @@ async function main(): Promise<void> {
       create: { name: organizationName, slug },
     });
 
+    // The organization's first account is its owner — exactly what sign-up
+    // does (auth.service.ts). Created as a plain MEMBER, the seeded admin
+    // could see the sample project listed but not open it: a member reaches
+    // only projects they hold a membership on, and nothing gave them one.
     const user = await prisma.user.upsert({
       where: { email },
       update: {},
-      create: { email, name: adminName, role: "ADMIN", organizationId: organization.id },
+      create: {
+        email,
+        name: adminName,
+        role: "ADMIN",
+        organizationRole: "OWNER",
+        organizationId: organization.id,
+      },
     });
 
     // Re-hashed on every run so rotating SEED_ADMIN_PASSWORD takes effect.
@@ -87,6 +97,15 @@ async function main(): Promise<void> {
         name: DEV_PROJECT_NAME,
         description: "Empty development project. Contains no engineering data.",
       },
+    });
+
+    // An explicit MANAGER membership as well, so the seeded account can open
+    // and work in the sample project even on a database seeded before the
+    // account was created as the owner (upsert, so re-running is harmless).
+    await prisma.projectMembership.upsert({
+      where: { projectId_userId: { projectId: project.id, userId: user.id } },
+      update: {},
+      create: { projectId: project.id, userId: user.id, role: "MANAGER" },
     });
 
     // Never log the password or any credential material.

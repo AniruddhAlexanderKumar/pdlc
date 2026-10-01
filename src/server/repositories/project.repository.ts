@@ -92,6 +92,25 @@ export async function listProjectsByOrganization(
   return rows.map(toProject);
 }
 
+/**
+ * The organization's projects that `userId` holds an explicit
+ * `ProjectMembership` on — the whole readable set for a plain organization
+ * member, who has no implicit access to anything else. Same ordering as
+ * {@link listProjectsByOrganization}.
+ */
+export async function listProjectsForMember(
+  organizationId: string,
+  userId: string,
+  options: { status?: ProjectStatus } = {},
+  client: DbClient = prisma,
+): Promise<Project[]> {
+  const rows = await client.project.findMany({
+    where: { organizationId, status: options.status, memberships: { some: { userId } } },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+  });
+  return rows.map(toProject);
+}
+
 export async function updateProject(
   id: string,
   input: UpdateProjectInput,

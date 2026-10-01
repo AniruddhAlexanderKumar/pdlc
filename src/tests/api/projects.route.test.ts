@@ -38,6 +38,7 @@ vi.mock("@/server/repositories/project.repository", () => ({
   createProject: vi.fn(),
   findProjectInOrganization: vi.fn(),
   listProjectsByOrganization: vi.fn(),
+  listProjectsForMember: vi.fn(),
   updateProject: vi.fn(),
 }));
 
@@ -252,6 +253,22 @@ describe("GET /api/projects", () => {
     expect(projectRepository.listProjectsByOrganization).toHaveBeenCalledWith(
       CONTEXT.organizationId,
     );
+  });
+
+  it("returns only the projects a plain member belongs to", async () => {
+    vi.mocked(userRepository.getOrganizationRole).mockResolvedValue("MEMBER");
+    vi.mocked(projectRepository.listProjectsForMember).mockResolvedValue([PROJECT]);
+
+    const response = await collectionRoute.GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.projects).toHaveLength(1);
+    expect(projectRepository.listProjectsForMember).toHaveBeenCalledWith(
+      CONTEXT.organizationId,
+      CONTEXT.actorId,
+    );
+    expect(projectRepository.listProjectsByOrganization).not.toHaveBeenCalled();
   });
 
   it("returns an empty list for an organization with no projects", async () => {
