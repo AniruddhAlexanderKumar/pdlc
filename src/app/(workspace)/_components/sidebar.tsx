@@ -8,23 +8,26 @@ import {
   FolderGit2,
   Gauge,
   Home,
+  LayoutGrid,
   type LucideIcon,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  Sparkles,
   Waypoints,
 } from "lucide-react";
 import { progressStateLabel, type ProgressStage, type ProgressState } from "@/domain/project-progress";
 import { fetchProjectProgress, type ProjectProgressDto } from "@/lib/api/project-progress";
 import { cn } from "@/lib/utils";
 import { useStoredFlag } from "@/lib/use-stored-flag";
+import { useWorkflowExperience } from "@/lib/use-workflow-experience";
 import { Sheet, SheetBody, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import {
   moduleForPath,
   PROJECT_SECTIONS,
   type ProjectSection,
 } from "../projects/_components/project-modules";
-import { useNavCustomization } from "./nav-customization";
+import { useHiddenModules } from "./nav-customization";
 
 /** Matches `/projects/{id}` at the start of a path and captures the id. Exported so the command palette can resolve the same "which project am I in" question without a second, possibly-drifting regex. */
 export const CURRENT_PROJECT_PATTERN = /^\/projects\/([^/]+)(?:\/|$)/;
@@ -211,7 +214,7 @@ function ProjectNav({
   currentModule: string | null;
   collapsed: boolean;
 }) {
-  const { hidden } = useNavCustomization();
+  const hidden = useHiddenModules();
   const progress = useStepProgress(projectId);
 
   const stateByStage = new Map<ProgressStage, ProgressState>(
@@ -323,6 +326,42 @@ function SidebarNav({ collapsed, showPortfolio }: { collapsed: boolean; showPort
   );
 }
 
+/**
+ * The one switch between Simple view (the core of the six steps) and all
+ * tools. The same preference keeps the step-by-step guide short; see
+ * `useHiddenModules`. Says what it will do, not what it is, so "Show all
+ * tools" reads as an action a newcomer can take without knowing the term.
+ */
+function SimpleViewToggle({ collapsed }: { collapsed: boolean }) {
+  const { isSimpleMode, setSimpleMode } = useWorkflowExperience();
+  const label = isSimpleMode ? "Show all tools" : "Simple view";
+  const Icon = isSimpleMode ? LayoutGrid : Sparkles;
+
+  return (
+    <button
+      type="button"
+      onClick={() => setSimpleMode(!isSimpleMode)}
+      title={
+        collapsed
+          ? label
+          : isSimpleMode
+            ? "Also show specialist tools: suppliers, certification, drift, Command Center…"
+            : "Show only the core of each step"
+      }
+      aria-label={label}
+      className={cn(
+        "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors",
+        "hover:bg-secondary hover:text-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      )}
+    >
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      {!collapsed && <span>{label}</span>}
+    </button>
+  );
+}
+
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-3">
@@ -376,7 +415,8 @@ function Sidebar({ showPortfolio = false }: { showPortfolio?: boolean }) {
 
       <SidebarNav collapsed={collapsed} showPortfolio={showPortfolio} />
 
-      <div className="border-t border-border p-2">
+      <div className="flex flex-col gap-0.5 border-t border-border p-2">
+        <SimpleViewToggle collapsed={collapsed} />
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
@@ -443,6 +483,9 @@ function MobileNav({ showPortfolio = false, organizationName }: { showPortfolio?
         </Link>
         <SheetBody className="flex flex-col">
           <SidebarNav collapsed={false} showPortfolio={showPortfolio} />
+          <div className="border-t border-border p-2">
+            <SimpleViewToggle collapsed={false} />
+          </div>
         </SheetBody>
       </SheetContent>
     </Sheet>

@@ -12,7 +12,6 @@ import {
   RotateCcw,
   Sparkles,
   Sun,
-  Wand2,
 } from "lucide-react";
 import { useUserPersonalization, LANDING_MODULE_OPTIONS } from "@/lib/use-user-personalization";
 import type { Density } from "@/components/data-grid/data-grid-types";
@@ -20,7 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { ALWAYS_VISIBLE_HREF, useNavCustomization } from "../../_components/nav-customization";
+import {
+  ALWAYS_VISIBLE_HREF,
+  SIMPLE_VIEW_HIDDEN,
+  useNavCustomization,
+} from "../../_components/nav-customization";
 import { PAGE_GUIDES_HIDDEN_KEY } from "@/components/common/module-guide-panel";
 import { useModuleLabel } from "../../_components/terminology-context";
 import {
@@ -59,6 +62,12 @@ const DENSITY_OPTIONS: ReadonlyArray<{
   },
 ];
 
+/** The pages Simple view keeps out of the sidebar, in sidebar order. */
+const SIMPLE_VIEW_MODULES = PROJECT_SECTIONS.flatMap((section) => section.modules)
+  .filter((href) => SIMPLE_VIEW_HIDDEN.has(href))
+  .map((href) => findProjectModule(href))
+  .filter((module): module is ProjectModule => module !== undefined);
+
 /** Every page a reader can hide, grouped the way the sidebar groups them. Command Center is left out: it can never be hidden. */
 const HIDEABLE_SECTIONS = PROJECT_SECTIONS.map((section) => ({
   section,
@@ -84,6 +93,7 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
   const [density, setDensity] = useLayoutDensity();
   const [guidesHidden, setGuidesHidden] = useStoredFlag(PAGE_GUIDES_HIDDEN_KEY);
   const { hidden, setHidden, reset: resetNavCustomization } = useNavCustomization();
+  const { isSimpleMode } = useWorkflowExperience();
 
   return (
     <div className="flex flex-col gap-8">
@@ -230,7 +240,13 @@ export function SettingsView({ isOwner }: { isOwner: boolean }) {
                 </legend>
                 <div className="flex flex-col divide-y divide-border rounded-md border border-border">
                   {modules.map((module) => (
-                    <ModuleRow key={module.href} module={module} hidden={hidden} setHidden={setHidden} />
+                    <ModuleRow
+                      key={module.href}
+                      module={module}
+                      hidden={hidden}
+                      setHidden={setHidden}
+                      hiddenBySimpleView={isSimpleMode && SIMPLE_VIEW_HIDDEN.has(module.href)}
+                    />
                   ))}
                 </div>
               </fieldset>
@@ -271,10 +287,13 @@ function ModuleRow({
   module,
   hidden,
   setHidden,
+  hiddenBySimpleView,
 }: {
   module: ProjectModule;
   hidden: ReadonlySet<string>;
   setHidden: (href: string, isHidden: boolean) => void;
+  /** Simple view keeps it out of the sidebar whatever its box says. */
+  hiddenBySimpleView: boolean;
 }) {
   const Icon = module.icon;
   const label = useModuleLabel(module.labelKey, module.label);
@@ -295,54 +314,62 @@ function ModuleRow({
         <span className={cn("truncate text-sm font-medium", isShown ? "text-foreground" : "text-muted-foreground line-through")}>
           {label}
         </span>
-        <span className="truncate text-xs text-muted-foreground">{module.description}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {hiddenBySimpleView ? "Hidden while Simple view is on. " : ""}
+          {module.description}
+        </span>
       </label>
     </div>
   );
 }
 
+/**
+ * Simple view: the one "show me less" switch. It keeps the specialist tools
+ * (`SIMPLE_VIEW_HIDDEN`) out of the sidebar and tabs, and keeps the
+ * step-by-step guide to short summaries. Same preference the sidebar's
+ * "Show all tools" / "Simple view" button flips.
+ */
 function WorkflowExperienceSettingsCard() {
   const { isSimpleMode, setSimpleMode } = useWorkflowExperience();
+  const labels = SIMPLE_VIEW_MODULES.map((module) => module.label).join(", ");
 
   return (
     <Card className="border-primary/30 bg-card">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Wand2 className="size-4 text-primary" aria-hidden="true" />
-            <CardTitle>Workflow & Guide Experience</CardTitle>
+            <Sparkles className="size-4 text-primary" aria-hidden="true" />
+            <CardTitle>Simple view</CardTitle>
           </div>
           <Badge variant="outline" className="text-xs">
-            Personal Preference
+            {isSimpleMode ? "On" : "Off"}
           </Badge>
         </div>
         <CardDescription>
-          Customize how simple and guided your engineering workflows appear in this browser.
+          Shows only the core of each step, and keeps the step-by-step guide to short summaries. Good
+          for getting started; switch it off when your team needs the specialist tools.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 rounded-lg border border-border p-3.5 bg-muted/30">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                <Sparkles className="size-3.5 text-primary" />
-                Simplified Workflow Mode
-              </span>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Defaults step-by-step guides to plain-English 3-bullet summaries and streamlined single-action controls.
-              </p>
-            </div>
-            <label className="relative inline-flex cursor-pointer items-center shrink-0">
-              <input
-                type="checkbox"
-                checked={isSimpleMode}
-                onChange={(e) => setSimpleMode(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-        </div>
+        <label className="flex cursor-pointer items-start justify-between gap-4 rounded-lg border border-border bg-muted/30 p-3.5">
+          <span className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-foreground">Use Simple view</span>
+            <span className="text-xs text-muted-foreground">
+              Kept out of the sidebar while it is on: {labels}. They still open from links and from
+              the jump-to search (Ctrl/⌘ K).
+            </span>
+          </span>
+          <span className="relative inline-flex shrink-0 items-center">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={isSimpleMode}
+              onChange={(e) => setSimpleMode(e.target.checked)}
+              className="peer sr-only"
+            />
+            <span className="h-5 w-9 rounded-full bg-muted after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus-visible:ring-2 peer-focus-visible:ring-ring" />
+          </span>
+        </label>
 
         {/*
           A "Contextual Auto-Guide Co-Pilot" switch stood here. Nothing read
@@ -354,7 +381,7 @@ function WorkflowExperienceSettingsCard() {
         */}
 
         <div className="flex items-center justify-between pt-1">
-          <span className="text-xs text-muted-foreground">Want to test the interactive step-by-step guide now?</span>
+          <span className="text-xs text-muted-foreground">See the step-by-step guide for the page you are on.</span>
           <Button
             variant="outline"
             size="sm"
@@ -363,7 +390,7 @@ function WorkflowExperienceSettingsCard() {
             }}
             className="gap-1.5 text-xs"
           >
-            <BookOpen className="size-3.5" /> Launch Guide Drawer
+            <BookOpen className="size-3.5" /> Open the guide
           </Button>
         </div>
       </CardContent>

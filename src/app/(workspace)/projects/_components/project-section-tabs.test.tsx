@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The other half of the sidebar-plus-tabs layout: the pages of the section
@@ -14,6 +14,12 @@ vi.mock("next/navigation", () => ({
 const { ProjectSectionTabs } = await import("./project-section-tabs");
 
 const PROJECT = "/projects/p1";
+
+// These tests cover every tool, so they run with Simple view off ("Show all
+// tools"); Simple view itself is covered at the end of the sidebar tests.
+beforeEach(() => {
+  window.localStorage.setItem("pdlc:workflow-advanced-mode", "1");
+});
 
 afterEach(() => {
   pathname = `${PROJECT}/requirements`;

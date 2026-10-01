@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { progressDestinationHref } from "@/domain/project-progress";
 import { cn } from "@/lib/utils";
-import { useNavCustomization } from "../../_components/nav-customization";
+import { useHiddenModules } from "../../_components/nav-customization";
 import { CURRENT_PROJECT_PATTERN, sectionHref } from "../../_components/sidebar";
 import { useModuleLabel } from "../../_components/terminology-context";
 import {
@@ -34,7 +34,7 @@ import {
  */
 export function ProjectSectionTabs() {
   const pathname = usePathname();
-  const { hidden } = useNavCustomization();
+  const hidden = useHiddenModules();
   const projectId = pathname.match(CURRENT_PROJECT_PATTERN)?.[1] ?? null;
   const currentModule = moduleForPath(pathname);
   const section = currentModule === null ? undefined : sectionForModule(currentModule);

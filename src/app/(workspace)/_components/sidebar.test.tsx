@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The sidebar holds places, not pages: outside a project just Dashboard and
@@ -16,6 +16,12 @@ vi.mock("next/navigation", () => ({
 const { MobileNav, Sidebar } = await import("./sidebar");
 
 const PROJECT = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+
+// These tests cover every tool, so they run with Simple view off ("Show all
+// tools"); Simple view itself is covered at the end of the sidebar tests.
+beforeEach(() => {
+  window.localStorage.setItem("pdlc:workflow-advanced-mode", "1");
+});
 
 afterEach(() => {
   pathname = "/dashboard";
@@ -260,5 +266,52 @@ describe("MobileNav", () => {
     pathname = `${PROJECT}/requirements`;
     rerender(<MobileNav organizationName="Example Aerospace" />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("Simple view", () => {
+  // Simple view is the default: an unset preference reads as on.
+  beforeEach(() => {
+    window.localStorage.removeItem("pdlc:workflow-advanced-mode");
+  });
+
+  it("is on by default: the six steps, without Command Center or the specialist tools", () => {
+    pathname = PROJECT;
+    render(<Sidebar />);
+
+    const nav = primaryNav();
+    expect(nav.getAllByRole("link", { name: /^Step \d/ })).toHaveLength(6);
+    expect(nav.getByRole("link", { name: "Overview" })).toBeInTheDocument();
+    expect(nav.getByRole("link", { name: "Team" })).toBeInTheDocument();
+    expect(nav.queryByRole("link", { name: "Command Center" })).not.toBeInTheDocument();
+    // Traceability, history and Sentinel are all specialist tools, so the
+    // section that holds only them has nothing to show.
+    expect(nav.queryByRole("link", { name: "Project tools" })).not.toBeInTheDocument();
+  });
+
+  it("brings every tool back with one click, and remembers it", async () => {
+    pathname = PROJECT;
+    const user = userEvent.setup();
+    const { unmount } = render(<Sidebar />);
+
+    await user.click(screen.getByRole("button", { name: "Show all tools" }));
+
+    expect(primaryNav().getByRole("link", { name: "Command Center" })).toBeInTheDocument();
+    expect(primaryNav().getByRole("link", { name: "Project tools" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Simple view" })).toBeInTheDocument();
+    unmount();
+
+    render(<Sidebar />);
+    expect(primaryNav().getByRole("link", { name: "Command Center" })).toBeInTheDocument();
+  });
+
+  it("keeps the step itself reachable when its first page is a specialist one", () => {
+    // Step 2 is design items then suppliers; suppliers is specialist, design items is not.
+    pathname = PROJECT;
+    render(<Sidebar />);
+    expect(primaryNav().getByRole("link", { name: /^Step 2: Design/ })).toHaveAttribute(
+      "href",
+      `${PROJECT}/design-items`,
+    );
   });
 });
