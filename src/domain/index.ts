@@ -30,6 +30,7 @@ export * from "./issue";
 export * from "./links";
 export * from "./organization";
 export * from "./project";
+export * from "./quick-actions";
 export * from "./requirement";
 export * from "./risk";
 export * from "./search";

@@ -52,10 +52,10 @@ test.describe.serial("Change impact analysis", () => {
     await expect(page).toHaveURL(/\/design-items\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/verification`);
-    await page.getByRole("button", { name: "New activity" }).first().click();
+    await page.getByRole("button", { name: "New check" }).first().click();
     await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Hot fire test");
-    await page.getByRole("button", { name: "Create activity" }).click();
+    await page.getByRole("button", { name: "Create check" }).click();
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/decisions`);

@@ -156,10 +156,10 @@ test.describe.serial("Full V1 acceptance scenario", () => {
     page,
   }) => {
     await page.goto(`${projectUrl}/verification`);
-    await page.getByRole("button", { name: "New activity" }).first().click();
+    await page.getByRole("button", { name: "New check" }).first().click();
     await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Proof pressure and hot-fire test series");
-    await page.getByRole("button", { name: "Create activity" }).click();
+    await page.getByRole("button", { name: "Create check" }).click();
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
     activityUrl = page.url();
 

@@ -1,8 +1,9 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Plus, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { describeApiError } from "@/lib/api/client";
 import { useVerificationActivities } from "@/lib/api/artifacts";
 import { useProject } from "@/lib/api/projects";
@@ -28,6 +29,8 @@ import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { VerificationFormDialog } from "./verification-form-dialog";
 import { useCreateDialogState } from "@/lib/use-create-intent";
+import type { PlannedCheckDto } from "@/lib/api/quick-actions";
+import { MissingChecksBanner } from "./plan-checks";
 
 /** Verification activities for one project. Everything shown comes from the API. */
 export function VerificationView({ projectId }: { projectId: string }) {
@@ -36,6 +39,21 @@ export function VerificationView({ projectId }: { projectId: string }) {
   const { state, reload } = useVerificationActivities(projectId);
   const project = useProject(projectId);
   const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
+  /** Bumped whenever checks change here, so "N requirements have no check yet" stays current. */
+  const [refreshKey, setRefreshKey] = React.useState(0);
+  const [justPlanned, setJustPlanned] = React.useState<string | null>(null);
+
+  function handlePlanned(checks: PlannedCheckDto[]) {
+    reload();
+    setRefreshKey((key) => key + 1);
+    const first = checks[0]?.activity.identifier;
+    const last = checks[checks.length - 1]?.activity.identifier;
+    setJustPlanned(
+      checks.length === 1
+        ? `Planned ${first} for ${checks[0]?.requirementIdentifier}. Record its result when it has been done.`
+        : `Planned ${checks.length} checks, ${first} to ${last}, each linked to its requirement. Record each result when it has been done.`,
+    );
+  }
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
 
@@ -52,12 +70,32 @@ export function VerificationView({ projectId }: { projectId: string }) {
         actions={
           <Button onClick={() => setIsCreateOpen(true)}>
             <Plus aria-hidden="true" />
-            New activity
+            New check
           </Button>
         }
       />
 
-      {state.phase === "loading" && <LoadingState label="Loading verification activities…" />}
+      <MissingChecksBanner projectId={projectId} refreshKey={refreshKey} onPlanned={handlePlanned} />
+
+      {justPlanned && (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-md border border-success/30 bg-success/5 p-3 text-sm text-foreground"
+        >
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+          <span className="flex-1">{justPlanned}</span>
+          <button
+            type="button"
+            onClick={() => setJustPlanned(null)}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Dismiss"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </p>
+      )}
+
+      {state.phase === "loading" && <LoadingState label="Loading checks…" />}
 
       {state.phase === "error" && (
         <div
@@ -79,12 +117,12 @@ export function VerificationView({ projectId }: { projectId: string }) {
         (state.data.length === 0 ? (
           <EmptyState
             icon={<ShieldCheck aria-hidden="true" />}
-            title="No verification activities yet"
-            description="Plan how requirements will be verified — by analysis, inspection, test or demonstration."
+            title="No checks planned yet"
+            description="For each requirement, plan how you will show it is met — by a test, an analysis, an inspection or a demonstration."
             action={
               <Button onClick={() => setIsCreateOpen(true)}>
                 <Plus aria-hidden="true" />
-                New activity
+                New check
               </Button>
             }
           />
@@ -165,6 +203,7 @@ export function VerificationView({ projectId }: { projectId: string }) {
         onOpenChange={setIsCreateOpen}
         onSaved={(activity) => {
           reload();
+          setRefreshKey((key) => key + 1);
           router.push(`/projects/${projectId}/verification/${activity.id}`);
         }}
       />

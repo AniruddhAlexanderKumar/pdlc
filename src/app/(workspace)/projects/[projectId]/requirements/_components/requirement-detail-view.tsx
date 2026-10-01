@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, History, Lock, Pencil, Zap } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ClipboardCheck, History, Lock, Pencil, Zap } from "lucide-react";
 import type { RequirementStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
@@ -29,6 +29,7 @@ import { formatIsoDate } from "@/lib/utils";
 import { RequirementFormDialog } from "./requirement-form-dialog";
 import { RequirementTraceability } from "./requirement-traceability";
 import { RequirementImpactSimulatorUI } from "./requirement-impact-simulator-ui";
+import { PlanChecksDialog } from "../../verification/_components/plan-checks";
 
 /** Human wording for the audit actions this module writes. */
 const HISTORY_LABELS: Record<string, string> = {
@@ -306,7 +307,13 @@ export function RequirementDetailView({
         onLinksChanged={handleLinksChanged}
       />
 
-      <VerifiedBy projectId={projectId} links={requirement.links} />
+      <VerifiedBy
+        projectId={projectId}
+        requirement={requirement}
+        links={requirement.links}
+        canPlan={requirement.editable.links}
+        onPlanned={reload}
+      />
 
       <Card>
         <CardHeader>
@@ -357,7 +364,9 @@ export function RequirementDetailView({
 }
 
 /**
- * The verification activities that verify this requirement.
+ * The verification activities that verify this requirement — "checks" — and
+ * a one-click way to plan one (`PlanChecksDialog`), which creates it and
+ * links it here in a single step.
  *
  * Read entirely from the traceability links the page already loaded, so it adds
  * no request and cannot become an N+1.
@@ -371,27 +380,55 @@ export function RequirementDetailView({
  */
 function VerifiedBy({
   projectId,
+  requirement,
   links,
+  canPlan,
+  onPlanned,
 }: {
   projectId: string;
+  requirement: { id: string; identifier: string; title: string; status: RequirementStatus };
   links: RequirementLinkDto[];
+  /** Whether this requirement's links can still change (not obsolete). */
+  canPlan: boolean;
+  onPlanned: () => void;
 }) {
   const activities = links.filter((link) => link.relation === "VERIFICATION_ACTIVITY");
+  const [isPlanOpen, setIsPlanOpen] = React.useState(false);
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Verified by</CardTitle>
-        <CardDescription>
-          Activities that demonstrate this requirement is met. Open one to evaluate whether it is
-          ready to be executed.
-        </CardDescription>
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1.5">
+          <CardTitle>How it&apos;s checked</CardTitle>
+          <CardDescription>
+            The checks that show this requirement is met. Open one to record its result or see whether it
+            is ready to be done.
+          </CardDescription>
+        </div>
+        {canPlan && (
+          <Button
+            variant={activities.length === 0 ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsPlanOpen(true)}
+          >
+            <ClipboardCheck aria-hidden="true" />
+            {activities.length === 0 ? "Plan a check" : "Plan another check"}
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
+        <PlanChecksDialog
+          projectId={projectId}
+          requirements={[requirement]}
+          planAllWithoutChecks={false}
+          open={isPlanOpen}
+          onOpenChange={setIsPlanOpen}
+          onPlanned={onPlanned}
+        />
         {activities.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No verification activity is linked to this requirement yet. Nothing currently
-            demonstrates that it is met.
+            Nothing checks this requirement yet, so nothing shows it is met.
+            {canPlan && " Plan a check and it is created and linked here for you."}
           </p>
         ) : (
           <ul className="flex flex-col divide-y divide-border">

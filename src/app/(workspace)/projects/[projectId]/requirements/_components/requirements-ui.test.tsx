@@ -253,6 +253,40 @@ describe("RequirementsView", () => {
     expect(JSON.parse(post![1].body)).not.toHaveProperty("identifier");
   });
 
+  it("adds several requirements from a pasted list in one request, previewing them first", async () => {
+    routeGets();
+    const user = userEvent.setup();
+
+    render(<RequirementsView projectId={PROJECT_ID} />);
+    await screen.findByText("No requirements yet");
+
+    await user.click(screen.getAllByRole("button", { name: "Add several" })[0]!);
+    const box = await screen.findByLabelText("Requirements, one per line");
+    await user.type(box, "- The pump shall deliver 5 L/min.{enter}{enter}2. The tank shall hold 20 L.");
+
+    const preview = screen.getByRole("region", { name: "What will be added" });
+    expect(preview).toHaveTextContent("2 requirements will be added as drafts");
+    expect(preview).toHaveTextContent("The pump shall deliver 5 L/min");
+    expect(preview).toHaveTextContent("The tank shall hold 20 L");
+
+    fetchMock.mockImplementationOnce(async () =>
+      ok({
+        requirements: [
+          requirement({ identifier: "REQ-001" }),
+          requirement({ id: "req2aaaaaaaaaaaaaaaaaaaa", identifier: "REQ-002" }),
+        ],
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Add 2 requirements" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Added 2 draft requirements, REQ-001 to REQ-002");
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST")!;
+    expect(String(post[0])).toBe(`/api/projects/${PROJECT_ID}/requirements/bulk`);
+    expect(JSON.parse(post[1].body)).toEqual({
+      statements: ["The pump shall deliver 5 L/min.", "The tank shall hold 20 L."],
+    });
+  });
+
   it("goes back to automatic numbering when a typed number is abandoned", async () => {
     routeGets();
     const user = userEvent.setup();

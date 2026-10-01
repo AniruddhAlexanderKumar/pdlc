@@ -81,12 +81,12 @@ test.describe.serial("Foundational artifacts and traceability", () => {
   test("creates a verification activity and starts it", async ({ page }) => {
     await page.goto(`${projectUrl}/verification`);
 
-    await page.getByRole("button", { name: "New activity" }).first().click();
+    await page.getByRole("button", { name: "New check" }).first().click();
     await fillRecordNumber(page, "VER-001");
     await page.getByLabel(/^Title/).fill("Chamber pressure hot-fire test");
     await page.getByLabel(/^Method/).selectOption("TEST");
     await page.getByLabel(/^Planned date/).fill("2026-04-01");
-    await page.getByRole("button", { name: "Create activity" }).click();
+    await page.getByRole("button", { name: "Create check" }).click();
 
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
     await expect(page.getByRole("button", { name: "Record pass" })).toHaveCount(0);

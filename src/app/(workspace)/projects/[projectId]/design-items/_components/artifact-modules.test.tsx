@@ -369,7 +369,7 @@ describe("VerificationView", () => {
 
     render(<VerificationView projectId={PROJECT_ID} />);
 
-    expect(await screen.findByText("No verification activities yet")).toBeInTheDocument();
+    expect(await screen.findByText("No checks planned yet")).toBeInTheDocument();
   });
 
   it("renders activities with method, status and dates", async () => {

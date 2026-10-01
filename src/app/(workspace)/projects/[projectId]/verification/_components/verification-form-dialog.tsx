@@ -65,10 +65,10 @@ export function VerificationFormDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {isCreate ? "New verification activity" : "Edit verification activity"}
+            {isCreate ? "New check" : "Edit check"}
           </DialogTitle>
           <DialogDescription>
-            How a requirement will be shown to be met — by analysis, inspection, test or
+            How you will show a requirement is met — by a test, an analysis, an inspection or a
             demonstration.
           </DialogDescription>
         </DialogHeader>
@@ -260,7 +260,7 @@ function FormBody({
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : isCreate ? "Create activity" : "Save changes"}
+          {isSubmitting ? "Saving…" : isCreate ? "Create check" : "Save changes"}
         </Button>
       </DialogFooter>
     </form>

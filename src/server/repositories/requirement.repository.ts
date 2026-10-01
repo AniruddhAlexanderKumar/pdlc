@@ -251,6 +251,44 @@ export async function listRequirementsInProject(
   return rows.map((row) => ({ ...toRequirement(row), owner: row.owner }));
 }
 
+/** Just enough of a requirement to plan a check for it. */
+export interface RequirementCheckCandidate {
+  id: string;
+  identifier: string;
+  title: string;
+  status: RequirementStatus;
+}
+
+/**
+ * The project's requirements that no verification activity is linked to
+ * yet — what still needs a way to be checked. Obsolete requirements are
+ * left out: they need no check, and their links cannot change anyway.
+ * Ordered like the requirement list.
+ */
+export async function listRequirementsWithoutVerification(
+  projectId: string,
+  client: DbClient = prisma,
+): Promise<RequirementCheckCandidate[]> {
+  return client.requirement.findMany({
+    where: { projectId, status: { not: "OBSOLETE" }, verificationLinks: { none: {} } },
+    orderBy: [{ identifier: "asc" }, { id: "asc" }],
+    select: { id: true, identifier: true, title: true, status: true },
+  });
+}
+
+/** The given requirements, only those that belong to `projectId`. */
+export async function findRequirementsInProject(
+  projectId: string,
+  requirementIds: readonly string[],
+  client: DbClient = prisma,
+): Promise<RequirementCheckCandidate[]> {
+  return client.requirement.findMany({
+    where: { projectId, id: { in: [...requirementIds] } },
+    orderBy: [{ identifier: "asc" }, { id: "asc" }],
+    select: { id: true, identifier: true, title: true, status: true },
+  });
+}
+
 /** The owner record for a requirement, or null. Never selects credential fields. */
 export async function findRequirementOwner(
   ownerId: string,

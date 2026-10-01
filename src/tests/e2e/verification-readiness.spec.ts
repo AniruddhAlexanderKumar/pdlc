@@ -62,10 +62,10 @@ test.describe.serial("Verification readiness", () => {
     await expect(page).toHaveURL(/\/decisions\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/verification`);
-    await page.getByRole("button", { name: "New activity" }).first().click();
+    await page.getByRole("button", { name: "New check" }).first().click();
     await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Proof pressure test");
-    await page.getByRole("button", { name: "Create activity" }).click();
+    await page.getByRole("button", { name: "Create check" }).click();
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
     activityUrl = page.url();
 
@@ -92,10 +92,10 @@ test.describe.serial("Verification readiness", () => {
   test("shows the linked verification activity on the requirement", async ({ page }) => {
     await page.goto(requirementUrl);
 
-    const verifiedBy = page.getByRole("heading", { name: "Verified by" });
+    const verifiedBy = page.getByRole("heading", { name: "How it's checked" });
     await expect(verifiedBy).toBeVisible();
     // No fabricated readiness summary here — just the real link.
-    await expect(page.getByText(/Open one to evaluate whether it is ready/i)).toBeVisible();
+    await expect(page.getByText(/Open one to record its result/i)).toBeVisible();
   });
 
   test("shows no assessment until one is explicitly evaluated", async ({ page }) => {

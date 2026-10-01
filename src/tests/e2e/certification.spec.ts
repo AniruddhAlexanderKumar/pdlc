@@ -123,11 +123,11 @@ test.describe.serial("Certification workspace", () => {
     await expect(page).toHaveURL(/\/requirements\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/verification`);
-    await page.getByRole("button", { name: "New activity" }).first().click();
+    await page.getByRole("button", { name: "New check" }).first().click();
     await fillRecordNumber(page, "VA-001");
     await page.getByLabel(/^Title/).fill("Cabin altitude analysis");
     await page.getByLabel(/^Method/).selectOption("ANALYSIS");
-    await page.getByRole("button", { name: "Create activity" }).click();
+    await page.getByRole("button", { name: "Create check" }).click();
     await expect(page).toHaveURL(/\/verification\/[a-z0-9]+$/);
 
     await page.goto(`${projectUrl}/certification/items`);

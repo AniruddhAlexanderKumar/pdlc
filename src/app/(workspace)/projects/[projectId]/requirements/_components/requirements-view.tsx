@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, BookOpen, ListChecks, Plus, RefreshCw, Search, Wand2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ListChecks, ListPlus, Plus, RefreshCw, Search, X } from "lucide-react";
 import { REQUIREMENT_STATUSES, type RequirementStatus } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import { useProject } from "@/lib/api/projects";
@@ -37,8 +37,7 @@ import {
 } from "@/components/data-grid";
 import { formatIsoDate } from "@/lib/utils";
 import { RequirementFormDialog } from "./requirement-form-dialog";
-import { RequirementsStarterWizard } from "./requirements-starter-wizard";
-import { ApprovalConflictPanel } from "./approval-conflict-panel";
+import { AddSeveralRequirementsDialog } from "./add-several-requirements-dialog";
 import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /**
@@ -64,7 +63,9 @@ export function RequirementsView({ projectId }: { projectId: string }) {
   const { state, reload } = useRequirements(projectId, filters.status);
   const project = useProject(projectId);
   const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
-  const [isStarterOpen, setIsStarterOpen] = React.useState(false);
+  const [isAddSeveralOpen, setIsAddSeveralOpen] = React.useState(false);
+  /** Shown after "Add several": what was just added, so the reader can find it in the list. */
+  const [justAdded, setJustAdded] = React.useState<string | null>(null);
   const [selectedIds, setSelectedIds] = React.useState<ReadonlySet<string>>(new Set());
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -211,21 +212,18 @@ export function RequirementsView({ projectId }: { projectId: string }) {
             : "Formal engineering requirements for this project."
         }
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                window.dispatchEvent(
-                  new CustomEvent("pdlc:open-step-by-step-guide", { detail: "requirements" })
-                );
-              }}
-            >
-              <BookOpen aria-hidden="true" className="text-primary" />
-              Step-by-Step Guide
-            </Button>
-            <Button variant="outline" onClick={() => setIsStarterOpen(true)}>
-              <Wand2 aria-hidden="true" className="text-primary" />
-              Requirements Starter
+          <div className="flex flex-wrap items-center gap-2">
+            {/*
+              "Step-by-Step Guide" lived here too; it is one click away in
+              the Help menu (?), which opens it on this page's chapter. The
+              "Requirements Starter" that stood beside it filled in a fixed
+              avionics requirement with a random number for every project in
+              every industry — "Add several" turns the reader's own list
+              into requirements instead.
+            */}
+            <Button variant="outline" onClick={() => setIsAddSeveralOpen(true)}>
+              <ListPlus aria-hidden="true" className="text-primary" />
+              Add several
             </Button>
             {/*
               A "Health Dashboard" button stood here. The page behind it
@@ -250,7 +248,28 @@ export function RequirementsView({ projectId }: { projectId: string }) {
         }
       />
 
-      <ApprovalConflictPanel conflicts={[]} />
+      {/*
+        A "Stakeholder Agreement Status" panel stood here, always handed an
+        empty list and so always announcing "No active stakeholder
+        interpretation conflicts detected" — a verdict nothing computed.
+      */}
+      {justAdded && (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-md border border-success/30 bg-success/5 p-3 text-sm text-foreground"
+        >
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+          <span className="flex-1">{justAdded}</span>
+          <button
+            type="button"
+            onClick={() => setJustAdded(null)}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Dismiss"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </p>
+      )}
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
@@ -333,7 +352,7 @@ export function RequirementsView({ projectId }: { projectId: string }) {
             description={
               filters.status
                 ? "Clear the filter to see the project's other requirements."
-                : "Create the first requirement to start building this project's engineering record."
+                : "Write down what the product must do — one at a time, or paste a list you already have."
             }
             action={
               filters.status ? (
@@ -341,10 +360,16 @@ export function RequirementsView({ projectId }: { projectId: string }) {
                   Clear filter
                 </Button>
               ) : (
-                <Button onClick={() => setIsCreateOpen(true)}>
-                  <Plus aria-hidden="true" />
-                  New requirement
-                </Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button onClick={() => setIsCreateOpen(true)}>
+                    <Plus aria-hidden="true" />
+                    New requirement
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsAddSeveralOpen(true)}>
+                    <ListPlus aria-hidden="true" />
+                    Paste a list
+                  </Button>
+                </div>
               )
             }
           />
@@ -448,10 +473,20 @@ export function RequirementsView({ projectId }: { projectId: string }) {
         </SheetContent>
       </Sheet>
 
-      <RequirementsStarterWizard
-        isOpen={isStarterOpen}
-        onClose={() => setIsStarterOpen(false)}
-        onRequirementGenerated={() => reload()}
+      <AddSeveralRequirementsDialog
+        projectId={projectId}
+        open={isAddSeveralOpen}
+        onOpenChange={setIsAddSeveralOpen}
+        onAdded={(created) => {
+          reload();
+          const first = created[0]?.identifier;
+          const last = created[created.length - 1]?.identifier;
+          setJustAdded(
+            created.length === 1
+              ? `Added ${first} as a draft.`
+              : `Added ${created.length} draft requirements, ${first} to ${last}. Open any of them to add detail or send it for review.`,
+          );
+        }}
       />
     </div>
   );
