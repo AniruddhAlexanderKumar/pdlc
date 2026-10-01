@@ -33,6 +33,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { ObservationFormDialog } from "./observation-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /**
  * Operational observations for one project.
@@ -47,7 +48,7 @@ export function ObservationsView({ projectId }: { projectId: string }) {
   const { state, reload } = useObservations(projectId, status);
   const project = useProject(projectId);
 
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
   const [editing, setEditing] = React.useState<ObservationDto | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);

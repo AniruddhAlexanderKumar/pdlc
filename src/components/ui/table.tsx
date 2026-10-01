@@ -74,7 +74,13 @@ TableCell.displayName = "TableCell";
 
 const TableCaption = React.forwardRef<HTMLTableCaptionElement, React.HTMLAttributes<HTMLTableCaptionElement>>(
   ({ className, ...props }, ref) => (
-    <caption ref={ref} className={cn("mt-3 text-sm text-muted-foreground", className)} {...props} />
+    <caption
+      ref={ref}
+      // Inside the table's border, not flush against it: a visible caption
+      // renders within the bordered wrapper, below the last row.
+      className={cn("border-t border-border px-4 py-3 text-xs leading-relaxed text-muted-foreground", className)}
+      {...props}
+    />
   ),
 );
 TableCaption.displayName = "TableCaption";

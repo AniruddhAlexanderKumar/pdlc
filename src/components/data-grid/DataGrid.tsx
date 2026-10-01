@@ -93,8 +93,10 @@ export function DataGrid<T>({
   });
 
   const columnWidths = visibleColumns.map((c) => grid.columnWidths[c.id] ?? c.width ?? DEFAULT_COLUMN_WIDTH);
-  const gridTemplateColumns =
-    (selectable ? `${SELECT_COLUMN_WIDTH}px ` : "") + columnWidths.map((w) => `${w}px`).join(" ");
+  const columnTracks = visibleColumns.map((c, index) =>
+    c.grow && grid.columnWidths[c.id] === undefined ? `minmax(${columnWidths[index]}px, 1fr)` : `${columnWidths[index]}px`,
+  );
+  const gridTemplateColumns = (selectable ? `${SELECT_COLUMN_WIDTH}px ` : "") + columnTracks.join(" ");
   const totalColumnCount = visibleColumns.length + (selectable ? 1 : 0);
   // The first *data* column freezes on horizontal scroll (§2), offset past
   // the selection checkbox column when one is present — both cannot sit at
@@ -279,7 +281,11 @@ export function DataGrid<T>({
                   aria-orientation="vertical"
                   onMouseDown={(event) => {
                     event.preventDefault();
-                    handleResizeStart(column.id, event.clientX, columnWidths[colIndex]!);
+                    // The header cell's rendered width, not the column's nominal
+                    // one — a `grow` column is usually wider than its `width`,
+                    // and the drag should start from what the reader sees.
+                    const rendered = event.currentTarget.parentElement?.getBoundingClientRect().width;
+                    handleResizeStart(column.id, event.clientX, rendered || columnWidths[colIndex]!);
                   }}
                   className="absolute -right-1 top-0 h-full w-2 cursor-col-resize select-none"
                 />

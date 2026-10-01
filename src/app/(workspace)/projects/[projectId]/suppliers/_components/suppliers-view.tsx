@@ -27,6 +27,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { SupplierFormDialog } from "./supplier-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /**
  * Suppliers for one project.
@@ -41,7 +42,7 @@ export function SuppliersView({ projectId }: { projectId: string }) {
   const { state, reload } = useSuppliers(projectId, status);
   const project = useProject(projectId);
   const access = useMyProjectAccess(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
   // Convenience only — the server re-derives and enforces this on every

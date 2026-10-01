@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createIntentHref } from "@/lib/use-create-intent";
 import {
   PROGRESS_STAGE_DEFINITIONS,
   type ProgressStage,
@@ -333,5 +334,38 @@ describe("no aggregate", () => {
       const text = JSON.stringify(progressSteps(scenario)).toLowerCase();
       expect(text).not.toMatch(/\d\s*%|\bpercent|\bscore|\brating|\b\d+\s*(of|\/)\s*\d+\b/);
     }
+  });
+});
+
+describe("progress links that create", () => {
+  it("opens the destination's New form when the action is to create the first record", () => {
+    const steps = progressSteps(emptyProgressFacts());
+    const define = steps.find((step) => step.stage === "DEFINE")!;
+
+    expect(define.actionLabel).toBe("Write the first requirement");
+    expect(define.opensForm).toBe(true);
+    expect(progressDestinationHref("p1", define.destination, define.opensForm)).toBe(
+      "/projects/p1/requirements?new=1",
+    );
+  });
+
+  it("links to the plain page when the action is to review or finish what exists", () => {
+    const facts = emptyProgressFacts();
+    facts.requirements = { ...facts.requirements, total: 2, draft: 1 };
+    const define = progressSteps(facts).find((step) => step.stage === "DEFINE")!;
+
+    expect(define.actionLabel).toBe("Finish the drafts");
+    expect(define.opensForm).toBe(false);
+    expect(progressDestinationHref("p1", define.destination, define.opensForm)).toBe("/projects/p1/requirements");
+  });
+
+  it("never adds the form parameter to the release check, which has no form", () => {
+    expect(progressDestinationHref("p1", "release-check", true)).toBe(
+      "/projects/p1?gate=RELEASE_READY#release-check",
+    );
+  });
+
+  it("uses the same parameter the list pages read", () => {
+    expect(progressDestinationHref("p1", "risks", true)).toBe(createIntentHref("/projects/p1/risks"));
   });
 });

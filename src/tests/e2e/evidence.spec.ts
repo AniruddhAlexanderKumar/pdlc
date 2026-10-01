@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, signOut } from "./helpers";
 
 /**
  * Evidence, end to end:
@@ -137,7 +137,7 @@ test.describe.serial("Evidence", () => {
     const projectId = new URL(projectUrl).pathname.split("/").pop();
     const apiBase = new URL(evidenceUrl).origin;
 
-    await page.getByRole("button", { name: /sign out/i }).click();
+    await signOut(page);
     await signUpNewAccount(page, "evidence-other");
 
     const response = await page.request.get(

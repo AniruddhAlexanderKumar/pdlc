@@ -104,14 +104,18 @@ export function TraceabilityView({ projectId }: { projectId: string }) {
     );
   }
 
-  function openRoot(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!nodeType || !pendingObjectId || roots.state.phase !== "ready") return;
-    const option = roots.state.data.find((candidate) => candidate.id === pendingObjectId);
+  function openObject(objectId: string) {
+    if (!nodeType || !objectId || roots.state.phase !== "ready") return;
+    const option = roots.state.data.find((candidate) => candidate.id === objectId);
     if (!option) return;
 
     setCurrent({ type: nodeType, id: option.id, identifier: option.identifier, label: option.label });
     setHistory([]);
+  }
+
+  function openRoot(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    openObject(pendingObjectId);
   }
 
   function navigateTo(node: GraphNodeDto) {
@@ -195,7 +199,14 @@ export function TraceabilityView({ projectId }: { projectId: string }) {
                 <Select
                   id="traceability-object"
                   value={pendingObjectId}
-                  onChange={(event) => setPendingObjectId(event.target.value)}
+                  // Choosing the object is the decision — it opens straight
+                  // away, below, without moving focus. Open stays for anyone
+                  // who reaches for a button anyway, and re-opens the same
+                  // object from the start of its trail.
+                  onChange={(event) => {
+                    setPendingObjectId(event.target.value);
+                    openObject(event.target.value);
+                  }}
                   disabled={!nodeType || roots.state.phase !== "ready" || roots.state.data.length === 0}
                 >
                   <option value="">

@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Plus, RefreshCw, Users } from "lucide-react";
@@ -26,6 +25,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { StakeholderNeedFormDialog } from "./stakeholder-need-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /** Stakeholder needs for one project. Everything shown comes from the API. */
 export function StakeholderNeedsView({ projectId }: { projectId: string }) {
@@ -34,7 +34,7 @@ export function StakeholderNeedsView({ projectId }: { projectId: string }) {
   const { state, reload } = useStakeholderNeeds(projectId);
   const project = useProject(projectId);
   const access = useMyProjectAccess(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
   // Convenience only — the server re-derives and enforces this on every

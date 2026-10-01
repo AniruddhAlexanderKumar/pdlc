@@ -53,3 +53,9 @@ export async function signIn(page: Page, account: E2EAccount): Promise<void> {
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/\/dashboard$/);
 }
+
+/** Signs out through the account menu behind the avatar in the top bar. */
+export async function signOut(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /^Account:/ }).click();
+  await page.getByRole("button", { name: /sign out/i }).click();
+}

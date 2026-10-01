@@ -28,6 +28,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemFormDialog } from "./item-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /**
  * Compliance items under the programme's active certification basis.
@@ -39,7 +40,7 @@ export function ItemsView({ projectId }: { projectId: string }) {
   const bases = useBases(projectId);
   const activeBasis = bases.state.phase === "ready" ? bases.state.data.find((b) => b.status === "ACTIVE") : null;
   const items = useItems(projectId, activeBasis?.id ?? "");
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const [applicabilityFilter, setApplicabilityFilter] = React.useState<ComplianceApplicability | "">("");
   const [statusFilter, setStatusFilter] = React.useState<ComplianceItemStatus | "">("");

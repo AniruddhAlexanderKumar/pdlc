@@ -27,6 +27,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { ChangeFormDialog } from "./change-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /** Change requests for one project. Everything shown comes from the API. */
 export function ChangesView({ projectId }: { projectId: string }) {
@@ -35,7 +36,7 @@ export function ChangesView({ projectId }: { projectId: string }) {
   const [status, setStatus] = React.useState<ChangeRequestStatus | "">("");
   const { state, reload } = useChangeRequests(projectId, status);
   const project = useProject(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
 

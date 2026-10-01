@@ -39,6 +39,7 @@ import { formatIsoDate } from "@/lib/utils";
 import { RequirementFormDialog } from "./requirement-form-dialog";
 import { RequirementsStarterWizard } from "./requirements-starter-wizard";
 import { ApprovalConflictPanel } from "./approval-conflict-panel";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /**
  * Requirements list for one project, through the shared data grid (Master
@@ -62,7 +63,7 @@ export function RequirementsView({ projectId }: { projectId: string }) {
   const [filters, setFilters] = useUrlFilterState<RequirementFilters>(FILTER_DEFAULTS);
   const { state, reload } = useRequirements(projectId, filters.status);
   const project = useProject(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
   const [isStarterOpen, setIsStarterOpen] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<ReadonlySet<string>>(new Set());
   const [detailId, setDetailId] = React.useState<string | null>(null);
@@ -90,7 +91,8 @@ export function RequirementsView({ projectId }: { projectId: string }) {
         id: "identifier",
         header: "Identifier",
         alwaysVisible: true,
-        width: 130,
+        // Room for a prefixed identifier ("SCN-42182754-REQ-001") in full.
+        width: 200,
         accessor: (r) => r.identifier,
         cell: (r) => (
           <Identifier
@@ -104,6 +106,7 @@ export function RequirementsView({ projectId }: { projectId: string }) {
         id: "title",
         header: "Title",
         width: 320,
+        grow: true,
         accessor: (r) => r.title,
         cell: (r) => (
           <span className="flex items-center gap-2">
@@ -280,9 +283,16 @@ export function RequirementsView({ projectId }: { projectId: string }) {
               ref={searchInputRef}
               value={filters.q}
               onChange={(event) => setFilters({ q: event.target.value })}
-              placeholder="Identifier or title… (press / to focus)"
-              className="h-8 w-64 pl-8"
+              placeholder="Identifier or title…"
+              title="Press / to jump here"
+              className="h-8 w-72 max-w-full pl-8 pr-8"
             />
+            <kbd
+              className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border bg-secondary px-1 font-mono text-[10px] text-muted-foreground"
+              aria-hidden="true"
+            >
+              /
+            </kbd>
           </div>
         </div>
 

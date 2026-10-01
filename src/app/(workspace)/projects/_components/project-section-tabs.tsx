@@ -55,7 +55,15 @@ export function ProjectSectionTabs() {
     <div className="-mt-2 mb-6 flex flex-col gap-2 border-b border-border">
       {isStep && <StepContext projectId={projectId} section={section} hidden={hidden} />}
       {tabs.length > 1 && (
-        <nav aria-label={`${section.label} pages`} className="-mb-px flex flex-wrap gap-x-1">
+        /*
+          Scrolls sideways rather than wrapping: wrapped tabs on a phone
+          stacked into a column of links, each on its own line, with the
+          active underline no longer reading as "one row, this one".
+        */
+        <nav
+          aria-label={`${section.label} pages`}
+          className="-mb-px flex gap-x-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {tabs.map((module) => (
             <SectionTab
               key={module.href}
@@ -123,7 +131,7 @@ function SectionTab({ module, href, isActive }: { module: ProjectModule; href: s
       aria-current={isActive ? "page" : undefined}
       title={module.description}
       className={cn(
-        "flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+        "flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isActive
           ? "border-primary text-foreground"

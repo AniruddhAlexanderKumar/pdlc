@@ -8,6 +8,7 @@
  */
 export * from "./shared/enums";
 export * from "./shared/identifier";
+export * from "./shared/code-label";
 export * from "./access-control";
 export * from "./artifacts";
 export * from "./assumption-monitoring";

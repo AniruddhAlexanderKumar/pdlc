@@ -15,6 +15,7 @@ import {
   type CommandCenterView,
   ACTIVE_CHANGE_REQUEST_STATUSES,
   TECHNICAL_READINESS_GATES,
+  codeWords,
   hasCertificationReview,
   hasDriftAssessment,
   hasTechnicalReadiness,
@@ -579,8 +580,8 @@ function buildAttentionItems(sections: {
           state: gate.status,
           reason:
             gate.status === "NOT_READY"
-              ? `${technicalReadinessGateLabel(gate.gate as never)} gate is NOT_READY (${gate.blocking} blocking finding(s))`
-              : `${technicalReadinessGateLabel(gate.gate as never)} gate readiness is UNKNOWN`,
+              ? `${technicalReadinessGateLabel(gate.gate as never)} gate is not ready (${gate.blocking} blocking finding(s))`
+              : `${technicalReadinessGateLabel(gate.gate as never)} gate readiness is unknown`,
           href: gate.href,
         },
         "TECHNICAL_READINESS_GATE",
@@ -600,8 +601,8 @@ function buildAttentionItems(sections: {
         state: activity.activityStatus === "FAILED" ? "FAILED" : activity.readinessStatus,
         reason:
           activity.activityStatus === "FAILED"
-            ? `Verification activity ${activity.identifier ?? activity.title} has FAILED`
-            : `Verification activity ${activity.identifier ?? activity.title} readiness is ${activity.readinessStatus}`,
+            ? `Verification activity ${activity.identifier ?? activity.title} has failed`
+            : `Verification activity ${activity.identifier ?? activity.title} readiness is ${codeWords(activity.readinessStatus)}`,
         href: activity.href,
       },
       "VERIFICATION_ACTIVITY",
@@ -618,7 +619,7 @@ function buildAttentionItems(sections: {
         identifier: sections.certification.programIdentifier,
         title: "Certification review",
         state: sections.certification.review.status,
-        reason: `Certification review is ${sections.certification.review.status}`,
+        reason: `Certification review is ${codeWords(sections.certification.review.status)}`,
         href: sections.certification.review.href,
       },
       "CERTIFICATION_REVIEW",
@@ -634,7 +635,7 @@ function buildAttentionItems(sections: {
         identifier: finding.identifier,
         title: finding.title,
         state: finding.status,
-        reason: `Certification finding ${finding.identifier} is ${finding.status}`,
+        reason: `Certification finding ${finding.identifier} is ${codeWords(finding.status)}`,
         href: finding.href,
       },
       "CERTIFICATION_FINDING",
@@ -652,7 +653,7 @@ function buildAttentionItems(sections: {
           identifier: change.identifier,
           title: change.title,
           state: "STALE",
-          reason: `Impact analysis for ${change.identifier} is STALE`,
+          reason: `Impact analysis for ${change.identifier} is stale`,
           href: change.href,
         },
         "CHANGE_REQUEST",
@@ -690,7 +691,7 @@ function buildAttentionItems(sections: {
         reason:
           sections.drift.status === "DRIFT_DETECTED"
             ? `Drift detected (${sections.drift.findings} finding(s))`
-            : "Drift status is UNKNOWN",
+            : "Drift status is unknown",
         href: sections.drift.href,
       },
       "DRIFT_ASSESSMENT",
@@ -707,7 +708,7 @@ function buildAttentionItems(sections: {
         identifier: risk.identifier,
         title: risk.title,
         state: risk.status,
-        reason: `Risk ${risk.identifier} is OPEN`,
+        reason: `Risk ${risk.identifier} is open`,
         href: risk.href,
       },
       "RISK",
@@ -725,7 +726,7 @@ function buildAttentionItems(sections: {
           identifier: issue.identifier,
           title: issue.title,
           state: issue.severity,
-          reason: `Issue ${issue.identifier} is ${issue.severity} and ${issue.status}`,
+          reason: `Issue ${issue.identifier} is ${codeWords(issue.severity)} and ${codeWords(issue.status)}`,
           href: issue.href,
         },
         "ISSUE",
@@ -743,7 +744,7 @@ function buildAttentionItems(sections: {
         identifier: supplier.identifier,
         title: supplier.title,
         state: "UNDER_REVIEW",
-        reason: `Supplier ${supplier.identifier} is UNDER_REVIEW`,
+        reason: `Supplier ${supplier.identifier} is under review`,
         href: supplier.href,
       },
       "SUPPLIER",
@@ -759,7 +760,7 @@ function buildAttentionItems(sections: {
         identifier: item.identifier,
         title: item.title,
         state: "UNDER_REVIEW",
-        reason: `Supplied item ${item.identifier} is UNDER_REVIEW`,
+        reason: `Supplied item ${item.identifier} is under review`,
         href: item.href,
       },
       "SUPPLIED_ITEM",
@@ -775,7 +776,7 @@ function buildAttentionItems(sections: {
         identifier: qualification.identifier,
         title: qualification.title,
         state: qualification.status,
-        reason: `Supplier qualification ${qualification.title} is ${qualification.status}`,
+        reason: `Supplier qualification ${qualification.title} is ${codeWords(qualification.status)}`,
         href: qualification.href,
       },
       "SUPPLIER_QUALIFICATION",

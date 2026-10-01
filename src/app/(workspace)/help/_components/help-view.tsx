@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EdgeRegistryExplorer } from "@/components/domain-explorers/edge-registry-explorer";
 import { LifecycleExplorer } from "@/components/domain-explorers/lifecycle-explorer";
 import { TraversalLimitsSimulator } from "@/components/domain-explorers/traversal-limits-simulator";
+import { HelpEventButton } from "./help-event-button";
 import { TaskGuides } from "./task-guides";
 
 const FAQ: ReadonlyArray<{ id: string; question: string; answer: string }> = [
@@ -21,7 +22,7 @@ const FAQ: ReadonlyArray<{ id: string; question: string; answer: string }> = [
     id: "jump-to",
     question: "Is there a faster way to get to a module than clicking through the sidebar?",
     answer:
-      "Press Ctrl K (or ⌘K) from anywhere in the app, or click the search icon in the top bar. It searches navigation destinations only — modules, Settings, Organization — never engineering data itself, since there is no full-text search index for that. Whatever you've removed from your sidebar is absent here too; whatever you've renamed (see the next question) shows up under your organization's own word for it.",
+      "Press Ctrl K (or ⌘K) from anywhere in the app, or click the search box in the top bar. It jumps to any page, finds records by identifier or by their text, and starts new ones: type “new” (or the kind of record, like “risk”) and pick “New risk” to land on Risks with its form already open. Whatever you've removed from your sidebar is absent here too; whatever you've renamed (see the next question) shows up under your organization's own word for it.",
   },
   {
     id: "renaming",
@@ -50,7 +51,7 @@ const FAQ: ReadonlyArray<{ id: string; question: string; answer: string }> = [
 ];
 
 const SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
-  { keys: "Ctrl K", action: "Open the jump-to command palette, from anywhere" },
+  { keys: "Ctrl K", action: "Open the jump-to command palette — search, go to any page, or start a new record" },
   { keys: "↑ / ↓", action: "Move through command palette or search results" },
   { keys: "Enter", action: "Go to the highlighted result" },
   { keys: "Esc", action: "Close the command palette, a dialog, or a sheet" },
@@ -113,27 +114,14 @@ export function HelpView() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-0">
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                onClick={() => {
-                  window.dispatchEvent(new Event("pdlc:open-step-by-step-guide"));
-                }}
-                className="gap-1.5"
-              >
+              <HelpEventButton event="pdlc:open-step-by-step-guide">
                 <BookOpen className="size-4" />
                 Open Step-by-Step Guide
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  window.dispatchEvent(new Event("pdlc:open-onboarding-tour"));
-                }}
-                className="gap-1.5"
-              >
+              </HelpEventButton>
+              <HelpEventButton event="pdlc:open-onboarding-tour" variant="outline">
                 <Compass className="size-4 text-primary" />
                 Launch Onboarding Tour
-              </Button>
+              </HelpEventButton>
               <Button asChild variant="outline" size="sm" className="gap-1.5">
                 <Link href="/docs/step-by-step-guide">Read Full Step Guide Page</Link>
               </Button>

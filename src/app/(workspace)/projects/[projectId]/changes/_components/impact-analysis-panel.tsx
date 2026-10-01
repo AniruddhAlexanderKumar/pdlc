@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { AlertTriangle, ChevronRight, Info, Play, RefreshCw } from "lucide-react";
-import type { ImpactClassification } from "@/domain";
+import { codeLabel, type ImpactClassification } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import {
   type ImpactAnalysisReportDto,
@@ -88,10 +88,13 @@ const NODE_TYPE_LABELS: Record<string, string> = {
   CHANGE_REQUEST: "Change request",
   EVIDENCE: "Evidence",
   APPROVAL: "Approval",
+  SUPPLIER: "Supplier",
+  SUPPLIED_ITEM: "Supplied item",
+  SUPPLIER_QUALIFICATION: "Supplier qualification",
 };
 
 function nodeTypeLabel(type: string): string {
-  return NODE_TYPE_LABELS[type] ?? type;
+  return NODE_TYPE_LABELS[type] ?? codeLabel(type);
 }
 
 /** Human wording for a basis marker, without softening what it does not claim. */

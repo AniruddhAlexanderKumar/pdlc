@@ -183,6 +183,17 @@ async function switchToList(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("TraceabilityView", () => {
+  it("opens an object as soon as it is chosen, without a second click", async () => {
+    routeGets({ "REQUIREMENT:req1": REQUIREMENT_NEIGHBORHOOD });
+    const user = userEvent.setup();
+    render(<TraceabilityView projectId={PROJECT_ID} />);
+
+    await user.selectOptions(screen.getByLabelText("Object type"), "REQUIREMENT");
+    await user.selectOptions(await screen.findByLabelText("Object"), REQUIREMENT.id);
+
+    await waitFor(() => expect(screen.queryByText("Nothing open yet")).not.toBeInTheDocument());
+  });
+
   it("shows a real alert when the project itself cannot be loaded, e.g. a cross-organization link", async () => {
     fetchMock.mockImplementation(async (input: string) => {
       const path = new URL(String(input), "http://localhost").pathname;

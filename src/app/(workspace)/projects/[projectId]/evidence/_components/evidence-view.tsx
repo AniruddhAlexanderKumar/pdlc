@@ -27,6 +27,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { EvidenceFormDialog } from "./evidence-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 const STATUS_LABELS: Record<EvidenceStatus, string> = {
   DRAFT: "Draft",
@@ -49,7 +50,7 @@ export function EvidenceView({ projectId }: { projectId: string }) {
   const [evidenceType, setEvidenceType] = React.useState<EvidenceType | "">("");
   const { state, reload } = useEvidenceList(projectId, status, evidenceType);
   const project = useProject(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
   const hasFilter = status !== "" || evidenceType !== "";

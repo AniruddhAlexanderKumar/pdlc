@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { GuidedModule } from "@/domain/module-guide";
 import { cn } from "@/lib/utils";
+import { CrumbLabel } from "./crumb-label";
 import { ModuleGuidePanel } from "./module-guide-panel";
 
 export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -17,10 +18,17 @@ export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   guide?: GuidedModule;
 }
 
-/** Consistent title/description/actions header used at the top of every workspace page. */
+/**
+ * Consistent title/description/actions header used at the top of every workspace page.
+ *
+ * It also names the page for the breadcrumb trail (`CrumbLabel`): on a
+ * record's own page the URL ends in a database id, and the title is where
+ * the record's identifier is.
+ */
 function PageHeader({ title, description, actions, guide, className, ...props }: PageHeaderProps) {
   return (
     <>
+      <CrumbLabel title={title} />
       <div
         className={cn(
           "flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between",

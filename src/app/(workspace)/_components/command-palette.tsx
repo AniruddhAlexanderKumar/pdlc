@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { CornerDownLeft, Search } from "lucide-react";
-import { type TerminologyLabelOverrides, resolveTerminologyLabel } from "@/domain";
+import { type TerminologyLabelKey, type TerminologyLabelOverrides, resolveTerminologyLabel } from "@/domain";
 import {
   type SearchResult,
   searchEntityLabel,
@@ -12,6 +12,7 @@ import {
 } from "@/domain/search";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useSearch } from "@/lib/api/search";
+import { createIntentHref, openCreateIntentInPlace } from "@/lib/use-create-intent";
 import { cn } from "@/lib/utils";
 import { ALWAYS_VISIBLE_HREF, useNavCustomization } from "./nav-customization";
 import { NAV_ITEMS } from "./nav-items";
@@ -26,6 +27,33 @@ interface PaletteEntry {
   section: string;
   /** The identifying line under a record — identifier, project, status. Absent on navigation entries. */
   detail?: string;
+  /** Listed only once something is typed — kept out of the opening list so it stays short. */
+  whenSearched?: boolean;
+}
+
+/**
+ * What can be started from the palette, per module: "New risk" opens the
+ * Risks page with its form already open (`?new=1`, `useCreateDialogState`).
+ */
+const CREATABLE: ReadonlyArray<{ href: string; noun: string; labelKey: TerminologyLabelKey }> = [
+  { href: "/requirements", noun: "requirement", labelKey: "requirement" },
+  { href: "/stakeholder-needs", noun: "stakeholder need", labelKey: "stakeholderNeed" },
+  { href: "/design-items", noun: "design item", labelKey: "designItem" },
+  { href: "/suppliers", noun: "supplier", labelKey: "supplier" },
+  { href: "/decisions", noun: "decision", labelKey: "decision" },
+  { href: "/verification", noun: "verification activity", labelKey: "verificationActivity" },
+  { href: "/evidence", noun: "evidence record", labelKey: "evidence" },
+  { href: "/changes", noun: "change request", labelKey: "changeRequest" },
+  { href: "/risks", noun: "risk", labelKey: "risk" },
+  { href: "/issues", noun: "issue", labelKey: "issue" },
+  { href: "/observations", noun: "observation", labelKey: "observation" },
+  { href: "/baselines", noun: "baseline", labelKey: "baseline" },
+];
+
+/** "New risk" — or, where the organization has renamed risks, "Add to Hazards", since only the plural is ever renamed. */
+function createTitle(entry: (typeof CREATABLE)[number], overrides: TerminologyLabelOverrides): string {
+  const override = overrides[entry.labelKey];
+  return override ? `Add to ${override}` : `New ${entry.noun}`;
 }
 
 /** Same fallback `useModuleLabel` applies, as a plain function instead of a hook — `overrides` is read once, here, rather than once per module, since this builds every entry in one pass rather than one component per row. */
@@ -116,6 +144,16 @@ export function CommandPalette({ showPortfolio = false }: { showPortfolio?: bool
           section: "This project",
         });
       }
+      for (const creatable of CREATABLE) {
+        if (hidden.has(creatable.href)) continue;
+        entries.push({
+          key: `create:${creatable.href}`,
+          title: createTitle(creatable, overrides),
+          href: createIntentHref(`/projects/${currentProjectId}${creatable.href}`),
+          section: "Create",
+          whenSearched: true,
+        });
+      }
     } else {
       for (const item of NAV_ITEMS) {
         if (item.href === "/dashboard" || item.href === "/projects" || hidden.has(item.href)) continue;
@@ -127,6 +165,14 @@ export function CommandPalette({ showPortfolio = false }: { showPortfolio?: bool
         });
       }
     }
+
+    entries.push({
+      key: "create:/projects",
+      title: "New project",
+      href: createIntentHref("/projects"),
+      section: "Create",
+      whenSearched: true,
+    });
 
     return entries;
   }, [currentProjectId, overrides, hidden, showPortfolio]);
@@ -158,7 +204,7 @@ export function CommandPalette({ showPortfolio = false }: { showPortfolio?: bool
             entry.title.toLowerCase().includes(trimmed) ||
             entry.section.toLowerCase().includes(trimmed),
         )
-      : allEntries;
+      : allEntries.filter((entry) => !entry.whenSearched);
 
     if (searchState.phase !== "ready") return navMatches;
 
@@ -204,7 +250,7 @@ export function CommandPalette({ showPortfolio = false }: { showPortfolio?: bool
 
   function go(href: string) {
     handleOpenChange(false);
-    router.push(href);
+    if (!openCreateIntentInPlace(href)) router.push(href);
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
@@ -223,14 +269,27 @@ export function CommandPalette({ showPortfolio = false }: { showPortfolio?: bool
 
   return (
     <>
+      {/*
+        Looks like a search box from `lg` up — an icon alone hid the one
+        control that reaches every page, every record and every "New …"
+        form, and its shortcut was only in a tooltip.
+      */}
       <button
         type="button"
         onClick={() => handleOpenChange(true)}
         aria-label="Jump to…"
         title="Jump to… (Ctrl K)"
-        className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className={cn(
+          "flex size-8 items-center justify-center gap-2 rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "lg:w-60 lg:justify-start lg:border lg:border-input lg:bg-background lg:px-2.5",
+        )}
       >
-        <Search className="size-4" aria-hidden="true" />
+        <Search className="size-4 shrink-0" aria-hidden="true" />
+        <span className="hidden flex-1 truncate text-left text-sm lg:inline">Search or create…</span>
+        <kbd className="hidden shrink-0 rounded border border-border bg-secondary px-1.5 font-mono text-[10px] lg:inline">
+          Ctrl K
+        </kbd>
       </button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -248,8 +307,8 @@ export function CommandPalette({ showPortfolio = false }: { showPortfolio?: bool
               value={query}
               onChange={(event) => handleQueryChange(event.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search records, or jump to a page…"
-              aria-label="Search records, or jump to a page"
+              placeholder="Search records, jump to a page, or type “new”…"
+              aria-label="Search records, jump to a page, or create a record"
               autoComplete="off"
               className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />

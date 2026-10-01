@@ -68,7 +68,9 @@ test.describe("Authenticated workspace shell", () => {
 
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-    await expect(page.getByText(account.organizationName)).toBeVisible();
+    await expect(page.getByText(account.organizationName).first()).toBeVisible();
+    // Name and email live in the account menu behind the avatar.
+    await page.getByRole("button", { name: /^Account:/ }).click();
     await expect(page.getByText(account.email)).toBeVisible();
   });
 

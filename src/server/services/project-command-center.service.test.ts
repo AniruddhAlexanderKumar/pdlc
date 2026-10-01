@@ -206,7 +206,7 @@ describe("mixed-state project", () => {
     expect(attention).toBeDefined();
     expect(attention!.sourceModule).toBe("TECHNICAL_READINESS");
     expect(attention!.state).toBe("NOT_READY");
-    expect(attention!.reason).toContain("NOT_READY");
+    expect(attention!.reason).toContain("not ready");
     expect(attention!.reason).toContain("2 blocking");
     expect(attention!.href).toBe(`/projects/${PROJECT_ID}`);
   });

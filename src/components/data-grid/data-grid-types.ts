@@ -19,6 +19,12 @@ export interface DataGridColumn<T> {
   accessor: (row: T) => string | number | null;
   /** Initial width in pixels. The user's own resize, once made, wins over this. */
   width?: number;
+  /**
+   * Takes whatever width the grid has left over, never less than `width` —
+   * so a wide screen shows more of the title instead of an empty strip
+   * after the last column. Stops growing once the reader resizes it.
+   */
+  grow?: boolean;
   minWidth?: number;
   align?: "left" | "right" | "center";
   /** Right-aligned tabular-nums numeric column (§3). Implies align "right" unless overridden. */

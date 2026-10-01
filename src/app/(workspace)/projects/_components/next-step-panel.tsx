@@ -73,7 +73,7 @@ export function NextStepPanel({ projectId }: { projectId: string }) {
           </ul>
         </div>
         <Button asChild className="shrink-0 self-start">
-          <Link href={progressDestinationHref(projectId, next.destination)}>
+          <Link href={progressDestinationHref(projectId, next.destination, next.opensForm)}>
             {next.actionLabel}
             <ArrowRight aria-hidden="true" />
           </Link>
@@ -120,7 +120,7 @@ function StageItem({ step, projectId, isNext }: { step: ProgressStep; projectId:
       <p className="text-xs text-muted-foreground">{step.question}</p>
       <p className="text-xs leading-relaxed text-foreground">{step.facts[0]}</p>
       <Link
-        href={progressDestinationHref(projectId, step.destination)}
+        href={progressDestinationHref(projectId, step.destination, step.opensForm)}
         className="mt-auto self-start pt-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
       >
         {step.actionLabel}

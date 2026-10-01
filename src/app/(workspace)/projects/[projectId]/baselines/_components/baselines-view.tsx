@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Layers, Plus, RefreshCw } from "lucide-react";
@@ -24,6 +23,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { BaselineFormDialog } from "./baseline-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /**
  * Engineering baselines for one project.
@@ -37,7 +37,7 @@ export function BaselinesView({ projectId }: { projectId: string }) {
   const title = useModuleLabel("baseline", "Engineering baselines");
   const { state, reload } = useBaselines(projectId);
   const project = useProject(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
 

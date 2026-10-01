@@ -170,7 +170,7 @@ function ProjectNextStep({ projectId }: { projectId: string }) {
         <span className="text-xs text-muted-foreground">{next.facts[0]}</span>
       </div>
       <Button asChild size="sm" className="shrink-0">
-        <Link href={progressDestinationHref(projectId, next.destination)}>
+        <Link href={progressDestinationHref(projectId, next.destination, next.opensForm)}>
           {next.actionLabel}
           <ArrowRight aria-hidden="true" />
         </Link>

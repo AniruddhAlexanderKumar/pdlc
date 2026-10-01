@@ -122,6 +122,44 @@ bring one back. All three controls existed only to cope with the length of
 the list; with the list short, they were removed rather than kept as
 settings that no longer do anything.
 
+**Each step shows where it stands.** The sidebar reads the project's real
+progress (`GET /api/projects/:id/progress`, the same facts the "Start
+here" panel uses) and colours each step's number by its `ProgressState`:
+a check once it is ready, amber while something waits on a reviewer, blue
+while it is being worked on. The step `nextProgressStep` picks is tagged
+"Next" — nothing is tagged once every step is ready. The state is also in
+each link's accessible name, so nothing depends on colour. Progress is
+refetched on every navigation inside the project and the previous answer
+stays on screen meanwhile; if it cannot be loaded the steps are simply
+unmarked, never guessed.
+
+**Phones get a drawer, not a rail.** From the `md` breakpoint up the
+sidebar is the familiar rail, and collapsing it is remembered
+(`SIDEBAR_COLLAPSED_KEY`, via `useStoredFlag`). Below it, the same links
+(`SidebarNav`, shared so the two cannot drift) open in a left-hand drawer
+from a menu button in the top bar (`MobileNav`). The drawer closes itself
+on navigation without an effect: "open" is stored as the path it was
+opened on. The tab bar above a page scrolls sideways instead of wrapping.
+
+**The top bar** (`top-bar.tsx`) holds the organization name (from `lg`
+up), the breadcrumb trail, the command palette — drawn as a search box
+with its `Ctrl K` hint from `lg` up — help, and the account menu. Settings,
+the organization profile and sign-out live in the account menu behind the
+avatar; spelling the user's name, email and a sign-out button out in the
+bar took a third of it and squeezed the trail to "Pr… › Requir… › cmun…".
+
+**Breadcrumbs name records, not ids.** Inside a project the trail starts
+at the project (the sidebar already links the list). A record's URL ends
+in a database id, so its crumb comes from the page itself: `PageHeader`
+renders `CrumbLabel` with its title, which publishes the title's
+identifier ("REQ-001 — Chamber pressure" → "REQ-001") to a small
+module-level store in `src/components/common/crumb-label.tsx`, and
+`Breadcrumbs` reads it back for that path. The title is derived into a
+crumb inside `CrumbLabel`, on the client, because `PageHeader` also
+renders in Server Components, which may pass values to a client module
+but never call its functions. The short id stands in until the record has loaded. On a
+phone only the current crumb is shown.
+
 ## Personal navigation customization
 
 Layered on top of organization terminology, but a genuinely separate axis:
@@ -138,13 +176,53 @@ are. `/command-center` can never be hidden (`ALWAYS_VISIBLE_HREF`) — hiding
 the front door would strand navigation. Storage written by the pinning
 version (`{ hidden, pinned }`) still reads correctly; `pinned` is ignored.
 
-The command palette itself searches navigation *destinations* only
-(modules, `/settings`, `/organization`, ...), never a full-text index of
-engineering data — this product has no search endpoint for that, and the
-palette does not pretend otherwise. It resolves labels through the same
-`resolveTerminologyLabel` the sidebar uses, so a renamed module is
-findable under the name an organization actually sees, not this product's
-internal default.
+The command palette lists navigation destinations (modules, `/settings`,
+`/organization`, ...) instantly and records from `/api/search` a moment
+later; an exact identifier match goes above everything. It resolves labels
+through the same `resolveTerminologyLabel` the sidebar uses, so a renamed
+module is findable under the name an organization actually sees, not this
+product's internal default.
+
+## Starting a record from anywhere (`?new=1`)
+
+Every list page with a "New …" button (`requirements`, `risks`,
+`changes`, ... and `/projects` itself) keeps its create-dialog state in
+`useCreateDialogState` (`src/lib/use-create-intent.ts`), which opens the
+dialog on arrival when the URL carries `?new=1` and removes the parameter
+when the dialog closes, so a reload or Back does not reopen it. It reads
+`window.location` through `useSyncExternalStore` rather than
+`useSearchParams`, so no view needs a Suspense boundary for it. Two things
+link there:
+
+- **The command palette's Create entries** — "New requirement", "New
+  risk", ... for the current project, and "New project" everywhere. They
+  appear once something is typed ("new", "risk"), so the opening list
+  stays short; a renamed type reads "Add to <the organization's word>".
+  Following one to the page you are already on updates the URL in place
+  (`openCreateIntentInPlace`), since a router push to the same page would
+  not remount it.
+- **Progress actions that create something** — "Write the first
+  requirement", "Record a decision", "Lock the current design"… A
+  `ProgressStep` whose action creates a record carries `opensForm`, and
+  `progressDestinationHref(projectId, destination, opensForm)` adds the
+  parameter, so the "Start here" panel's button and the dashboard card's
+  next step open the form instead of leaving the reader to find a second
+  button. Actions that review or finish existing records link to the plain
+  page.
+
+## Stored codes as words
+
+Statuses, states and object types travel as constants (`NOT_READY`,
+`DRIFT_DETECTED`, `SUPPLIED_ITEM`). Modules with their own label tables
+(`readinessStatusLabel`, `requirementStatusLabel`, ...) keep using them;
+everywhere else goes through `codeLabel` / `codeWords`
+(`src/domain/shared/code-label.ts`) — "Not ready" in a badge, "not ready"
+mid-sentence — so nothing reaches the screen in capitals and underscores.
+That includes the Command Center's attention reasons, which the server
+builds as sentences ("Certification review is not ready"), record history
+("Draft → Submitted", and unlisted audit actions such as
+`change.declared_impact_added` read as "Declared impact added"), and the
+impact table's object types.
 
 ## Module guides and tab-based layouts
 

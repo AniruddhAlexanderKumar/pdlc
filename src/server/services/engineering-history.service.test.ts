@@ -158,7 +158,7 @@ describe("artifact events (AuditLog-backed)", () => {
     expect(e!.sourceIdentifier).toBe("REQ-001");
     expect(e!.category).toBe("LIFECYCLE_TRANSITION");
     expect(e!.label).toBe("Status changed");
-    expect(e!.detail).toBe("DRAFT → IN_REVIEW");
+    expect(e!.detail).toBe("Draft → In review");
     expect(e!.actorId).toBe("user1");
     expect(e!.actorName).toBe("Ada");
     expect(e!.href).toBe(`/projects/${PROJECT_ID}/requirements/r1`);
@@ -235,7 +235,7 @@ describe("native-table events", () => {
     const driftEvent = result.events.find((e) => e.sourceModule === "DRIFT");
     expect(driftEvent).toBeDefined();
     expect(driftEvent!.sourceIdentifier).toBe("BL-001");
-    expect(driftEvent!.detail).toBe("DRIFT_DETECTED");
+    expect(driftEvent!.detail).toBe("Drift detected");
     expect(driftEvent!.category).toBe("ASSESSMENT");
   });
 
@@ -287,7 +287,7 @@ describe("native-table events", () => {
     const result = await service.getProjectHistory(CONTEXT, PROJECT_ID);
     const reviewEvent = result.events.find((e) => e.sourceType === "CERTIFICATION_REVIEW");
     expect(reviewEvent).toBeDefined();
-    expect(reviewEvent!.detail).toBe("READY");
+    expect(reviewEvent!.detail).toBe("Ready");
   });
 
   it("emits DETECTED, ACKNOWLEDGED and RESOLVED as three distinct events from one surveillance target", async () => {

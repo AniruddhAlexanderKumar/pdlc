@@ -54,7 +54,7 @@ afterEach(() => {
   push.mockReset();
 });
 
-const INPUT = /search records, or jump to a page/i;
+const INPUT = /search records, jump to a page/i;
 
 describe("CommandPalette navigation", () => {
   it("opens on click and lists the global destinations outside any project", async () => {
@@ -221,5 +221,59 @@ describe("CommandPalette search", () => {
     await user.click(screen.getByRole("button", { name: /jump to/i }));
 
     expect(screen.getByRole("status")).toHaveTextContent("Searching…");
+  });
+});
+
+describe("CommandPalette create", () => {
+  const PROJECT = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
+
+  it("keeps Create entries out of the opening list, so it stays short", async () => {
+    pathname = PROJECT;
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+
+    expect(screen.queryByRole("option", { name: /^New risk/ })).not.toBeInTheDocument();
+  });
+
+  it("offers every record type as a New entry once you type, opening that page's form", async () => {
+    pathname = PROJECT;
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+    await user.type(screen.getByRole("textbox", { name: INPUT }), "new");
+
+    expect(screen.getByRole("option", { name: /^New requirement/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^New change request/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^New project/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("option", { name: /^New risk/ }));
+    expect(push).toHaveBeenCalledWith(`${PROJECT}/risks?new=1`);
+  });
+
+  it("uses the organization's own word for a renamed record type", async () => {
+    pathname = PROJECT;
+    window.localStorage.clear();
+    const user = userEvent.setup();
+    const { TerminologyProvider } = await import("./terminology-context");
+    render(
+      <TerminologyProvider overrides={{ risk: "Hazards" }}>
+        <CommandPalette />
+      </TerminologyProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+    await user.type(screen.getByRole("textbox", { name: INPUT }), "hazard");
+
+    expect(screen.getByRole("option", { name: /^Add to Hazards/ })).toBeInTheDocument();
+  });
+
+  it("offers only New project outside a project", async () => {
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    await user.click(screen.getByRole("button", { name: /jump to/i }));
+    await user.type(screen.getByRole("textbox", { name: INPUT }), "new");
+
+    expect(screen.getByRole("option", { name: /^New project/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^New risk/ })).not.toBeInTheDocument();
   });
 });

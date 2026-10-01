@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -13,14 +13,27 @@ vi.mock("next/navigation", () => ({
   usePathname: () => pathname,
 }));
 
-const { Sidebar } = await import("./sidebar");
+const { MobileNav, Sidebar } = await import("./sidebar");
 
 const PROJECT = "/projects/proj1aaaaaaaaaaaaaaaaaaa";
 
 afterEach(() => {
   pathname = "/dashboard";
   window.localStorage.clear();
+  vi.unstubAllGlobals();
 });
+
+/** A progress response as `/api/projects/:id/progress` sends it — only the fields the sidebar reads. */
+function stubProgress(states: Record<string, string>, next: string) {
+  const steps = Object.entries(states).map(([stage, state]) => ({ stage, state }));
+  const fetchMock = vi.fn(async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ progress: { facts: {}, steps, next: steps.find((step) => step.stage === next) } }),
+  }));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
 
 function primaryNav() {
   return within(screen.getByRole("navigation", { name: "Primary" }));
@@ -166,5 +179,86 @@ describe("Sidebar", () => {
 
     await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
     expect(screen.getByText("What are we trying to build?")).toBeInTheDocument();
+  });
+
+  it("marks each step with its real progress, and tags the one to do next", async () => {
+    pathname = PROJECT;
+    stubProgress(
+      {
+        DEFINE: "READY",
+        DESIGN: "NEEDS_REVIEW",
+        DECIDE: "IN_PROGRESS",
+        VERIFY: "NOT_STARTED",
+        CONTROL: "NOT_STARTED",
+        RELEASE: "NOT_STARTED",
+      },
+      "DESIGN",
+    );
+    render(<Sidebar />);
+
+    expect(
+      await screen.findByRole("link", { name: "Step 1: Define — What are we trying to build? (Ready)" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Step 2: Design .*\(Needs review, next step\)$/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Step 3: Decide .*\(In progress\)$/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Next")).toHaveLength(1);
+  });
+
+  it("tags nothing as next once every step is ready", async () => {
+    pathname = PROJECT;
+    const ready = { DEFINE: "READY", DESIGN: "READY", DECIDE: "READY", VERIFY: "READY", CONTROL: "READY", RELEASE: "READY" };
+    const fetchMock = stubProgress(ready, "RELEASE");
+    render(<Sidebar />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(await screen.findByRole("link", { name: /^Step 6: .*\(Ready\)$/ })).toBeInTheDocument();
+    expect(screen.queryByText("Next")).not.toBeInTheDocument();
+  });
+
+  it("leaves the steps unmarked, not guessed, when progress cannot be loaded", async () => {
+    pathname = PROJECT;
+    const fetchMock = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Sidebar />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(screen.getByRole("link", { name: "Step 4: Verify — How do we know it works?" })).toBeInTheDocument();
+    expect(screen.queryByText("Next")).not.toBeInTheDocument();
+  });
+
+  it("remembers being collapsed", async () => {
+    pathname = PROJECT;
+    const user = userEvent.setup();
+    const { unmount } = render(<Sidebar />);
+    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    unmount();
+
+    render(<Sidebar />);
+    expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
+  });
+});
+
+describe("MobileNav", () => {
+  it("opens the same navigation in a drawer, and closes itself when you go somewhere", async () => {
+    pathname = PROJECT;
+    const user = userEvent.setup();
+    const { rerender } = render(<MobileNav organizationName="Example Aerospace" />);
+
+    expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+
+    const drawer = screen.getByRole("dialog");
+    expect(within(drawer).getByRole("link", { name: /^Step 1: Define/ })).toHaveAttribute(
+      "href",
+      `${PROJECT}/requirements`,
+    );
+    expect(within(drawer).getByRole("link", { name: "Example Aerospace" })).toHaveAttribute("href", "/organization");
+
+    // Tapping a link navigates; the drawer must not still be open on the next page.
+    pathname = `${PROJECT}/requirements`;
+    rerender(<MobileNav organizationName="Example Aerospace" />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

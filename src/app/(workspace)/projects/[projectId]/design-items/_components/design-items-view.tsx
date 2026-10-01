@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Boxes, Plus, RefreshCw } from "lucide-react";
@@ -24,6 +23,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { DesignItemFormDialog } from "./design-item-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /** Design items for one project. Everything shown comes from the API. */
 export function DesignItemsView({ projectId }: { projectId: string }) {
@@ -31,7 +31,7 @@ export function DesignItemsView({ projectId }: { projectId: string }) {
   const title = useModuleLabel("designItem", "Design items");
   const { state, reload } = useDesignItems(projectId);
   const project = useProject(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
 

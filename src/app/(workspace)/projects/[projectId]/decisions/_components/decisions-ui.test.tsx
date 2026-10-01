@@ -548,7 +548,8 @@ describe("DecisionDetailView", () => {
     render(<DecisionDetailView projectId={PROJECT_ID} decisionId={DECISION_ID} />);
 
     expect(await screen.findByText("Status changed")).toBeInTheDocument();
-    expect(screen.getByText(/Ada Lovelace · PROPOSED → UNDER_REVIEW/)).toBeInTheDocument();
+    // Statuses read as words, not stored constants.
+    expect(screen.getByText(/Ada Lovelace · Proposed → Under review/)).toBeInTheDocument();
     expect(document.body.textContent).not.toContain('{"from"');
   });
 

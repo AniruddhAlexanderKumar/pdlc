@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Plus, RefreshCw, ShieldCheck } from "lucide-react";
@@ -28,6 +27,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { VerificationFormDialog } from "./verification-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /** Verification activities for one project. Everything shown comes from the API. */
 export function VerificationView({ projectId }: { projectId: string }) {
@@ -35,7 +35,7 @@ export function VerificationView({ projectId }: { projectId: string }) {
   const title = useModuleLabel("verificationActivity", "Verification");
   const { state, reload } = useVerificationActivities(projectId);
   const project = useProject(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
 

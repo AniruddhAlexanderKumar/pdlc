@@ -3,6 +3,7 @@ import {
   type HistoryEventCategory,
   type HistoryObjectType,
   type HistorySourceModule,
+  codeLabel,
   entityIdSchema,
   historyEventLabel,
   historyObjectTypeSchema,
@@ -186,14 +187,14 @@ function detailFromMetadata(metadata: unknown): string | null {
   const data = metadata as Record<string, unknown>;
 
   if (typeof data["from"] === "string" && typeof data["to"] === "string") {
-    return `${data["from"]} → ${data["to"]}`;
+    return `${codeLabel(data["from"])} → ${codeLabel(data["to"])}`;
   }
   if (Array.isArray(data["changedFields"])) {
     const fields = data["changedFields"].filter((f): f is string => typeof f === "string");
     return fields.length > 0 ? `Changed ${fields.join(", ")}` : null;
   }
   if (typeof data["relation"] === "string") return data["relation"].replaceAll("_", " ").toLowerCase();
-  if (typeof data["status"] === "string") return data["status"];
+  if (typeof data["status"] === "string") return codeLabel(data["status"]);
   if (typeof data["identifier"] === "string") return data["identifier"];
   return null;
 }
@@ -260,7 +261,7 @@ function driftEvent(
     label: historyEventLabel("drift.evaluated"),
     actorId: assessment.evaluatedById,
     actorName: null,
-    detail: assessment.status,
+    detail: codeLabel(assessment.status),
     href: `/projects/${projectId}/drift`,
   };
 }
@@ -282,7 +283,7 @@ function technicalReadinessEvent(
     label: historyEventLabel("technical_readiness.evaluated"),
     actorId: assessment.evaluatedById,
     actorName: null,
-    detail: assessment.status,
+    detail: codeLabel(assessment.status),
     href: `/projects/${projectId}`,
   };
 }
@@ -305,7 +306,7 @@ function verificationReadinessEvent(
     label: historyEventLabel("verification_readiness.evaluated"),
     actorId: assessment.evaluatedById,
     actorName: null,
-    detail: assessment.status,
+    detail: codeLabel(assessment.status),
     href: activity ? (traceabilityDetailRoute("VERIFICATION_ACTIVITY", projectId, assessment.verificationActivityId) ?? "") : "",
   };
 }
@@ -327,7 +328,7 @@ function certificationReviewEvent(
     label: historyEventLabel("certification_review.evaluated"),
     actorId: review.evaluatedById,
     actorName: null,
-    detail: review.status,
+    detail: codeLabel(review.status),
     href: `/projects/${projectId}/certification/review`,
   };
 }
@@ -371,7 +372,7 @@ function impactAnalysisEvents(
       label: historyEventLabel("impact_analysis.evaluated"),
       actorId: null,
       actorName: null,
-      detail: analysis.status,
+      detail: codeLabel(analysis.status),
       href,
     });
   }

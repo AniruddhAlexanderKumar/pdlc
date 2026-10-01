@@ -1,6 +1,7 @@
 import type * as React from "react";
 import Link from "next/link";
 import { History } from "lucide-react";
+import { codeLabel } from "@/domain";
 import type { AuditEventDto } from "@/lib/api/requirements";
 import type { LinkedRequirementDto } from "@/lib/api/artifacts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,7 +119,7 @@ function historyDetail(metadata: unknown): string | null {
   const data = metadata as Record<string, unknown>;
 
   if (typeof data["from"] === "string" && typeof data["to"] === "string") {
-    return `${data["from"]} → ${data["to"]}`;
+    return `${codeLabel(data["from"])} → ${codeLabel(data["to"])}`;
   }
   if (Array.isArray(data["changedFields"])) {
     const fields = data["changedFields"].filter((f): f is string => typeof f === "string");
@@ -128,14 +129,23 @@ function historyDetail(metadata: unknown): string | null {
     return data["relation"].replaceAll("_", " ").toLowerCase();
   }
   if (typeof data["title"] === "string") return data["title"];
-  if (typeof data["status"] === "string") return data["status"];
+  if (typeof data["status"] === "string") return codeLabel(data["status"]);
   return null;
 }
 
-/** Turns "design_item.owner_assigned" into "Owner assigned". */
-function historyLabel(action: string): string {
+/**
+ * Turns "design_item.owner_assigned" into "Owner assigned".
+ *
+ * An action without its own entry above still reads as words —
+ * "change.declared_impact_added" → "Declared impact added" — rather than
+ * showing the audit log's dotted key.
+ */
+export function historyLabel(action: string): string {
   const suffix = action.split(".").slice(1).join(".");
-  return HISTORY_LABELS[suffix] ?? action;
+  const known = HISTORY_LABELS[suffix];
+  if (known) return known;
+  const words = suffix.replaceAll(/[._]/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : action;
 }
 
 export function ArtifactHistory({ events }: { events: AuditEventDto[] }) {

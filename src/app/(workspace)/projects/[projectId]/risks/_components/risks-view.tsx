@@ -27,6 +27,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { RiskFormDialog } from "./risk-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /**
  * Risks list for one project.
@@ -41,7 +42,7 @@ export function RisksView({ projectId }: { projectId: string }) {
   const [status, setStatus] = React.useState<RiskStatus | "">("");
   const { state, reload } = useRisks(projectId, status);
   const project = useProject(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
 

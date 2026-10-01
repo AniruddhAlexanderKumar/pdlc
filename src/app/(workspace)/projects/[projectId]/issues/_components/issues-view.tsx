@@ -32,6 +32,7 @@ import {
 import { formatIsoDate } from "@/lib/utils";
 import { useModuleLabel } from "../../../../_components/terminology-context";
 import { IssueFormDialog } from "./issue-form-dialog";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /**
  * Issues list for one project.
@@ -47,7 +48,7 @@ export function IssuesView({ projectId }: { projectId: string }) {
   const [severity, setSeverity] = React.useState<IssueSeverity | "">("");
   const { state, reload } = useIssues(projectId, status, severity);
   const project = useProject(projectId);
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   const projectName = project.state.phase === "ready" ? project.state.data.name : null;
   const filtered = status !== "" || severity !== "";

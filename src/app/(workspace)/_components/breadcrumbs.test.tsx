@@ -8,6 +8,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const { Breadcrumbs } = await import("./breadcrumbs");
+const { CrumbLabel } = await import("@/components/common/crumb-label");
 
 const writeText = vi.fn();
 
@@ -31,12 +32,48 @@ describe("Breadcrumbs", () => {
       "href",
       "/dashboard",
     );
-    expect(screen.getByRole("link", { name: /^Projects$/ })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
     // The current segment is a plain announcement, not a link.
     expect(screen.getByText("Risks")).toHaveAttribute("aria-current", "page");
+  });
+
+  it("starts inside a project at the project — the sidebar already links the list", () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa/risks";
+    render(<Breadcrumbs />);
+
+    expect(screen.queryByRole("link", { name: /^Projects$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "proj1aaa…" })).toHaveAttribute(
+      "href",
+      "/projects/proj1aaaaaaaaaaaaaaaaaaa",
+    );
+  });
+
+  it("keeps the Projects crumb on the project list itself", () => {
+    pathname = "/projects";
+    render(<Breadcrumbs />);
+
+    expect(screen.getByText("Projects")).toHaveAttribute("aria-current", "page");
+  });
+
+  it("names a record by the identifier its page published, not by its database id", async () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa/requirements/reqaaaaaaaaaaaaaaaaaaaaa";
+    window.history.pushState({}, "", pathname);
+    render(
+      <>
+        <Breadcrumbs />
+        <CrumbLabel title="SCN-REQ-001 — Maximum chamber pressure" />
+      </>,
+    );
+
+    expect(await screen.findByText("SCN-REQ-001")).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByText("reqaaaaa…")).not.toBeInTheDocument();
+    window.history.pushState({}, "", "/");
+  });
+
+  it("reads an enum path segment as a word", () => {
+    pathname = "/projects/proj1aaaaaaaaaaaaaaaaaaa/history/DESIGN_ITEM";
+    render(<Breadcrumbs />);
+
+    expect(screen.getByText("Design item")).toHaveAttribute("aria-current", "page");
   });
 
   it("names the project, not its id — the short id only stands in until the name loads", async () => {

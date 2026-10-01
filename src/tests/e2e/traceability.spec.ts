@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, signOut } from "./helpers";
 
 /**
  * The Traceability workspace, end to end:
@@ -186,7 +186,7 @@ test.describe.serial("Traceability workspace", () => {
     const projectId = new URL(projectUrl).pathname.split("/").pop();
     const apiBase = new URL(requirementUrl).origin;
 
-    await page.getByRole("button", { name: /sign out/i }).click();
+    await signOut(page);
     await signUpNewAccount(page, "traceability-other");
 
     const response = await page.request.get(

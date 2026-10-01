@@ -73,11 +73,19 @@ export type ProgressDestination = ProgressModule | "release-check";
  * The release check has no page of its own — it is the readiness panel on
  * the project's page — so it is reached by anchor, with the release gate
  * preselected rather than left for the reader to find in a list of five.
+ *
+ * `opensForm` is for a step whose action is to create something ("Write
+ * the first requirement"): the link opens that page with its "New …" form
+ * already open (`?new=1`, read by `useCreateDialogState`), so the button
+ * does what it says instead of leaving the reader to find a second one.
  */
-export function progressDestinationHref(projectId: string, destination: ProgressDestination): string {
-  return destination === "release-check"
-    ? `/projects/${projectId}?gate=RELEASE_READY#release-check`
-    : `/projects/${projectId}/${destination}`;
+export function progressDestinationHref(
+  projectId: string,
+  destination: ProgressDestination,
+  opensForm = false,
+): string {
+  if (destination === "release-check") return `/projects/${projectId}?gate=RELEASE_READY#release-check`;
+  return `/projects/${projectId}/${destination}${opensForm ? "?new=1" : ""}`;
 }
 
 /** What a stage is for, independent of any one project. */
@@ -209,6 +217,8 @@ export interface ProgressStep extends ProgressStageDefinition {
   facts: string[];
   actionLabel: string;
   destination: ProgressDestination;
+  /** The action creates a record — its link opens the destination's "New …" form. */
+  opensForm?: boolean;
 }
 
 // --- Wording -------------------------------------------------------------------
@@ -260,7 +270,7 @@ function defineStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof Progr
     READY: "View requirements",
   }[state];
 
-  return { state, facts: lines, actionLabel, destination: "requirements" };
+  return { state, facts: lines, actionLabel, destination: "requirements", opensForm: state === "NOT_STARTED" };
 }
 
 function designStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof ProgressStageDefinition> {
@@ -282,7 +292,7 @@ function designStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof Progr
     READY: "View the design",
   }[state];
 
-  return { state, facts: lines, actionLabel, destination: "design-items" };
+  return { state, facts: lines, actionLabel, destination: "design-items", opensForm: state === "NOT_STARTED" };
 }
 
 function decideStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof ProgressStageDefinition> {
@@ -304,7 +314,7 @@ function decideStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof Progr
     READY: "View decisions",
   }[state];
 
-  return { state, facts: lines, actionLabel, destination: "decisions" };
+  return { state, facts: lines, actionLabel, destination: "decisions", opensForm: state === "NOT_STARTED" };
 }
 
 /**
@@ -323,6 +333,7 @@ function verifyStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof Progr
       facts: [r.total === 0 ? "Waiting on requirements — there is nothing to verify yet." : "No checks planned yet."],
       actionLabel: "Plan the first check",
       destination: "verification",
+      opensForm: true,
     };
   }
 
@@ -366,6 +377,7 @@ function controlStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof Prog
       facts: ["No risks, problems or changes recorded yet. That doesn't mean there are none."],
       actionLabel: "Record a risk or change",
       destination: "risks",
+      opensForm: true,
     };
   }
 
@@ -393,6 +405,7 @@ function controlStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof Prog
     facts: ["Every recorded risk, problem and change has been dealt with."],
     actionLabel: "Record a change",
     destination: "changes",
+    opensForm: true,
   };
 }
 
@@ -430,7 +443,13 @@ function releaseStep(facts: ProjectProgressFacts): Omit<ProgressStep, keyof Prog
   const gateNeedsPerson = gate.assessed && (!gate.current || gate.status !== "READY");
 
   if (!activeBaseline && !draftBaseline && !gate.assessed) {
-    return { state: "NOT_STARTED", facts: lines, actionLabel: "Lock the current design", destination: "baselines" };
+    return {
+      state: "NOT_STARTED",
+      facts: lines,
+      actionLabel: "Lock the current design",
+      destination: "baselines",
+      opensForm: true,
+    };
   }
   if (gateNeedsPerson) {
     return {

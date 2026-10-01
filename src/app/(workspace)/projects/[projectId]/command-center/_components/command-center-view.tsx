@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Waypoints,
 } from "lucide-react";
+import { codeLabel, codeWords, technicalReadinessGateLabel } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import {
   type AttentionItemDto,
@@ -197,7 +198,7 @@ function ProjectHeaderCard({ project }: { project: CommandCenterDto["project"] }
           )}
         >
           <Detail term="Status">
-            <Badge variant="outline">{project.status}</Badge>
+            <Badge variant="outline">{codeLabel(project.status)}</Badge>
           </Detail>
           <Detail term="Identifier">
             <span className="font-mono">{project.identifier ?? "—"}</span>
@@ -426,7 +427,7 @@ function StateBadge({ state }: { state: string }) {
   const variant = BAD_STATES.has(state) ? "destructive" : NEUTRAL_STATES.has(state) ? "warning" : "outline";
   return (
     <Badge variant={variant} dot={variant !== "outline"}>
-      {state}
+      {codeLabel(state)}
     </Badge>
   );
 }
@@ -458,11 +459,11 @@ function ReadinessSection({ projectId, data }: { projectId: string; data: Comman
               {technical.map((gate) => (
                 <li key={gate.gate} className="flex items-center justify-between gap-3 py-2">
                   <div className="flex min-w-0 flex-col">
-                    <span className="text-sm text-foreground">{gate.gate.replaceAll("_", " ")}</span>
+                    <span className="text-sm text-foreground">{technicalReadinessGateLabel(gate.gate as never)}</span>
                     {gate.evaluatedAt && (
                       <span className="text-xs text-muted-foreground" title={gate.evaluatedAt}>
                         Evaluated {formatIsoDate(gate.evaluatedAt)}
-                        {gate.freshness ? ` · ${gate.freshness}` : ""}
+                        {gate.freshness ? ` · ${codeLabel(gate.freshness)}` : ""}
                       </span>
                     )}
                   </div>
@@ -594,15 +595,15 @@ function ReadinessSection({ projectId, data }: { projectId: string; data: Comman
                         <span className="font-mono">{change.identifier}</span> — {change.title}
                       </span>
                       <div className="flex shrink-0 items-center gap-2">
-                        <Badge variant="outline">{change.status}</Badge>
+                        <Badge variant="outline">{codeLabel(change.status)}</Badge>
                         <Button asChild variant="ghost" size="sm">
                           <Link href={change.href}>Open</Link>
                         </Button>
                       </div>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      Impact analysis: {change.latestAnalysis.status}
-                      {change.latestAnalysis.freshness ? ` · ${change.latestAnalysis.freshness}` : ""}
+                      Impact analysis: {codeWords(change.latestAnalysis.status)}
+                      {change.latestAnalysis.freshness ? ` · ${codeWords(change.latestAnalysis.freshness)}` : ""}
                       {change.latestAnalysis.status !== "NOT_RUN"
                         ? ` · ${change.latestAnalysis.direct} direct, ${change.latestAnalysis.downstream} downstream, ${change.latestAnalysis.crossDomain} cross-domain, ${change.latestAnalysis.unknown} unknown`
                         : ""}
@@ -932,7 +933,7 @@ function SentinelSection({ data }: { data: CommandCenterDto }) {
                 <div className="flex items-center justify-between gap-3">
                   <span className="min-w-0 truncate text-sm text-foreground">
                     <Badge variant="outline" className="mr-2">
-                      {target.targetType.replaceAll("_", " ")}
+                      {codeLabel(target.targetType)}
                     </Badge>
                     {target.targetIdentifier ? (
                       <span className="font-mono">{target.targetIdentifier}</span>
@@ -941,7 +942,7 @@ function SentinelSection({ data }: { data: CommandCenterDto }) {
                     {target.targetLabel}
                   </span>
                   <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant={target.status === "OPEN" ? "warning" : "outline"}>{target.status}</Badge>
+                    <Badge variant={target.status === "OPEN" ? "warning" : "outline"}>{codeLabel(target.status)}</Badge>
                     <Button asChild variant="ghost" size="sm">
                       <Link href={target.href}>Open</Link>
                     </Button>

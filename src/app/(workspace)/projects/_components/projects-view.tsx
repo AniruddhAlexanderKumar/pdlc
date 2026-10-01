@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { AlertTriangle, FolderGit2, Plus, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { describeApiError } from "@/lib/api/client";
 import { useProjects } from "@/lib/api/projects";
 import { ProjectFormDialog } from "./project-form-dialog";
 import { ProjectTable } from "./project-table";
+import { useCreateDialogState } from "@/lib/use-create-intent";
 
 /**
  * Projects list.
@@ -20,7 +20,7 @@ import { ProjectTable } from "./project-table";
  */
 export function ProjectsView() {
   const { state, reload } = useProjects();
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useCreateDialogState();
 
   return (
     <div className="flex flex-col gap-6">

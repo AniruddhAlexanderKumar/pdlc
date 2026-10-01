@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { AlertTriangle, History, ShieldCheck } from "lucide-react";
+import { codeLabel } from "@/domain";
 import { describeApiError } from "@/lib/api/client";
 import {
   type CertificationReviewFindingDto,
@@ -220,7 +221,7 @@ function FindingsTable({ findings }: { findings: CertificationReviewFindingDto[]
             {findings.map((finding) => (
               <TableRow key={finding.id}>
                 <TableCell className="font-mono text-xs">{finding.ruleId}</TableCell>
-                <TableCell className="text-xs">{finding.category}</TableCell>
+                <TableCell className="text-xs">{codeLabel(finding.category)}</TableCell>
                 <TableCell>
                   <CertificationReviewFindingStatusBadge status={finding.status} />
                 </TableCell>

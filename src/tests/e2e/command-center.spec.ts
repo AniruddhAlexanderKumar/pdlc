@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signIn, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signIn, signUpNewAccount, signOut } from "./helpers";
 
 /**
  * The Engineering Command Center, end to end:
@@ -77,7 +77,7 @@ test.describe.serial("Engineering Command Center", () => {
 
     await expect(page.getByRole("heading", { name: "Engineering Command Center" })).toBeVisible();
 
-    await expect(page.getByText("Risk RSK-001 is OPEN")).toBeVisible();
+    await expect(page.getByText("Risk RSK-001 is open")).toBeVisible();
     await expect(page.getByText(/Issue ISS-001 is CRITICAL/)).toBeVisible();
 
     // No fabricated numbers anywhere on the page.
@@ -89,7 +89,7 @@ test.describe.serial("Engineering Command Center", () => {
   test("follows an attention item into its real source page", async ({ page }) => {
     await page.goto(`${projectUrl}/command-center`);
 
-    const riskRow = page.getByText("Risk RSK-001 is OPEN").locator("../..");
+    const riskRow = page.getByText("Risk RSK-001 is open").locator("../..");
     await riskRow.getByRole("link", { name: "Open" }).click();
 
     await expect(page).toHaveURL(riskUrl);
@@ -116,7 +116,7 @@ test.describe.serial("Engineering Command Center", () => {
     const projectId = new URL(projectUrl).pathname.split("/").pop();
     const apiBase = new URL(projectUrl).origin;
 
-    await page.getByRole("button", { name: /sign out/i }).click();
+    await signOut(page);
     await signUpNewAccount(page, "command-center-other");
 
     const response = await page.request.get(`${apiBase}/api/projects/${projectId}/command-center`);

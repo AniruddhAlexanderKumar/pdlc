@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { databaseAvailable, signUpNewAccount } from "./helpers";
+import { databaseAvailable, signUpNewAccount, signOut } from "./helpers";
 
 /**
  * Full authentication round trip:
@@ -27,7 +27,7 @@ test.describe("Authentication lifecycle", () => {
     await expect(page).toHaveURL(/\/projects$/);
     await expect(page.getByText("No projects yet")).toBeVisible();
 
-    await page.getByRole("button", { name: /sign out/i }).click();
+    await signOut(page);
     await expect(page).toHaveURL(/\/sign-in/);
 
     // The session is dead server-side, not merely forgotten by the browser.
@@ -46,7 +46,7 @@ test.describe("Authentication lifecycle", () => {
     page,
   }) => {
     const account = await signUpNewAccount(page, "wrongpass");
-    await page.getByRole("button", { name: /sign out/i }).click();
+    await signOut(page);
     await expect(page).toHaveURL(/\/sign-in/);
 
     await page.getByLabel("Email").fill(account.email);
@@ -66,7 +66,7 @@ test.describe("Authentication lifecycle", () => {
 
   test("refuses to register the same email twice", async ({ page }) => {
     const account = await signUpNewAccount(page, "duplicate");
-    await page.getByRole("button", { name: /sign out/i }).click();
+    await signOut(page);
 
     await page.goto("/sign-up");
     await page.getByLabel("Organization name").fill("[E2E] Duplicate Attempt");
@@ -92,7 +92,7 @@ test.describe("Authentication lifecycle", () => {
       .getByRole("link", { name: projectName })
       .getAttribute("href");
 
-    await page.getByRole("button", { name: /sign out/i }).click();
+    await signOut(page);
 
     // A second organization must not see or reach it.
     await signUpNewAccount(page, "tenant-b");

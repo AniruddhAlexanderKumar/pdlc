@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Settings } from "lucide-react";
 import { type AuthenticatedIdentity, canViewPortfolio } from "@/domain";
 import { Breadcrumbs } from "./breadcrumbs";
 import { CommandPalette } from "./command-palette";
 import { HelpMenu } from "./help-menu";
+import { MobileNav } from "./sidebar";
 import { UserMenu } from "./user-menu";
 
 /**
  * Top utility bar: the signed-in organization, the breadcrumb trail, search,
- * settings, help, and the user menu.
+ * help, and the account menu (which holds settings and sign-out). On a
+ * phone it also opens the navigation drawer — see `MobileNav`.
  *
  * Two things were removed from here. An "Express Workflows" menu listed
  * five numbered steps, the second of which linked to a simulated store
@@ -23,30 +24,25 @@ import { UserMenu } from "./user-menu";
  */
 export function TopBar({ identity }: { identity: AuthenticatedIdentity }) {
   return (
-    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-4 border-b border-border bg-card px-4">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:gap-4 sm:px-4">
+      <MobileNav
+        showPortfolio={canViewPortfolio(identity.user.organizationRole)}
+        organizationName={identity.organization.name}
+      />
+
       <Link
         href="/organization"
-        className="hidden max-w-[12rem] truncate rounded-sm text-sm font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:inline"
+        className="hidden max-w-[12rem] truncate rounded-sm text-sm font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:inline"
       >
         {identity.organization.name}
       </Link>
 
-      <div className="mx-1 hidden h-5 w-px shrink-0 bg-border md:block" aria-hidden="true" />
+      <div className="mx-1 hidden h-5 w-px shrink-0 bg-border lg:block" aria-hidden="true" />
 
       <Breadcrumbs />
 
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
         <CommandPalette showPortfolio={canViewPortfolio(identity.user.organizationRole)} />
-
-        <Link
-          href="/settings"
-          aria-label="Settings"
-          title="Settings"
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <Settings className="size-4" aria-hidden="true" />
-        </Link>
-
         <HelpMenu />
 
         <UserMenu identity={identity} />
