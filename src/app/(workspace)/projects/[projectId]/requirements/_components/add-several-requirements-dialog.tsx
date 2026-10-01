@@ -123,14 +123,18 @@ export function AddSeveralRequirementsDialog({
               </p>
               {!tooMany && (
                 <ol className="flex flex-col gap-1.5 text-sm">
-                  {statements.slice(0, PREVIEW_LIMIT).map((statement, index) => (
-                    <li key={index} className="flex flex-col">
-                      <span className="font-medium text-foreground">{deriveRequirementTitle(statement)}</span>
-                      {deriveRequirementTitle(statement) !== statement && (
-                        <span className="line-clamp-1 text-xs text-muted-foreground">{statement}</span>
-                      )}
-                    </li>
-                  ))}
+                  {statements.slice(0, PREVIEW_LIMIT).map((statement, index) => {
+                    const title = deriveRequirementTitle(statement);
+                    // The full text only when the name leaves something out —
+                    // not when it is the same sentence without its full stop.
+                    const shortened = title !== statement.replace(/[.!?]+$/, "");
+                    return (
+                      <li key={index} className="flex flex-col">
+                        <span className="font-medium text-foreground">{title}</span>
+                        {shortened && <span className="line-clamp-1 text-xs text-muted-foreground">{statement}</span>}
+                      </li>
+                    );
+                  })}
                   {count > PREVIEW_LIMIT && (
                     <li className="text-xs text-muted-foreground">…and {count - PREVIEW_LIMIT} more.</li>
                   )}

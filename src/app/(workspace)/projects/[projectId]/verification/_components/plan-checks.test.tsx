@@ -1,3 +1,4 @@
+import * as React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,6 +62,35 @@ describe("MissingChecksBanner", () => {
     expect(String(post[0])).toBe(PLAN_URL);
     // No requirement ids: "every requirement that has no check", decided on the server.
     expect(JSON.parse(String(post[1].body))).toEqual({ method: "INSPECTION" });
+  });
+
+  it("disappears once the plan is made, when the page asks it to look again", async () => {
+    let hasPlanned = false;
+    fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        hasPlanned = true;
+        return ok({ checks: [planned("REQ-001", "VER-001"), planned("REQ-002", "VER-002")] });
+      }
+      return ok({ requirements: hasPlanned ? [] : CANDIDATES });
+    });
+    const user = userEvent.setup();
+
+    function Page() {
+      const [refreshKey, setRefreshKey] = React.useState(0);
+      return (
+        <MissingChecksBanner projectId={PROJECT_ID} refreshKey={refreshKey} onPlanned={() => setRefreshKey((k) => k + 1)} />
+      );
+    }
+    render(<Page />);
+
+    await user.click(await screen.findByRole("button", { name: "Plan 2 checks" }));
+    await user.click(screen.getAllByRole("button", { name: "Plan 2 checks" }).at(-1)!);
+
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Requirements without a check" })).not.toBeInTheDocument(),
+    );
+    expect(hasPlanned).toBe(true);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("shows nothing once every requirement has a check", async () => {
