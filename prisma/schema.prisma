@@ -1,0 +1,316 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  users     User[]
+  projects  Project[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model User {
+  id             String        @id @default(cuid())
+  email          String        @unique
+  passwordHash   String
+  name           String
+  role           String        @default("SystemsEngineer")
+  title          String?
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Project {
+  id                 String                @id // e.g. PRJ-AERO-01
+  name               String
+  description        String?
+  phase              String                @default("Detailed Design")
+  status             String                @default("Active")
+  ownerId            String?
+  organizationId     String
+  organization       Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  opportunities      Opportunity[]
+  requirements       Requirement[]
+  architecture       ArchitectureElement[]
+  verificationProcs  VerificationProcedure[]
+  risks              Risk[]
+  nonconformances    Nonconformance[]
+  changeRequests     EngineeringChangeRequest[]
+  changeOrders       EngineeringChangeOrder[]
+  baselines          Baseline[]
+  releases           ReleaseRecord[]
+  documents          DocumentRecord[]
+  tasks              TaskItem[]
+  auditEvents        AuditEvent[]
+  targetReleaseDate  DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+
+model Opportunity {
+  id                 String    @id // e.g. OPP-001
+  projectId          String?
+  project            Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title              String
+  problem            String
+  justification      String?
+  status             String    @default("Draft")
+  targetDeliveryDate DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Requirement {
+  id                 String                 @id // e.g. REQ-001
+  projectId          String
+  project            Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title              String?
+  text               String
+  rationale          String?
+  type               String                 @default("Functional") // Physical, Performance, Safety, Interface, etc.
+  status             String                 @default("Draft") // Draft, In Review, Approved, Baselined, Superseded
+  allocatedTo        String?                // e.g. SYS-001
+  architecture       ArchitectureElement?   @relation("AllocatedReqs", fields: [allocatedTo], references: [id], onDelete: SetNull)
+  verificationMethod String                 @default("Test") // Test, Inspection, Analysis, Demonstration
+  priority           String                 @default("Medium") // Low, Medium, High, Critical
+  revision           Int                    @default(1)
+  parentId           String?
+  parent             Requirement?           @relation("RequirementHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children           Requirement[]          @relation("RequirementHierarchy")
+  verificationProcs  VerificationProcedure[]
+  risks              Risk[]
+  nonconformances    Nonconformance[]
+  changeRequests     EngineeringChangeRequest[]
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+}
+
+model ArchitectureElement {
+  id          String                @id // e.g. SYS-001
+  projectId   String
+  project     Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  type        String                @default("Component") // System, Subsystem, Component, Electronic Hardware, Software
+  parentId    String?
+  parent      ArchitectureElement?  @relation("ArchitectureHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    ArchitectureElement[] @relation("ArchitectureHierarchy")
+  revision    Int                   @default(1)
+  status      String                @default("Approved")
+  allocatedReqs Requirement[]       @relation("AllocatedReqs")
+  risks       Risk[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+}
+
+model VerificationProcedure {
+  id                 String                  @id // e.g. VRF-001
+  projectId          String
+  project            Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name               String
+  method             String                  @default("Test") // Test, Inspection, Analysis, Demonstration
+  reqId              String
+  requirement        Requirement             @relation(fields: [reqId], references: [id], onDelete: Cascade)
+  archId             String?
+  acceptanceCriteria String
+  status             String                  @default("Planned") // Planned, Ready, In Progress, Passed, Failed, Blocked
+  resultSummary      String?
+  executions         VerificationExecution[]
+  nonconformances    Nonconformance[]
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+}
+
+model VerificationExecution {
+  id                String                @id @default(cuid())
+  procedureId       String
+  procedure         VerificationProcedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  executionNumber   Int                   @default(1)
+  testConfiguration String
+  executorId        String
+  witness           String?
+  outcome           String                // Passed, Failed, Inconclusive
+  measurements      Json?                 // [{ parameter, expected, actual, unit, pass }]
+  observations      String
+  deviations        String?
+  evidenceNotes     String?
+  executedAt        DateTime              @default(now())
+}
+
+model Risk {
+  id             String               @id // e.g. RSK-001
+  projectId      String
+  project        Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title          String
+  cause          String?
+  consequence    String?
+  severity       String               @default("Medium") // Low, Medium, High, Critical
+  likelihood     String               @default("Possible") // Rare, Unlikely, Possible, Likely, Almost Certain
+  ratingScore    Int                  @default(6)
+  linkedReq      String?
+  requirement    Requirement?         @relation(fields: [linkedReq], references: [id], onDelete: SetNull)
+  linkedSys      String?
+  architecture   ArchitectureElement? @relation(fields: [linkedSys], references: [id], onDelete: SetNull)
+  status         String               @default("Open") // Open, Mitigated, Accepted, Closed
+  mitigation     String?
+  mitigationOwner String?
+  residualRisk   String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+}
+
+model Nonconformance {
+  id                   String                 @id // e.g. NC-001
+  projectId            String
+  project              Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title                String
+  description          String
+  severity             String                 @default("Major") // Minor, Major, Critical
+  linkedVrf            String?
+  verification         VerificationProcedure? @relation(fields: [linkedVrf], references: [id], onDelete: SetNull)
+  linkedReq            String?
+  requirement          Requirement?           @relation(fields: [linkedReq], references: [id], onDelete: SetNull)
+  status               String                 @default("Investigation") // Investigation, Disposition Review, Corrective Action, Effectiveness Verification, Closed
+  containmentActions   String?
+  rootCause            String?
+  proposedDisposition  String?                // Rework, Repair, Use As Is, Scrap
+  correctiveAction     String?
+  closureEvidence      String?
+  reportedBy           String
+  assignedTo           String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+}
+
+model EngineeringChangeRequest {
+  id                   String                  @id // e.g. ECR-001
+  projectId            String
+  project              Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title                String
+  reason               String
+  proposedModification String
+  targetReqId          String?
+  targetRequirement    Requirement?            @relation(fields: [targetReqId], references: [id], onDelete: SetNull)
+  originatorId         String
+  status               String                  @default("Draft") // Draft, Submitted, Impact Analysis, Technical Review, Approved, Rejected, Implemented, Closed
+  severity             String                  @default("Class I (Major)")
+  costImpact           String?
+  scheduleImpact       String?
+  impacts              ChangeImpact[]
+  changeOrders         EngineeringChangeOrder[]
+  approvedBy           String?
+  approvedAt           DateTime?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+}
+
+model ChangeImpact {
+  id             String                   @id @default(cuid())
+  ecrId          String
+  ecr            EngineeringChangeRequest @relation(fields: [ecrId], references: [id], onDelete: Cascade)
+  objectType     String                   // Requirement, Architecture, Verification, Risk, Document
+  objectId       String
+  title          String
+  impactType     String                   // Direct Target, Allocation Affected, Invalidates Verification, Re-opens Risk
+  reason         String
+  requiresRetest Boolean                  @default(false)
+  createdAt      DateTime                 @default(now())
+}
+
+model EngineeringChangeOrder {
+  id                         String                   @id // e.g. ECO-001
+  ecrId                      String
+  ecr                        EngineeringChangeRequest @relation(fields: [ecrId], references: [id], onDelete: Cascade)
+  projectId                  String
+  project                    Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title                      String
+  authorizedScope            String
+  implementationInstructions String
+  status                     String                   @default("In Progress") // In Progress, Verified, Closed
+  assignedTo                 String?
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+}
+
+model Baseline {
+  id           String   @id // e.g. BSL-001
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  type         String   @default("Functional") // Functional, Allocated, Product, Release
+  description  String?
+  snapshotData Json     // Immutable snapshot of requirements, architecture, verification, risks
+  createdBy    String
+  createdAt    DateTime @default(now())
+}
+
+model ReleaseRecord {
+  id           String    @id // e.g. REL-001
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version      String
+  name         String
+  status       String    @default("Draft") // Draft, Approved, Released
+  baselineId   String?
+  releaseNotes String?
+  manifestData Json?
+  releasedBy   String?
+  releasedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model DocumentRecord {
+  id          String   @id // e.g. DOC-001
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  type        String   @default("Specification")
+  revision    String   @default("A")
+  status      String   @default("Draft") // Draft, In Review, Approved, Obsolete
+  fileName    String?
+  fileSize    Int?
+  checksum    String?
+  filePath    String?
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TaskItem {
+  id               String    @id // e.g. TSK-001
+  projectId        String
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  sourceObjectType String?
+  sourceObjectId   String?
+  assigneeId       String?
+  priority         String    @default("Medium")
+  status           String    @default("Open") // Open, In Progress, Completed
+  dueDate          DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actorEmail String
+  action     String
+  objectType String
+  objectId   String
+  details    String?
+  timestamp  DateTime @default(now())
+}

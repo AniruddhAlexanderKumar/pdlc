@@ -1,0 +1,26 @@
+{
+  "name": "nexgen-plm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NexGen PLM - Engineering Product Development Life Cycle Operating System",
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "packages/shared-types"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "node apps/api/dist/seed.js"
+  },
+  "devDependencies": {
+    "prisma": "^6.4.1",
+    "typescript": "^5.7.3"
+  }
+}

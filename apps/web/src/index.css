@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #000000;
+    color: #e5e5e5;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #262626;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #404040;
+}
+
+.glass-panel {
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  border-radius: 2px;
+}
+
+.data-row {
+  transition: all 0.1s ease;
+  border-bottom: 1px solid #171717;
+}
+.data-row:hover {
+  background: #171717;
+}
+
+.tree-line {
+  position: absolute;
+  left: 11px;
+  top: 24px;
+  bottom: 0;
+  width: 1px;
+  background: #262626;
+  z-index: 0;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slide-in {
+  animation: slideIn 0.2s ease-out forwards;
+}
+
+/* Force sharp, technical corners globally for mission control aesthetic */
+.rounded-xl, .rounded-lg, .rounded-md, .rounded {
+  border-radius: 2px !important;
+}
+.rounded-full.w-10, .rounded-full.w-8, .rounded-full.w-9 {
+  border-radius: 50% !important;
+}
