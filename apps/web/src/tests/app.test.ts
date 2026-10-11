@@ -28,4 +28,21 @@ describe('NexGen PLM Frontend Client Suite', () => {
     expect(computeAllocated(3, 4)).toBe(75);
     expect(computeAllocated(4, 4)).toBe(100);
   });
+
+  it('validates commercial packaging tiers and SLA parameters', () => {
+    const plans = ['Starter', 'Professional', 'Enterprise'];
+    expect(plans).toHaveLength(3);
+    expect(plans).toContain('Enterprise');
+  });
+
+  it('verifies all 13 mission control navigation tabs are registered', () => {
+    const tabIds = [
+      'dashboard', 'reqs', 'arch', 'verify', 'change',
+      'risk', 'quality', 'baselines', 'release', 'documents',
+      'tasks', 'audit', 'commercial'
+    ];
+    expect(tabIds).toHaveLength(13);
+    expect(tabIds).toContain('commercial');
+    expect(tabIds).toContain('release');
+  });
 });

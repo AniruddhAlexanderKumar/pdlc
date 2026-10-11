@@ -8,13 +8,33 @@ datasource db {
 }
 
 model Organization {
-  id        String    @id @default(cuid())
-  name      String
-  code      String    @unique
-  users     User[]
-  projects  Project[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id                 String          @id @default(cuid())
+  name               String
+  code               String          @unique
+  planTier           String          @default("Enterprise") // Starter, Professional, Enterprise
+  subscriptionStatus String          @default("Active") // Trial, Active, PastDue, Suspended
+  seatLimit          Int             @default(50)
+  featureFlags       Json?           // Custom commercial entitlements override
+  users              User[]
+  projects           Project[]
+  supportTickets     SupportTicket[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+model SupportTicket {
+  id             String       @id // e.g. TKT-001
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  description    String
+  severity       String       @default("Medium") // Low, Medium, High, Critical
+  category       String       @default("Workflow Guidance") // Access, Workflow Guidance, Compliance Audit, Bug Report
+  status         String       @default("Open") // Open, In Progress, Resolved
+  reporterEmail  String
+  resolution     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model User {

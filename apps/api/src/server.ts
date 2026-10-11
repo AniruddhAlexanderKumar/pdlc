@@ -19,6 +19,7 @@ import opportunityRoutes from './routes/opportunityRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
+import organizationRoutes from './routes/organizationRoutes.js';
 
 dotenv.config();
 
@@ -76,6 +77,7 @@ app.use('/api/v1/opportunities', opportunityRoutes);
 app.use('/api/v1/tasks', taskRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/search', searchRoutes);
+app.use('/api/v1/organization', organizationRoutes);
 
 // Error Handling Middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

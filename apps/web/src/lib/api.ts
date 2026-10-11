@@ -178,4 +178,13 @@ export const api = {
   // Search
   search: (q: string, projectId?: string) =>
     request<{ results: any[] }>(`/search?q=${encodeURIComponent(q)}${projectId ? `&projectId=${projectId}` : ''}`),
+
+  // Commercial Organization & Entitlements
+  getOrganization: () => request<any>('/organization/current'),
+  updateSubscription: (data: any) =>
+    request<any>('/organization/subscription', { method: 'PATCH', body: JSON.stringify(data) }),
+  getMembers: () => request<any[]>('/organization/members'),
+  getSupportTickets: () => request<any[]>('/organization/support'),
+  createSupportTicket: (data: any) =>
+    request<any>('/organization/support', { method: 'POST', body: JSON.stringify(data) }),
 };

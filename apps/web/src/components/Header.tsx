@@ -28,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'documents', label: 'Documents', color: 'text-brand', border: 'border-t-brand' },
     { id: 'tasks', label: 'Tasks', color: 'text-white', border: 'border-t-brand' },
     { id: 'audit', label: 'Audit Log', color: 'text-surface-400', border: 'border-t-surface-400' },
+    { id: 'commercial', label: 'Org & Plans', color: 'text-emerald-400', border: 'border-t-emerald-400' },
   ];
 
   return (

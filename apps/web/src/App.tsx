@@ -15,6 +15,7 @@ import { ReleaseView } from './views/ReleaseView';
 import { DocumentsView } from './views/DocumentsView';
 import { TasksView } from './views/TasksView';
 import { AuditView } from './views/AuditView';
+import { CommercialAdminView } from './views/CommercialAdminView';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -203,6 +204,10 @@ export const App: React.FC = () => {
         {activeTab === 'tasks' && <TasksView projectId={projectId} />}
 
         {activeTab === 'audit' && <AuditView projectId={projectId} />}
+
+        {activeTab === 'commercial' && (
+          <CommercialAdminView currentUser={currentUser} onRefresh={refreshData} />
+        )}
       </main>
 
       {/* Global Search Modal */}
