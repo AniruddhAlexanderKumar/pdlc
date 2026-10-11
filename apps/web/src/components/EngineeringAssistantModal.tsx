@@ -24,7 +24,6 @@ export const EngineeringAssistantModal: React.FC<EngineeringAssistantModalProps>
   const openNCs = telemetry?.openNCs || 0;
   const totalReqs = telemetry?.totalReqs || 0;
   const allocatedReqs = telemetry?.allocatedReqs || 0;
-  const isReleaseReady = telemetry?.isReleaseReady;
 
   const handleAsk = (e: React.FormEvent) => {
     e.preventDefault();

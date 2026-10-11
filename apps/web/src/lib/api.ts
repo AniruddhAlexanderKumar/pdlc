@@ -49,13 +49,57 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const api = {
-  // Auth
+  // Auth & Account
   login: (credentials: { email: string; password: string }) =>
     request<{ token: string; user: any }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     }),
+  register: (data: any) =>
+    request<{ token: string; user: any }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  forgotPassword: (email: string) =>
+    request<{ message: string; devToken?: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   getMe: () => request<{ user: any }>('/auth/me'),
+  updateProfile: (data: any) =>
+    request<{ user: any }>('/auth/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  changePassword: (data: any) =>
+    request<{ message: string }>('/auth/me/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getInvitations: () => request<any[]>('/auth/invitations'),
+  createInvitation: (data: any) =>
+    request<any>('/auth/invitations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  acceptInvitation: (data: any) =>
+    request<{ token: string; user: any }>('/auth/invitations/accept', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  submitContactInquiry: (data: any) =>
+    request<any>('/auth/contact', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getNotifications: () => request<any[]>('/auth/notifications'),
+  markNotificationRead: (id: string) =>
+    request<any>(`/auth/notifications/${id}/read`, { method: 'PATCH' }),
 
   // Project & Telemetry
   getProjects: () => request<any[]>('/projects'),

@@ -7,6 +7,10 @@ interface HeaderProps {
   onResetDemo: () => void;
   onOpenGuide?: () => void;
   onOpenNewProject?: () => void;
+  onTogglePublic?: () => void;
+  onOpenNotifications?: () => void;
+  onOpenSettings?: () => void;
+  unreadNotificationsCount?: number;
   user: any;
 }
 
@@ -17,6 +21,10 @@ export const Header: React.FC<HeaderProps> = ({
   onResetDemo,
   onOpenGuide,
   onOpenNewProject,
+  onTogglePublic,
+  onOpenNotifications,
+  onOpenSettings,
+  unreadNotificationsCount = 0,
   user,
 }) => {
   const tabs = [
@@ -77,11 +85,22 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* User, Search & Quick Actions */}
-      <div className="flex items-center gap-3 mb-2 ml-4 shrink-0">
+      <div className="flex items-center gap-2 mb-2 ml-4 shrink-0">
+        {onTogglePublic && (
+          <button
+            onClick={onTogglePublic}
+            className="px-2.5 py-1 bg-surface-900 border border-surface-700 text-surface-300 hover:text-white text-[10px] font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+            title="Switch to public product portal & landing site"
+          >
+            <span>🌐</span>
+            <span>PUBLIC SITE</span>
+          </button>
+        )}
+
         {onOpenNewProject && (
           <button
             onClick={onOpenNewProject}
-            className="px-2.5 py-1 bg-brand/20 border border-brand/50 text-brand hover:bg-brand/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 rounded"
+            className="px-2 py-1 bg-brand/20 border border-brand/50 text-brand hover:bg-brand/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 rounded"
             title="Create a new engineering project with guided wizard"
           >
             <span>+ PROJECT</span>
@@ -91,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
         {onOpenGuide && (
           <button
             onClick={onOpenGuide}
-            className="px-2.5 py-1 bg-purple-500/20 border border-purple-500/50 text-purple-300 hover:bg-purple-500/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 rounded"
+            className="px-2 py-1 bg-purple-500/20 border border-purple-500/50 text-purple-300 hover:bg-purple-500/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 rounded"
             title="Open in-app engineering copilot & guidance"
           >
             <span>? GUIDE</span>
@@ -107,15 +126,34 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-surface-500 text-[9px]">[CTRL+K]</span>
         </button>
 
+        {onOpenNotifications && (
+          <button
+            onClick={onOpenNotifications}
+            className="px-2 py-1 bg-surface-900 border border-surface-700 text-surface-300 hover:text-white text-[10px] font-mono uppercase tracking-wider flex items-center gap-1.5 relative transition-colors"
+            title="In-App Engineering Notifications"
+          >
+            <span>🔔</span>
+            {unreadNotificationsCount > 0 && (
+              <span className="px-1 py-0.2 bg-brand text-black font-bold text-[8px] rounded-full animate-pulse">
+                {unreadNotificationsCount}
+              </span>
+            )}
+          </button>
+        )}
+
         <button
           onClick={onResetDemo}
-          className="px-2.5 py-1 border border-red-500/30 text-red-400 hover:bg-red-500/10 text-[9px] font-mono uppercase tracking-widest transition-colors rounded"
+          className="px-2 py-1 border border-red-500/30 text-red-400 hover:bg-red-500/10 text-[9px] font-mono uppercase tracking-widest transition-colors rounded"
           title="Reset PostgreSQL state to initial actuator scenario"
         >
           Reset Demo
         </button>
 
-        <div className="flex items-center gap-2 pl-3 border-l border-surface-800">
+        <div
+          onClick={onOpenSettings}
+          className="flex items-center gap-2 pl-3 border-l border-surface-800 cursor-pointer hover:opacity-80 transition-opacity"
+          title="Click to manage account, security, preferences & invitations"
+        >
           <div className="text-right">
             <div className="text-[10px] font-mono font-bold text-white truncate max-w-[120px]">
               {user?.name || 'Dr. Elena Rostova'}
@@ -126,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
           <div className="w-7 h-7 bg-surface-800 text-surface-300 flex items-center justify-center border border-surface-700 font-mono text-xs font-bold">
-            SE
+            {user?.name ? user.name.slice(0, 2).toUpperCase() : 'SE'}
           </div>
         </div>
       </div>

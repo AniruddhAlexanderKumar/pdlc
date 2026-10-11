@@ -18,6 +18,7 @@ model Organization {
   users              User[]
   projects           Project[]
   supportTickets     SupportTicket[]
+  invitations        Invitation[]
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 }
@@ -38,16 +39,71 @@ model SupportTicket {
 }
 
 model User {
-  id             String        @id @default(cuid())
-  email          String        @unique
-  passwordHash   String
-  name           String
-  role           String        @default("SystemsEngineer")
-  title          String?
+  id                String               @id @default(cuid())
+  email             String               @unique
+  passwordHash      String
+  name              String
+  role              String               @default("SystemsEngineer")
+  title             String?
+  status            String               @default("Active") // Active, Suspended, Deactivated
+  timezone          String               @default("UTC")
+  notificationPrefs Json?                // { email: boolean, inApp: boolean, criticalOnly: boolean }
+  organizationId    String
+  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  passwordResetTokens PasswordResetToken[]
+  sentInvitations   Invitation[]         @relation("InvitedByUser")
+  notifications     Notification[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+model Invitation {
+  id             String       @id @default(cuid())
+  email          String
+  role           String       @default("SystemsEngineer")
+  token          String       @unique
   organizationId String
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedById    String
+  invitedBy      User         @relation("InvitedByUser", fields: [invitedById], references: [id], onDelete: Cascade)
+  status         String       @default("Pending") // Pending, Accepted, Revoked, Expired
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime     @default(now())
+}
+
+model ContactInquiry {
+  id             String   @id @default(cuid())
+  name           String
+  workEmail      String
+  organization   String
+  role           String?
+  areaOfInterest String?
+  message        String
+  status         String   @default("New") // New, Contacted, Qualified, Closed
+  createdAt      DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  category  String   @default("Info") // Info, ActionRequired, Alert, Gate
+  link      String?  // e.g. tab name or record ID
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model Project {

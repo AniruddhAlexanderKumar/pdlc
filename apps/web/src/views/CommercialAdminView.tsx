@@ -8,9 +8,7 @@ interface CommercialAdminViewProps {
   onRefresh: () => void;
 }
 
-export const CommercialAdminView: React.FC<CommercialAdminViewProps> = ({
-  currentUser,
-}) => {
+export const CommercialAdminView: React.FC<CommercialAdminViewProps> = () => {
   const [orgData, setOrgData] = useState<any | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -92,7 +90,7 @@ export const CommercialAdminView: React.FC<CommercialAdminViewProps> = ({
     );
   }
 
-  const { organization, entitlements, plansAvailable } = orgData;
+  const { organization, entitlements } = orgData;
 
   return (
     <div className="p-6 h-full flex flex-col animate-slide-in overflow-y-auto">

@@ -19,7 +19,18 @@ import { CommercialAdminView } from './views/CommercialAdminView';
 import { GuidedNewProjectModal } from './components/GuidedNewProjectModal';
 import { EngineeringAssistantModal } from './components/EngineeringAssistantModal';
 
+// Public Experience & Auth
+import { PublicLandingView } from './views/PublicLandingView';
+import { AuthModal } from './components/auth/AuthModal';
+import { AccountSettingsModal } from './components/auth/AccountSettingsModal';
+import { NotificationDrawer } from './components/notifications/NotificationDrawer';
+
 export const App: React.FC = () => {
+  // Top-level Navigation Mode: 'public' (SaaS Landing & Marketing) vs 'workspace' (Engineering OS)
+  const [viewMode, setViewMode] = useState<'public' | 'workspace'>('workspace');
+  const [publicPath, setPublicPath] = useState('/');
+
+  // Active Engineering Workspace Tab
   const [activeTab, setActiveTab] = useState('dashboard');
   const [projectId] = useState('PRJ-AERO-01');
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -33,17 +44,23 @@ export const App: React.FC = () => {
   const [nonconformances, setNonconformances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Global search, guide & project wizards
+  // Modals & Drawers
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   const [selectedReqId, setSelectedReqId] = useState<string | null>(null);
 
   // 1. Initial Authentication & Data Hydration
   const initializeAuthAndData = useCallback(async () => {
     setLoading(true);
     try {
-      // Auto-authenticate as Lead Systems Engineer for immediate first-run experience
+      // Auto-authenticate as Lead Systems Engineer for immediate first-run evaluation
       const authRes = await api.login({
         email: 'engineer@nexgen.os',
         password: 'password123',
@@ -53,6 +70,7 @@ export const App: React.FC = () => {
 
       // Hydrate authoritative database data
       await refreshData();
+      await fetchNotificationCount();
     } catch (err) {
       console.error('Initialization error:', err);
     } finally {
@@ -79,6 +97,17 @@ export const App: React.FC = () => {
       setNonconformances(ncData);
     } catch (err) {
       console.error('Failed to refresh data:', err);
+    }
+  };
+
+  const fetchNotificationCount = async () => {
+    try {
+      const list = await api.getNotifications();
+      if (Array.isArray(list)) {
+        setUnreadCount(list.filter((n) => !n.isRead).length);
+      }
+    } catch (err) {
+      // Non-blocking
     }
   };
 
@@ -116,105 +145,145 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleAuthSuccess = (user: any) => {
+    setCurrentUser(user);
+    refreshData();
+    fetchNotificationCount();
+    setViewMode('workspace');
+  };
+
+  const handleLogout = () => {
+    setAuthToken(null);
+    setCurrentUser(null);
+    setIsSettingsOpen(false);
+    setViewMode('public');
+  };
+
   return (
     <div className="h-screen w-full flex flex-col bg-black text-surface-200 font-sans selection:bg-brand/30">
-      {/* Persistent Technical Top Header */}
-      <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onOpenSearch={() => setIsSearchOpen(true)}
-        onResetDemo={handleResetDemo}
-        onOpenGuide={() => setIsGuideOpen(true)}
-        onOpenNewProject={() => setIsNewProjectOpen(true)}
-        user={currentUser}
-      />
-
-      {/* Main Mission Control Workspace */}
-      <main className="flex-1 relative overflow-hidden bg-black">
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            telemetry={telemetry}
-            loading={loading}
-            onNavigate={(tab) => setActiveTab(tab)}
+      {/* VIEW MODE 1: PUBLIC PORTAL & MARKETING SITE */}
+      {viewMode === 'public' ? (
+        <div className="flex-1 overflow-y-auto">
+          <PublicLandingView
+            currentPath={publicPath}
+            onNavigate={(path) => setPublicPath(path)}
+            onEnterWorkspace={() => setViewMode('workspace')}
+            onOpenSignIn={() => {
+              setAuthModalMode('login');
+              setIsAuthModalOpen(true);
+            }}
+            onOpenSignUp={() => {
+              setAuthModalMode('register');
+              setIsAuthModalOpen(true);
+            }}
           />
-        )}
-
-        {activeTab === 'reqs' && (
-          <RequirementsView
-            requirements={requirements}
-            architecture={architecture}
-            verification={verification}
-            risks={risks}
-            projectId={projectId}
-            onRefresh={refreshData}
-            selectedId={selectedReqId}
-            onSelectId={setSelectedReqId}
+        </div>
+      ) : (
+        /* VIEW MODE 2: AUTHENTICATED ENGINEERING WORKSPACE */
+        <div className="h-screen w-full flex flex-col bg-black overflow-hidden">
+          {/* Persistent Technical Top Header */}
+          <Header
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onOpenSearch={() => setIsSearchOpen(true)}
+            onResetDemo={handleResetDemo}
+            onOpenGuide={() => setIsGuideOpen(true)}
+            onOpenNewProject={() => setIsNewProjectOpen(true)}
+            onTogglePublic={() => setViewMode('public')}
+            onOpenNotifications={() => setIsNotificationsOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            unreadNotificationsCount={unreadCount}
+            user={currentUser}
           />
-        )}
 
-        {activeTab === 'arch' && (
-          <ArchitectureView
-            architecture={architecture}
-            requirements={requirements}
-            projectId={projectId}
-            onRefresh={refreshData}
-            onNavigateToReqs={() => setActiveTab('reqs')}
-          />
-        )}
+          {/* Main Mission Control Workspace */}
+          <main className="flex-1 relative overflow-hidden bg-black">
+            {activeTab === 'dashboard' && (
+              <DashboardView
+                telemetry={telemetry}
+                loading={loading}
+                onNavigate={(tab) => setActiveTab(tab)}
+              />
+            )}
 
-        {activeTab === 'verify' && (
-          <VerificationView
-            verification={verification}
-            requirements={requirements}
-            projectId={projectId}
-            onRefresh={refreshData}
-            onNavigateToNC={() => setActiveTab('quality')}
-          />
-        )}
+            {activeTab === 'reqs' && (
+              <RequirementsView
+                requirements={requirements}
+                architecture={architecture}
+                verification={verification}
+                risks={risks}
+                projectId={projectId}
+                onRefresh={refreshData}
+                selectedId={selectedReqId}
+                onSelectId={setSelectedReqId}
+              />
+            )}
 
-        {activeTab === 'change' && (
-          <ChangeControlView
-            requirements={requirements}
-            architecture={architecture}
-            projectId={projectId}
-            onRefresh={refreshData}
-          />
-        )}
+            {activeTab === 'arch' && (
+              <ArchitectureView
+                architecture={architecture}
+                requirements={requirements}
+                projectId={projectId}
+                onRefresh={refreshData}
+                onNavigateToReqs={() => setActiveTab('reqs')}
+              />
+            )}
 
-        {activeTab === 'risk' && (
-          <RiskView
-            risks={risks}
-            requirements={requirements}
-            architecture={architecture}
-            projectId={projectId}
-            onRefresh={refreshData}
-          />
-        )}
+            {activeTab === 'verify' && (
+              <VerificationView
+                verification={verification}
+                requirements={requirements}
+                projectId={projectId}
+                onRefresh={refreshData}
+                onNavigateToNC={() => setActiveTab('quality')}
+              />
+            )}
 
-        {activeTab === 'quality' && (
-          <QualityView
-            nonconformances={nonconformances}
-            projectId={projectId}
-            onRefresh={refreshData}
-          />
-        )}
+            {activeTab === 'change' && (
+              <ChangeControlView
+                requirements={requirements}
+                architecture={architecture}
+                projectId={projectId}
+                onRefresh={refreshData}
+              />
+            )}
 
-        {activeTab === 'baselines' && <BaselineView projectId={projectId} />}
+            {activeTab === 'risk' && (
+              <RiskView
+                risks={risks}
+                requirements={requirements}
+                architecture={architecture}
+                projectId={projectId}
+                onRefresh={refreshData}
+              />
+            )}
 
-        {activeTab === 'release' && (
-          <ReleaseView projectId={projectId} onRefresh={refreshData} />
-        )}
+            {activeTab === 'quality' && (
+              <QualityView
+                nonconformances={nonconformances}
+                projectId={projectId}
+                onRefresh={refreshData}
+              />
+            )}
 
-        {activeTab === 'documents' && <DocumentsView projectId={projectId} />}
+            {activeTab === 'baselines' && <BaselineView projectId={projectId} />}
 
-        {activeTab === 'tasks' && <TasksView projectId={projectId} />}
+            {activeTab === 'release' && (
+              <ReleaseView projectId={projectId} onRefresh={refreshData} />
+            )}
 
-        {activeTab === 'audit' && <AuditView projectId={projectId} />}
+            {activeTab === 'documents' && <DocumentsView projectId={projectId} />}
 
-        {activeTab === 'commercial' && (
-          <CommercialAdminView currentUser={currentUser} onRefresh={refreshData} />
-        )}
-      </main>
+            {activeTab === 'tasks' && <TasksView projectId={projectId} />}
+
+            {activeTab === 'audit' && <AuditView projectId={projectId} />}
+
+            {activeTab === 'commercial' && (
+              <CommercialAdminView currentUser={currentUser} onRefresh={refreshData} />
+            )}
+          </main>
+        </div>
+      )}
 
       {/* Global Search Modal */}
       <GlobalSearchModal
@@ -228,7 +297,7 @@ export const App: React.FC = () => {
       <GuidedNewProjectModal
         isOpen={isNewProjectOpen}
         onClose={() => setIsNewProjectOpen(false)}
-        onProjectCreated={async (newId) => {
+        onProjectCreated={async () => {
           await refreshData();
           setActiveTab('dashboard');
         }}
@@ -240,6 +309,34 @@ export const App: React.FC = () => {
         onClose={() => setIsGuideOpen(false)}
         telemetry={telemetry}
         onNavigate={(tab) => setActiveTab(tab)}
+      />
+
+      {/* Auth Modal (Login / Register / Forgot / Reset Password) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
+
+      {/* User Account & Security Settings Modal */}
+      <AccountSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        currentUser={currentUser}
+        onUserUpdated={(updated) => setCurrentUser(updated)}
+        onLogout={handleLogout}
+      />
+
+      {/* In-App Notification Center Drawer */}
+      <NotificationDrawer
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        onNavigateTab={(tab) => {
+          setViewMode('workspace');
+          setActiveTab(tab);
+        }}
+        onNotificationsChanged={fetchNotificationCount}
       />
     </div>
   );
