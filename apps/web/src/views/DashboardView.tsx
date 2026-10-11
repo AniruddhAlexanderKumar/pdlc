@@ -39,6 +39,71 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const passedPercent = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
   const failedPercent = totalTests > 0 ? Math.round((failedTests / totalTests) * 100) : 0;
 
+  // The 6 Plain Engineering Questions (from Engineering OS Framework Section 1 & 18.1)
+  const plainQuestions = [
+    {
+      q: '1. What are we developing and why?',
+      detail: 'Mass Reduction & Bandwidth Optimization Program (OPP-001)',
+      status: 'APPROVED',
+      statusColor: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
+      actionTab: 'reqs',
+    },
+    {
+      q: '2. What must the product do, and how well?',
+      detail: `${allocatedReqs} of ${totalReqs} requirements fully allocated to PBS components`,
+      status: allocatedPercent === 100 ? 'ALLOCATED' : 'INCOMPLETE ALLOCATION',
+      statusColor: allocatedPercent === 100 ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10' : 'text-amber-400 border-amber-500/40 bg-amber-500/10',
+      actionTab: 'reqs',
+    },
+    {
+      q: '3. How is the product structured?',
+      detail: 'Product Breakdown Structure (SYS-001 to SYS-004) & Interface Control',
+      status: 'STRUCTURED',
+      statusColor: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
+      actionTab: 'arch',
+    },
+    {
+      q: '4. How do we know it works and satisfies criteria?',
+      detail: `${passedTests} passed, ${failedTests} failed execution(s) recorded in authoritative ledger`,
+      status: failedTests > 0 ? 'FAILURES DETECTED' : 'VERIFIED',
+      statusColor: failedTests > 0 ? 'text-red-400 border-red-500/40 bg-red-500/10' : 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
+      actionTab: 'verify',
+    },
+    {
+      q: '5. How are changes controlled across the lifecycle?',
+      detail: 'CCB active with automated ripple-effect impact traversal & ECO records',
+      status: 'CONTROLLED',
+      statusColor: 'text-sys-change border-sys-change/40 bg-sys-change/10',
+      actionTab: 'change',
+    },
+    {
+      q: '6. Are we ready to build, certify, or release?',
+      detail: isReleaseReady ? 'All mandatory blockers cleared' : `Blocked by ${criteria.filter((c: any) => c.status !== 'Met' && c.isMandatory).length} mandatory criteria`,
+      status: isReleaseReady ? 'RELEASE READY' : 'GATE BLOCKED',
+      statusColor: isReleaseReady ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10' : 'text-red-400 border-red-500/40 bg-red-500/10',
+      actionTab: 'release',
+    },
+  ];
+
+  // The 15 PDLC Lifecycle Stages (Stages 01–15 from the Aerospace Systems Engineering Standard)
+  const pdlcStages = [
+    { num: '01', name: 'Opportunity & Problem', phase: 'Concept', active: false, done: true },
+    { num: '02', name: 'Feasibility & Concept', phase: 'Concept', active: false, done: true },
+    { num: '03', name: 'Stakeholder Needs', phase: 'Requirements', active: false, done: true },
+    { num: '04', name: 'System Requirements', phase: 'Requirements', active: false, done: true },
+    { num: '05', name: 'System Architecture', phase: 'Architecture', active: false, done: true },
+    { num: '06', name: 'Detailed Design', phase: 'Design', active: true, done: false },
+    { num: '07', name: 'Design Review (PDR/CDR)', phase: 'Review', active: false, done: false },
+    { num: '08', name: 'Implementation & Build', phase: 'Realization', active: false, done: false },
+    { num: '09', name: 'Integration & Testing', phase: 'V&V', active: false, done: false },
+    { num: '10', name: 'Verification (Compliance)', phase: 'V&V', active: false, done: false },
+    { num: '11', name: 'System Validation', phase: 'V&V', active: false, done: false },
+    { num: '12', name: 'Certification / Safety', phase: 'Assurance', active: false, done: false },
+    { num: '13', name: 'Release to Production', phase: 'Release', active: false, done: false },
+    { num: '14', name: 'Operations & In-Service', phase: 'Operations', active: false, done: false },
+    { num: '15', name: 'Change & Retirement', phase: 'Sustaining', active: false, done: false },
+  ];
+
   return (
     <div className="p-6 h-full overflow-y-auto animate-slide-in">
       <SectionHeader
@@ -57,6 +122,41 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         }
       />
+
+      {/* 15-Stage PDLC Lifecycle Pipeline Banner */}
+      <div className="glass-panel p-4 rounded-xl border border-white/10 mb-6 overflow-x-auto">
+        <div className="flex justify-between items-center mb-3">
+          <div className="text-xs font-mono font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-brand animate-pulse"></span>
+            NASA SE / ISO 15288 / ARP4754B Product Development Lifecycle (Stages 01–15)
+          </div>
+          <span className="text-[10px] font-mono text-brand border border-brand/30 px-2 py-0.5">
+            CURRENT: STAGE 06 // DETAILED DESIGN
+          </span>
+        </div>
+        <div className="flex items-center gap-1 min-w-[900px]">
+          {pdlcStages.map((s) => (
+            <div
+              key={s.num}
+              className={`flex-1 p-2 rounded border text-center transition-all ${
+                s.active
+                  ? 'bg-brand/15 border-brand text-white shadow-lg shadow-brand/10'
+                  : s.done
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  : 'bg-surface-900/50 border-surface-800 text-surface-500'
+              }`}
+            >
+              <div className="text-[9px] font-mono font-bold">{s.num}</div>
+              <div className="text-[10px] font-medium truncate mt-0.5" title={s.name}>
+                {s.name}
+              </div>
+              <div className="text-[8px] font-mono uppercase tracking-widest opacity-60 mt-0.5">
+                {s.done ? 'COMPLETED' : s.active ? 'IN PROGRESS' : 'UPCOMING'}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Top Telemetry Metric Panels */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -243,6 +343,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           ))}
         </div>
       </div>
+
+      {/* The 6 Plain Engineering Questions Framework (Section 1 & 18.1) */}
+      <div className="glass-panel p-6 rounded-xl border border-white/10 mb-8">
+        <div className="flex justify-between items-center mb-4 border-b border-surface-800 pb-3">
+          <div>
+            <h3 className="text-sm font-mono font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <span className="text-brand">[?]</span> The 6 Plain Engineering Questions
+            </h3>
+            <p className="text-[10px] font-mono text-surface-400 mt-0.5">
+              NASA Systems Engineering Handbook & ISO 15288 Core Decision Assurance
+            </p>
+          </div>
+          <span className="text-xs font-mono text-brand border border-brand/30 px-2 py-0.5">
+            HONEST PRODUCT MATURITY AUDIT
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {plainQuestions.map((pq, idx) => (
+            <div
+              key={idx}
+              onClick={() => onNavigate(pq.actionTab)}
+              className="bg-surface-900/70 border border-surface-800 p-4 rounded-lg flex flex-col justify-between hover:border-brand/40 cursor-pointer transition-colors"
+            >
+              <div>
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-xs font-mono font-bold text-white leading-tight">
+                    {pq.q}
+                  </span>
+                </div>
+                <p className="text-[11px] text-surface-300 mb-3">
+                  {pq.detail}
+                </p>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-surface-800/80 mt-auto">
+                <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 border ${pq.statusColor}`}>
+                  {pq.status}
+                </span>
+                <span className="text-[10px] font-mono text-surface-400 hover:text-white flex items-center gap-1">
+                  EXPLORE &rarr;
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
+
