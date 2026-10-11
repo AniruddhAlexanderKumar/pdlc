@@ -158,6 +158,56 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {/* What Should I Do Next? Guided Action Card */}
+      <div className="glass-panel p-5 rounded-xl border border-brand/40 bg-brand/5 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded bg-brand/20 border border-brand/50 flex items-center justify-center font-mono font-bold text-brand shrink-0 text-sm">
+            &rarr;
+          </div>
+          <div>
+            <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-brand mb-0.5">
+              Recommended Next Engineering Step
+            </div>
+            <div className="text-sm font-mono font-bold text-white">
+              {failedTests > 0
+                ? 'Investigate Dynamic Test VRF-002 & Close Blocking Nonconformance NC-001'
+                : 'Freeze Configuration Baseline & Review Allocation Completeness'}
+            </div>
+            <p className="text-xs text-surface-300 mt-1 max-w-2xl">
+              {failedTests > 0
+                ? 'A critical 5kN dynamic stroke test failed (transit time exceeded allowable 0.8s limit). Engineering release is blocked until root cause is addressed and NC-001 is closed.'
+                : 'All executed procedures are currently passing. You can now establish an immutable baseline snapshot for stage review.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {failedTests > 0 ? (
+            <>
+              <button
+                onClick={() => onNavigate('quality')}
+                className="px-3.5 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/40 font-mono text-xs font-bold hover:bg-amber-500/30 transition-colors rounded"
+              >
+                Resolve NC-001 &rarr;
+              </button>
+              <button
+                onClick={() => onNavigate('verify')}
+                className="px-3.5 py-2 bg-sys-verify text-white font-mono text-xs font-bold hover:bg-emerald-600 transition-colors rounded shadow-lg shadow-sys-verify/20"
+              >
+                Re-Run VRF-002 &rarr;
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => onNavigate('baselines')}
+              className="px-4 py-2 bg-purple-600 text-white font-mono text-xs font-bold hover:bg-purple-500 transition-colors rounded"
+            >
+              Freeze Baseline &rarr;
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Top Telemetry Metric Panels */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* 1. Requirement Allocation */}

@@ -354,17 +354,47 @@ export const RequirementsView: React.FC<RequirementsViewProps> = ({
             )}
 
             <div>
-              <label className="text-[10px] font-mono text-surface-400 uppercase tracking-widest block mb-1">
-                Requirement Statement (Normative)
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[10px] font-mono text-surface-400 uppercase tracking-widest">
+                  What must the product achieve?
+                </label>
+                <span className="text-[9px] font-mono text-surface-500">
+                  Tip: Use normative phrasing like "shall" or "must"
+                </span>
+              </div>
               <textarea
                 required
                 rows={3}
-                placeholder="The system shall..."
+                placeholder="e.g. The flight actuator assembly shall complete full 45mm stroke transit in less than 0.80 seconds under 5.0 kN opposing dynamic load."
                 value={newText}
                 onChange={(e) => setNewText(e.target.value)}
-                className="w-full bg-surface-950 border border-surface-700 text-xs text-white p-2 font-mono focus:outline-none"
+                className="w-full bg-surface-950 border border-surface-700 text-xs text-white p-2.5 font-mono focus:outline-none focus:border-sys-req"
               />
+              {/* Plain-Language Assistant Feedback */}
+              {newText.length > 5 && (
+                <div className="mt-2 p-2 bg-surface-950/80 border border-surface-800 rounded text-[11px] font-mono">
+                  {/(adequate|fast|lightweight|sufficient|suitable|reasonable)/i.test(newText) ? (
+                    <div className="text-amber-400 flex items-start gap-1.5">
+                      <span className="font-bold">! Ambiguous Goal Detected: </span>
+                      <span>
+                        Words like "fast" or "lightweight" cannot be verified. Specify exact numerical limits (e.g. "&lt; 0.8s" or "&lt; 2.2 kg").
+                      </span>
+                    </div>
+                  ) : !/(shall|must|will)/i.test(newText) ? (
+                    <div className="text-surface-400 flex items-start gap-1.5">
+                      <span className="text-brand font-bold">&bull; Recommendation: </span>
+                      <span>
+                        Professional aerospace requirements typically use "The [system] shall [action]" for contractual clarity.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-emerald-400 flex items-start gap-1.5">
+                      <span className="font-bold">&check; Well-Formed Requirement: </span>
+                      <span>Contains normative mandate and measurable criteria suitable for verification.</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

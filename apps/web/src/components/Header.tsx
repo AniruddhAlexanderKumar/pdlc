@@ -5,6 +5,8 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   onOpenSearch: () => void;
   onResetDemo: () => void;
+  onOpenGuide?: () => void;
+  onOpenNewProject?: () => void;
   user: any;
 }
 
@@ -13,6 +15,8 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onOpenSearch,
   onResetDemo,
+  onOpenGuide,
+  onOpenNewProject,
   user,
 }) => {
   const tabs = [
@@ -74,6 +78,26 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* User, Search & Quick Actions */}
       <div className="flex items-center gap-3 mb-2 ml-4 shrink-0">
+        {onOpenNewProject && (
+          <button
+            onClick={onOpenNewProject}
+            className="px-2.5 py-1 bg-brand/20 border border-brand/50 text-brand hover:bg-brand/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 rounded"
+            title="Create a new engineering project with guided wizard"
+          >
+            <span>+ PROJECT</span>
+          </button>
+        )}
+
+        {onOpenGuide && (
+          <button
+            onClick={onOpenGuide}
+            className="px-2.5 py-1 bg-purple-500/20 border border-purple-500/50 text-purple-300 hover:bg-purple-500/30 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 rounded"
+            title="Open in-app engineering copilot & guidance"
+          >
+            <span>? GUIDE</span>
+          </button>
+        )}
+
         <button
           onClick={onOpenSearch}
           className="px-2.5 py-1 bg-surface-900 border border-surface-700 text-surface-300 hover:text-white text-[10px] font-mono uppercase tracking-wider flex items-center gap-1.5"

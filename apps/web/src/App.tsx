@@ -16,6 +16,8 @@ import { DocumentsView } from './views/DocumentsView';
 import { TasksView } from './views/TasksView';
 import { AuditView } from './views/AuditView';
 import { CommercialAdminView } from './views/CommercialAdminView';
+import { GuidedNewProjectModal } from './components/GuidedNewProjectModal';
+import { EngineeringAssistantModal } from './components/EngineeringAssistantModal';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -31,8 +33,10 @@ export const App: React.FC = () => {
   const [nonconformances, setNonconformances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Global search & navigation
+  // Global search, guide & project wizards
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [selectedReqId, setSelectedReqId] = useState<string | null>(null);
 
   // 1. Initial Authentication & Data Hydration
@@ -120,6 +124,8 @@ export const App: React.FC = () => {
         setActiveTab={setActiveTab}
         onOpenSearch={() => setIsSearchOpen(true)}
         onResetDemo={handleResetDemo}
+        onOpenGuide={() => setIsGuideOpen(true)}
+        onOpenNewProject={() => setIsNewProjectOpen(true)}
         user={currentUser}
       />
 
@@ -216,6 +222,24 @@ export const App: React.FC = () => {
         onClose={() => setIsSearchOpen(false)}
         onSelectResult={handleSelectSearchResult}
         projectId={projectId}
+      />
+
+      {/* Beginner Guided Project Setup Wizard */}
+      <GuidedNewProjectModal
+        isOpen={isNewProjectOpen}
+        onClose={() => setIsNewProjectOpen(false)}
+        onProjectCreated={async (newId) => {
+          await refreshData();
+          setActiveTab('dashboard');
+        }}
+      />
+
+      {/* In-App Engineering Assistant / Copilot Modal */}
+      <EngineeringAssistantModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        telemetry={telemetry}
+        onNavigate={(tab) => setActiveTab(tab)}
       />
     </div>
   );

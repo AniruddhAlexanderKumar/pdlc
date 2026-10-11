@@ -349,6 +349,23 @@ export const VerificationView: React.FC<VerificationViewProps> = ({
                     <option value="Failed">FAILED - Nonconformance Detected (Triggers NC)</option>
                     <option value="Inconclusive">INCONCLUSIVE - Retest Required</option>
                   </select>
+                  <div className="mt-1.5 p-2 bg-surface-950/60 border border-surface-800 rounded text-[11px] font-mono text-surface-300">
+                    {outcome === 'Passed' && (
+                      <span className="text-emerald-400">
+                        &check; <strong>What happens:</strong> The procedure status will update to "Passed" and clear a mandatory stage-gate release blocker.
+                      </span>
+                    )}
+                    {outcome === 'Failed' && (
+                      <span className="text-red-400">
+                        ! <strong>What happens:</strong> A formal Nonconformance Report (NC) will automatically be filed in PostgreSQL and will block release until closed with corrective action evidence.
+                      </span>
+                    )}
+                    {outcome === 'Inconclusive' && (
+                      <span className="text-amber-400">
+                        &bull; <strong>What happens:</strong> The procedure remains unverified and will require a repeat test run.
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div>
