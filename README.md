@@ -345,10 +345,11 @@ tweaks beyond the defaults:
 
 | Setting | Value |
 |---|---|
+| Root directory | repository root (or `apps/web` — both configs exist, see below) |
 | Build command | `npm run build` (default — builds `shared-types` + `web`) |
 | Deploy command | `npx wrangler deploy` (default), or `npm run deploy` |
-| Config file | `wrangler.toml` |
-| Assets directory | `apps/web/dist` |
+| Config file | `/wrangler.toml` (root directory) or `/apps/web/wrangler.toml` |
+| Assets directory | `apps/web/dist` (root) / `dist` (web workspace) |
 | Node version | `.nvmrc` → 22 (`engines.node >= 20`) |
 
 `wrangler.toml` uses an assets-only Worker:
@@ -365,6 +366,14 @@ not_found_handling = "single-page-application"
 `not_found_handling = "single-page-application"` serves `index.html` for
 unknown paths, so deep links do not 404. `apps/web/public/_redirects` repeats
 that rule for Pages/Netlify-style hosts.
+
+Both `wrangler.toml` files describe the same Worker, so the project deploys
+whether the dashboard's root directory is the repository root or `apps/web`
+(they differ only in the relative assets path). Each also carries an
+`[env.production]` block: Workers Builds sometimes appends `--env production`,
+which fails with "No configuration found for environment" when no environment
+is defined, and the explicit `name` keeps the deploy target on the `pdlc`
+Worker instead of `pdlc-production`.
 
 Verify the deploy locally without publishing anything:
 

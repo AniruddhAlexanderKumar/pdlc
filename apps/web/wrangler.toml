@@ -1,0 +1,23 @@
+# Cloudflare Worker `pdlc` — deploy config for when this directory is set as
+# the project's **root directory** in Cloudflare Workers Builds.
+#
+# Most projects build from the repository root and use `/wrangler.toml`; this
+# file exists so the same Worker also deploys when the dashboard's root
+# directory is `apps/web` (in that case assets are `./dist`, not
+# `apps/web/dist`). Both configs publish the same static single-page app.
+name = "pdlc"
+compatibility_date = "2026-10-12"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+
+# See the note in the repository-root `wrangler.toml`: builds that pass
+# `--env production` need an environment block, and `name` keeps the target
+# pinned to the `pdlc` Worker.
+[env.production]
+name = "pdlc"
+
+[env.production.assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
