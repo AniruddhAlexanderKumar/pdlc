@@ -27,7 +27,7 @@ import { NotificationDrawer } from './components/notifications/NotificationDrawe
 
 export const App: React.FC = () => {
   // Top-level Navigation Mode: 'public' (SaaS Landing & Marketing) vs 'workspace' (Engineering OS)
-  const [viewMode, setViewMode] = useState<'public' | 'workspace'>('workspace');
+  const [viewMode, setViewMode] = useState<'public' | 'workspace'>('public');
   const [publicPath, setPublicPath] = useState('/');
 
   // Active Engineering Workspace Tab
@@ -168,9 +168,9 @@ export const App: React.FC = () => {
             currentPath={publicPath}
             onNavigate={(path) => setPublicPath(path)}
             onEnterWorkspace={() => setViewMode('workspace')}
+            onSignInSuccess={handleAuthSuccess}
             onOpenSignIn={() => {
-              setAuthModalMode('login');
-              setIsAuthModalOpen(true);
+              setPublicPath('/signin');
             }}
             onOpenSignUp={() => {
               setAuthModalMode('register');
@@ -192,6 +192,7 @@ export const App: React.FC = () => {
             onTogglePublic={() => setViewMode('public')}
             onOpenNotifications={() => setIsNotificationsOpen(true)}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onSignOut={handleLogout}
             unreadNotificationsCount={unreadCount}
             user={currentUser}
           />

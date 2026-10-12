@@ -10,6 +10,7 @@ interface HeaderProps {
   onTogglePublic?: () => void;
   onOpenNotifications?: () => void;
   onOpenSettings?: () => void;
+  onSignOut?: () => void;
   unreadNotificationsCount?: number;
   user: any;
 }
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onTogglePublic,
   onOpenNotifications,
   onOpenSettings,
+  onSignOut,
   unreadNotificationsCount = 0,
   user,
 }) => {
@@ -167,6 +169,16 @@ export const Header: React.FC<HeaderProps> = ({
             {user?.name ? user.name.slice(0, 2).toUpperCase() : 'SE'}
           </div>
         </div>
+
+        {onSignOut && (
+          <button
+            onClick={onSignOut}
+            className="px-2 py-1 text-[9px] font-mono uppercase tracking-wider text-surface-400 hover:text-red-400 hover:bg-red-500/10 border border-surface-800 hover:border-red-500/30 rounded transition-colors ml-1"
+            title="Sign out of engineering workspace and return to public portal"
+          >
+            Sign Out
+          </button>
+        )}
       </div>
     </header>
   );
