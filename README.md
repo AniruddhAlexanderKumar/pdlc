@@ -81,12 +81,20 @@ Open your browser at **`http://localhost:3000`**.
 
 ### Option B: Production Build & Execution
 ```bash
-# Build all workspaces (shared-types, api, web)
+# Build the deployable single-page app (shared-types + web -> apps/web/dist)
 npm run build
+
+# Build the backend separately (needs a generated Prisma client)
+npm run db:generate
+npm run build:api
 
 # Start production API server
 node apps/api/dist/server.js
 ```
+
+`npm run build:all` still builds every workspace in one go; `npm run build`
+deliberately targets only the static frontend, because that is what the
+Cloudflare Worker deploys (see section 8).
 
 ### Option C: Self-Hosted Docker Compose
 ```bash
@@ -198,6 +206,7 @@ nexgen-plm/
 │   └── shared-types/            # Universal TypeScript domain interfaces & DTOs
 ├── prisma/
 │   └── schema.prisma            # Normalized PostgreSQL relational schema
+├── wrangler.toml                # Cloudflare Worker config (static assets, section 8)
 ├── docs/
 │   └── ARCHITECTURE.md          # Technical systems engineering architecture guide
 ├── reference/
@@ -326,6 +335,61 @@ PostgreSQL seeded) to populate authoritative values.
 
 ---
 
-## 8. License
+## 8. Deployment
+
+### 8.1 Cloudflare Workers (`pdlc`)
+
+The Worker named `pdlc` publishes the built single-page app as static assets.
+Configuration lives in the repository so Workers Builds needs no dashboard
+tweaks beyond the defaults:
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` (default — builds `shared-types` + `web`) |
+| Deploy command | `npx wrangler deploy` (default), or `npm run deploy` |
+| Config file | `wrangler.toml` |
+| Assets directory | `apps/web/dist` |
+| Node version | `.nvmrc` → 22 (`engines.node >= 20`) |
+
+`wrangler.toml` uses an assets-only Worker:
+
+```toml
+name = "pdlc"
+compatibility_date = "2026-10-12"
+
+[assets]
+directory = "./apps/web/dist"
+not_found_handling = "single-page-application"
+```
+
+`not_found_handling = "single-page-application"` serves `index.html` for
+unknown paths, so deep links do not 404. `apps/web/public/_redirects` repeats
+that rule for Pages/Netlify-style hosts.
+
+Verify the deploy locally without publishing anything:
+
+```bash
+npm run build
+npm run deploy:dry-run   # npx wrangler deploy --dry-run
+```
+
+The Worker serves only the frontend. `apps/web/src/lib/api.ts` calls the API at
+the relative path `/api/v1/…`, so on the Worker origin those requests 404 and the
+board falls back to its offline banner; point the app at a deployed API with a
+reverse proxy route or `VITE_API_URL` when the backend is hosted.
+
+### 8.2 Other hosts
+
+- **Docker Compose** — `docker compose up -d` (section 2, option C) serves the
+  same `apps/web/dist` through Nginx with `/api` proxied to the API container.
+- **Vercel / Netlify** — set the project root directory to `apps/web`, the build
+  command to `npm run build --workspace=@nexgen/web` (or run `npm run build`
+  from the repository root) and the output directory to `apps/web/dist`.
+  The repository has no `vercel.json` or `netlify.toml`, so these settings live
+  in each project's dashboard.
+
+---
+
+## 9. License
 
 Licensed under the MIT License. Built for rigorous engineering organizations.

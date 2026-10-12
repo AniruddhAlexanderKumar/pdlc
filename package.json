@@ -12,8 +12,15 @@
     "dev": "npm run dev --workspaces",
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:web": "npm run dev --workspace=apps/web",
-    "build": "npm run build --workspaces",
+    "build": "npm run build:shared && npm run build:web",
+    "build:shared": "npm run build --workspace=@nexgen/shared-types",
+    "build:web": "npm run build --workspace=@nexgen/web",
+    "build:api": "npm run build --workspace=@nexgen/api",
+    "build:all": "npm run build --workspaces",
     "test": "npm run test --workspaces",
+    "deploy": "npx --yes wrangler@4 deploy",
+    "deploy:dry-run": "npx --yes wrangler@4 deploy --dry-run",
+    "preview:web": "npm run preview --workspace=@nexgen/web",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
@@ -22,5 +29,8 @@
   "devDependencies": {
     "prisma": "^6.4.1",
     "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

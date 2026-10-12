@@ -1,0 +1,17 @@
+# Cloudflare Worker `pdlc` — serves the built NexGen PLM single-page app.
+#
+# Cloudflare Workers Builds runs, on every push:
+#   1. build  → `npm run build`           (package.json: shared-types + web)
+#   2. deploy → `npx wrangler deploy`     (this file, uploads static assets)
+#
+# The Express API in `apps/api` is deployed separately (see
+# `apps/api/Dockerfile`) because it needs PostgreSQL and long-lived secrets;
+# it is intentionally not part of this static deployment.
+name = "pdlc"
+compatibility_date = "2026-10-12"
+
+[assets]
+# `npm run build` emits the Vite bundle here.
+directory = "./apps/web/dist"
+# Deep links (e.g. /workspace) fall back to index.html instead of 404ing.
+not_found_handling = "single-page-application"
