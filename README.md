@@ -120,7 +120,7 @@ This executes:
 2. **Deterministic Stage Gate Evaluation**: Verifies that failed test `VRF-002` deterministically triggers mandatory release blocker `GATE-VRF-01`.
 3. **Automated Ripple-Effect Change Impact**: Verifies that proposing a change to `REQ-002` correctly traces affected PBS component `SYS-002`, invalidates test `VRF-002`, and flags re-test obligations.
 4. **REST API Endpoints**: End-to-end integration tests using Supertest verifying authentication, telemetry endpoints, and impact analysis.
-5. **Frontend Suite**: Status color mappings and telemetry ratio computations.
+5. **Frontend Suite**: Status color mappings, telemetry ratio computations, and widget-board tile packing (gap-free layout at the default four-column arrangement).
 
 ---
 
@@ -175,10 +175,12 @@ This executes:
 nexgen-plm/
 ├── apps/
 │   ├── web/                     # React 18 + Vite + TypeScript frontend
+│   │   ├── components.json      # shadcn/ui CLI configuration (see section 7)
 │   │   ├── src/
 │   │   │   ├── components/      # Technical UI components (Header, StatusBadge, Search)
-│   │   │   ├── views/           # 12 Mission control engineering modules
-│   │   │   ├── lib/             # Typed API client & session manager
+│   │   │   │   └── ui/          # shadcn-style registry components (draggable widget grid)
+│   │   │   ├── views/           # 14 Mission control engineering modules
+│   │   │   ├── lib/             # Typed API client, session manager & cn() helper
 │   │   │   └── tests/           # Frontend unit tests
 │   │   ├── Dockerfile
 │   │   └── vite.config.ts
@@ -208,6 +210,122 @@ nexgen-plm/
 
 ---
 
-## 7. License
+## 7. Engineering Widget Board (shadcn/ui + Motion)
+
+The mission-control home screen can be rearranged: **02 Widget Board** is the
+workspace landing surface (set by `activeTab` in `apps/web/src/App.tsx`) and
+renders authoritative engineering state as draggable, size-aware tiles, while
+**01 Telemetry** keeps the original fixed dashboard layout.
+
+| Piece | Path |
+|---|---|
+| Grid engine (registry component) | `apps/web/src/components/ui/draggable-widget-grid.tsx` |
+| Reference board (simulated agent-observability data) | `apps/web/src/components/ui/draggable-widget-grid-demo.tsx` |
+| Production board bound to PostgreSQL telemetry | `apps/web/src/views/WidgetBoardView.tsx` |
+| shadcn CLI configuration | `apps/web/components.json` |
+| `cn()` class helper | `apps/web/src/lib/utils.ts` |
+
+### 7.1 Board interaction contract
+
+- **Mouse / pen** — drag a tile to rearrange it. **Touch** — press and hold
+  (350 ms), then drag; a plain swipe still scrolls the page.
+- **Keyboard** — focus a tile, hold `Alt`, press `←`/`→`/`↑`/`↓`.
+- The layout is persisted to `localStorage` under
+  `nexgen.widget-board.layout.v1`; **Reset layout** in the section header
+  restores the default arrangement.
+- Sizes are `sm` (1×1), `wide` (2×1), `tall` (1×2) and `lg` (2×2). The tiler
+  packs the sequence into a gap-free rectangle at any column count, so the
+  board adapts from four columns down to two.
+- Tiles expose `role="listitem"`, `aria-label`, `aria-posinset` and
+  `aria-setsize`; animations honour `prefers-reduced-motion`.
+
+### 7.2 Adding a tile to the live board
+
+1. Append an entry to `DEFAULT_BOARD` in `views/WidgetBoardView.tsx`
+   (`{ id, kind, size, label }`) — keep the total area a multiple of four so the
+   exact tiler can fill the four-column board.
+2. Add the matching renderer to the `TILES` record. Each renderer receives
+   `{ telemetry, onNavigate }`, where `telemetry` is the response of
+   `GET /api/v1/projects/:id/telemetry`.
+3. Reuse the tile primitives (`Frame`, `Figure`, `Meter`, `Stat`, `Jump`) and
+   theme tokens (`bg-card`, `text-muted-foreground`, `ring-border`, `bg-brand`)
+   so tiles follow the mission-control theme.
+
+### 7.3 shadcn/ui structure
+
+This monorepo is a **Vite + React 18 + TypeScript + Tailwind 3** workspace, so
+shadcn's `components/ui` convention is kept inside the web app:
+
+```text
+apps/web/
+├── components.json            # shadcn CLI config (aliases, tailwind paths)
+├── tailwind.config.js         # token colours + tailwindcss-animate + container queries
+├── tsconfig.json              # "@/*" -> "./src/*"
+└── src/
+    ├── components/ui/         # <-- all shadcn/registry components live here
+    ├── components/            # application components (Header, StatusBadge, …)
+    ├── lib/utils.ts           # cn()
+    └── index.css              # design tokens (--color-*)
+```
+
+`src/components/ui` is required, not cosmetic:
+
+- `components.json` declares `"ui": "@/components/ui"`, and the shadcn CLI writes
+  every `add` into that folder; a different path makes registry components land
+  beside hand-written app components and breaks their relative imports.
+- Registry snippets import siblings as `@/components/ui/<name>` and expect the
+  `@/*` alias; the board demo uses exactly that form.
+- Keeping the folder in the web workspace (rather than the monorepo root) keeps
+  Tailwind's `content` globs, Vite aliasing and TypeScript `paths` consistent —
+  there is one `tsconfig.json` per workspace.
+
+Adding more registry components:
+
+```bash
+cd apps/web
+npx shadcn@latest add button card tooltip   # reads components.json, installs deps
+```
+
+Starting from an empty project, the equivalent bootstrap is:
+
+```bash
+npm create vite@latest my-app -- --template react-ts   # TypeScript + React
+cd my-app && npm install
+npm install -D tailwindcss@3 postcss autoprefixer tailwindcss-animate @tailwindcss/container-queries
+npx tailwindcss init -p
+npx shadcn@latest init                                  # creates components/ui + components.json
+npx shadcn@latest add <component>
+```
+
+### 7.4 Tailwind theme tokens
+
+`tailwind.config.js` maps the shadcn token names to CSS variables defined in
+`src/index.css`:
+
+```js
+const token = (name, fallback) =>
+  `color-mix(in srgb, var(--color-${name}, ${fallback}) calc(<alpha-value> * 100%), transparent)`;
+```
+
+Two details make this configuration work:
+
+- Tailwind 3 cannot apply an `/opacity` modifier to a bare `var(…)` colour, so
+  tokens are wrapped in `color-mix()` — that keeps `bg-foreground/15`,
+  `bg-muted-foreground/60` and `ring-foreground/40` working.
+- Token values are plain colours (`#0a0a0a`), **not** HSL channel triples. The
+  board's own palette override (light + dark) relies on this, and the global
+  `border-radius` clamp in `index.css` explicitly opts widget tiles out so their
+  `radius` prop is honoured.
+
+### 7.5 Previewing without PostgreSQL
+
+The board is client-only: with the API stopped it renders the offline banner and
+placeholder figures, and **Reference board** (code-split, loaded on demand)
+shows the full simulated board. Start the stack (`npm run dev:api` with
+PostgreSQL seeded) to populate authoritative values.
+
+---
+
+## 8. License
 
 Licensed under the MIT License. Built for rigorous engineering organizations.

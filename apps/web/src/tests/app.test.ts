@@ -35,13 +35,14 @@ describe('NexGen PLM Frontend Client Suite', () => {
     expect(plans).toContain('Enterprise');
   });
 
-  it('verifies all 13 mission control navigation tabs are registered', () => {
+  it('verifies all 14 mission control navigation tabs are registered', () => {
     const tabIds = [
-      'dashboard', 'reqs', 'arch', 'verify', 'change',
+      'dashboard', 'board', 'reqs', 'arch', 'verify', 'change',
       'risk', 'quality', 'baselines', 'release', 'documents',
       'tasks', 'audit', 'commercial'
     ];
-    expect(tabIds).toHaveLength(13);
+    expect(tabIds).toHaveLength(14);
+    expect(tabIds).toContain('board');
     expect(tabIds).toContain('commercial');
     expect(tabIds).toContain('release');
   });

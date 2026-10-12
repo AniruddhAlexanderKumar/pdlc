@@ -2,7 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens (shadcn/ui compatible naming).
+ *
+ * `--color-*` is the single source of truth consumed by `tailwind.config.js`
+ * (see the `token()` helper there) and by inline palettes such as the one in
+ * `components/ui/draggable-widget-grid-demo.tsx`.
+ *
+ * Values are plain colours (not HSL channels) because Tailwind's `/opacity`
+ * modifier is applied through `color-mix()` in the config.
+ */
 @layer base {
+  :root {
+    --color-background: #ffffff;
+    --color-foreground: #09090b;
+    --color-card: #ffffff;
+    --color-card-foreground: #09090b;
+    --color-popover: #ffffff;
+    --color-popover-foreground: #09090b;
+    --color-primary: #00b3cc;
+    --color-primary-foreground: #ffffff;
+    --color-secondary: #f4f4f5;
+    --color-secondary-foreground: #18181b;
+    --color-muted: #f4f4f5;
+    --color-muted-foreground: #71717a;
+    --color-accent: #f4f4f5;
+    --color-accent-foreground: #18181b;
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #fafafa;
+    --color-border: #e4e4e7;
+    --color-input: #e4e4e7;
+    --color-ring: #18181b;
+    --radius: 2px;
+  }
+
+  .dark {
+    --color-background: #000000;
+    --color-foreground: #e5e5e5;
+    --color-card: #0a0a0a;
+    --color-card-foreground: #e5e5e5;
+    --color-popover: #0a0a0a;
+    --color-popover-foreground: #e5e5e5;
+    --color-primary: #00e5ff;
+    --color-primary-foreground: #000000;
+    --color-secondary: #171717;
+    --color-secondary-foreground: #e5e5e5;
+    --color-muted: #171717;
+    --color-muted-foreground: #a3a3a3;
+    --color-accent: #1f1f1f;
+    --color-accent-foreground: #fafafa;
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #fafafa;
+    --color-border: #262626;
+    --color-input: #262626;
+    --color-ring: #00e5ff;
+    --radius: 2px;
+  }
+
   body {
     font-family: 'Inter', sans-serif;
     background-color: #000000;
@@ -64,8 +120,13 @@
   animation: slideIn 0.2s ease-out forwards;
 }
 
-/* Force sharp, technical corners globally for mission control aesthetic */
-.rounded-xl, .rounded-lg, .rounded-md, .rounded {
+/* Force sharp, technical corners globally for mission control aesthetic.
+   The widget board (data-slot="widget") opts out: its tiles are deliberately
+   rounded, driven by the grid's `radius` prop / `--widget-radius`. */
+.rounded-xl:not([data-slot='widget'] *):not([data-slot='widget']),
+.rounded-lg:not([data-slot='widget'] *):not([data-slot='widget']),
+.rounded-md:not([data-slot='widget'] *):not([data-slot='widget']),
+.rounded:not([data-slot='widget'] *):not([data-slot='widget']) {
   border-radius: 2px !important;
 }
 .rounded-full.w-10, .rounded-full.w-8, .rounded-full.w-9 {

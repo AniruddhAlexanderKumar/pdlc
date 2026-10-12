@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 
 import { DashboardView } from './views/DashboardView';
+import { WidgetBoardView } from './views/WidgetBoardView';
 import { RequirementsView } from './views/RequirementsView';
 import { ArchitectureView } from './views/ArchitectureView';
 import { VerificationView } from './views/VerificationView';
@@ -30,8 +31,10 @@ export const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'public' | 'workspace'>('public');
   const [publicPath, setPublicPath] = useState('/');
 
-  // Active Engineering Workspace Tab
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // Active Engineering Workspace Tab.
+  // The rearrangable widget board is the workspace landing surface; the
+  // telemetry dashboard remains one click away (01 Telemetry).
+  const [activeTab, setActiveTab] = useState('board');
   const [projectId] = useState('PRJ-AERO-01');
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -197,7 +200,19 @@ export const App: React.FC = () => {
             user={currentUser}
           />
 
-          {/* Main Mission Control Workspace */}
+          {/*
+            Widget Board owns the main region itself: the reference board in
+            `components/ui/draggable-widget-grid-demo.tsx` renders a full page
+            (its own <main>), and a page must only ever contain one.
+          */}
+          {activeTab === 'board' ? (
+            <WidgetBoardView
+              telemetry={telemetry}
+              loading={loading}
+              onNavigate={setActiveTab}
+            />
+          ) : (
+          /* Main Mission Control Workspace */
           <main className="flex-1 relative overflow-hidden bg-black">
             {activeTab === 'dashboard' && (
               <DashboardView
@@ -283,6 +298,7 @@ export const App: React.FC = () => {
               <CommercialAdminView currentUser={currentUser} onRefresh={refreshData} />
             )}
           </main>
+          )}
         </div>
       )}
 

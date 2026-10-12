@@ -31,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const tabs = [
     { id: 'dashboard', label: 'Telemetry', color: 'text-white', border: 'border-t-brand' },
+    { id: 'board', label: 'Widget Board', color: 'text-brand', border: 'border-t-brand' },
     { id: 'reqs', label: 'Requirements', color: 'text-sys-req', border: 'border-t-sys-req' },
     { id: 'arch', label: 'Architecture', color: 'text-sys-arch', border: 'border-t-sys-arch' },
     { id: 'verify', label: 'Verification', color: 'text-sys-verify', border: 'border-t-sys-verify' },
