@@ -1,0 +1,23 @@
+{
+  "name": "solution-velocity",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Solution Velocity \u2014 a gamified product development lifecycle workspace",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @sv/server & npm run dev --workspace @sv/web",
+    "dev:db": "npm run dev:db --workspace @sv/server",
+    "build": "npm run build --workspace @sv/web && npm run build --workspace @sv/server",
+    "start": "npm run start --workspace @sv/server",
+    "migrate": "npm run migrate --workspace @sv/server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "create-admin": "npm run create-admin --workspace @sv/server --"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

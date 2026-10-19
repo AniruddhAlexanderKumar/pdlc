@@ -1,0 +1,45 @@
+# Production stack: app + PostgreSQL. Put a TLS-terminating reverse proxy in front
+# (see deploy/Caddyfile), or point an existing nginx at port 4000.
+#
+#   cp .env.production.example .env.production   # fill in APP_URL and POSTGRES_PASSWORD
+#   docker compose --env-file .env.production up -d --build
+#   docker compose exec app node dist/scripts/create-admin.js --email you@company.com --name "You"
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: velocity
+      POSTGRES_USER: velocity
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U velocity -d velocity']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      APP_URL: ${APP_URL:?set APP_URL, e.g. https://velocity.yourcompany.com}
+      DATABASE_URL: postgres://velocity:${POSTGRES_PASSWORD}@db:5432/velocity
+      ALLOW_SIGNUP: ${ALLOW_SIGNUP:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      INSIGHTS_PROVIDER: ${INSIGHTS_PROVIDER:-rules}
+    ports:
+      # Bound to localhost: expose it publicly only through your reverse proxy.
+      - '127.0.0.1:4000:4000'
+
+volumes:
+  pgdata:
