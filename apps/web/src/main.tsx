@@ -71,6 +71,7 @@ const router = createBrowserRouter([
     element: <GuestOnly />,
     children: [
       { path: '/login', element: <AuthPage mode="login" /> },
+      { path: '/signup', element: <AuthPage mode="register" /> },
       { path: '/register', element: <AuthPage mode="register" /> },
       { path: '/reset/:token', element: <ResetPage /> }
     ]
