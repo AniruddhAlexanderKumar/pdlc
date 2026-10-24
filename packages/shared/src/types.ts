@@ -8,6 +8,7 @@ export interface User {
   email: string;
   name: string;
   createdAt: string;
+  isAdmin?: boolean;
 }
 
 export interface Workspace {
@@ -150,3 +151,65 @@ export interface WithXp<T> {
   data: T;
   xp: XpAward[];
 }
+
+export interface AdminOverviewStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalWorkspaces: number;
+  totalProducts: number;
+  stageCounts: Record<string, number>;
+  recentUsers: { id: string; name: string; email: string; createdAt: string }[];
+  recentProducts: { id: string; name: string; stage: string; workspaceName: string; createdAt: string }[];
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  isDisabled: boolean;
+  failedLogins: number;
+  lastLoginAt: string | null;
+  createdAt: string;
+  workspaces: { id: string; name: string; role: Role }[];
+  productCount: number;
+}
+
+export interface AdminWorkspaceMember {
+  userId: string;
+  name: string;
+  email: string;
+  role: Role;
+  joinedAt: string;
+}
+
+export interface AdminWorkspace {
+  id: string;
+  name: string;
+  currency: CurrencyCode;
+  createdAt: string;
+  memberCount: number;
+  members: AdminWorkspaceMember[];
+  productCount: number;
+  materialCount: number;
+  supplierCount: number;
+}
+
+export interface AdminProduct {
+  id: string;
+  name: string;
+  category: string;
+  stage: StageId;
+  imageUrl: string;
+  description: string;
+  targetSellingPrice: number | null;
+  workspaceId: string;
+  workspaceName: string;
+  createdBy: string | null;
+  creatorName: string | null;
+  creatorEmail: string | null;
+  materialsCount: number;
+  tasksCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+

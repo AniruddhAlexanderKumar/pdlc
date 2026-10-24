@@ -17,6 +17,7 @@ export interface AuthContext {
   email: string;
   workspaceId: string;
   role: Role;
+  isAdmin: boolean;
 }
 
 declare global {
@@ -99,7 +100,8 @@ export async function loadSession(req: Request, res: Response, next: NextFunctio
       name: row.name,
       email: row.email,
       workspaceId: row.workspace_id,
-      role: row.role
+      role: row.role,
+      isAdmin: row.email.toLowerCase() === 'admin@gmail.com'
     };
     next();
   } catch (err) {
@@ -109,6 +111,12 @@ export async function loadSession(req: Request, res: Response, next: NextFunctio
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   if (!req.auth) return next(unauthorized());
+  next();
+}
+
+export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
+  if (!req.auth) return next(unauthorized());
+  if (!req.auth.isAdmin) return next(forbidden('Admin privileges required'));
   next();
 }
 

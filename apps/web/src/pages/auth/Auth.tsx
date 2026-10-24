@@ -213,7 +213,15 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
 
   const loginMutation = useMutation({
     mutationFn: () => post<Me>('/auth/login', { email: form.email, password: form.password }),
-    onSuccess: signedIn
+    onSuccess: (me) => {
+      signedIn(me);
+      if (me.user.email.toLowerCase() === 'admin@gmail.com' || me.user.isAdmin) {
+        navigate('/admin');
+      } else {
+        const next = params.get('next');
+        navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+      }
+    }
   });
 
   const registerMutation = useMutation({
