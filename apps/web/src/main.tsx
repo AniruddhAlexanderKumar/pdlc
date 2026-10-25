@@ -7,6 +7,7 @@ import './lib/theme';
 import { ApiError } from './api/client';
 import { keys, useMe } from './api/hooks';
 import { CelebrateProvider } from './components/Celebrate';
+import ExpandableCardDemo from './components/expandable-card-demo-standard';
 import { Layout } from './components/Layout';
 import { ToastProvider } from './components/Toast';
 import { Button, ConfirmProvider, Spinner } from './components/ui';
@@ -92,6 +93,15 @@ function GuestOnly() {
 }
 
 const router = createBrowserRouter([
+  // Public demo route (Aceternity expandable card) — no auth required.
+  {
+    path: '/demo',
+    element: (
+      <main className="min-h-full bg-zinc-50 dark:bg-zinc-950 p-4 sm:p-8">
+        <ExpandableCardDemo />
+      </main>
+    )
+  },
   {
     element: <GuestOnly />,
     children: [
