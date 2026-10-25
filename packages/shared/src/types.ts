@@ -160,6 +160,7 @@ export interface AdminOverviewStats {
   stageCounts: Record<string, number>;
   recentUsers: { id: string; name: string; email: string; createdAt: string }[];
   recentProducts: { id: string; name: string; stage: string; workspaceName: string; createdAt: string }[];
+  recentWorkspaces: { id: string; name: string; currency: CurrencyCode; createdAt: string; memberCount: number }[];
 }
 
 export interface AdminUser {
@@ -189,6 +190,7 @@ export interface AdminWorkspace {
   createdAt: string;
   memberCount: number;
   members: AdminWorkspaceMember[];
+<<<<<<< HEAD
   productCount: number;
   materialCount: number;
   supplierCount: number;
@@ -211,5 +213,7 @@ export interface AdminProduct {
   tasksCount: number;
   createdAt: string;
   updatedAt: string;
+=======
+>>>>>>> 3bf139a (feat(admin): add dedicated admin dashboard for managing users and organizations with privacy protection)
 }
 

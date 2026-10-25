@@ -53,6 +53,30 @@ function RequireAuth() {
     );
   }
   if (!data) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  if (data.user.isAdmin || data.user.email.toLowerCase() === 'admin@gmail.com') {
+    return <Navigate to="/admin" replace />;
+  }
+  return <Outlet />;
+}
+
+function RequireAdmin() {
+  const { data, isLoading, error, refetch, isFetching } = useMe();
+  const location = useLocation();
+  if (isLoading) return <Spinner />;
+  if (error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">We couldn’t reach Solution Velocity. {(error as Error).message}</p>
+        <Button variant="secondary" loading={isFetching} onClick={() => refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+  if (!data) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  if (!data.user.isAdmin && data.user.email.toLowerCase() !== 'admin@gmail.com') {
+    return <Navigate to="/" replace />;
+  }
   return <Outlet />;
 }
 
