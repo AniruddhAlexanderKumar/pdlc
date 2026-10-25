@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { resolveLayout } from '@sv/shared';
 import type {
+  DashboardLayout,
   Insight,
   Invite,
   LeaderboardEntry,
@@ -7,6 +9,7 @@ import type {
   Me,
   Member,
   PlayerStats,
+  PresetId,
   Product,
   Supplier,
   WithXp,
@@ -20,6 +23,7 @@ export const keys = {
   me: ['me'] as const,
   data: ['workspace-data'] as const,
   game: ['game'] as const,
+  dashboard: ['dashboard'] as const,
   leaderboard: ['leaderboard'] as const,
   members: ['members'] as const,
   invites: ['invites'] as const,
@@ -73,6 +77,30 @@ export function useGame() {
 
 export function useLeaderboard() {
   return useQuery({ queryKey: keys.leaderboard, queryFn: () => get<LeaderboardEntry[]>('/game/leaderboard') });
+}
+
+export function useDashboardLayout() {
+  return useQuery({ queryKey: keys.dashboard, queryFn: () => get<DashboardLayout>('/dashboard') });
+}
+
+/** Switches preset immediately and rolls back if the server rejects it. */
+export function useSetDashboardPreset() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (preset: PresetId) => put<DashboardLayout>('/dashboard', { preset }),
+    onMutate: async (preset) => {
+      await qc.cancelQueries({ queryKey: keys.dashboard });
+      const previous = qc.getQueryData<DashboardLayout>(keys.dashboard);
+      qc.setQueryData<DashboardLayout>(keys.dashboard, resolveLayout({ preset }));
+      return { previous };
+    },
+    onSuccess: (layout) => qc.setQueryData(keys.dashboard, layout),
+    onError: (e, _preset, ctx) => {
+      qc.setQueryData(keys.dashboard, ctx?.previous);
+      toast.error(e instanceof Error ? e.message : 'Could not save your layout');
+    }
+  });
 }
 
 export function useInsights(productId: string) {
