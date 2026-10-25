@@ -8,6 +8,7 @@ import { db, type Db } from '../db/index.js';
 import { getDummyHash, hashPassword, hashToken, verifyPassword } from '../auth/crypto.js';
 import { auth, endSession, requireAuth, startSession } from '../auth/session.js';
 import { HttpError, badRequest, conflict, forbidden, parse, route, shortText, unauthorized } from '../lib/http.js';
+import { recordAnalyticsEvent } from '../services/analytics.js';
 
 export const authRouter = Router();
 
@@ -150,6 +151,15 @@ authRouter.post(
     });
 
     req.log.info({ userId: me.user.id }, 'user registered');
+    await recordAnalyticsEvent({
+      eventType: 'action',
+      eventName: 'auth.register',
+      userId: me.user.id,
+      workspaceId: me.workspace.id,
+      ip: req.ip ?? null,
+      userAgent: req.get('user-agent') ?? null,
+      metadata: { email: me.user.email, name: me.user.name }
+    });
     res.status(201).json(me);
   })
 );
@@ -253,6 +263,15 @@ authRouter.post(
       await startSession(trx, req, res, targetUser.id, membership.workspace_id);
       return loadMe(trx, targetUser.id, membership.workspace_id);
     });
+    await recordAnalyticsEvent({
+      eventType: 'login',
+      eventName: 'auth.login',
+      userId: targetUser.id,
+      workspaceId: me.workspace.id,
+      ip: req.ip ?? null,
+      userAgent: req.get('user-agent') ?? null,
+      metadata: { email: body.email }
+    });
     res.json(me);
   })
 );
@@ -260,6 +279,17 @@ authRouter.post(
 authRouter.post(
   '/logout',
   route(async (req, res) => {
+    if (req.auth) {
+      await recordAnalyticsEvent({
+        eventType: 'logout',
+        eventName: 'auth.logout',
+        userId: req.auth.userId,
+        workspaceId: req.auth.workspaceId,
+        sessionId: req.auth.sessionId,
+        ip: req.ip ?? null,
+        userAgent: req.get('user-agent') ?? null
+      });
+    }
     await endSession(req, res);
     res.status(204).end();
   })
@@ -288,6 +318,15 @@ authRouter.post(
       .executeTakeFirst();
     if (!member) throw forbidden();
     await db.updateTable('sessions').set({ workspace_id: workspaceId }).where('id', '=', a.sessionId).execute();
+    await recordAnalyticsEvent({
+      eventType: 'action',
+      eventName: 'workspace.switch',
+      userId: a.userId,
+      workspaceId,
+      sessionId: a.sessionId,
+      ip: req.ip ?? null,
+      userAgent: req.get('user-agent') ?? null
+    });
     res.json(await loadMe(db, a.userId, workspaceId));
   })
 );

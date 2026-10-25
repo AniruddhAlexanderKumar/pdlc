@@ -1,10 +1,11 @@
 import { createContext, useContext, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { ChevronsUpDown, Flame, LayoutGrid, Layers, LogOut, Moon, Package, Plus, Settings, Shield, Sun, Trophy, Truck } from 'lucide-react';
+import { BarChart3, ChevronsUpDown, Cookie, Flame, LayoutGrid, Layers, LogOut, Moon, Package, Plus, Settings, Shield, Sun, Trophy, Truck } from 'lucide-react';
 import type { Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
+import { openCookiePreferences } from '../lib/cookieConsent';
 import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
 import { LevelUpWatcher } from './Celebrate';
@@ -132,6 +133,15 @@ function WorkspaceMenu() {
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               <Settings className="h-4 w-4 text-zinc-400" /> Settings & team
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                openCookiePreferences();
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              <Cookie className="h-4 w-4 text-zinc-400" /> Cookie preferences
             </button>
             <button onClick={toggle} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800">
               {theme === 'dark' ? <Sun className="h-4 w-4 text-zinc-400" /> : <Moon className="h-4 w-4 text-zinc-400" />}

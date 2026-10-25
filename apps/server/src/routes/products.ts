@@ -19,6 +19,7 @@ import { badRequest, conflict, money, notFound, parse, route, shortText, url, uu
 import { insightsFor, rulesFor } from '../services/insights.js';
 import { assertMaterial, assertProduct, loadMaterials, loadProduct, loadSuppliers, touchProduct } from '../services/repo.js';
 import type { XpLedger } from '../services/xp.js';
+import { recordAnalyticsEvent } from '../services/analytics.js';
 import { mutate, param } from './util.js';
 
 export const productsRouter = Router();
@@ -73,6 +74,13 @@ productsRouter.post(
         .executeTakeFirstOrThrow();
       await trx.insertInto('stage_history').values({ product_id: row.id, from_stage: null, to_stage: 'Idea', user_id: ctx.userId }).execute();
       await ledger.award('product_created', row.id, XP.productCreated, `Created ${body.name}`, row.id);
+      await recordAnalyticsEvent({
+        eventType: 'action',
+        eventName: 'product.create',
+        userId: ctx.userId,
+        workspaceId: ctx.workspaceId,
+        metadata: { productId: row.id, name: body.name, category: body.category || 'General' }
+      });
       return (await ledger.evaluateProduct(row.id)).product;
     });
     res.status(201).json(result);
@@ -112,6 +120,18 @@ productsRouter.patch(
           .execute();
       }
       if (body.stage) await changeStage(trx, ledger, id, body.name ?? current.name, current.stage, body.stage);
+      await recordAnalyticsEvent({
+        eventType: 'action',
+        eventName: body.stage && body.stage !== current.stage ? 'product.stage_transition' : 'product.update',
+        userId: ctx.userId,
+        workspaceId: ctx.workspaceId,
+        metadata: {
+          productId: id,
+          name: body.name ?? current.name,
+          fromStage: current.stage,
+          toStage: body.stage ?? current.stage
+        }
+      });
       return (await ledger.evaluateProduct(id)).product;
     });
     res.json(result);
@@ -258,6 +278,13 @@ productsRouter.post(
         .returning('id')
         .executeTakeFirstOrThrow();
       if (status === 'done') await ledger.award('task_done', task.id, XP.taskCompleted, `Completed “${body.title}”`, product.id);
+      await recordAnalyticsEvent({
+        eventType: 'action',
+        eventName: status === 'done' ? 'task.complete' : 'task.create',
+        userId: ctx.userId,
+        workspaceId: ctx.workspaceId,
+        metadata: { productId: id, taskId: task.id, title: body.title, status }
+      });
       await touchProduct(trx, id);
       return (await ledger.evaluateProduct(id)).product;
     });
@@ -286,6 +313,13 @@ productsRouter.patch(
         if (body.status === 'done') {
           await ledger.award('task_done', taskId, XP.taskCompleted, `Completed “${body.title ?? task.title}”`, id);
         }
+        await recordAnalyticsEvent({
+          eventType: 'action',
+          eventName: body.status === 'done' ? 'task.complete' : 'task.update',
+          userId: ctx.userId,
+          workspaceId: ctx.workspaceId,
+          metadata: { productId: id, taskId, title: task.title, status: body.status }
+        });
       }
       await trx.updateTable('tasks').set(set).where('id', '=', taskId).execute();
       await touchProduct(trx, id);

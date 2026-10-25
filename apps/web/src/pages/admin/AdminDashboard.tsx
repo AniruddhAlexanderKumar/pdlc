@@ -1,9 +1,10 @@
 import { useState, useMemo, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import {
   Activity,
   ArrowRight,
+  BarChart3,
   Building2,
   CheckCircle2,
   ExternalLink,
@@ -43,6 +44,7 @@ import { del, get, patch, post } from '../../api/client';
 import { useResetSession, useSession } from '../../api/hooks';
 import { useTheme } from '../../lib/theme';
 import { useToast } from '../../components/Toast';
+import { AnalyticsView } from '../../components/AnalyticsView';
 import {
   Button,
   Card,
@@ -69,8 +71,14 @@ export function AdminDashboard() {
   const toast = useToast();
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const location = useLocation();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'organizations' | 'products'>('overview');
+  const queryTab = new URLSearchParams(location.search).get('tab');
+  const initialTab =
+    location.pathname === '/analytics' || queryTab === 'analytics'
+      ? 'analytics'
+      : 'overview';
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'organizations' | 'products' | 'analytics'>(initialTab);
 
   // Search & Filter state
   const [userSearch, setUserSearch] = useState('');
@@ -244,6 +252,7 @@ export function AdminDashboard() {
           <div className="mx-auto flex max-w-7xl gap-1 sm:gap-2">
             {[
               { id: 'overview', label: 'Overview & Health', icon: Activity },
+              { id: 'analytics', label: 'Server Analytics', icon: BarChart3 },
               { id: 'users', label: 'Users Management', icon: Users, count: usersQuery.data?.length },
               { id: 'organizations', label: 'Organizations', icon: Building2, count: orgsQuery.data?.length },
               { id: 'products', label: 'All Products', icon: Package, count: productsQuery.data?.length }
@@ -290,6 +299,15 @@ export function AdminDashboard() {
             stats={overviewQuery.data}
             loading={overviewQuery.isLoading}
             onSelectTab={setActiveTab}
+          />
+        )}
+
+        {/* TAB: ANALYTICS */}
+        {activeTab === 'analytics' && (
+          <AnalyticsView
+            isAdmin
+            title="System Analytics & Activity"
+            subtitle="Server-hosted platform telemetry, active sessions, page views, and user actions."
           />
         )}
 
@@ -427,7 +445,7 @@ function OverviewTab({
 }: {
   stats?: AdminOverviewStats;
   loading: boolean;
-  onSelectTab: (tab: 'overview' | 'users' | 'organizations' | 'products') => void;
+  onSelectTab: (tab: 'overview' | 'users' | 'organizations' | 'products' | 'analytics') => void;
 }) {
   if (loading || !stats) return <Spinner label="Loading administrative statistics" />;
 
@@ -485,6 +503,36 @@ function OverviewTab({
           <p className="mt-2 text-xs text-zinc-500">PostgreSQL database active & responsive</p>
         </Card>
       </div>
+
+      {/* Analytics & Activity Quick Card */}
+      <Card className="overflow-hidden border-indigo-100 bg-gradient-to-r from-indigo-50/50 via-white to-transparent dark:border-indigo-900/30 dark:from-indigo-950/20 dark:via-zinc-900 p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-400">
+              <BarChart3 className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Server Hosted Analytics</h3>
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  Admin Only
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Audit trail of who logged in, which pages they visited, and user actions performed.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<ArrowRight className="h-4 w-4" />}
+            onClick={() => onSelectTab('analytics')}
+          >
+            Open Server Analytics
+          </Button>
+        </div>
+      </Card>
 
       {/* Stage Distribution Funnel */}
       <Card className="p-5">

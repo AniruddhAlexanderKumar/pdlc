@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Copy, KeyRound, Link2, LogOut, Trash2, UserPlus, Users } from 'lucide-react';
+import { Cookie, Copy, KeyRound, Link2, LogOut, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { CURRENCIES, type Me, type Role } from '@sv/shared';
 import { del, patch, post } from '../api/client';
 import { keys, useInvites, useMembers, useResetSession, useSession } from '../api/hooks';
+import { getCookieConsent, openCookiePreferences } from '../lib/cookieConsent';
 import { useToast } from '../components/Toast';
-import { Button, Card, CardHeader, Field, IconButton, Input, Modal, PageHeader, Select, Spinner, useConfirm } from '../components/ui';
+import { Button, Card, CardHeader, Field, IconButton, Input, Modal, PageHeader, Select, Spinner, cx, useConfirm } from '../components/ui';
 
 function CopyLink({ url, note, onClose }: { url: string; note: string; onClose: () => void }) {
   const toast = useToast();
@@ -288,6 +289,67 @@ function Account() {
   );
 }
 
+function PrivacyAndCookies() {
+  const consent = getCookieConsent();
+  const analyticsActive = consent?.analytics ?? false;
+
+  return (
+    <Card>
+      <CardHeader
+        icon={<Cookie className="h-4 w-4" />}
+        title="Privacy & Cookies"
+        subtitle="Manage how Solution Velocity stores cookies and measures usage on your device."
+        action={
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<Cookie className="h-3.5 w-3.5" />}
+            onClick={() => openCookiePreferences()}
+          >
+            Manage preferences
+          </Button>
+        }
+      />
+      <div className="grid gap-3 p-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-3.5 dark:border-zinc-800 dark:bg-zinc-800/40">
+          <div className="flex items-center justify-between text-xs font-medium">
+            <span className="flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100">
+              <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Essential Cookies
+            </span>
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+              Active
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Authentication, session persistence, and CSRF protection. Cannot be disabled.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-3.5 dark:border-zinc-800 dark:bg-zinc-800/40">
+          <div className="flex items-center justify-between text-xs font-medium">
+            <span className="flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100">
+              <Cookie className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Server Analytics
+            </span>
+            <span
+              className={cx(
+                'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                analyticsActive
+                  ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                  : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+              )}
+            >
+              {analyticsActive ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Self-hosted page visits and usage telemetry to help improve features.
+          </p>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   return (
     <>
@@ -296,6 +358,7 @@ export function SettingsPage() {
         <WorkspaceSettings />
         <Team />
         <Account />
+        <PrivacyAndCookies />
       </div>
     </>
   );

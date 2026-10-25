@@ -14,6 +14,7 @@ import { HttpError } from './lib/http.js';
 import { logger } from './lib/logger.js';
 import { authRouter } from './routes/auth.js';
 import { adminRouter } from './routes/admin.js';
+import { analyticsRouter } from './routes/analytics.js';
 import { materialsRouter, suppliersRouter } from './routes/catalog.js';
 import { productsRouter } from './routes/products.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
@@ -79,6 +80,7 @@ export function createApp() {
   api.use(loadSession);
 
   api.use('/auth', authRouter);
+  api.use('/analytics', analyticsRouter);
   api.use('/admin', requireAuth, adminRouter);
   api.use('/workspace', requireAuth, workspaceRouter);
   api.use('/game', requireAuth, gameRouter);

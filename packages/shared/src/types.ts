@@ -160,7 +160,7 @@ export interface AdminOverviewStats {
   stageCounts: Record<string, number>;
   recentUsers: { id: string; name: string; email: string; createdAt: string }[];
   recentProducts: { id: string; name: string; stage: string; workspaceName: string; createdAt: string }[];
-  recentWorkspaces: { id: string; name: string; currency: CurrencyCode; createdAt: string; memberCount: number }[];
+  recentWorkspaces?: { id: string; name: string; currency: CurrencyCode; createdAt: string; memberCount: number }[];
 }
 
 export interface AdminUser {
@@ -190,7 +190,6 @@ export interface AdminWorkspace {
   createdAt: string;
   memberCount: number;
   members: AdminWorkspaceMember[];
-<<<<<<< HEAD
   productCount: number;
   materialCount: number;
   supplierCount: number;
@@ -213,7 +212,103 @@ export interface AdminProduct {
   tasksCount: number;
   createdAt: string;
   updatedAt: string;
-=======
->>>>>>> 3bf139a (feat(admin): add dedicated admin dashboard for managing users and organizations with privacy protection)
 }
+
+export type AnalyticsEventType = 'page_view' | 'login' | 'logout' | 'action' | 'interaction';
+
+export interface AnalyticsEventInput {
+  type: AnalyticsEventType;
+  name: string;
+  pagePath?: string;
+  pageTitle?: string;
+  referrer?: string;
+  anonymousId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AnalyticsEventRecord {
+  id: string;
+  eventType: AnalyticsEventType;
+  eventName: string;
+  userId: string | null;
+  userName: string | null;
+  userEmail: string | null;
+  workspaceId: string | null;
+  workspaceName: string | null;
+  pagePath: string | null;
+  pageTitle: string | null;
+  referrer: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface AnalyticsLoginRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  workspaceId: string | null;
+  workspaceName: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
+export interface AnalyticsPageViewStat {
+  path: string;
+  title: string | null;
+  views: number;
+  uniqueVisitors: number;
+  uniqueUsers: number;
+}
+
+export interface AnalyticsEventStat {
+  name: string;
+  count: number;
+  uniqueUsers: number;
+}
+
+export interface AnalyticsTimeSeriesPoint {
+  date: string;
+  pageViews: number;
+  actions: number;
+  logins: number;
+  activeUsers: number;
+}
+
+export interface AnalyticsUserSummary {
+  userId: string;
+  name: string;
+  email: string;
+  totalLogins: number;
+  lastLoginAt: string | null;
+  totalPageViews: number;
+  totalActions: number;
+  lastActiveAt: string | null;
+  topPages: string[];
+  recentEvents: { name: string; type: string; createdAt: string }[];
+}
+
+export interface AnalyticsOverview {
+  totalPageViews: number;
+  uniqueVisitors: number;
+  totalLogins: number;
+  totalActions: number;
+  activeUsersToday: number;
+  timeRange: '24h' | '7d' | '30d' | 'all';
+  timeSeries: AnalyticsTimeSeriesPoint[];
+  topPages: AnalyticsPageViewStat[];
+  topEvents: AnalyticsEventStat[];
+  deviceBreakdown: { device: string; count: number }[];
+  browserBreakdown: { browser: string; count: number }[];
+}
+
+export interface CookieConsent {
+  essential: boolean;
+  analytics: boolean;
+  decidedAt: string;
+}
+
 

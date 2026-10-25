@@ -19,6 +19,8 @@ import { ProductPage } from './pages/product/ProductPage';
 import { ProductsPage } from './pages/Products';
 import { SettingsPage } from './pages/Settings';
 import { SuppliersPage } from './pages/Suppliers';
+import { CookieBanner } from './components/CookieBanner';
+import { useAnalyticsPageView } from './lib/analytics';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,27 +82,6 @@ function RequireAdmin() {
   return <Outlet />;
 }
 
-function RequireAdmin() {
-  const { data, isLoading, error, refetch, isFetching } = useMe();
-  const location = useLocation();
-  if (isLoading) return <Spinner />;
-  if (error) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">We couldn’t reach Solution Velocity. {(error as Error).message}</p>
-        <Button variant="secondary" loading={isFetching} onClick={() => refetch()}>
-          Try again
-        </Button>
-      </div>
-    );
-  }
-  if (!data) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-  if (!data.user.isAdmin && data.user.email.toLowerCase() !== 'admin@gmail.com') {
-    return <Navigate to="/" replace />;
-  }
-  return <Outlet />;
-}
-
 function GuestOnly() {
   const { data, isLoading } = useMe();
   const location = useLocation();
@@ -115,36 +96,54 @@ function GuestOnly() {
   return <Outlet />;
 }
 
+function RootApp() {
+  useAnalyticsPageView();
+  return (
+    <>
+      <Outlet />
+      <CookieBanner />
+    </>
+  );
+}
+
 const router = createBrowserRouter([
   {
-    element: <GuestOnly />,
-    children: [
-      { path: '/login', element: <AuthPage mode="login" /> },
-      { path: '/signup', element: <AuthPage mode="register" /> },
-      { path: '/register', element: <AuthPage mode="register" /> },
-      { path: '/reset/:token', element: <ResetPage /> }
-    ]
-  },
-  { path: '/join/:token', element: <JoinPage /> },
-  {
-    element: <RequireAdmin />,
-    children: [{ path: '/admin', element: <AdminDashboard /> }]
-  },
-  {
-    element: <RequireAuth />,
+    element: <RootApp />,
     children: [
       {
-        element: <Layout />,
+        element: <GuestOnly />,
         children: [
-          { path: '/', element: <DashboardPage /> },
-          { path: '/products', element: <ProductsPage /> },
-          { path: '/products/:id', element: <ProductPage /> },
-          { path: '/products/:id/:tab', element: <ProductPage /> },
-          { path: '/materials', element: <MaterialsPage /> },
-          { path: '/suppliers', element: <SuppliersPage /> },
-          { path: '/achievements', element: <AchievementsPage /> },
-          { path: '/settings', element: <SettingsPage /> },
-          { path: '*', element: <Navigate to="/" replace /> }
+          { path: '/login', element: <AuthPage mode="login" /> },
+          { path: '/signup', element: <AuthPage mode="register" /> },
+          { path: '/register', element: <AuthPage mode="register" /> },
+          { path: '/reset/:token', element: <ResetPage /> }
+        ]
+      },
+      { path: '/join/:token', element: <JoinPage /> },
+      {
+        element: <RequireAdmin />,
+        children: [
+          { path: '/admin', element: <AdminDashboard /> },
+          { path: '/analytics', element: <AdminDashboard /> }
+        ]
+      },
+      {
+        element: <RequireAuth />,
+        children: [
+          {
+            element: <Layout />,
+            children: [
+              { path: '/', element: <DashboardPage /> },
+              { path: '/products', element: <ProductsPage /> },
+              { path: '/products/:id', element: <ProductPage /> },
+              { path: '/products/:id/:tab', element: <ProductPage /> },
+              { path: '/materials', element: <MaterialsPage /> },
+              { path: '/suppliers', element: <SuppliersPage /> },
+              { path: '/achievements', element: <AchievementsPage /> },
+              { path: '/settings', element: <SettingsPage /> },
+              { path: '*', element: <Navigate to="/" replace /> }
+            ]
+          }
         ]
       }
     ]

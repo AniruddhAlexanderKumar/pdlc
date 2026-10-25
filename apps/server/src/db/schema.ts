@@ -168,6 +168,23 @@ export interface XpEventsTable {
   created_at: CreatedAt;
 }
 
+export interface AnalyticsEventsTable {
+  id: Generated<string>;
+  event_type: string;
+  event_name: string;
+  user_id: string | null;
+  workspace_id: string | null;
+  session_id: string | null;
+  anonymous_id: string | null;
+  page_path: string | null;
+  page_title: string | null;
+  referrer: string | null;
+  user_agent: string | null;
+  ip: string | null;
+  metadata: ColumnType<Record<string, unknown> | null, string | Record<string, unknown> | null, string | Record<string, unknown> | null>;
+  created_at: CreatedAt;
+}
+
 export interface Database {
   users: UsersTable;
   workspaces: WorkspacesTable;
@@ -184,6 +201,7 @@ export interface Database {
   answers: AnswersTable;
   stage_history: StageHistoryTable;
   xp_events: XpEventsTable;
+  analytics_events: AnalyticsEventsTable;
 }
 
 export type UserRow = Selectable<UsersTable>;
