@@ -2,6 +2,7 @@ import { Migrator, type Migration, type MigrationProvider } from 'kysely/migrati
 import { db } from './index.js';
 import * as m001 from './migrations/001_init.js';
 import * as m002 from './migrations/002_analytics.js';
+import * as m003 from './migrations/003_dashboard_layout.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -10,7 +11,8 @@ import * as m002 from './migrations/002_analytics.js';
  */
 const migrations: Record<string, Migration> = {
   '001_init': m001,
-  '002_analytics': m002
+  '002_analytics': m002,
+  '003_dashboard_layout': m003
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

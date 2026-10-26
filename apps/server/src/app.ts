@@ -16,6 +16,7 @@ import { authRouter } from './routes/auth.js';
 import { adminRouter } from './routes/admin.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { materialsRouter, suppliersRouter } from './routes/catalog.js';
+import { dashboardRouter } from './routes/dashboard.js';
 import { productsRouter } from './routes/products.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
 
@@ -84,6 +85,7 @@ export function createApp() {
   api.use('/admin', requireAuth, adminRouter);
   api.use('/workspace', requireAuth, workspaceRouter);
   api.use('/game', requireAuth, gameRouter);
+  api.use('/dashboard', requireAuth, dashboardRouter);
   api.use('/products', requireAuth, productsRouter);
   api.use('/materials', requireAuth, materialsRouter);
   api.use('/suppliers', requireAuth, suppliersRouter);

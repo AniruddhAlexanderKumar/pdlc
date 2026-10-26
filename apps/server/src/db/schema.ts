@@ -19,6 +19,8 @@ export interface UsersTable {
   failed_logins: Generated<number>;
   locked_until: Date | null;
   last_login_at: Date | null;
+  /** DashboardSettings from @sv/shared; write with JSON.stringify. */
+  dashboard_layout: ColumnType<unknown, string | null | undefined, string | null>;
   created_at: CreatedAt;
 }
 
