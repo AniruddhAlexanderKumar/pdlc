@@ -15,6 +15,7 @@ import { AchievementsPage } from './pages/Achievements';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AuthPage, JoinPage, ResetPage } from './pages/auth/Auth';
 import { DashboardPage } from './pages/Dashboard';
+import { LandingPage } from './pages/Landing';
 import { MaterialsPage } from './pages/Materials';
 import { ProductPage } from './pages/product/ProductPage';
 import { ProductsPage } from './pages/Products';
@@ -45,6 +46,9 @@ function RequireAuth() {
   const { data, isLoading, error, refetch, isFetching } = useMe();
   const location = useLocation();
   if (isLoading) return <Spinner />;
+  // The root is the public front door: anyone without a session sees the marketing page, and it stays
+  // readable even when the API is unreachable. Every other route still needs a session.
+  if (!data && location.pathname === '/') return <LandingPage />;
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
