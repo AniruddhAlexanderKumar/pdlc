@@ -66,7 +66,7 @@ export function LandingPage() {
             <div className="max-w-2xl">
               <p className="mb-6 flex items-center gap-3 text-xs font-semibold tracking-[0.2em] text-blue-700 uppercase">
                 <span className="h-px w-8 bg-blue-500" />
-                A thoughtful space for your next idea
+                Connect the Tools. Accelerate the Build.
               </p>
               <h1 className="font-serif text-5xl font-normal leading-[1.04] tracking-[-0.045em] text-[#102f55] sm:text-6xl lg:text-7xl">
                 Make your next
@@ -89,7 +89,7 @@ export function LandingPage() {
                 </a>
               </div>
               <p className="mt-6 text-xs tracking-wide text-[#6b7f99]">
-                A calmer way to move from first thought to what comes next.
+                Ideas, product details, costs, and next steps—together.
               </p>
             </div>
 
@@ -233,7 +233,9 @@ export function LandingPage() {
 
       <footer className="border-t border-blue-100 bg-gradient-to-r from-white to-blue-50 px-5 py-8 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-[#647b96] sm:flex-row">
-          <span className="font-medium text-[#31577d]">Solution Velocity · A calmer way to make progress.</span>
+          <span className="font-medium text-[#31577d]">
+            Solution Velocity · Connect the Tools. Accelerate the Build.
+          </span>
           <Link to="/login" className="transition-colors hover:text-[#17365e]">
             Sign in to your workspace
           </Link>
