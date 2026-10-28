@@ -262,3 +262,31 @@
   }
 }
 
+.marketing-theme {
+  --background: #f5f3ec;
+  --foreground: #334139;
+  --card: #fbfaf6;
+  --card-foreground: #334139;
+  --popover: #fbfaf6;
+  --popover-foreground: #334139;
+  --primary: #536b58;
+  --primary-foreground: #fffdf8;
+  --secondary: #e9e9df;
+  --secondary-foreground: #334139;
+  --muted: #eeede6;
+  --muted-foreground: #747d72;
+  --accent: #e5e9dd;
+  --accent-foreground: #425a47;
+  --destructive: #a44f43;
+  --destructive-foreground: #fff8f4;
+  --success: #55705c;
+  --success-foreground: #f6f8f2;
+  --warning: #986a3f;
+  --warning-foreground: #fff9f0;
+  --info: #5d7880;
+  --info-foreground: #f5faf9;
+  --border: #ddd9cd;
+  --input: #d7d4ca;
+  --ring: #71816d;
+  color-scheme: light;
+}

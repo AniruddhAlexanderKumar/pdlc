@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  ArrowDown,
   ArrowRight,
   Boxes,
   FileText,
@@ -15,311 +16,269 @@ import { Button } from "@/components/ui/button";
 import { InteractiveShowcase } from "./_components/interactive-showcase";
 import { InteractiveWorkflowStepper } from "./_components/interactive-workflow-stepper";
 
+const RECORDS = [
+  {
+    number: "01",
+    title: "Stakeholder need",
+    description: "Begin with what someone actually needs, in words your team can return to.",
+    icon: Lightbulb,
+  },
+  {
+    number: "02",
+    title: "Requirement",
+    description: "Turn a need into a clear, verifiable statement of what the product must do.",
+    icon: FileText,
+  },
+  {
+    number: "03",
+    title: "Design item",
+    description: "Give every part of the system a place, and link it to the requirements it meets.",
+    icon: Boxes,
+  },
+  {
+    number: "04",
+    title: "Decision",
+    description: "Keep the alternatives, assumptions, and reasoning behind what you chose.",
+    icon: Scale,
+  },
+  {
+    number: "05",
+    title: "Evidence",
+    description: "Connect a requirement to the test, analysis, or inspection that proves it.",
+    icon: TestTube2,
+  },
+  {
+    number: "06",
+    title: "Change request",
+    description: "Understand what a proposed change touches before the work begins.",
+    icon: GitPullRequest,
+  },
+];
+
 export default function LandingPage() {
   return (
-    <div className="relative overflow-hidden bg-transparent text-white selection:bg-cyan-500 selection:text-black font-sans">
-      {/* SECTION 1: HERO */}
-      <section className="relative min-h-[85vh] flex flex-col justify-center items-center py-28 sm:py-36 border-b border-white/10">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl text-center">
-          {/* Company identity: who built it. What it does comes next, explicitly. */}
-          <div className="font-mono text-sm sm:text-base text-cyan-400 font-extrabold tracking-[0.4em] uppercase">
-            5 MAN MISSION
-          </div>
-
-          <h1 className="mt-5 text-4xl sm:text-6xl lg:text-8xl font-black uppercase text-white tracking-tight leading-[0.95]">
-            THE MORNINGSTAR <br className="hidden sm:inline" />
-            <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
-              SOLUTION.
-            </span>
-          </h1>
-
-          {/*
-            The explicit statement the previous hero never made: what kind of
-            software this is. "Product Development Life Cycle" is spelled
-            out once, here, before the PDLC abbreviation is used anywhere
-            else on the page — a visitor who has never heard the term should
-            not have to guess what it stands for.
-          */}
-          <p className="mt-8 text-base sm:text-xl text-white font-semibold leading-relaxed max-w-3xl mx-auto">
-            A Product Development Life Cycle (PDLC) platform for hardware and software teams:
-            requirements, design, decisions, verification, evidence and change, connected by real
-            links instead of tribal knowledge.
-          </p>
-
-          <p className="mt-4 text-xs sm:text-sm text-slate-400 font-normal leading-relaxed max-w-2xl mx-auto uppercase tracking-wide font-mono">
-            SELF-HOSTED. YOUR POSTGRESQL. NO THIRD PARTY EVER SEES YOUR RECORDS.
-          </p>
-
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-5 font-mono text-xs font-extrabold uppercase tracking-widest">
-            <Button
-              asChild
-              size="lg"
-              className="h-14 px-10 rounded-none bg-white text-black hover:bg-slate-200 font-mono text-xs font-black uppercase tracking-widest transition-all border border-white"
-            >
-              <Link href="/sign-up" className="flex items-center gap-3">
-                START A PROJECT
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="h-14 px-10 rounded-none border border-white/30 bg-black/60 hover:bg-white hover:text-black font-mono text-xs font-extrabold text-white uppercase tracking-widest transition-all backdrop-blur-xs"
-            >
-              <a href="#how-it-works" className="flex items-center gap-3">
-                SEE HOW IT WORKS
-              </a>
-            </Button>
-          </div>
-
-          {/*
-            A four-tile stat strip stood here reading "0 MS / UNVERIFIED
-            GAPS" and "100% TRACEABLE LINEAGE" — an invented metric paired
-            with a nonsensical unit, and a percentage this product's own
-            tests explicitly forbid anywhere in its output
-            (no-fabricated-metrics.test.ts). What replaces it states real,
-            checkable properties instead of manufactured statistics — none
-            of these can go stale the way a specific number could.
-          */}
-          <div className="mt-20 pt-10 border-t border-white/10 grid grid-cols-2 md:grid-cols-4 gap-8 text-center font-mono uppercase tracking-wider">
-            <div className="flex flex-col gap-1">
-              <span className="text-base sm:text-lg font-black text-white">SELF-HOSTED</span>
-              <span className="text-[10px] text-slate-400 font-bold">YOUR DATABASE, YOUR CONTROL</span>
+    <div className="marketing-theme relative overflow-hidden text-[#334139]">
+      <section className="relative border-b border-[#dcd8cc] px-5 pb-20 pt-24 sm:px-8 sm:pb-28 sm:pt-36">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid items-center gap-14 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="max-w-3xl">
+              <p className="mb-7 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.24em] text-[#72806e]">
+                <span className="h-px w-8 bg-[#a66e54]" />A calmer way to build complex things
+              </p>
+              <h1 className="font-serif text-5xl font-normal leading-[1.06] tracking-[-0.045em] text-[#29382f] sm:text-7xl lg:text-[5.5rem]">
+                Make room for
+                <br />
+                <span className="italic text-[#7b866d]">the whole picture.</span>
+              </h1>
+              <p className="mt-8 max-w-xl text-base leading-8 text-[#647067] sm:text-lg">
+                The Morningstar Solution is a Product Development Life Cycle platform for hardware
+                and software teams. Keep requirements, design, decisions, verification, evidence,
+                and change connected in one thoughtful workspace.
+              </p>
+              <div className="mt-9 flex flex-wrap items-center gap-4">
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-12 rounded-full bg-[#465b4d] px-7 text-sm font-medium text-[#fffdf8] shadow-sm transition-colors hover:bg-[#34473b]"
+                >
+                  <Link href="/sign-up" className="flex items-center gap-2">
+                    Start a project <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+                <a
+                  href="#how-it-works"
+                  className="inline-flex h-12 items-center gap-2 rounded-full px-5 text-sm font-medium text-[#536354] transition-colors hover:bg-[#e9e7dc]"
+                >
+                  See how it works <ArrowDown className="size-4" aria-hidden="true" />
+                </a>
+              </div>
+              <p className="mt-7 text-xs tracking-wide text-[#7b847a]">
+                Self-hosted · Your PostgreSQL · Your records stay yours
+              </p>
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-base sm:text-lg font-black text-cyan-400">NO INVENTED SCORES</span>
-              <span className="text-[10px] text-slate-400 font-bold">REAL LINKS OR AN HONEST GAP</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-base sm:text-lg font-black text-white">APPEND-ONLY AUDIT</span>
-              <span className="text-[10px] text-slate-400 font-bold">NOTHING IS EVER EDITED OUT</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-base sm:text-lg font-black text-indigo-400">NO AI JUDGMENT</span>
-              <span className="text-[10px] text-slate-400 font-bold">RULES YOU CAN READ, NOT A MODEL</span>
+
+            <div className="relative mx-auto w-full max-w-md">
+              <div className="absolute -right-4 -top-5 h-24 w-24 rounded-full bg-[#e8d8c8]/70 blur-2xl" />
+              <div className="absolute -bottom-5 -left-5 h-28 w-28 rounded-full bg-[#dce2d2]/80 blur-2xl" />
+              <div className="relative rounded-[2rem] border border-[#d9d4c7] bg-[#fbfaf6]/90 p-6 shadow-[0_24px_70px_-48px_rgba(47,60,49,0.42)] sm:p-8">
+                <div className="flex items-center justify-between border-b border-[#e6e1d6] pb-5">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-[#899080]">
+                      One project
+                    </p>
+                    <p className="mt-1 font-serif text-2xl text-[#334139]">Many connected parts</p>
+                  </div>
+                  <div className="flex size-11 items-center justify-center rounded-full bg-[#edf0e7] text-[#62745f]">
+                    <Boxes className="size-5" aria-hidden="true" />
+                  </div>
+                </div>
+                <div className="space-y-3 py-6">
+                  {[
+                    ["Need", "A clear reason to begin", "bg-[#e9dfce] text-[#8e6e4a]"],
+                    ["Requirement", "A promise you can verify", "bg-[#e1e9de] text-[#55705c]"],
+                    ["Evidence", "A result you can return to", "bg-[#eee2dc] text-[#966d59]"],
+                  ].map(([label, detail, color]) => (
+                    <div
+                      key={label}
+                      className="flex items-center gap-4 rounded-2xl border border-[#e8e4da] bg-[#fffefa] p-4"
+                    >
+                      <span
+                        className={`flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${color}`}
+                      >
+                        {label === "Need" ? "01" : label === "Requirement" ? "02" : "03"}
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#3d4b40]">{label}</p>
+                        <p className="mt-0.5 text-xs text-[#81877c]">{detail}</p>
+                      </div>
+                      <span className="ml-auto h-px w-7 bg-[#c4c9ba]" />
+                    </div>
+                  ))}
+                </div>
+                <p className="border-t border-[#e6e1d6] pt-5 text-xs leading-5 text-[#7a8378]">
+                  Real links make the relationships visible. No invented scores, no hidden
+                  assumptions.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/*
-        A pulsing "live telemetry" strip ran here: "100% OPERATIONAL",
-        "DECISION ENGINE LATENCY < 5MS", "IMMUTABLE SIGNATURES", "AMAZON /
-        DIGIKEY / MOUSER", "AES-256 GCM / ITAR COMPLIANT". All hardcoded, and
-        five of six untrue — latency has never been measured, the audit log
-        carries no signatures, the store integrations do not exist, and no
-        compliance is held. Styled as a live readout, it was the most
-        official-looking claim on the page and the least supported.
-      */}
-
-      {/* SECTION 2: MANIFESTO */}
-      <section id="manifesto" className="py-28 sm:py-40 border-b border-white/10 bg-black/70 backdrop-blur-sm text-center">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
-          <span className="font-mono text-xs font-bold tracking-[0.4em] text-cyan-400 uppercase">
-            THE MORNINGSTAR MANIFESTO
-          </span>
-          <h2 className="mt-8 text-3xl sm:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-[1.08]">
-            “ENGINEERING DECISIONS SHOULDN’T BE BURIED IN SPREADSHEETS OR SCATTERED ACROSS CHAT LOGS. THEY BELONG IN ONE CONNECTED RECORD.”
-          </h2>
-          <p className="mt-8 font-mono text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto leading-relaxed uppercase tracking-wider">
-            MORNINGSTAR REPLACES FRAGMENTED DOCUMENTATION WITH REAL RELATIONSHIPS BETWEEN REQUIREMENTS,
-            DESIGN, DECISIONS, VERIFICATION AND EVIDENCE. WHEN SOMETHING CHANGES, IT SHOWS YOU WHAT THAT
-            CHANGE TOUCHES — WHEN YOU ASK, NEVER AUTOMATICALLY, AND NEVER BY GUESSING.
-          </p>
-        </div>
-      </section>
-
-      {/* SECTION 3: CORE CONCEPTS */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="font-mono text-xs font-bold tracking-[0.4em] text-cyan-400 uppercase">
-              THE MORNINGSTAR RECORD
-            </span>
-            <h2 className="mt-4 text-4xl sm:text-6xl font-black uppercase text-white tracking-tight">
-              SIX RECORD TYPES. ONE LIFECYCLE.
-            </h2>
-            <p className="mt-4 font-mono text-xs text-slate-400 uppercase tracking-wider">
-              EVERY PROJECT IS BUILT FROM THE SAME SIX KINDS OF RECORD — THE ONES YOU WILL ACTUALLY
-              OPEN INSIDE THE PRODUCT, NOT A MARKETING SIMPLIFICATION OF IT.
+      <section className="px-5 py-20 sm:px-8 sm:py-28">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-12 grid gap-5 md:grid-cols-[0.9fr_1.1fr] md:items-end">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a06f55]">
+                A place for the details
+              </p>
+              <h2 className="mt-4 max-w-xl font-serif text-4xl leading-tight tracking-[-0.03em] text-[#2f3d33] sm:text-5xl">
+                Every decision has a thread.
+              </h2>
+            </div>
+            <p className="max-w-xl text-sm leading-7 text-[#68736a] md:justify-self-end">
+              The work of making a product is connected. Keep the needs, choices, parts, checks, and
+              changes in relationship—so the reasoning behind the result remains close at hand.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-mono text-xs">
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-cyan-400 uppercase tracking-widest">RECORD 01</span>
-                <Lightbulb className="size-5 text-white" />
-              </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">STAKEHOLDER NEED</h3>
-              <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                What someone actually asked for, in their own words, before it becomes a formal
-                requirement.
-              </p>
-            </div>
-
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-amber-400 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-amber-400 uppercase tracking-widest">RECORD 02</span>
-                <FileText className="size-5 text-white" />
-              </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">REQUIREMENT</h3>
-              <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                One thing the product must do, specific enough that someone could check whether it
-                was met.
-              </p>
-            </div>
-
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-emerald-400 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-emerald-400 uppercase tracking-widest">RECORD 03</span>
-                <Boxes className="size-5 text-white" />
-              </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">DESIGN ITEM</h3>
-              <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                A part of the product — system, assembly, component or software — that a
-                requirement is allocated to by a real link.
-              </p>
-            </div>
-
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-indigo-400 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-indigo-400 uppercase tracking-widest">RECORD 04</span>
-                <Scale className="size-5 text-white" />
-              </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">DECISION</h3>
-              <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                What was chosen, what alternatives were considered, and why — kept so the next
-                engineer does not have to guess.
-              </p>
-            </div>
-
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-purple-400 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-purple-400 uppercase tracking-widest">RECORD 05</span>
-                <TestTube2 className="size-5 text-white" />
-              </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">EVIDENCE</h3>
-              <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                The test report, calculation or inspection record that proves a check was carried
-                out. Locked once validated — a correction supersedes it, never overwrites it.
-              </p>
-            </div>
-
-            <div className="group rounded-none border border-white/15 bg-black/90 p-8 hover:border-cyan-400 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="font-bold text-cyan-400 uppercase tracking-widest">RECORD 06</span>
-                <GitPullRequest className="size-5 text-white" />
-              </div>
-              <h3 className="mt-6 text-xl font-black text-white uppercase tracking-wider">CHANGE REQUEST</h3>
-              <p className="mt-3 text-slate-400 leading-relaxed font-normal">
-                A change, recorded before it is made. What it would affect is shown by following
-                real links outward — before anyone edits anything.
-              </p>
-            </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {RECORDS.map(({ number, title, description, icon: Icon }) => (
+              <article
+                key={number}
+                className="group rounded-3xl border border-[#dedace] bg-[#fbfaf6]/80 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#bac2b4] hover:bg-[#fffefa]"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-serif text-sm italic text-[#a06f55]">{number}</span>
+                  <Icon
+                    className="size-4 text-[#71816d] transition-transform duration-300 group-hover:rotate-[-6deg]"
+                    aria-hidden="true"
+                  />
+                </div>
+                <h3 className="mt-8 font-serif text-2xl text-[#354238]">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#747d72]">{description}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* SECTION 4: HOW IT WORKS — the real six-stage lifecycle, interactive */}
-      <section id="how-it-works" className="py-24 sm:py-36 border-b border-white/10 bg-black/70 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+      <section
+        id="how-it-works"
+        className="scroll-mt-20 border-y border-[#ddd9cd] bg-[#ecece3]/70 px-5 py-20 sm:px-8 sm:py-28"
+      >
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-10 max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a06f55]">
+              From first need to release
+            </p>
+            <h2 className="mt-4 font-serif text-4xl tracking-[-0.03em] text-[#2f3d33] sm:text-5xl">
+              A steady path through the work.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-[#68736a]">
+              Follow the same six-stage lifecycle every project uses, one considered step at a time.
+            </p>
+          </div>
           <InteractiveWorkflowStepper />
         </div>
       </section>
 
-      {/* SECTION 5: TRY IT LIVE */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
-          <div className="text-center max-w-3xl mx-auto mb-12 font-sans">
-            <span className="font-mono text-xs font-bold tracking-[0.4em] text-cyan-400 uppercase">
-              NO ACCOUNT REQUIRED
-            </span>
-            <h2 className="mt-4 text-3xl sm:text-5xl font-black uppercase text-white tracking-tight">
-              TRY THE REAL RULES.
+      <section className="px-5 py-20 sm:px-8 sm:py-28">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-10 max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a06f55]">
+              Take a closer look
+            </p>
+            <h2 className="mt-4 font-serif text-4xl tracking-[-0.03em] text-[#2f3d33] sm:text-5xl">
+              Try the real rules.
             </h2>
-            <p className="mt-4 text-slate-400 leading-relaxed">
-              Not a video, not a script. This runs the same functions the signed-in product does.
+            <p className="mt-4 text-sm leading-7 text-[#68736a]">
+              Explore the same quality checks, relationship registry, traversal limits, and
+              lifecycle rules used in the product—right here, without an account.
             </p>
           </div>
           <InteractiveShowcase />
         </div>
       </section>
 
-      {/* SECTION 6: SECURITY */}
-      <section className="py-24 sm:py-36 border-b border-white/10 bg-black/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs">
-            <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-black/90 p-8">
-              <Lock className="size-7 text-cyan-400" />
-              {/*
-                This card claimed "SOC2 TYPE II & ITAR READY" and "end-to-end
-                encryption at rest and in transit". No SOC 2 audit exists, the
-                product holds no compliance certification (see SECURITY.md),
-                and the server reads every record — it is not end-to-end
-                encrypted. Encryption at rest is the operator's database
-                setting and TLS is terminated by their proxy (DEPLOYMENT.md).
-                Replaced with properties the code actually has and tests.
-              */}
-              <h3 className="font-extrabold text-white text-lg font-sans uppercase">EVERY CHANGE ON RECORD</h3>
-              <p className="text-slate-400 leading-relaxed font-normal">
-                Each change is written to an append-only audit log in the same transaction as the change itself. Access is checked on the server for every read and write, project by project.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-black/90 p-8">
-              <Server className="size-7 text-indigo-400" />
-              <h3 className="font-extrabold text-white text-lg font-sans uppercase">ON-PREMISES &amp; AIR-GAPPED</h3>
-              <p className="text-slate-400 leading-relaxed font-normal">
-                Deploy inside your private AWS/Azure VPC or air-gapped infrastructure with zero external data telemetry.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-4 rounded-none border border-white/15 bg-black/90 p-8">
-              <ShieldCheck className="size-7 text-emerald-400" />
-              <h3 className="font-extrabold text-white text-lg font-sans uppercase">NO AI READS YOUR DATA</h3>
-              <p className="text-slate-400 leading-relaxed font-normal">
-                The product uses no language model at all. Every finding it shows is computed from your own records by rules you can inspect, and the same records always give the same answer.
-              </p>
-            </div>
+      <section className="border-y border-[#ddd9cd] bg-[#f0eee6] px-5 py-16 sm:px-8 sm:py-20">
+        <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-3">
+          <div>
+            <Lock className="size-5 text-[#71816d]" aria-hidden="true" />
+            <h3 className="mt-5 font-serif text-xl text-[#354238]">A record of every change</h3>
+            <p className="mt-2 text-sm leading-6 text-[#737b70]">
+              Each change is written to an append-only audit log in the same transaction. Access is
+              checked on the server, project by project.
+            </p>
+          </div>
+          <div>
+            <Server className="size-5 text-[#a06f55]" aria-hidden="true" />
+            <h3 className="mt-5 font-serif text-xl text-[#354238]">
+              Your environment, your control
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-[#737b70]">
+              Deploy inside your own infrastructure and keep your project records in your PostgreSQL
+              database.
+            </p>
+          </div>
+          <div>
+            <ShieldCheck className="size-5 text-[#71816d]" aria-hidden="true" />
+            <h3 className="mt-5 font-serif text-xl text-[#354238]">Clear rules, visible answers</h3>
+            <p className="mt-2 text-sm leading-6 text-[#737b70]">
+              Findings come from inspectable rules applied to your records—not a language model
+              making engineering judgments.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* SECTION 7: FINAL CTA */}
-      <section className="py-28 sm:py-44 bg-black/90 text-center border-t border-white/10 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
-          <span className="font-mono text-xs font-bold text-cyan-400 tracking-[0.4em] uppercase">
-            5 MAN MISSION // THE MORNINGSTAR SOLUTION
-          </span>
-
-          <h2 className="mt-8 text-4xl sm:text-7xl font-black text-white uppercase tracking-tight leading-[0.95]">
-            RUN YOUR PDLC ON RECORDS, NOT MEMORY.
-          </h2>
-
-          <p className="mt-8 font-mono text-xs sm:text-sm text-slate-400 leading-relaxed max-w-2xl mx-auto uppercase tracking-wider">
-            UNVERIFIED REQUIREMENTS, SILENT CHANGE IMPACT, AND MISSING EVIDENCE — NAMED, NOT GUESSED AT,
-            ACROSS YOUR ENTIRE PRODUCT DEVELOPMENT LIFE CYCLE.
+      <section className="px-5 py-24 text-center sm:px-8 sm:py-32">
+        <div className="mx-auto max-w-3xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a06f55]">
+            The Morningstar Solution · 5 Man Mission
           </p>
-
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-5 font-mono text-xs font-extrabold uppercase tracking-widest">
+          <h2 className="mt-6 font-serif text-4xl leading-tight tracking-[-0.04em] text-[#2f3d33] sm:text-6xl">
+            Give the whole picture a place to live.
+          </h2>
+          <p className="mx-auto mt-6 max-w-xl text-base leading-7 text-[#68736a]">
+            Start with a need. Follow the evidence. Keep the decisions and changes connected across
+            your Product Development Life Cycle.
+          </p>
+          <div className="mt-9 flex flex-wrap justify-center gap-3">
             <Button
               asChild
               size="lg"
-              className="h-14 px-10 rounded-none bg-white text-black hover:bg-slate-200 font-mono text-xs font-black uppercase tracking-widest transition-all border border-white"
+              className="h-12 rounded-full bg-[#465b4d] px-7 text-sm font-medium text-[#fffdf8] shadow-sm transition-colors hover:bg-[#34473b]"
             >
-              <Link href="/sign-up">CREATE ORGANIZATION</Link>
+              <Link href="/sign-up">Create organization</Link>
             </Button>
-
             <Button
               asChild
               variant="outline"
               size="lg"
-              className="h-14 px-10 rounded-none border border-white/40 bg-transparent hover:bg-white hover:text-black font-mono text-xs font-extrabold text-white uppercase tracking-widest transition-all"
+              className="h-12 rounded-full border-[#c8c9bc] bg-transparent px-7 text-sm font-medium text-[#536354] transition-colors hover:bg-[#e9e7dc]"
             >
-              <Link href="/docs">READ ARCHITECTURE DOCS</Link>
+              <Link href="/docs">Read architecture docs</Link>
             </Button>
           </div>
         </div>
