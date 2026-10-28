@@ -233,9 +233,7 @@ export function LandingPage() {
 
       <footer className="border-t border-blue-100 bg-gradient-to-r from-white to-blue-50 px-5 py-8 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-[#647b96] sm:flex-row">
-          <span className="font-medium text-[#31577d]">
-            Solution Velocity · Connect the Tools. Accelerate the Build.
-          </span>
+          <span className="font-medium text-[#31577d]">Solution Velocity · Connect the Tools. Accelerate the Build.</span>
           <Link to="/login" className="transition-colors hover:text-[#17365e]">
             Sign in to your workspace
           </Link>
