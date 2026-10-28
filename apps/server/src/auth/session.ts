@@ -78,7 +78,7 @@ export async function loadSession(req: Request, res: Response, next: NextFunctio
       .selectFrom('sessions as s')
       .innerJoin('users as u', 'u.id', 's.user_id')
       .leftJoin('memberships as m', (j) => j.onRef('m.user_id', '=', 's.user_id').onRef('m.workspace_id', '=', 's.workspace_id'))
-      .select(['s.id', 's.user_id', 's.workspace_id', 's.expires_at', 's.last_seen_at', 'u.name', 'u.email', 'u.is_disabled', 'm.role'])
+      .select(['s.id', 's.user_id', 's.workspace_id', 's.expires_at', 's.last_seen_at', 'u.name', 'u.email', 'u.is_admin', 'u.is_disabled', 'm.role'])
       .where('s.id', '=', id)
       .executeTakeFirst();
 
@@ -101,7 +101,7 @@ export async function loadSession(req: Request, res: Response, next: NextFunctio
       email: row.email,
       workspaceId: row.workspace_id,
       role: row.role,
-      isAdmin: row.email.toLowerCase() === 'admin@gmail.com'
+      isAdmin: row.is_admin
     };
     next();
   } catch (err) {

@@ -19,6 +19,8 @@ import { LandingPage } from './pages/Landing';
 import { MaterialsPage } from './pages/Materials';
 import { ProductPage } from './pages/product/ProductPage';
 import { ProductsPage } from './pages/Products';
+import { ProjectsPage } from './pages/Projects';
+import { ProjectIssuesPage } from './pages/ProjectIssues';
 import { RequestAccessPage } from './pages/RequestAccess';
 import { SettingsPage } from './pages/Settings';
 import { SuppliersPage } from './pages/Suppliers';
@@ -61,7 +63,7 @@ function RequireAuth() {
     );
   }
   if (!data) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-  if (data.user.isAdmin || data.user.email.toLowerCase() === 'admin@gmail.com') {
+  if (data.user.isAdmin) {
     return <Navigate to="/admin" replace />;
   }
   return <Outlet />;
@@ -82,7 +84,7 @@ function RequireAdmin() {
     );
   }
   if (!data) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-  if (!data.user.isAdmin && data.user.email.toLowerCase() !== 'admin@gmail.com') {
+  if (!data.user.isAdmin) {
     return <Navigate to="/" replace />;
   }
   return <Outlet />;
@@ -93,7 +95,7 @@ function GuestOnly() {
   const location = useLocation();
   if (isLoading) return <Spinner />;
   if (data) {
-    if (data.user.email.toLowerCase() === 'admin@gmail.com' || data.user.isAdmin) {
+    if (data.user.isAdmin) {
       return <Navigate to="/admin" replace />;
     }
     const next = new URLSearchParams(location.search).get('next');
@@ -151,6 +153,8 @@ const router = createBrowserRouter([
             children: [
               { path: '/', element: <DashboardPage /> },
               { path: '/products', element: <ProductsPage /> },
+              { path: '/projects', element: <ProjectsPage /> },
+              { path: '/projects/:projectId/issues', element: <ProjectIssuesPage /> },
               { path: '/products/:id', element: <ProductPage /> },
               { path: '/products/:id/:tab', element: <ProductPage /> },
               { path: '/materials', element: <MaterialsPage /> },

@@ -215,7 +215,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
     mutationFn: () => post<Me>('/auth/login', { email: form.email, password: form.password }),
     onSuccess: (me) => {
       signedIn(me);
-      if (me.user.email.toLowerCase() === 'admin@gmail.com' || me.user.isAdmin) {
+      if (me.user.isAdmin) {
         navigate('/admin');
       } else {
         const next = params.get('next');

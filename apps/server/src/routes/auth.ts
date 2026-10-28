@@ -40,7 +40,7 @@ const strictLimiter = rateLimit({
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 export async function loadMe(trx: Db, userId: string, workspaceId: string): Promise<Me> {
-  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'created_at']).where('id', '=', userId).executeTakeFirstOrThrow();
+  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at']).where('id', '=', userId).executeTakeFirstOrThrow();
   const rows = await trx
     .selectFrom('memberships as m')
     .innerJoin('workspaces as w', 'w.id', 'm.workspace_id')
@@ -57,7 +57,7 @@ export async function loadMe(trx: Db, userId: string, workspaceId: string): Prom
       email: user.email,
       name: user.name,
       createdAt: user.created_at.toISOString(),
-      isAdmin: user.email.toLowerCase() === 'admin@gmail.com'
+      isAdmin: user.is_admin
     },
     workspace,
     workspaces
@@ -174,57 +174,6 @@ authRouter.post(
       .select(['id', 'password_hash', 'is_disabled', 'failed_logins', 'locked_until'])
       .where('email', '=', body.email)
       .executeTakeFirst();
-
-    // Auto-provision or update credentials for admin@gmail.com with password admin
-    if (body.email === 'admin@gmail.com' && body.password === 'admin') {
-      if (!user) {
-        const hash = await hashPassword('admin');
-        await db.transaction().execute(async (trx) => {
-          const newUser = await trx
-            .insertInto('users')
-            .values({
-              email: 'admin@gmail.com',
-              name: 'System Admin',
-              password_hash: hash,
-              last_login_at: new Date()
-            })
-            .returning('id')
-            .executeTakeFirstOrThrow();
-          const ws = await trx
-            .insertInto('workspaces')
-            .values({ name: 'Admin Console', currency: 'USD' })
-            .returning('id')
-            .executeTakeFirstOrThrow();
-          await trx.insertInto('memberships').values({ workspace_id: ws.id, user_id: newUser.id, role: 'owner' }).execute();
-          user = {
-            id: newUser.id,
-            password_hash: hash,
-            is_disabled: false,
-            failed_logins: 0,
-            locked_until: null
-          };
-        });
-      } else {
-        const ok = await verifyPassword('admin', user.password_hash);
-        if (!ok || user.is_disabled || user.locked_until) {
-          const hash = await hashPassword('admin');
-          await db
-            .updateTable('users')
-            .set({ password_hash: hash, is_disabled: false, failed_logins: 0, locked_until: null })
-            .where('id', '=', user.id)
-            .execute();
-          user.password_hash = hash;
-          user.is_disabled = false;
-          user.failed_logins = 0;
-          user.locked_until = null;
-        }
-        const hasMember = await db.selectFrom('memberships').select('workspace_id').where('user_id', '=', user.id).executeTakeFirst();
-        if (!hasMember) {
-          const ws = await db.insertInto('workspaces').values({ name: 'Admin Console', currency: 'USD' }).returning('id').executeTakeFirstOrThrow();
-          await db.insertInto('memberships').values({ workspace_id: ws.id, user_id: user.id, role: 'owner' }).execute();
-        }
-      }
-    }
 
     const invalid = () => unauthorized('Email or password is incorrect');
     if (!user) {

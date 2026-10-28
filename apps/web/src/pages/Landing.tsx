@@ -69,10 +69,10 @@ export function LandingPage() {
                 Connect the Tools. Accelerate the Build.
               </p>
               <h1 className="font-serif text-5xl font-normal leading-[1.04] tracking-[-0.045em] text-[#102f55] sm:text-6xl lg:text-7xl">
-                Make your next
+                Solution
                 <br />
                 <span className="bg-gradient-to-r from-[#123c70] via-[#1677b9] to-[#16a4d3] bg-clip-text italic text-transparent">
-                  good idea real.
+                  Velocity
                 </span>
               </h1>
               <p className="mt-7 max-w-xl text-base leading-7 text-[#526b88] sm:text-lg sm:leading-8">

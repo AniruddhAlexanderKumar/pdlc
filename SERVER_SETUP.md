@@ -76,7 +76,7 @@ The database schema is created automatically on first start.
 ### A4. Create the first owner account
 
 ```bash
-sudo docker compose --env-file .env.production exec app node dist/scripts/create-admin.js --email owner@yourcompany.com --name "Owner Name" --workspace "Your Company"
+sudo docker compose --env-file .env.production exec app node dist/scripts/create-admin.js --email owner@yourcompany.com --name "Owner Name" --workspace "Your Company" --system-admin
 ```
 
 It prints a temporary password once. Give it to the owner and ask them to change it right away (Settings → Your account → Change password).
@@ -172,7 +172,7 @@ curl -s http://127.0.0.1:4000/api/health
 ### B6. Create the first owner account
 
 ```bash
-cd /opt/solution-velocity/apps/server && sudo -u velocity bash -c 'set -a; . /etc/solution-velocity.env; set +a; node dist/scripts/create-admin.js --email owner@yourcompany.com --name "Owner Name" --workspace "Your Company"'
+cd /opt/solution-velocity/apps/server && sudo -u velocity bash -c 'set -a; . /etc/solution-velocity.env; set +a; node dist/scripts/create-admin.js --email owner@yourcompany.com --name "Owner Name" --workspace "Your Company" --system-admin'
 ```
 
 As with Docker, it prints a temporary password once. The owner should change it after signing in.
@@ -265,6 +265,7 @@ A cron entry for a nightly backup on the host (keeps 14 days):
 - **Inviting people:** an owner or admin goes to Settings → Team → **Invite link** and sends the link. Links work once and expire after 7 days.
 - **Forgotten password:** an owner or admin opens Settings → Team → key icon next to the person, and sends the one-time reset link (valid 24 hours). No email server is required.
 - **Owner locked out:** run the `create-admin` command again (A4 or B6) with the owner's email. It resets the password and signs them out everywhere.
+- **System admin:** grant global admin access explicitly when creating or resetting an account with `--system-admin`. Email addresses do not grant admin access.
 - **Roles:** owner (everything, including ownership), admin (settings, invites, members), member (product work).
 
 ---

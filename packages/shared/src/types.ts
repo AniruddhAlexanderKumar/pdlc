@@ -167,6 +167,7 @@ export interface AdminUser {
   id: string;
   name: string;
   email: string;
+  isAdmin: boolean;
   isDisabled: boolean;
   failedLogins: number;
   lastLoginAt: string | null;
@@ -362,4 +363,3 @@ export interface CookieConsent {
   analytics: boolean;
   decidedAt: string;
 }
-

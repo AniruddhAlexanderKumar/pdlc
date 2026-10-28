@@ -189,7 +189,7 @@ adminRouter.get(
   route(async (_req, res) => {
     const users = await db
       .selectFrom('users')
-      .select(['id', 'email', 'name', 'is_disabled', 'failed_logins', 'last_login_at', 'created_at'])
+      .select(['id', 'email', 'name', 'is_admin', 'is_disabled', 'failed_logins', 'last_login_at', 'created_at'])
       .orderBy('created_at', 'desc')
       .execute();
 
@@ -212,6 +212,7 @@ adminRouter.get(
         id: u.id,
         email: u.email,
         name: u.name,
+        isAdmin: u.is_admin,
         isDisabled: u.is_disabled,
         failedLogins: u.failed_logins,
         lastLoginAt: u.last_login_at ? u.last_login_at.toISOString() : null,
@@ -267,7 +268,7 @@ adminRouter.post(
           password_hash: hash,
           last_login_at: null
         })
-        .returning(['id', 'email', 'name', 'is_disabled', 'failed_logins', 'last_login_at', 'created_at'])
+        .returning(['id', 'email', 'name', 'is_admin', 'is_disabled', 'failed_logins', 'last_login_at', 'created_at'])
         .executeTakeFirstOrThrow();
 
       let targetWsId = body.workspaceId;
@@ -307,11 +308,11 @@ adminRouter.patch(
       req.body
     );
 
-    const target = await db.selectFrom('users').select(['id', 'email']).where('id', '=', userId).executeTakeFirst();
+    const target = await db.selectFrom('users').select(['id', 'is_admin']).where('id', '=', userId).executeTakeFirst();
     if (!target) throw notFound('User');
 
-    if (body.isDisabled && target.email.toLowerCase() === 'admin@gmail.com') {
-      throw forbidden('Cannot disable the primary admin account');
+    if (body.isDisabled && target.is_admin) {
+      throw forbidden('System admin accounts cannot be disabled from user management');
     }
 
     const updates: Record<string, unknown> = {};
@@ -340,7 +341,7 @@ adminRouter.patch(
 
     const updated = await db
       .selectFrom('users')
-      .select(['id', 'email', 'name', 'is_disabled', 'failed_logins', 'last_login_at', 'created_at'])
+      .select(['id', 'email', 'name', 'is_admin', 'is_disabled', 'failed_logins', 'last_login_at', 'created_at'])
       .where('id', '=', userId)
       .executeTakeFirstOrThrow();
 
@@ -348,6 +349,7 @@ adminRouter.patch(
       id: updated.id,
       email: updated.email,
       name: updated.name,
+      isAdmin: updated.is_admin,
       isDisabled: updated.is_disabled,
       failedLogins: updated.failed_logins,
       lastLoginAt: updated.last_login_at ? updated.last_login_at.toISOString() : null,
@@ -361,11 +363,11 @@ adminRouter.delete(
   route(async (req, res) => {
     const currentAdmin = auth(req);
     const userId = parse(uuid, param(req, 'id'));
-    const target = await db.selectFrom('users').select(['id', 'email']).where('id', '=', userId).executeTakeFirst();
+    const target = await db.selectFrom('users').select(['id', 'is_admin']).where('id', '=', userId).executeTakeFirst();
     if (!target) throw notFound('User');
 
-    if (target.email.toLowerCase() === 'admin@gmail.com' || target.id === currentAdmin.userId) {
-      throw forbidden('Cannot delete primary admin account or your active account');
+    if (target.is_admin || target.id === currentAdmin.userId) {
+      throw forbidden('Cannot delete a system admin account or your active account');
     }
 
     await db.deleteFrom('users').where('id', '=', userId).execute();

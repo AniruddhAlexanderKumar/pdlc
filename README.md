@@ -104,10 +104,10 @@ Set `APP_URL` (your real `https://` address) and a long random `POSTGRES_PASSWOR
 docker compose --env-file .env.production up -d --build
 ```
 
-Create the first owner account. The generated password is printed once, so change it after signing in:
+Create the first owner and system administrator account. The generated password is printed once, so change it after signing in:
 
 ```bash
-docker compose exec app node dist/scripts/create-admin.js --email you@company.com --name "Your Name" --workspace "Your Company"
+docker compose exec app node dist/scripts/create-admin.js --email you@company.com --name "Your Name" --workspace "Your Company" --system-admin
 ```
 
 The app listens on `127.0.0.1:4000`. Put a TLS reverse proxy in front: [deploy/Caddyfile](deploy/Caddyfile) gets certificates automatically, or use [deploy/nginx.conf](deploy/nginx.conf).
@@ -161,7 +161,7 @@ npm run migrate
 
 - **Health check:** `GET /api/health` returns 200 when the database is reachable. The Docker image uses it.
 - **Backups:** `pg_dump` the database on a schedule. Everything (users, products, XP) lives there.
-- **Locked-out owner:** run `create-admin` again with the same email. It resets that password and signs them out everywhere.
+- **Locked-out owner:** run `create-admin` again with the same email. It resets that password and signs them out everywhere. Add `--system-admin` only when intentionally granting system-wide admin access.
 - **Forgotten passwords:** there is no email server dependency. An admin opens **Settings → Team → key icon** to create a one-time reset link (valid 24 h) and sends it to the person.
 
 ---
@@ -175,6 +175,7 @@ npm run migrate
 - Every query is scoped to the caller's workspace, and roles are enforced server-side: **owner** (everything, including ownership), **admin** (settings, invites, members, reset links), **member** (product work).
 - Helmet sets security headers: a strict CSP (`script-src 'self'`), `frame-ancestors 'none'`, nosniff, and HSTS on https.
 - Invite and reset links are single-use, expire, and are stored hashed.
+- System-wide admin access is stored on the user record and can only be granted through the explicit `create-admin --system-admin` operator command. A matching email address alone never grants privileges; system admin accounts cannot be disabled or deleted through the user-management UI.
 
 ---
 

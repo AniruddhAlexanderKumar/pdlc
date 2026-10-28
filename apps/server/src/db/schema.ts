@@ -1,5 +1,5 @@
 import type { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
-import type { Role, StageId, TaskStatus } from '@sv/shared';
+import type { IssuePriority, IssueStatus, IssueType, Role, StageId, TaskStatus } from '@sv/shared';
 
 /** Kysely table types. Keep in sync with the SQL in ./migrations. */
 
@@ -15,6 +15,7 @@ export interface UsersTable {
   email: string;
   name: string;
   password_hash: string;
+  is_admin: Generated<boolean>;
   is_disabled: Generated<boolean>;
   failed_logins: Generated<number>;
   locked_until: Date | null;
@@ -29,6 +30,34 @@ export interface WorkspacesTable {
   name: string;
   currency: Generated<string>;
   created_at: CreatedAt;
+}
+
+export interface ProjectsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  project_key: string;
+  name: string;
+  description: Generated<string>;
+  next_issue_number: Generated<number>;
+  created_by: string | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
+export interface IssuesTable {
+  id: Generated<string>;
+  project_id: string;
+  issue_number: number;
+  type: IssueType;
+  status: Generated<IssueStatus>;
+  priority: Generated<IssuePriority>;
+  summary: string;
+  description: Generated<string>;
+  labels: Generated<string[]>;
+  reporter_id: string | null;
+  assignee_id: string | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
 }
 
 export interface MembershipsTable {
@@ -209,6 +238,8 @@ export interface AccessRequestsTable {
 export interface Database {
   users: UsersTable;
   workspaces: WorkspacesTable;
+  projects: ProjectsTable;
+  issues: IssuesTable;
   memberships: MembershipsTable;
   sessions: SessionsTable;
   invites: InvitesTable;

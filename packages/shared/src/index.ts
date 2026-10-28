@@ -6,3 +6,4 @@ export * from './gamification.js';
 export * from './insights.js';
 export * from './format.js';
 export * from './dashboard.js';
+export * from './projects.js';

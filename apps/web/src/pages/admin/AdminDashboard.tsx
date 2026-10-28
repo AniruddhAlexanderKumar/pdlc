@@ -726,8 +726,8 @@ function UsersTab({
   });
 
   const handleDelete = async (u: AdminUser) => {
-    if (u.id === currentUserId || u.email.toLowerCase() === 'admin@gmail.com') {
-      toast.error('Cannot delete the primary admin account.');
+    if (u.id === currentUserId || u.isAdmin) {
+      toast.error('Cannot delete a system admin account or your active account.');
       return;
     }
     const ok = await confirm({
@@ -800,7 +800,7 @@ function UsersTab({
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {users.map((u) => {
-                  const isAdminUser = u.email.toLowerCase() === 'admin@gmail.com';
+                  const isAdminUser = u.isAdmin;
                   return (
                     <tr key={u.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors">
                       <td className="px-4 py-3">
@@ -1538,7 +1538,7 @@ function EditUserModal({
           />
         </Field>
 
-        {user.email.toLowerCase() !== 'admin@gmail.com' && (
+        {!user.isAdmin && (
           <div className="flex items-center gap-2 pt-2">
             <input
               type="checkbox"

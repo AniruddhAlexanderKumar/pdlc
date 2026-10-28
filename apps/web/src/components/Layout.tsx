@@ -1,7 +1,7 @@
 import { createContext, useContext, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, ChevronsUpDown, Cookie, Flame, LayoutGrid, Layers, LogOut, Moon, Package, Plus, Settings, Shield, Sun, Trophy, Truck } from 'lucide-react';
+import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Moon, Package, Plus, Settings, Shield, Sun, Trophy, Truck } from 'lucide-react';
 import type { Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
@@ -19,6 +19,7 @@ export const useNewProduct = () => useContext(NewProductCtx);
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
   { to: '/products', label: 'Products', icon: Package },
+  { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/materials', label: 'Materials', icon: Layers },
   { to: '/suppliers', label: 'Suppliers', icon: Truck },
   { to: '/achievements', label: 'Achievements', icon: Trophy }
@@ -114,7 +115,7 @@ function WorkspaceMenu() {
               </button>
             ))}
             <div className="my-1.5 border-t border-zinc-100 dark:border-zinc-800" />
-            {(me.user.isAdmin || me.user.email.toLowerCase() === 'admin@gmail.com') && (
+            {me.user.isAdmin && (
               <button
                 onClick={() => {
                   setOpen(false);
@@ -185,7 +186,7 @@ export function Layout() {
             </Button>
           </div>
           <nav className="flex flex-col gap-0.5 px-2" aria-label="Main">
-            {(me.user.isAdmin || me.user.email.toLowerCase() === 'admin@gmail.com') && (
+            {me.user.isAdmin && (
               <NavLink
                 to="/admin"
                 className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 dark:text-amber-400 dark:bg-amber-500/10 border border-amber-500/20 mb-1"
