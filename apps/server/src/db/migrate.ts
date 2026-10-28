@@ -3,6 +3,7 @@ import { db } from './index.js';
 import * as m001 from './migrations/001_init.js';
 import * as m002 from './migrations/002_analytics.js';
 import * as m003 from './migrations/003_dashboard_layout.js';
+import * as m004 from './migrations/004_access_requests.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -12,7 +13,8 @@ import * as m003 from './migrations/003_dashboard_layout.js';
 const migrations: Record<string, Migration> = {
   '001_init': m001,
   '002_analytics': m002,
-  '003_dashboard_layout': m003
+  '003_dashboard_layout': m003,
+  '004_access_requests': m004
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

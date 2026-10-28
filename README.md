@@ -35,6 +35,16 @@ legacy/          the original single-file prototype (reference only)
 deploy/          Caddy and nginx examples
 ```
 
+## Requesting access
+
+The public landing page links to `/request-access`. Prospective teams can share their
+contact details, role, industry, team size, product stage, current tools, and goals.
+Requests are stored in PostgreSQL and reviewed by an administrator in the **Access
+Requests** tab of `/admin`. The tab supports pending, reviewing, approved, and declined
+statuses, plus internal review notes. Approval records the review only; an administrator
+must still provision an account or workspace invitation and contact the requester.
+Public submissions are rate-limited.
+
 ---
 
 ## Run it locally

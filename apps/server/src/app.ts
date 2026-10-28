@@ -15,6 +15,7 @@ import { logger } from './lib/logger.js';
 import { authRouter } from './routes/auth.js';
 import { adminRouter } from './routes/admin.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { accessRequestsRouter } from './routes/access-requests.js';
 import { materialsRouter, suppliersRouter } from './routes/catalog.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { productsRouter } from './routes/products.js';
@@ -81,6 +82,7 @@ export function createApp() {
   api.use(loadSession);
 
   api.use('/auth', authRouter);
+  api.use('/access-requests', accessRequestsRouter);
   api.use('/analytics', analyticsRouter);
   api.use('/admin', requireAuth, adminRouter);
   api.use('/workspace', requireAuth, workspaceRouter);

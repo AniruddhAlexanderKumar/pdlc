@@ -7,6 +7,7 @@ import {
   BarChart3,
   Building2,
   CheckCircle2,
+  ClipboardList,
   ExternalLink,
   KeyRound,
   Layers,
@@ -32,6 +33,7 @@ import {
   currencySymbol,
   getStage,
   type AdminOverviewStats,
+  type AdminAccessRequest,
   type AdminProduct,
   type AdminUser,
   type AdminWorkspace,
@@ -45,6 +47,7 @@ import { useResetSession, useSession } from '../../api/hooks';
 import { useTheme } from '../../lib/theme';
 import { useToast } from '../../components/Toast';
 import { AnalyticsView } from '../../components/AnalyticsView';
+import { AccessRequestsTab } from './AccessRequestsTab';
 import {
   Button,
   Card,
@@ -78,7 +81,7 @@ export function AdminDashboard() {
     location.pathname === '/analytics' || queryTab === 'analytics'
       ? 'analytics'
       : 'overview';
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'organizations' | 'products' | 'analytics'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'organizations' | 'products' | 'analytics' | 'access-requests'>(initialTab);
 
   // Search & Filter state
   const [userSearch, setUserSearch] = useState('');
@@ -123,6 +126,11 @@ export function AdminDashboard() {
     queryFn: () => get<AdminProduct[]>('/admin/products')
   });
 
+  const accessRequestsQuery = useQuery({
+    queryKey: ['admin-access-requests'],
+    queryFn: () => get<AdminAccessRequest[]>('/admin/access-requests')
+  });
+
   // Mutations
   const logout = useMutation({
     mutationFn: () => post('/auth/logout'),
@@ -146,6 +154,7 @@ export function AdminDashboard() {
     qc.invalidateQueries({ queryKey: ['admin-users'] });
     qc.invalidateQueries({ queryKey: ['admin-workspaces'] });
     qc.invalidateQueries({ queryKey: ['admin-products'] });
+    qc.invalidateQueries({ queryKey: ['admin-access-requests'] });
     toast.success('Admin data refreshed');
   };
 
@@ -249,13 +258,19 @@ export function AdminDashboard() {
 
         {/* Tab Navigation */}
         <div className="border-t border-zinc-200/80 bg-zinc-50/50 px-4 sm:px-6 dark:border-zinc-800/80 dark:bg-zinc-900/50">
-          <div className="mx-auto flex max-w-7xl gap-1 sm:gap-2">
+          <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto sm:gap-2">
             {[
               { id: 'overview', label: 'Overview & Health', icon: Activity },
               { id: 'analytics', label: 'Server Analytics', icon: BarChart3 },
               { id: 'users', label: 'Users Management', icon: Users, count: usersQuery.data?.length },
               { id: 'organizations', label: 'Organizations', icon: Building2, count: orgsQuery.data?.length },
-              { id: 'products', label: 'All Products', icon: Package, count: productsQuery.data?.length }
+              { id: 'products', label: 'All Products', icon: Package, count: productsQuery.data?.length },
+              {
+                id: 'access-requests',
+                label: 'Access Requests',
+                icon: ClipboardList,
+                count: accessRequestsQuery.data?.filter((request) => request.status === 'pending').length ?? 0
+              }
             ].map((tab) => {
               const active = activeTab === tab.id;
               const Icon = tab.icon;
@@ -308,6 +323,15 @@ export function AdminDashboard() {
             isAdmin
             title="System Analytics & Activity"
             subtitle="Server-hosted platform telemetry, active sessions, page views, and user actions."
+          />
+        )}
+
+        {activeTab === 'access-requests' && (
+          <AccessRequestsTab
+            requests={accessRequestsQuery.data ?? []}
+            loading={accessRequestsQuery.isLoading}
+            error={accessRequestsQuery.error instanceof Error ? accessRequestsQuery.error.message : accessRequestsQuery.isError ? 'Could not load access requests.' : null}
+            onRetry={() => void accessRequestsQuery.refetch()}
           />
         )}
 
@@ -445,7 +469,7 @@ function OverviewTab({
 }: {
   stats?: AdminOverviewStats;
   loading: boolean;
-  onSelectTab: (tab: 'overview' | 'users' | 'organizations' | 'products' | 'analytics') => void;
+  onSelectTab: (tab: 'overview' | 'users' | 'organizations' | 'products' | 'analytics' | 'access-requests') => void;
 }) {
   if (loading || !stats) return <Spinner label="Loading administrative statistics" />;
 

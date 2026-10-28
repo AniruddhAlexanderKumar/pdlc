@@ -187,6 +187,25 @@ export interface AnalyticsEventsTable {
   created_at: CreatedAt;
 }
 
+export interface AccessRequestsTable {
+  id: Generated<string>;
+  name: string;
+  email: string;
+  organization: string;
+  role: string;
+  industry: string;
+  team_size: string;
+  product_stage: string;
+  current_tools: Generated<string>;
+  goals: string;
+  status: Generated<'pending' | 'reviewing' | 'approved' | 'declined'>;
+  review_note: Generated<string>;
+  reviewed_by: string | null;
+  reviewed_at: Date | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
 export interface Database {
   users: UsersTable;
   workspaces: WorkspacesTable;
@@ -204,6 +223,7 @@ export interface Database {
   stage_history: StageHistoryTable;
   xp_events: XpEventsTable;
   analytics_events: AnalyticsEventsTable;
+  access_requests: AccessRequestsTable;
 }
 
 export type UserRow = Selectable<UsersTable>;

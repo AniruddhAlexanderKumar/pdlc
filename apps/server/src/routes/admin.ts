@@ -5,6 +5,7 @@ import {
   CURRENCIES,
   STAGES,
   type AdminOverviewStats,
+  type AdminAccessRequest,
   type AdminProduct,
   type AdminUser,
   type AdminWorkspace,
@@ -29,6 +30,7 @@ const emailSchema = z
   .pipe(z.email('Enter a valid email address'));
 
 const stageIds = STAGES.map((s) => s.id) as [StageId, ...StageId[]];
+const accessRequestStatuses = ['pending', 'reviewing', 'approved', 'declined'] as const;
 
 // ── Overview Stats ─────────────────────────────────────────────────────────
 
@@ -95,6 +97,88 @@ adminRouter.get(
     };
 
     res.json(stats);
+  })
+);
+
+// ── Access Requests ───────────────────────────────────────────────────────
+
+adminRouter.get(
+  '/access-requests',
+  route(async (_req, res) => {
+    const rows = await db
+      .selectFrom('access_requests')
+      .select([
+        'id',
+        'name',
+        'email',
+        'organization',
+        'role',
+        'industry',
+        'team_size',
+        'product_stage',
+        'current_tools',
+        'goals',
+        'status',
+        'review_note',
+        'reviewed_at',
+        'created_at'
+      ])
+      .orderBy('created_at', 'desc')
+      .execute();
+
+    const requests: AdminAccessRequest[] = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      organization: row.organization,
+      role: row.role,
+      industry: row.industry,
+      teamSize: row.team_size,
+      productStage: row.product_stage,
+      currentTools: row.current_tools,
+      goals: row.goals,
+      status: row.status,
+      reviewNote: row.review_note,
+      reviewedAt: row.reviewed_at?.toISOString() ?? null,
+      createdAt: row.created_at.toISOString()
+    }));
+
+    res.json(requests);
+  })
+);
+
+adminRouter.patch(
+  '/access-requests/:id',
+  route(async (req, res) => {
+    const requestId = parse(uuid, param(req, 'id'));
+    const body = parse(
+      z.object({
+        status: z.enum(accessRequestStatuses),
+        reviewNote: shortText(1000).optional()
+      }),
+      req.body
+    );
+
+    const updated = await db
+      .updateTable('access_requests')
+      .set({
+        status: body.status,
+        ...(body.reviewNote !== undefined ? { review_note: body.reviewNote } : {}),
+        reviewed_by: auth(req).userId,
+        reviewed_at: new Date(),
+        updated_at: new Date()
+      })
+      .where('id', '=', requestId)
+      .returning(['id', 'status', 'review_note', 'reviewed_at'])
+      .executeTakeFirst();
+
+    if (!updated) throw notFound('Access request');
+    res.json({
+      id: updated.id,
+      status: updated.status,
+      reviewNote: updated.review_note,
+      reviewedAt: updated.reviewed_at?.toISOString() ?? null
+    });
   })
 );
 

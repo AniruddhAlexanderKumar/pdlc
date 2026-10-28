@@ -12,7 +12,7 @@ const STAGES = ['Idea', 'Research', 'Planning', 'Design', 'Prototype', 'Testing'
 function PrimaryCta({ children }: { children: string }) {
   return (
     <Link
-      to="/signup"
+      to="/request-access"
       className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#123c70] via-[#1266a4] to-[#159bd0] px-6 py-3 text-sm font-medium text-white shadow-md shadow-blue-900/15 transition-all hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
     >
       {children}
@@ -49,10 +49,10 @@ export function LandingPage() {
               Sign in
             </Link>
             <Link
-              to="/signup"
+              to="/request-access"
               className="rounded-full bg-gradient-to-r from-[#123c70] to-[#168ac2] px-4 py-2.5 font-medium text-white shadow-sm transition-all hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
             >
-              Get started
+              Request access
             </Link>
           </nav>
         </div>
@@ -80,7 +80,7 @@ export function LandingPage() {
                 a clear next step—without losing the thread along the way.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <PrimaryCta>Create your workspace</PrimaryCta>
+                <PrimaryCta>Request access</PrimaryCta>
                 <a
                   href="#the-journey"
                   className="inline-flex min-h-12 items-center gap-2 rounded-full px-5 text-sm font-medium text-[#31577d] transition-colors hover:bg-blue-100/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
@@ -219,7 +219,7 @@ export function LandingPage() {
               Start with what you know. Shape the product as you go. Keep the next step within reach.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <PrimaryCta>Create your workspace</PrimaryCta>
+              <PrimaryCta>Request access</PrimaryCta>
               <Link
                 to="/login"
                 className="inline-flex min-h-12 items-center justify-center rounded-full border border-blue-200 px-6 py-3 text-sm font-medium text-[#31577d] transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"

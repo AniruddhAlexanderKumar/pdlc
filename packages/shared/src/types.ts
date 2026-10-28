@@ -214,6 +214,58 @@ export interface AdminProduct {
   updatedAt: string;
 }
 
+export type AccessRequestStatus = 'pending' | 'reviewing' | 'approved' | 'declined';
+
+export const ACCESS_REQUEST_ROLES = [
+  'Founder / business owner',
+  'Product manager',
+  'Designer',
+  'Engineer',
+  'Operations / finance',
+  'Other'
+] as const;
+
+export const ACCESS_REQUEST_INDUSTRIES = [
+  'Aerospace & defense',
+  'Automotive & mobility',
+  'Medical devices',
+  'Energy & infrastructure',
+  'Industrial & manufacturing',
+  'Software & technology',
+  'Consumer products',
+  'Other'
+] as const;
+
+export const ACCESS_REQUEST_TEAM_SIZES = ['Just me', '2–5', '6–20', '21–50', '51+'] as const;
+
+export const ACCESS_REQUEST_STAGES = [
+  'Idea',
+  'Research',
+  'Planning',
+  'Design',
+  'Prototype',
+  'Testing',
+  'Launch',
+  'Improvement'
+] as const;
+
+export interface AdminAccessRequest {
+  id: string;
+  name: string;
+  email: string;
+  organization: string;
+  role: string;
+  industry: string;
+  teamSize: string;
+  productStage: string;
+  currentTools: string;
+  goals: string;
+  status: AccessRequestStatus;
+  reviewNote: string;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
 export type AnalyticsEventType = 'page_view' | 'login' | 'logout' | 'action' | 'interaction';
 
 export interface AnalyticsEventInput {
@@ -310,5 +362,4 @@ export interface CookieConsent {
   analytics: boolean;
   decidedAt: string;
 }
-
 

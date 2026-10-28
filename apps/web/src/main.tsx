@@ -19,6 +19,7 @@ import { LandingPage } from './pages/Landing';
 import { MaterialsPage } from './pages/Materials';
 import { ProductPage } from './pages/product/ProductPage';
 import { ProductsPage } from './pages/Products';
+import { RequestAccessPage } from './pages/RequestAccess';
 import { SettingsPage } from './pages/Settings';
 import { SuppliersPage } from './pages/Suppliers';
 import { CookieBanner } from './components/CookieBanner';
@@ -134,6 +135,7 @@ const router = createBrowserRouter([
         ]
       },
       { path: '/join/:token', element: <JoinPage /> },
+      { path: '/request-access', element: <RequestAccessPage /> },
       {
         element: <RequireAdmin />,
         children: [
