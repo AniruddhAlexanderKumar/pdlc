@@ -1,181 +1,235 @@
-import type { ReactNode } from 'react';
+import { ArrowDown, ArrowRight, Check, Gauge, Lightbulb, LineChart, Sparkles } from 'lucide-react';
 import { Link } from 'react-router';
-import { ArrowRight, CheckCircle2, ClipboardCheck, Layers, LineChart, Lock, Shield, Users } from 'lucide-react';
-import { Logo } from './auth/Auth';
 
-const CORE_VALUE_PROPOSITIONS = [
-  {
-    icon: Layers,
-    title: 'Deterministic Traceability',
-    description:
-      'One real relational graph — every artifact backed by strict PostgreSQL foreign key constraints, eliminating spreadsheets and disconnected tools.'
-  },
-  {
-    icon: CheckCircle2,
-    title: 'Formal Certainty',
-    description:
-      'Identical input produces identical output across every execution. Traversals that hit safety limits halt and explicitly refuse — never silently returning partial answers.'
-  },
-  {
-    icon: Shield,
-    title: 'Airworthiness Rigor',
-    description:
-      'Zero AI by architectural mandate. In certified environments (DO-178C, DO-254), safety cases demand human accountability and mathematical proof — PDLC never infers, guesses, or hallucinates.'
-  },
-  {
-    icon: Lock,
-    title: 'Sovereign Security',
-    description:
-      'Self-hosted Argon2id password hashing at OWASP parameters, opaque server-side session hashes, and transactional audit logging. Your export-controlled engineering data never leaves your infrastructure.'
-  }
+const JOURNEY = [
+  { title: 'Tell us', detail: 'Shape the idea and capture the things worth knowing.', icon: Lightbulb },
+  { title: 'Track it', detail: 'Bring materials, time, and costs into one clear view.', icon: LineChart },
+  { title: 'Improve it', detail: 'Find a useful next step and keep making progress.', icon: Sparkles }
 ] as const;
 
-const AUDIENCES = [
-  {
-    icon: Users,
-    role: 'Systems Engineers',
-    cares:
-      'Maintain unbroken bidirectional traceability from high-level mission needs down to component verification, without manual spreadsheet maintenance.'
-  },
-  {
-    icon: ClipboardCheck,
-    role: 'Airworthiness & Quality Leads',
-    cares:
-      'Produce compliance matrices for DO-178C, DO-254, and ARP4754A. Findings carry full relational audit paths rather than probabilistic approximations.'
-  },
-  {
-    icon: LineChart,
-    role: 'Chief Engineers & Directors',
-    cares:
-      'Inspect program health, detect unlinked requirements, review change request blast radii, and track sign-off bottlenecks in real time.'
-  }
-] as const;
+const STAGES = ['Idea', 'Research', 'Planning', 'Design', 'Prototype', 'Testing', 'Launch', 'Improvement'];
 
-function PrimaryCta({ children }: { children: ReactNode }) {
+function PrimaryCta({ children }: { children: string }) {
   return (
     <Link
       to="/signup"
-      className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white shadow-sm shadow-indigo-500/30 transition-colors hover:bg-indigo-500"
+      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#4d6251] px-6 py-3 text-sm font-medium text-[#fffdf8] shadow-sm transition-colors hover:bg-[#394c3e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#70816e]"
     >
       {children}
-      <ArrowRight className="h-4 w-4" />
-    </Link>
-  );
-}
-
-function SecondaryCta({ children }: { children: ReactNode }) {
-  return (
-    <Link
-      to="/login"
-      className="inline-flex items-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
-    >
-      {children}
+      <ArrowRight className="h-4 w-4" aria-hidden="true" />
     </Link>
   );
 }
 
 export function LandingPage() {
   return (
-    <div className="min-h-full overflow-y-auto">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-8">
-        <Logo />
-        <nav className="flex items-center gap-2" aria-label="Account">
+    <div className="min-h-full overflow-y-auto bg-[#f5f3ec] text-[#354238] selection:bg-[#dfe5d8] selection:text-[#29382f]">
+      <header className="sticky top-0 z-20 border-b border-[#e4e0d5]/90 bg-[#f7f5ef]/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link
-            to="/login"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            to="/"
+            className="flex items-center gap-3 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#70816e]"
+            aria-label="Solution Velocity home"
           >
-            Sign in
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d6d8ca] bg-[#e9ede3] text-[#536b58]">
+              <Gauge className="h-4.5 w-4.5" aria-hidden="true" />
+            </span>
+            <span className="font-serif text-lg tracking-tight text-[#354238] sm:text-xl">Solution Velocity</span>
           </Link>
-          <Link
-            to="/signup"
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-          >
-            Get started
-          </Link>
-        </nav>
+
+          <nav className="flex items-center gap-2 text-sm" aria-label="Account">
+            <Link
+              to="/login"
+              className="rounded-full px-4 py-2.5 font-medium text-[#68736a] transition-colors hover:bg-[#ebe9df] hover:text-[#354238] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#70816e]"
+            >
+              Sign in
+            </Link>
+            <Link
+              to="/signup"
+              className="rounded-full border border-[#4d6251] bg-[#4d6251] px-4 py-2.5 font-medium text-[#fffdf8] transition-colors hover:border-[#394c3e] hover:bg-[#394c3e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#70816e]"
+            >
+              Get started
+            </Link>
+          </nav>
+        </div>
       </header>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-20 px-4 pb-24 pt-10 sm:px-8 sm:pt-16">
-        {/* Hero */}
-        <section className="flex flex-col items-center text-center">
-          <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl dark:text-zinc-50">
-            The Deterministic Traceability Backbone for Aerospace Engineering
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-zinc-600 sm:text-lg dark:text-zinc-400">
-            A self-hosted, graph-native lifecycle system that unifies requirements, decisions, verification, risks, and
-            changes on one real relational graph. Zero AI hallucinations, zero document drift, and mathematically
-            verified change impact analysis.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <PrimaryCta>Create an organization</PrimaryCta>
-            <SecondaryCta>Sign in to your workspace</SecondaryCta>
-          </div>
-        </section>
-
-        {/* Core value propositions */}
-        <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {CORE_VALUE_PROPOSITIONS.map(({ icon: Icon, title, description }) => (
-            <div
-              key={title}
-              className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-indigo-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-indigo-500/40"
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
-                <Icon className="h-5 w-5" />
+      <main>
+        <section className="relative overflow-hidden border-b border-[#e1ddd2] px-5 py-20 sm:px-8 sm:py-28 lg:py-32">
+          <div className="pointer-events-none absolute -left-40 top-8 h-96 w-96 rounded-full bg-[#e5e9dd]/70 blur-3xl" />
+          <div className="pointer-events-none absolute -right-36 bottom-0 h-96 w-96 rounded-full bg-[#efe0d3]/60 blur-3xl" />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="max-w-2xl">
+              <p className="mb-6 flex items-center gap-3 text-xs font-semibold tracking-[0.2em] text-[#8e7158] uppercase">
+                <span className="h-px w-8 bg-[#a8775d]" />
+                A thoughtful space for your next idea
+              </p>
+              <h1 className="font-serif text-5xl font-normal leading-[1.04] tracking-[-0.045em] text-[#2e3d33] sm:text-6xl lg:text-7xl">
+                Make your next
+                <br />
+                <span className="italic text-[#71816d]">good idea real.</span>
+              </h1>
+              <p className="mt-7 max-w-xl text-base leading-7 text-[#68736a] sm:text-lg sm:leading-8">
+                Solution Velocity helps you bring a product to life, keep its costs in view, and find
+                a clear next step—without losing the thread along the way.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <PrimaryCta>Create your workspace</PrimaryCta>
+                <a
+                  href="#the-journey"
+                  className="inline-flex min-h-12 items-center gap-2 rounded-full px-5 text-sm font-medium text-[#536354] transition-colors hover:bg-[#ebe9df] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#70816e]"
+                >
+                  Explore the journey <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                </a>
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{description}</p>
+              <p className="mt-6 text-xs tracking-wide text-[#81877c]">
+                A calmer way to move from first thought to what comes next.
+              </p>
             </div>
-          ))}
-        </section>
 
-        {/* Target audiences */}
-        <section>
-          <h2 className="text-center text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
-            Built for the people accountable for the airframe
-          </h2>
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {AUDIENCES.map(({ icon: Icon, role, cares }) => (
-              <div
-                key={role}
-                className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                  <Icon className="h-4 w-4" />
+            <div className="relative mx-auto w-full max-w-lg">
+              <div className="absolute -right-5 -top-5 h-28 w-28 rounded-full bg-[#e8d8c8]/70 blur-2xl" />
+              <div className="absolute -bottom-6 -left-6 h-32 w-32 rounded-full bg-[#dce2d2]/80 blur-2xl" />
+              <div className="relative rounded-[2rem] border border-[#ddd8cb] bg-[#fbfaf6]/95 p-5 shadow-[0_28px_72px_-48px_rgba(47,60,49,0.44)] sm:p-7">
+                <div className="flex items-start justify-between gap-4 border-b border-[#e7e2d7] pb-5">
+                  <div>
+                    <p className="text-xs tracking-[0.16em] text-[#8b8b7e] uppercase">Your product journey</p>
+                    <h2 className="mt-1 font-serif text-2xl text-[#354238]">One step at a time</h2>
+                  </div>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#edf0e7] text-[#687a63]">
+                    <Gauge className="h-4.5 w-4.5" aria-hidden="true" />
+                  </span>
                 </div>
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{role}</h3>
-                <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">{cares}</p>
+
+                <div className="relative mt-5 space-y-3">
+                  <div className="absolute bottom-8 left-5 top-8 w-px bg-[#d9ddcf]" aria-hidden="true" />
+                  {JOURNEY.map(({ title, detail, icon: Icon }, index) => (
+                    <div
+                      key={title}
+                      className="relative flex items-center gap-4 rounded-2xl border border-[#e9e5db] bg-[#fffefa] p-4 transition-colors hover:border-[#c8cebf]"
+                    >
+                      <span className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#e0e3d7] bg-[#f0f2eb] text-[#63765e]">
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2 text-sm font-semibold text-[#3d4b40]">
+                          {title}
+                          {index === 0 && <Check className="h-3.5 w-3.5 text-[#73846b]" aria-label="Started" />}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-[#81877c]">{detail}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="mt-5 border-t border-[#e7e2d7] pt-4 text-xs leading-5 text-[#7b8277]">
+                  A little more clarity at every stage, from the first idea to ongoing improvement.
+                </p>
               </div>
-            ))}
+            </div>
           </div>
         </section>
 
-        {/* Sovereignty callout */}
-        <section className="flex flex-col items-center rounded-2xl border border-zinc-200 bg-white px-6 py-12 text-center sm:px-12 sm:py-16 dark:border-zinc-800 dark:bg-zinc-900/60">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-sm dark:bg-indigo-500/10 dark:text-indigo-400">
-            <Shield className="h-5 w-5" />
+        <section id="the-journey" className="scroll-mt-24 px-5 py-20 sm:px-8 sm:py-28">
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto mb-12 max-w-2xl text-center">
+              <p className="text-xs font-semibold tracking-[0.2em] text-[#a06f55] uppercase">
+                A simple rhythm for meaningful progress
+              </p>
+              <h2 className="mt-4 font-serif text-4xl tracking-[-0.035em] text-[#2f3d33] sm:text-5xl">
+                Tell us. Track it. Improve it.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-[#68736a] sm:text-base">
+                A product has many moving parts. Keep the important ones close, and make the next
+                decision with a little more confidence.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {JOURNEY.map(({ title, detail, icon: Icon }, index) => (
+                <article
+                  key={title}
+                  className="group rounded-3xl border border-[#dedace] bg-[#fbfaf6]/85 p-7 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#bac2b4] hover:bg-[#fffefa]"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-serif text-sm italic text-[#a06f55]">0{index + 1}</span>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#edf0e7] text-[#667860] transition-transform duration-300 group-hover:rotate-[-6deg]">
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                  </div>
+                  <h3 className="mt-8 font-serif text-2xl text-[#354238]">{title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#747d72]">{detail}</p>
+                </article>
+              ))}
+            </div>
           </div>
-          <h2 className="mt-5 max-w-2xl text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
-            Ground Your Engineering Lifecycle on a Real Graph
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-600 sm:text-base dark:text-zinc-400">
-            Eliminate compliance blindspots, spreadsheet divergence, and unverified change propagation. Run the
-            deterministic PDLC system on your own infrastructure today.
-          </p>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-            <PrimaryCta>Create an organization</PrimaryCta>
-            <SecondaryCta>Sign in</SecondaryCta>
+        </section>
+
+        <section className="border-y border-[#dfdace] bg-[#eeede5]/75 px-5 py-16 sm:px-8 sm:py-20">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid gap-8 md:grid-cols-[0.8fr_1.2fr] md:items-center">
+              <div>
+                <p className="text-xs font-semibold tracking-[0.2em] text-[#a06f55] uppercase">
+                  Keep the whole path in view
+                </p>
+                <h2 className="mt-4 font-serif text-3xl tracking-[-0.03em] text-[#2f3d33] sm:text-4xl">
+                  From a spark to the next version.
+                </h2>
+                <p className="mt-4 text-sm leading-7 text-[#68736a]">
+                  Move through the stages in your own time. Capture what you learn, keep an eye on
+                  the numbers, and make room for what you discover.
+                </p>
+              </div>
+              <div className="rounded-3xl border border-[#ddd8cb] bg-[#fbfaf6] p-5 sm:p-7">
+                <ol className="flex flex-wrap gap-2" aria-label="Product lifecycle stages">
+                  {STAGES.map((stage, index) => (
+                    <li
+                      key={stage}
+                      className="inline-flex items-center gap-2 rounded-full border border-[#e5e1d6] bg-[#fffefa] px-3.5 py-2 text-xs text-[#5f6b61]"
+                    >
+                      <span className="font-serif italic text-[#a06f55]">{String(index + 1).padStart(2, '0')}</span>
+                      {stage}
+                    </li>
+                  ))}
+                </ol>
+                <p className="mt-5 border-t border-[#e8e4da] pt-4 text-xs leading-5 text-[#7b8277]">
+                  Capture answers and earn progress as each part of your product story takes shape.
+                </p>
+              </div>
+            </div>
           </div>
-          <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
-            No credit card required. Pure open architecture. Verified on PostgreSQL 17.
-          </p>
+        </section>
+
+        <section className="px-5 py-24 text-center sm:px-8 sm:py-32">
+          <div className="mx-auto max-w-3xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#e0ddcf] bg-[#fbfaf6] px-4 py-2 text-xs font-medium text-[#71816d]">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              Small steps, considered together
+            </span>
+            <h2 className="mt-6 font-serif text-4xl leading-tight tracking-[-0.04em] text-[#2f3d33] sm:text-6xl">
+              Give your next good idea a place to grow.
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-[#68736a]">
+              Start with what you know. Shape the product as you go. Keep the next step within reach.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <PrimaryCta>Create your workspace</PrimaryCta>
+              <Link
+                to="/login"
+                className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#d4d2c7] px-6 py-3 text-sm font-medium text-[#536354] transition-colors hover:bg-[#ebe9df] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#70816e]"
+              >
+                Sign in
+              </Link>
+            </div>
+          </div>
         </section>
       </main>
 
-      <footer className="border-t border-zinc-200 px-4 py-8 sm:px-8 dark:border-zinc-800">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-zinc-500 sm:flex-row">
-          <span>Solution Velocity — self-hosted product development lifecycle.</span>
-          <Link to="/login" className="transition-colors hover:text-zinc-900 dark:hover:text-zinc-200">
-            Sign in
+      <footer className="border-t border-[#e1ddd2] bg-[#f0eee7]/90 px-5 py-8 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-[#7b8177] sm:flex-row">
+          <span className="font-medium text-[#59675b]">Solution Velocity · A calmer way to make progress.</span>
+          <Link to="/login" className="transition-colors hover:text-[#354238]">
+            Sign in to your workspace
           </Link>
         </div>
       </footer>
