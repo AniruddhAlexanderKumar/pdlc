@@ -284,6 +284,8 @@ A cron entry for a nightly backup on the host (keeps 14 days):
 | `DATABASE_POOL_MAX` |          | `10`    | Maximum DB connections per app instance.                                        |
 | `LOG_LEVEL`         |          | `info`  | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`. Logs are JSON on stdout. |
 | `INSIGHTS_PROVIDER` |          | `rules` | Leave as `rules` until the AI integration ships.                               |
+| `LLAMA_CPP_URL`     |          | `http://127.0.0.1:8080` | Endpoint for llama-server OpenAI-compatible API (`/v1/chat/completions`). |
+| `OLLAMA_HOST`       |          | `http://127.0.0.1:11434` | Fallback endpoint for local Ollama daemon.                           |
 
 The app refuses to start, and lists the problem, if a required variable is missing or invalid.
 
@@ -306,3 +308,34 @@ The app refuses to start, and lists the problem, if a required variable is missi
 - [ ] `.env.production` or `/etc/solution-velocity.env` is not world-readable
 - [ ] Nightly database backups are running and a restore has been tested
 - [ ] The temporary owner password was changed after first sign-in
+
+---
+
+## I. Hands-Free Voice AI with llama.cpp (CPU-Only)
+
+For voice dictation and "Jira for Beginners" synthesis on a CPU-only server (e.g. 30 GB RAM with Qwen 30B A3B / MoE or Qwen 2.5 14B):
+
+### 1. Run `llama-server` on the Host
+Start the `llama-server` binary on port `8080`. `--mmap` ensures the Linux kernel memory-maps the GGUF file and only pages the active weights into RAM as needed:
+
+```bash
+llama-server \
+  -m /path/to/qwen-30b-a3b-q3_k_m.gguf \
+  --host 127.0.0.1 \
+  --port 8080 \
+  --ctx-size 8192 \
+  --threads $(nproc) \
+  --batch-size 512 \
+  --ubatch-size 512 \
+  --mmap \
+  --cont-batching
+```
+
+### 2. Configure Solution Velocity
+Ensure `.env` or `.env.production` contains:
+```env
+LLAMA_CPP_URL=http://127.0.0.1:8080
+```
+
+The Express API will automatically detect `llama-server` via its OpenAI-compatible endpoint (`/v1/chat/completions`) and route voice dictations through it. If `llama-server` is not running, it falls back to Ollama (`http://127.0.0.1:11434`) and then to the server fallback engine.
+

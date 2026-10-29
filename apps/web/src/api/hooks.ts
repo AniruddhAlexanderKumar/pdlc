@@ -12,6 +12,9 @@ import type {
   PresetId,
   Product,
   Supplier,
+  VoiceImportPayload,
+  VoiceImportResult,
+  VoiceProcessResult,
   WithXp,
   WorkspaceData
 } from '@sv/shared';
@@ -293,4 +296,27 @@ export function useLoadSamples() {
     },
     onError: (e) => toast.error(e.message)
   });
+}
+
+// ── Hands-Free Voice AI Onboarding ─────────────────────────────────────────
+
+export function useProcessVoice() {
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (transcript: string) => post<VoiceProcessResult>('/voice/process', { transcript }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to analyze transcript')
+  });
+}
+
+export function useImportVoice() {
+  const qc = useQueryClient();
+  const setProduct = useSetProduct();
+  return useXpMutation(
+    (payload: VoiceImportPayload) => post<WithXp<VoiceImportResult>>('/voice/import', payload),
+    (result) => {
+      setProduct(result.product);
+      qc.invalidateQueries({ queryKey: keys.data });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    }
+  );
 }

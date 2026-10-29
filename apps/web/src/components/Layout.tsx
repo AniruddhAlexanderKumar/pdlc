@@ -1,7 +1,7 @@
 import { createContext, useContext, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Moon, Package, Plus, Settings, Shield, Sun, Trophy, Truck } from 'lucide-react';
+import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Mic, Moon, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
 import type { Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
@@ -10,11 +10,15 @@ import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
 import { LevelUpWatcher } from './Celebrate';
 import { NewProductModal } from './NewProductModal';
+import { VoiceDictationModal } from './VoiceDictationModal';
 import { useToast } from './Toast';
 import { Button, cx, IconButton, ProgressBar } from './ui';
 
 const NewProductCtx = createContext<() => void>(() => {});
 export const useNewProduct = () => useContext(NewProductCtx);
+
+const VoiceDictationCtx = createContext<() => void>(() => {});
+export const useVoiceDictation = () => useContext(VoiceDictationCtx);
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
@@ -164,6 +168,7 @@ function WorkspaceMenu() {
 export function Layout() {
   const me = useSession();
   const [newOpen, setNewOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const { data } = useWorkspaceData();
   const { theme, toggle } = useTheme();
   const counts: Record<string, number | undefined> = {
@@ -174,17 +179,26 @@ export function Layout() {
 
   return (
     <NewProductCtx.Provider value={() => setNewOpen(true)}>
-      <div className="flex h-full flex-col md:flex-row">
-        {/* Desktop sidebar */}
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-900/80">
-          <div className="flex h-14 items-center border-b border-zinc-200/80 px-4 dark:border-zinc-800/80">
-            <Logo />
-          </div>
-          <div className="p-3">
-            <Button className="w-full" icon={<Plus className="h-4 w-4" />} onClick={() => setNewOpen(true)}>
-              New product
-            </Button>
-          </div>
+      <VoiceDictationCtx.Provider value={() => setVoiceOpen(true)}>
+        <div className="flex h-full flex-col md:flex-row">
+          {/* Desktop sidebar */}
+          <aside className="hidden w-60 shrink-0 flex-col border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-900/80">
+            <div className="flex h-14 items-center border-b border-zinc-200/80 px-4 dark:border-zinc-800/80">
+              <Logo />
+            </div>
+            <div className="space-y-1.5 p-3">
+              <Button className="w-full" icon={<Plus className="h-4 w-4" />} onClick={() => setNewOpen(true)}>
+                New product
+              </Button>
+              <Button
+                variant="secondary"
+                className="w-full border-indigo-200 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100/70 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+                icon={<Mic className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+                onClick={() => setVoiceOpen(true)}
+              >
+                Hands-Free Voice AI
+              </Button>
+            </div>
           <nav className="flex flex-col gap-0.5 px-2" aria-label="Main">
             {me.user.isAdmin && (
               <NavLink
@@ -234,6 +248,9 @@ export function Layout() {
             <IconButton label="Toggle theme" onClick={toggle}>
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </IconButton>
+            <IconButton label="Hands-Free Voice AI" onClick={() => setVoiceOpen(true)}>
+              <Mic className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            </IconButton>
             <NavLink to="/settings" className="rounded-lg p-1.5 text-zinc-500" aria-label="Settings">
               <Settings className="h-4 w-4" />
             </NavLink>
@@ -268,7 +285,9 @@ export function Layout() {
         </nav>
       </div>
       {newOpen && <NewProductModal onClose={() => setNewOpen(false)} />}
+      {voiceOpen && <VoiceDictationModal onClose={() => setVoiceOpen(false)} />}
       <LevelUpWatcher />
-    </NewProductCtx.Provider>
+    </VoiceDictationCtx.Provider>
+  </NewProductCtx.Provider>
   );
 }

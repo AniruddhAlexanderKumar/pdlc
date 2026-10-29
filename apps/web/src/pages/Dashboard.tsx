@@ -1,7 +1,7 @@
-import { Plus, Rocket, Wand2 } from 'lucide-react';
+import { Mic, Plus, Rocket, Wand2 } from 'lucide-react';
 import { PHASES, PRESETS, resolveLayout, type DashboardSpan } from '@sv/shared';
 import { useDashboardLayout, useLoadSamples, useSession, useSetDashboardPreset, useWorkspaceData } from '../api/hooks';
-import { useNewProduct } from '../components/Layout';
+import { useNewProduct, useVoiceDictation } from '../components/Layout';
 import { DashboardModelProvider } from '../components/dashboard/model';
 import { PresetPicker } from '../components/dashboard/PresetPicker';
 import { WIDGET_COMPONENTS } from '../components/dashboard/widgets';
@@ -15,6 +15,7 @@ function greeting() {
 
 function Onboarding() {
   const openNew = useNewProduct();
+  const openVoice = useVoiceDictation();
   const samples = useLoadSamples();
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 md:px-6">
@@ -37,8 +38,15 @@ function Onboarding() {
         ))}
       </div>
       <div className="mt-8 flex flex-col justify-center gap-2 sm:flex-row">
-        <Button icon={<Plus className="h-4 w-4" />} onClick={openNew}>
-          Create my first product
+        <Button
+          className="border-indigo-500 bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-500/20"
+          icon={<Mic className="h-4 w-4" />}
+          onClick={openVoice}
+        >
+          Hands-Free Voice AI (Fast)
+        </Button>
+        <Button variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={openNew}>
+          Create manually
         </Button>
         <Button variant="secondary" icon={<Wand2 className="h-4 w-4" />} loading={samples.isPending} onClick={() => samples.mutate()}>
           Explore with sample products

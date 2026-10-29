@@ -21,6 +21,7 @@ import { materialsRouter, suppliersRouter } from './routes/catalog.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { productsRouter } from './routes/products.js';
 import { projectsRouter } from './routes/projects.js';
+import { voiceRouter } from './routes/voice.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
 
 export function createApp() {
@@ -93,6 +94,7 @@ export function createApp() {
   api.use('/dashboard', requireAuth, dashboardRouter);
   api.use('/products', requireAuth, productsRouter);
   api.use('/projects', requireAuth, projectsRouter);
+  api.use('/voice', requireAuth, voiceRouter);
   api.use('/materials', requireAuth, materialsRouter);
   api.use('/suppliers', requireAuth, suppliersRouter);
   api.use((_req, res) => res.status(404).json({ error: 'Not found' }));

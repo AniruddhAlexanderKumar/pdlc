@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Package, Plus, Search } from 'lucide-react';
+import { Mic, Package, Plus, Search } from 'lucide-react';
 import type { StageId } from '@sv/shared';
 import { useWorkspaceData } from '../api/hooks';
-import { useNewProduct } from '../components/Layout';
+import { useNewProduct, useVoiceDictation } from '../components/Layout';
 import { ProductCard, StagePills, useMaterialsMap } from '../components/ProductBits';
 import { Button, EmptyState, Input, PageHeader, Spinner } from '../components/ui';
 
 export function ProductsPage() {
   const { data, isLoading } = useWorkspaceData();
   const openNew = useNewProduct();
+  const openVoice = useVoiceDictation();
   const materials = useMaterialsMap(data?.materials);
   const [stage, setStage] = useState<StageId | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
@@ -34,9 +35,18 @@ export function ProductsPage() {
         title="Products"
         subtitle="Every product in your workspace, with its health grade and current quest."
         actions={
-          <Button icon={<Plus className="h-4 w-4" />} onClick={openNew}>
-            New product
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              icon={<Mic className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+              onClick={openVoice}
+            >
+              Voice dictate
+            </Button>
+            <Button icon={<Plus className="h-4 w-4" />} onClick={openNew}>
+              New product
+            </Button>
+          </div>
         }
       />
       <div className="space-y-4 px-4 py-5 md:px-6">

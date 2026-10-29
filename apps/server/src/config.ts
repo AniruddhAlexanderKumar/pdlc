@@ -26,7 +26,13 @@ const schema = z.object({
   AI_MODEL: z.string().default('qwen2.5-14b-instruct'),
   AI_API_KEY: z.string().optional().default(''),
   AI_HEALTH_URL: z.string().default('http://127.0.0.1:8091/health'),
-  AI_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000)
+  AI_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  /** Host endpoint for llama.cpp server, e.g. http://127.0.0.1:8080 */
+  LLAMA_CPP_URL: z.string().default('http://127.0.0.1:8080'),
+  /** Host endpoint for local/server Ollama inference, e.g. http://127.0.0.1:11434 */
+  OLLAMA_HOST: z.string().default('http://127.0.0.1:11434'),
+  /** Qwen model tag to run on Ollama, e.g. qwen2.5:latest, qwen2.5:7b, qwen2.5:14b */
+  QWEN_MODEL: z.string().default('qwen2.5:latest')
 });
 
 const parsed = schema.safeParse(process.env);
