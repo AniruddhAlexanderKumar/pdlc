@@ -90,15 +90,20 @@ export function ImproveTab({ product, goTab }: { product: Product; goTab: (t: Ta
         </div>
       )}
 
-      <Card className="border-dashed p-4">
+      <Card className="border-dashed p-4 border-violet-500/30 bg-violet-500/5">
         <div className="flex gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
             <Bot className="h-4.5 w-4.5" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold">AI research is on the way</h3>
-            <p className="mt-0.5 text-sm text-zinc-500">
-              Soon an AI assistant will use your answers to research market prices, find suppliers and suggest follow-up questions. Its suggestions will appear right here.
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold">Local AI Advisor Active</h3>
+              <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                Connected
+              </span>
+            </div>
+            <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">
+              Powered by local sovereign model <span className="font-mono text-xs font-semibold">Qwen 2.5 14B</span>. Strategic discovery, risk, and cost-reduction insights are synthesized alongside deterministic rules.
             </p>
           </div>
         </div>

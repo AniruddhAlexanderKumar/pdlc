@@ -1,6 +1,7 @@
 import { formatMoney, ruleInsights, type CurrencyCode, type Insight, type Material, type Product, type Supplier } from '@sv/shared';
 import { config } from '../config.js';
 import { logger } from '../lib/logger.js';
+import { localAiProvider } from './ai.js';
 
 /**
  * Insight providers turn what we know about a product into "Improve it" suggestions.
@@ -27,15 +28,9 @@ export interface AiProvider {
   followUpQuestions?(input: InsightInput): Promise<{ prompt: string; why: string }[]>;
 }
 
-let warned = false;
 function aiProvider(): AiProvider | null {
   if (config.INSIGHTS_PROVIDER !== 'ai') return null;
-  // Plug a real provider in here, configured from config.AI_API_KEY and config.AI_MODEL.
-  if (!warned) {
-    logger.warn('INSIGHTS_PROVIDER=ai but no AI provider is implemented yet; using rules only');
-    warned = true;
-  }
-  return null;
+  return localAiProvider;
 }
 
 export function rulesFor(input: InsightInput): Insight[] {
@@ -49,7 +44,7 @@ export async function insightsFor(input: InsightInput): Promise<Insight[]> {
   try {
     const extra = await Promise.race([
       ai.insights(input),
-      new Promise<Insight[]>((_, reject) => setTimeout(() => reject(new Error('AI provider timed out')), 15_000))
+      new Promise<Insight[]>((_, reject) => setTimeout(() => reject(new Error('AI provider timed out')), config.AI_TIMEOUT_MS))
     ]);
     return [...rules, ...extra.map((i) => ({ ...i, source: 'ai' as const }))];
   } catch (err) {

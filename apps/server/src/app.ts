@@ -14,6 +14,7 @@ import { HttpError } from './lib/http.js';
 import { logger } from './lib/logger.js';
 import { authRouter } from './routes/auth.js';
 import { adminRouter } from './routes/admin.js';
+import { aiRouter } from './routes/ai.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { accessRequestsRouter } from './routes/access-requests.js';
 import { materialsRouter, suppliersRouter } from './routes/catalog.js';
@@ -83,6 +84,7 @@ export function createApp() {
   api.use(loadSession);
 
   api.use('/auth', authRouter);
+  api.use('/ai', aiRouter);
   api.use('/access-requests', accessRequestsRouter);
   api.use('/analytics', analyticsRouter);
   api.use('/admin', requireAuth, adminRouter);

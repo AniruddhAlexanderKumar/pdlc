@@ -22,8 +22,11 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   /** Insight provider: "rules" (built in) or "ai" once an AI provider is configured. */
   INSIGHTS_PROVIDER: z.enum(['rules', 'ai']).default('rules'),
-  AI_API_KEY: z.string().optional(),
-  AI_MODEL: z.string().optional()
+  AI_BASE_URL: z.string().default('http://127.0.0.1:8091/v1'),
+  AI_MODEL: z.string().default('qwen2.5-14b-instruct'),
+  AI_API_KEY: z.string().optional().default(''),
+  AI_HEALTH_URL: z.string().default('http://127.0.0.1:8091/health'),
+  AI_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000)
 });
 
 const parsed = schema.safeParse(process.env);
@@ -37,5 +40,6 @@ export const config = {
   ...parsed.data,
   isProd: parsed.data.NODE_ENV === 'production',
   appOrigin: new URL(parsed.data.APP_URL).origin,
-  secureCookies: new URL(parsed.data.APP_URL).protocol === 'https:'
+  secureCookies: new URL(parsed.data.APP_URL).protocol === 'https:',
+  aiBaseUrl: (parsed.data.AI_BASE_URL || 'http://127.0.0.1:8091/v1').replace(/\/+$/, '')
 };
