@@ -1,7 +1,7 @@
 import { createContext, useContext, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Mic, Moon, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
+import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
 import type { Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
@@ -24,6 +24,7 @@ const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
   { to: '/products', label: 'Products', icon: Package },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/teamwork-graph', label: 'Teamwork Graph', icon: Network },
   { to: '/materials', label: 'Materials', icon: Layers },
   { to: '/suppliers', label: 'Suppliers', icon: Truck },
   { to: '/achievements', label: 'Achievements', icon: Trophy }
@@ -266,7 +267,7 @@ export function Layout() {
 
         {/* Mobile bottom nav */}
         <nav
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-zinc-200 bg-white/95 backdrop-blur md:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-zinc-200 bg-white/95 backdrop-blur md:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
           aria-label="Main"
         >
           {NAV.map((n) => (

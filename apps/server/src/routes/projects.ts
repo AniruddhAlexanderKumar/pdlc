@@ -33,6 +33,7 @@ const issueInput = z.object({
 const issueUpdate = issueInput.partial().extend({ status: z.enum(ISSUE_STATUSES).optional() });
 const issueQuery = z.object({
   q: z.string().trim().max(100).optional(),
+  issueId: uuid.optional(),
   status: z.enum(ISSUE_STATUSES).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0)
@@ -198,6 +199,10 @@ projectsRouter.get(
       .select(sql<number>`count(*)::int`.as('total'))
       .where('i.project_id', '=', projectId);
 
+    if (query.issueId) {
+      rowsQuery = rowsQuery.where('i.id', '=', query.issueId);
+      countQuery = countQuery.where('i.id', '=', query.issueId);
+    }
     if (query.status) {
       rowsQuery = rowsQuery.where('i.status', '=', query.status);
       countQuery = countQuery.where('i.status', '=', query.status);

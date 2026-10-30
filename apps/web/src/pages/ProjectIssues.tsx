@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus } from 'lucide-react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import {
   ISSUE_PRIORITIES,
   ISSUE_STATUSES,
@@ -22,10 +22,13 @@ const PAGE_SIZE = 25;
 
 export function ProjectIssuesPage() {
   const { projectId = '' } = useParams();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
+  const issueId = searchParams.get('issueId') ?? '';
+  const [useIssueId, setUseIssueId] = useState(Boolean(issueId));
   const [offset, setOffset] = useState(0);
   const [type, setType] = useState<IssueType>('Task');
   const [priority, setPriority] = useState<IssuePriority>('Medium');
@@ -36,10 +39,10 @@ export function ProjectIssuesPage() {
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: () => get<Project[]>('/projects') });
   const project = projectsQuery.data?.find((item) => item.id === projectId);
   const issuesQuery = useQuery({
-    queryKey: ['project-issues', projectId, search, offset],
+    queryKey: ['project-issues', projectId, search, offset, useIssueId ? issueId : ''],
     queryFn: () =>
       get<IssuePage>(
-        `/projects/${projectId}/issues?limit=${PAGE_SIZE}&offset=${offset}&q=${encodeURIComponent(search.trim())}`
+        `/projects/${projectId}/issues?limit=${PAGE_SIZE}&offset=${offset}&q=${encodeURIComponent(search.trim())}${useIssueId ? `&issueId=${encodeURIComponent(issueId)}` : ''}`
       ),
     enabled: Boolean(projectId)
   });
@@ -146,8 +149,8 @@ export function ProjectIssuesPage() {
         )}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-zinc-500">{issuesQuery.data?.total ?? 0} issues</p>
-          <Input aria-label="Search project issues" type="search" className="sm:max-w-sm" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Search issues" />
+          <p className="text-sm text-zinc-500">{issuesQuery.data?.total ?? 0} issues {useIssueId && <button className="ml-2 text-indigo-600" onClick={() => setUseIssueId(false)}>Show all issues</button>}</p>
+          <Input aria-label="Search project issues" type="search" className="sm:max-w-sm" value={search} onChange={(event) => { setSearch(event.target.value); setUseIssueId(false); setOffset(0); }} placeholder="Search issues" />
         </div>
 
         {issuesQuery.isLoading ? <Spinner label="Loading issues" /> : issuesQuery.isError ? (

@@ -8,3 +8,4 @@ export * from './format.js';
 export * from './dashboard.js';
 export * from './projects.js';
 export * from './voice.js';
+export * from './teamworkGraph.js';

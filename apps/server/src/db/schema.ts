@@ -235,11 +235,24 @@ export interface AccessRequestsTable {
   updated_at: Timestamp;
 }
 
+export interface IssueRelationshipsTable {
+  id: Generated<string>; workspace_id: string; source_issue_id: string; target_issue_id: string;
+  relationship_type: 'depends_on' | 'relates_to'; description: Generated<string>;
+  created_by: string | null; created_at: CreatedAt;
+}
+export interface IssueRelationshipEventsTable {
+  id: Generated<string>; workspace_id: string; relationship_id: string; source_issue_id: string;
+  target_issue_id: string; relationship_type: string; description: string;
+  action: 'created' | 'updated' | 'deleted'; actor_id: string | null; created_at: CreatedAt;
+}
+
 export interface Database {
   users: UsersTable;
   workspaces: WorkspacesTable;
   projects: ProjectsTable;
   issues: IssuesTable;
+  issue_relationships: IssueRelationshipsTable;
+  issue_relationship_events: IssueRelationshipEventsTable;
   memberships: MembershipsTable;
   sessions: SessionsTable;
   invites: InvitesTable;
