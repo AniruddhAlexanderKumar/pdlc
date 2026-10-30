@@ -7,6 +7,7 @@ import { useMoney } from '../../lib/money';
 import { ProductCard, ProductThumb } from '../ProductBits';
 import { Card, CardHeader, cx, GradeBadge, Input, ProgressBar, Select, StageBadge, stageStyle } from '../ui';
 import { useDashboardModel } from './model';
+import { AssignedIssues, Dependencies, IssueProgress, PriorityIssues, ProjectList, ProjectSummary, RecentIssues, TeamWorkload } from './ProjectWidgets';
 
 function StatCard({ icon, label, value, hint }: { icon: ReactNode; label: string; value: ReactNode; hint?: ReactNode }) {
   return (
@@ -27,8 +28,8 @@ function ProductsStat() {
 }
 
 function HealthStat() {
-  const { avgHealth } = useDashboardModel();
-  return <StatCard icon={<Gauge className="h-4 w-4" />} label="Average health" value={`${avgHealth}/100`} hint="Discovery, costs, margin and tasks" />;
+  const { avgHealth, active } = useDashboardModel();
+  return <StatCard icon={<Gauge className="h-4 w-4" />} label="Average product health" value={active.length ? `${avgHealth}/100` : '—'} hint="Discovery, costs, margin and tasks" />;
 }
 
 function MarginStat() {
@@ -59,7 +60,7 @@ function NextMoves() {
   const { nextMoves } = useDashboardModel();
   return (
     <Card className="h-full">
-      <CardHeader icon={<Sparkles className="h-4 w-4" />} title="Next best moves" subtitle="Finish quests to unlock the next stage and earn bonus XP." />
+      <CardHeader icon={<Sparkles className="h-4 w-4" />} title="Next best moves" subtitle="Review work that is ready to move forward." />
       {nextMoves.length === 0 ? (
         <p className="px-4 py-6 text-center text-sm text-zinc-500">Nothing to do right now.</p>
       ) : (
@@ -118,7 +119,7 @@ function RecentXp() {
     <Card className="h-full">
       <CardHeader icon={<Flame className="h-4 w-4" />} title="Recent XP" />
       {recent.length === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-zinc-500">Complete a quest to earn your first XP.</p>
+        <p className="px-4 py-6 text-center text-sm text-zinc-500">Complete checklist items to earn your first XP.</p>
       ) : (
         <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {recent.map((e) => (
@@ -172,6 +173,7 @@ function HealthRanking() {
   return (
     <Card className="h-full">
       <CardHeader icon={<Gauge className="h-4 w-4" />} title="Health by product" subtitle="Needs attention first" />
+      {rows.length === 0 && <p className="p-4 text-sm text-zinc-500">No active products yet.</p>}
       <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
         {rows.map(({ p, health }) => (
           <li key={p.id}>
@@ -232,7 +234,7 @@ function Board() {
                 onDrop={() => onDrop(s.id)}
                 className={cx(
                   'flex w-64 flex-col rounded-xl border bg-zinc-100/60 p-2 transition-colors dark:bg-zinc-900/40',
-                  overStage === s.id ? 'border-indigo-400 bg-indigo-500/5' : 'border-transparent'
+                  overStage === s.id ? 'border-blue-400 bg-blue-500/5' : 'border-transparent'
                 )}
               >
                 <div className="mb-2 flex items-center justify-between px-1.5 pt-1">
@@ -285,7 +287,7 @@ function ProductTable() {
                 <th className="px-4 py-2.5 font-medium">Product</th>
                 <th className="px-4 py-2.5 font-medium">Stage</th>
                 <th className="px-4 py-2.5 font-medium">Health</th>
-                <th className="px-4 py-2.5 font-medium">Quest</th>
+                <th className="px-4 py-2.5 font-medium">Progress</th>
                 <th className="px-4 py-2.5 text-right font-medium">Unit cost</th>
                 <th className="px-4 py-2.5 text-right font-medium">Price</th>
                 <th className="px-4 py-2.5 text-right font-medium">Margin</th>
@@ -297,7 +299,7 @@ function ProductTable() {
                 return (
                   <tr key={p.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
                     <td className="px-4 py-2.5">
-                      <Link to={`/products/${p.id}`} className="flex items-center gap-2.5 font-medium hover:text-indigo-600">
+                      <Link to={`/products/${p.id}`} className="flex items-center gap-2.5 font-medium hover:text-blue-600">
                         <ProductThumb name={p.name} imageUrl={p.imageUrl} size="sm" />
                         {p.name}
                       </Link>
@@ -334,6 +336,13 @@ function ProductTable() {
   );
 }
 
+function TaskDeadlines() {
+  const { active } = useDashboardModel();
+  const rows = active.flatMap(product => product.tasks.filter(task => task.status !== 'done' && task.dueDate).map(task => ({ product, task }))).sort((a, b) => a.task.dueDate!.localeCompare(b.task.dueDate!)).slice(0, 6);
+  const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  return <Card className="h-full"><CardHeader title="Product task deadlines" subtitle="Open tasks across workspace products" />{rows.length === 0 ? <p className="p-4 text-sm text-zinc-500">No open product tasks with a due date.</p> : <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">{rows.map(({product,task}) => <li key={task.id}><Link to={`/products/${product.id}/tasks`} className="block px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/40"><p className="text-sm font-medium">{task.title}</p><p className="mt-1 text-xs text-zinc-500">{product.name} · {task.dueDate! < today ? 'Overdue' : task.dueDate === today ? 'Today' : 'Due'} {task.dueDate}</p></Link></li>)}</ul>}</Card>;
+}
+
 /** One component per widget id in @sv/shared. TypeScript fails the build if a widget is missing here. */
 export const WIDGET_COMPONENTS: Record<WidgetId, ComponentType> = {
   'stat-products': ProductsStat,
@@ -346,5 +355,14 @@ export const WIDGET_COMPONENTS: Record<WidgetId, ComponentType> = {
   'margin-ranking': MarginRanking,
   'health-ranking': HealthRanking,
   board: Board,
-  list: ProductTable
+  list: ProductTable,
+  'task-deadlines': TaskDeadlines,
+  'project-summary': ProjectSummary,
+  'issue-progress': IssueProgress,
+  'priority-issues': PriorityIssues,
+  'assigned-issues': AssignedIssues,
+  'recent-issues': RecentIssues,
+  'project-list': ProjectList,
+  'team-workload': TeamWorkload,
+  dependencies: Dependencies
 };

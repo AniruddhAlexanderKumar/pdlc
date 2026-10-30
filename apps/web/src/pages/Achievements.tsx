@@ -26,25 +26,25 @@ export function AchievementsPage() {
       <div className="grid gap-5 px-4 py-5 md:px-6 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Card className="overflow-hidden">
-            <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-violet-600 p-5 text-white">
+            <div className="bg-[#174e78] p-5 text-white">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-indigo-100">Level {g.level}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-100">Level {g.level}</p>
                   <h2 className="text-2xl font-bold">{g.levelTitle}</h2>
-                  <p className="mt-1 text-sm text-indigo-100">{g.xp.toLocaleString()} XP total</p>
+                  <p className="mt-1 text-sm text-blue-100">{g.xp.toLocaleString()} XP total</p>
                 </div>
                 <div className="text-right">
                   <p className="flex items-center justify-end gap-1 text-2xl font-bold">
                     <Flame className="h-6 w-6 text-orange-300" />
                     {g.streakDays}
                   </p>
-                  <p className="text-xs text-indigo-100">day streak</p>
+                  <p className="text-xs text-blue-100">day streak</p>
                 </div>
               </div>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/20">
                 <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${(g.xpIntoLevel / g.xpForNextLevel) * 100}%` }} />
               </div>
-              <p className="mt-1.5 text-xs text-indigo-100">
+              <p className="mt-1.5 text-xs text-blue-100">
                 {g.xpForNextLevel - g.xpIntoLevel} XP to level {g.level + 1} · {LEVEL_TITLES[Math.min(g.level, LEVEL_TITLES.length - 1)]}
               </p>
             </div>
@@ -73,7 +73,7 @@ export function AchievementsPage() {
                     )}
                   >
                     <div className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl', on ? 'bg-amber-500/10' : 'bg-zinc-100 grayscale dark:bg-zinc-800')}>
-                      {on ? a.emoji : <Lock className="h-4 w-4 text-zinc-400" />}
+                      {on ? <Trophy className="h-5 w-5 text-amber-700 dark:text-amber-400" aria-hidden="true" /> : <Lock className="h-4 w-4 text-zinc-400" />}
                     </div>
                     <div className="min-w-0">
                       <p className={cx('text-sm font-semibold', !on && 'text-zinc-500')}>{a.title}</p>
@@ -94,7 +94,7 @@ export function AchievementsPage() {
             ) : (
               <ol className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {(board.data ?? []).map((e, i) => (
-                  <li key={e.userId} className={cx('flex items-center gap-3 px-4 py-2.5', e.userId === me.user.id && 'bg-indigo-500/5')}>
+                  <li key={e.userId} className={cx('flex items-center gap-3 px-4 py-2.5', e.userId === me.user.id && 'bg-blue-500/5')}>
                     <span className="w-5 text-center text-sm font-semibold tabular-nums text-zinc-400">{i === 0 ? <Crown className="h-4 w-4 text-amber-500" /> : i + 1}</span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
@@ -113,7 +113,7 @@ export function AchievementsPage() {
             {(board.data?.length ?? 0) <= 1 && (
               <p className="border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500 dark:border-zinc-800">
                 Invite your team from{' '}
-                <Link to="/settings" className="font-medium text-indigo-600 dark:text-indigo-400">
+                <Link to="/settings" className="font-medium text-blue-600 dark:text-blue-400">
                   Settings
                 </Link>{' '}
                 to compete.
@@ -129,7 +129,7 @@ export function AchievementsPage() {
               <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {g.recent.map((r) => (
                   <li key={r.id} className="flex items-start gap-3 px-4 py-2.5">
-                    <span className="mt-0.5 rounded-full bg-indigo-500/10 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-indigo-700 dark:text-indigo-300">+{r.points}</span>
+                    <span className="mt-0.5 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-blue-700 dark:text-blue-300">+{r.points}</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm">{r.label}</p>
                       <p className="text-[11px] text-zinc-400">{timeAgo(r.createdAt)}</p>

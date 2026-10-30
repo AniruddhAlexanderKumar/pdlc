@@ -96,7 +96,7 @@ export function ProjectIssuesPage() {
   if (!project) {
     return (
       <div className="p-6">
-        <EmptyState icon={<span className="text-lg">?</span>} title="Project not found" body="It may have been removed or may belong to another workspace." action={<Link className="text-sm font-medium text-indigo-600" to="/projects">Back to projects</Link>} />
+        <EmptyState icon={<span className="text-lg">?</span>} title="Project not found" body="It may have been removed or may belong to another workspace." action={<Link className="text-sm font-medium text-blue-600" to="/projects">Back to projects</Link>} />
       </div>
     );
   }
@@ -109,7 +109,7 @@ export function ProjectIssuesPage() {
         actions={<Button icon={<Plus className="h-4 w-4" />} onClick={() => setCreating((value) => !value)}>{creating ? 'Cancel' : 'Create issue'}</Button>}
       />
       <div className="space-y-4 px-4 py-5 md:px-6">
-        <Link to="/projects" className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-indigo-600">
+        <Link to="/projects" className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-blue-600">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All projects
         </Link>
 
@@ -149,7 +149,7 @@ export function ProjectIssuesPage() {
         )}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-zinc-500">{issuesQuery.data?.total ?? 0} issues {useIssueId && <button className="ml-2 text-indigo-600" onClick={() => setUseIssueId(false)}>Show all issues</button>}</p>
+          <p className="text-sm text-zinc-500">{issuesQuery.data?.total ?? 0} issues {useIssueId && <button className="ml-2 text-blue-600" onClick={() => setUseIssueId(false)}>Show all issues</button>}</p>
           <Input aria-label="Search project issues" type="search" className="sm:max-w-sm" value={search} onChange={(event) => { setSearch(event.target.value); setUseIssueId(false); setOffset(0); }} placeholder="Search issues" />
         </div>
 
@@ -181,12 +181,12 @@ function IssueCard({ issue, members, onStatusChange }: { issue: Issue; members: 
     <Card className="p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold tracking-wide text-indigo-600 dark:text-indigo-400">{issue.key} · {issue.type}</p>
+          <p className="text-xs font-semibold tracking-wide text-blue-600 dark:text-blue-400">{issue.key} · {issue.type}</p>
           <h2 className="mt-1 font-semibold">{issue.summary}</h2>
           {issue.description && <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-500">{issue.description}</p>}
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
             <span className="rounded-full bg-zinc-100 px-2 py-1 dark:bg-zinc-800">{issue.priority}</span>
-            {issue.labels.map((label) => <span key={label} className="rounded-full bg-indigo-500/10 px-2 py-1 text-indigo-700 dark:text-indigo-300">{label}</span>)}
+            {issue.labels.map((label) => <span key={label} className="rounded-full bg-blue-500/10 px-2 py-1 text-blue-700 dark:text-blue-300">{label}</span>)}
             <span>Assignee: {assignee}</span>
           </div>
         </div>

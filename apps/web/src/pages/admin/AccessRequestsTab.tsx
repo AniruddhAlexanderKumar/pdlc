@@ -190,13 +190,13 @@ function AccessRequestCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-semibold">{request.name}</h2>
-            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-indigo-700">
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold capitalize text-blue-700">
               {request.status}
             </span>
           </div>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
             <a
-              className="inline-flex items-center gap-1.5 hover:text-indigo-600"
+              className="inline-flex items-center gap-1.5 hover:text-blue-600"
               href={`mailto:${request.email}`}
             >
               <Mail className="h-3.5 w-3.5" aria-hidden="true" />

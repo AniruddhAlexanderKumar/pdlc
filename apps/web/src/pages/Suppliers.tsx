@@ -92,7 +92,7 @@ function SupplierModal({ supplier, data, onClose }: { supplier: Supplier | null;
                     aria-label={`Quotes ${m.name}`}
                     checked={Boolean(q)}
                     onChange={(e) => setQuotes((all) => ({ ...all, [m.id]: e.target.checked ? { price: String(m.unitPrice), moq: '' } : undefined }))}
-                    className="h-4 w-4 accent-indigo-600"
+                    className="h-4 w-4 accent-blue-600"
                   />
                   <span className="truncate text-sm">{m.name}</span>
                   <Input
@@ -190,7 +190,7 @@ export function SuppliersPage() {
                     <div className="min-w-0">
                       <h3 className="truncate font-semibold">{s.name}</h3>
                       {s.website && (
-                        <a href={s.website} target="_blank" rel="noreferrer noopener" className="mt-0.5 inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline dark:text-indigo-400">
+                        <a href={s.website} target="_blank" rel="noreferrer noopener" className="mt-0.5 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline dark:text-blue-400">
                           {s.website.replace(/^https?:\/\//, '')} <ExternalLink className="h-3 w-3" />
                         </a>
                       )}

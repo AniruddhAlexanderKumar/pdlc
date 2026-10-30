@@ -36,11 +36,11 @@ function PlayerCard() {
   return (
     <NavLink
       to="/achievements"
-      className="block rounded-xl border border-zinc-200 bg-gradient-to-br from-indigo-500/5 to-transparent p-3 transition-colors hover:border-indigo-300 dark:border-zinc-800 dark:hover:border-indigo-500/40"
+      className="block rounded-xl border border-zinc-200 bg-gradient-to-br from-blue-500/5 to-transparent p-3 transition-colors hover:border-blue-300 dark:border-zinc-800 dark:hover:border-blue-500/40"
     >
       <div className="flex items-center justify-between text-xs">
         <span className="font-semibold">
-          Lv {data.level} · <span className="text-indigo-600 dark:text-indigo-400">{data.levelTitle}</span>
+          Lv {data.level} · <span className="text-blue-600 dark:text-blue-400">{data.levelTitle}</span>
         </span>
         <span
           className={cx('flex items-center gap-0.5 font-semibold tabular-nums', data.streakDays > 0 ? 'text-orange-500' : 'text-zinc-400')}
@@ -86,7 +86,7 @@ function WorkspaceMenu() {
         aria-expanded={open}
         className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600/10 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600/10 text-xs font-semibold text-blue-700 dark:text-blue-300">
           {me.user.name
             .split(' ')
             .map((p) => p[0])
@@ -113,7 +113,7 @@ function WorkspaceMenu() {
                   setOpen(false);
                   switchWs.mutate(w.id);
                 }}
-                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-zinc-100 disabled:cursor-default disabled:bg-indigo-500/10 dark:hover:bg-zinc-800"
+                className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-zinc-100 disabled:cursor-default disabled:bg-blue-500/10 dark:hover:bg-zinc-800"
               >
                 <span className="truncate">{w.name}</span>
                 <span className="text-[11px] text-zinc-400">{w.role}</span>
@@ -126,7 +126,7 @@ function WorkspaceMenu() {
                   setOpen(false);
                   navigate('/admin');
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-500/10 dark:text-indigo-400"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-500/10 dark:text-blue-400"
               >
                 <Shield className="h-4 w-4" /> Admin Console
               </button>
@@ -183,24 +183,25 @@ export function Layout() {
       <VoiceDictationCtx.Provider value={() => setVoiceOpen(true)}>
         <div className="flex h-full flex-col md:flex-row">
           {/* Desktop sidebar */}
-          <aside className="hidden w-60 shrink-0 flex-col border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-900/80">
-            <div className="flex h-14 items-center border-b border-zinc-200/80 px-4 dark:border-zinc-800/80">
+          <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex h-[72px] items-center border-b border-slate-100 px-5 dark:border-zinc-800">
               <Logo />
             </div>
-            <div className="space-y-1.5 p-3">
+            <div className="space-y-2 px-4 pb-5 pt-5">
               <Button className="w-full" icon={<Plus className="h-4 w-4" />} onClick={() => setNewOpen(true)}>
                 New product
               </Button>
               <Button
                 variant="secondary"
-                className="w-full border-indigo-200 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100/70 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
-                icon={<Mic className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+                className="w-full border-blue-200 bg-blue-50/60 text-blue-700 hover:bg-blue-100/70 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                icon={<Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
                 onClick={() => setVoiceOpen(true)}
               >
-                Hands-Free Voice AI
+                Voice capture
               </Button>
             </div>
-          <nav className="flex flex-col gap-0.5 px-2" aria-label="Main">
+          <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Main">
+            <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p>
             {me.user.isAdmin && (
               <NavLink
                 to="/admin"
@@ -217,9 +218,9 @@ export function Layout() {
                 end={n.end}
                 className={({ isActive }) =>
                   cx(
-                    'flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'flex items-center justify-between rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors',
                     isActive
-                      ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
+                      ? 'bg-blue-50 text-[#16598d] dark:bg-blue-500/15 dark:text-blue-300'
                       : 'text-zinc-600 hover:bg-zinc-100/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200'
                   )
                 }
@@ -227,7 +228,7 @@ export function Layout() {
                 {({ isActive }) => (
                   <>
                     <span className="flex items-center gap-2.5">
-                      <n.icon className={cx('h-4 w-4', isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-400')} />
+                      <n.icon className={cx('h-4 w-4', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400')} />
                       {n.label}
                     </span>
                     {counts[n.to] !== undefined && <span className="text-[11px] tabular-nums text-zinc-400">{counts[n.to]}</span>}
@@ -236,21 +237,21 @@ export function Layout() {
               </NavLink>
             ))}
           </nav>
-          <div className="mt-auto space-y-2 border-t border-zinc-200/80 p-3 dark:border-zinc-800/80">
+          <div className="mt-auto space-y-2 border-t border-zinc-200/80 p-4 dark:border-zinc-800/80">
             <PlayerCard />
             <WorkspaceMenu />
           </div>
         </aside>
 
         {/* Mobile top bar */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden dark:border-zinc-800 dark:bg-zinc-900">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden dark:border-zinc-800 dark:bg-zinc-900">
           <Logo />
           <div className="flex items-center gap-1">
             <IconButton label="Toggle theme" onClick={toggle}>
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </IconButton>
-            <IconButton label="Hands-Free Voice AI" onClick={() => setVoiceOpen(true)}>
-              <Mic className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <IconButton label="Voice capture" onClick={() => setVoiceOpen(true)}>
+              <Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </IconButton>
             <NavLink to="/settings" className="rounded-lg p-1.5 text-zinc-500" aria-label="Settings">
               <Settings className="h-4 w-4" />
@@ -261,13 +262,13 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-16 md:pb-0">
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#f6f8fa] pb-20 md:pb-0 dark:bg-zinc-950">
           <Outlet />
         </main>
 
         {/* Mobile bottom nav */}
         <nav
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-zinc-200 bg-white/95 backdrop-blur md:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
+          className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
           aria-label="Main"
         >
           {NAV.map((n) => (
@@ -276,7 +277,7 @@ export function Layout() {
               to={n.to}
               end={n.end}
               className={({ isActive }) =>
-                cx('flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium', isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-500')
+                cx('flex min-w-[76px] flex-1 shrink-0 flex-col items-center gap-1 px-1 py-2 text-center text-[10px] font-medium', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500')
               }
             >
               <n.icon className="h-5 w-5" />

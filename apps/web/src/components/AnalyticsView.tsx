@@ -146,7 +146,7 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Page Views</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
               <Eye className="h-4 w-4" />
             </div>
           </div>
@@ -212,8 +212,8 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
               <p className="text-xs text-zinc-500">Page views, user actions, and logins over the selected period</p>
             </div>
             <div className="flex items-center gap-4 text-xs font-medium">
-              <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
-                <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" /> Page views
+              <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                <span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Page views
               </span>
               <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Actions
@@ -249,7 +249,7 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
                 className={cx(
                   'flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-xs font-medium transition-colors whitespace-nowrap',
                   active
-                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
                     : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-zinc-200'
                 )}
               >
@@ -259,7 +259,7 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
                   <span
                     className={cx(
                       'ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-semibold',
-                      active ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                      active ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
                     )}
                   >
                     {tab.count}
@@ -297,7 +297,7 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
                         </div>
                         <div className="mt-1.5 flex items-center gap-2">
                           <div className="h-1.5 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                            <div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct}%` }} />
+                            <div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
                           </div>
                           <span className="text-[11px] text-zinc-400 tabular-nums">
                             {p.uniqueVisitors} unique
@@ -501,7 +501,7 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
                     const pct = Math.round((p.views / totalAll) * 100);
                     return (
                       <tr key={p.path} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
-                        <td className="px-4 py-3 font-mono font-medium text-indigo-600 dark:text-indigo-400">
+                        <td className="px-4 py-3 font-mono font-medium text-blue-600 dark:text-blue-400">
                           {p.path}
                         </td>
                         <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">
@@ -519,7 +519,7 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
                         <td className="px-4 py-3 w-40">
                           <div className="flex items-center gap-2">
                             <div className="h-1.5 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                              <div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct}%` }} />
+                              <div className="h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
                             </div>
                             <span className="text-[11px] text-zinc-400 tabular-nums w-8 text-right">{pct}%</span>
                           </div>
@@ -584,7 +584,7 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
                       ev.eventType === 'login'
                         ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                         : ev.eventType === 'page_view'
-                        ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                         : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                     )}
                   >
@@ -612,7 +612,7 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
                             ev.eventType === 'login'
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
                               : ev.eventType === 'page_view'
-                              ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
                               : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
                           )}
                         >
@@ -677,7 +677,7 @@ export function AnalyticsView({ isAdmin, workspaceId, title, subtitle }: Analyti
                     <tr key={u.userId} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500/10 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/10 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
                             {u.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>

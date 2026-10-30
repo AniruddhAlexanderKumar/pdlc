@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
+import { DashboardSettings } from '../components/dashboard/DashboardSettings';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Cookie, Copy, KeyRound, Link2, LogOut, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { CURRENCIES, type Me, type Role } from '@sv/shared';
@@ -328,13 +330,13 @@ function PrivacyAndCookies() {
         <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-3.5 dark:border-zinc-800 dark:bg-zinc-800/40">
           <div className="flex items-center justify-between text-xs font-medium">
             <span className="flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100">
-              <Cookie className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Server Analytics
+              <Cookie className="h-4 w-4 text-blue-600 dark:text-blue-400" /> Server Analytics
             </span>
             <span
               className={cx(
                 'rounded-full px-2 py-0.5 text-[10px] font-semibold',
                 analyticsActive
-                  ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                   : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
               )}
             >
@@ -351,14 +353,19 @@ function PrivacyAndCookies() {
 }
 
 export function SettingsPage() {
+  const [params] = useSearchParams();
+  const isDashboard = params.get('section') === 'dashboard';
   return (
     <>
       <PageHeader title="Settings" subtitle="Workspace, team and account." />
       <div className="mx-auto max-w-4xl space-y-5 px-4 py-5 md:px-6">
+        {isDashboard ? <DashboardSettings /> : <>
+        <Card><div className="flex flex-wrap items-center justify-between gap-3 p-4"><div><h2 className="font-semibold">Personalization</h2><p className="mt-1 text-sm text-zinc-500">Choose and arrange your dashboard widgets.</p></div><Link to="/settings?section=dashboard" className="text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">Dashboard settings →</Link></div></Card>
         <WorkspaceSettings />
         <Team />
         <Account />
         <PrivacyAndCookies />
+        </>}
       </div>
     </>
   );

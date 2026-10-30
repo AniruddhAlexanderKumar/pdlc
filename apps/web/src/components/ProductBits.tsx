@@ -30,7 +30,7 @@ export function ProductThumb({ name, imageUrl, size = 'md' }: { name: string; im
     .join('')
     .toUpperCase();
   return (
-    <div className={cx(dim, 'flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 font-semibold text-indigo-700 dark:text-indigo-300')}>
+    <div className={cx(dim, 'flex shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-500/10 font-semibold text-blue-700 dark:text-blue-300')}>
       {initials || <Package className="h-4 w-4" />}
     </div>
   );
@@ -58,12 +58,12 @@ export function ProductCard({
       to={`/products/${product.id}`}
       draggable={draggable}
       onDragStart={onDragStart}
-      className="group block rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-indigo-500/40"
+      className="group block rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-all hover:border-blue-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-500/40"
     >
       <div className="flex items-start gap-2.5">
         <ProductThumb name={product.name} imageUrl={product.imageUrl} size="sm" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{product.name}</p>
+          <p className="truncate text-sm font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">{product.name}</p>
           <p className="truncate text-[11px] text-zinc-500">{product.category}</p>
         </div>
         <GradeBadge grade={health.grade} score={health.score} />
@@ -74,7 +74,7 @@ export function ProductCard({
             <div className="mb-1 flex items-center justify-between text-[11px] text-zinc-500">
               <span className="flex items-center gap-1">
                 {quest.complete ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : null}
-                {product.stage} quest
+                {product.stage} progress
               </span>
               <span className="tabular-nums">
                 {quest.done}/{quest.total}
@@ -113,7 +113,7 @@ export function StagePills({ value, onChange, counts }: { value: StageId | 'ALL'
           className={cx(
             'shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
             value === s
-              ? 'border-indigo-500 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300'
+              ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300'
               : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-700'
           )}
         >

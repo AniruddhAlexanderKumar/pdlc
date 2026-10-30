@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { resolveLayout } from '@sv/shared';
 import type {
   DashboardLayout,
+  DashboardSettings,
   Insight,
   Invite,
   LeaderboardEntry,
@@ -9,7 +9,6 @@ import type {
   Me,
   Member,
   PlayerStats,
-  PresetId,
   Product,
   Supplier,
   VoiceImportPayload,
@@ -83,26 +82,23 @@ export function useLeaderboard() {
 }
 
 export function useDashboardLayout() {
-  return useQuery({ queryKey: keys.dashboard, queryFn: () => get<DashboardLayout>('/dashboard') });
+  const { user } = useSession();
+  return useQuery({ queryKey: [...keys.dashboard, user.id], queryFn: () => get<DashboardLayout>('/dashboard') });
 }
 
-/** Switches preset immediately and rolls back if the server rejects it. */
-export function useSetDashboardPreset() {
+/** Saves an account-scoped layout and refreshes every dashboard consumer. */
+export function useSaveDashboardLayout() {
   const qc = useQueryClient();
   const toast = useToast();
+  const { user } = useSession();
   return useMutation({
-    mutationFn: (preset: PresetId) => put<DashboardLayout>('/dashboard', { preset }),
-    onMutate: async (preset) => {
-      await qc.cancelQueries({ queryKey: keys.dashboard });
-      const previous = qc.getQueryData<DashboardLayout>(keys.dashboard);
-      qc.setQueryData<DashboardLayout>(keys.dashboard, resolveLayout({ preset }));
-      return { previous };
+    mutationFn: (settings: DashboardSettings) => put<DashboardLayout>('/dashboard', settings),
+    onSuccess: (layout) => {
+      if (qc.getQueryData<Me>(keys.me)?.user.id !== user.id) return;
+      qc.setQueryData([...keys.dashboard, user.id], layout);
+      toast.success('Dashboard saved');
     },
-    onSuccess: (layout) => qc.setQueryData(keys.dashboard, layout),
-    onError: (e, _preset, ctx) => {
-      qc.setQueryData(keys.dashboard, ctx?.previous);
-      toast.error(e instanceof Error ? e.message : 'Could not save your layout');
-    }
+    onError: (e) => { if (qc.getQueryData<Me>(keys.me)?.user.id === user.id) toast.error(e instanceof Error ? e.message : 'Could not save your dashboard'); }
   });
 }
 

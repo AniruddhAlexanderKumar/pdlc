@@ -12,15 +12,15 @@ export const PHASES = [
 export type PhaseId = (typeof PHASES)[number]['id'];
 
 export const STAGES = [
-  { id: 'Idea', label: 'Idea', phase: 'discover', color: 'zinc', emoji: '💡' },
-  { id: 'Research', label: 'Research', phase: 'discover', color: 'sky', emoji: '🔎' },
-  { id: 'Planning', label: 'Planning', phase: 'build', color: 'blue', emoji: '🗺️' },
-  { id: 'Design', label: 'Design', phase: 'build', color: 'indigo', emoji: '✏️' },
-  { id: 'Prototype', label: 'Prototype', phase: 'build', color: 'violet', emoji: '🛠️' },
-  { id: 'Testing', label: 'Testing', phase: 'build', color: 'amber', emoji: '🧪' },
-  { id: 'Launch', label: 'Launch', phase: 'grow', color: 'emerald', emoji: '🚀' },
-  { id: 'Improvement', label: 'Improvement', phase: 'grow', color: 'teal', emoji: '📈' },
-  { id: 'Retired', label: 'Retired', phase: 'grow', color: 'rose', emoji: '📦' }
+  { id: 'Idea', label: 'Idea', phase: 'discover', color: 'zinc' },
+  { id: 'Research', label: 'Research', phase: 'discover', color: 'sky' },
+  { id: 'Planning', label: 'Planning', phase: 'build', color: 'blue' },
+  { id: 'Design', label: 'Design', phase: 'build', color: 'indigo' },
+  { id: 'Prototype', label: 'Prototype', phase: 'build', color: 'violet' },
+  { id: 'Testing', label: 'Testing', phase: 'build', color: 'amber' },
+  { id: 'Launch', label: 'Launch', phase: 'grow', color: 'emerald' },
+  { id: 'Improvement', label: 'Improvement', phase: 'grow', color: 'teal' },
+  { id: 'Retired', label: 'Retired', phase: 'grow', color: 'rose' }
 ] as const;
 
 export type StageId = (typeof STAGES)[number]['id'];

@@ -102,14 +102,14 @@ export function ProjectsPage() {
         {projectsQuery.data?.length ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {projectsQuery.data.map((project) => (
-              <Link key={project.id} to={`/projects/${project.id}/issues`} className="rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
-                <Card className="h-full p-5 transition-colors hover:border-indigo-300 dark:hover:border-indigo-500/50">
+              <Link key={project.id} to={`/projects/${project.id}/issues`} className="rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
+                <Card className="h-full p-5 transition-colors hover:border-blue-300 dark:hover:border-blue-500/50">
                   <div className="flex items-start gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
                       <FolderKanban className="h-5 w-5" aria-hidden="true" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold tracking-wide text-indigo-600 dark:text-indigo-400">{project.key}</p>
+                      <p className="text-xs font-semibold tracking-wide text-blue-600 dark:text-blue-400">{project.key}</p>
                       <h2 className="mt-1 truncate font-semibold">{project.name}</h2>
                     </div>
                     <span className="text-xs text-zinc-500">{project.issueCount} issues</span>

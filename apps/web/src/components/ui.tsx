@@ -24,7 +24,7 @@ export function cx(...parts: (string | false | null | undefined)[]) {
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 const variants: Record<Variant, string> = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-500 active:bg-indigo-700 shadow-sm disabled:bg-indigo-600/60',
+  primary: 'bg-[#16598d] text-white hover:bg-[#124c79] active:bg-[#103e65] shadow-sm disabled:bg-[#16598d]/60',
   secondary:
     'border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800',
   ghost: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100',
@@ -48,8 +48,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       className={cx(
-        'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-60',
-        size === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3.5 py-2 text-sm',
+        'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-60',
+        size === 'sm' ? 'min-h-8 px-3 py-1.5 text-xs' : 'min-h-10 px-4 py-2 text-sm',
         variants[variant],
         className
       )}
@@ -68,7 +68,7 @@ export function IconButton({ label, className, ...rest }: ButtonHTMLAttributes<H
       aria-label={label}
       title={label}
       className={cx(
-        'rounded-lg p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100',
+        'rounded-lg p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100',
         className
       )}
       {...rest}
@@ -79,7 +79,7 @@ export function IconButton({ label, className, ...rest }: ButtonHTMLAttributes<H
 // ── Form fields ────────────────────────────────────────────────────────────
 
 const fieldBase =
-  'w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500';
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
   return <input ref={ref} className={cx(fieldBase, className)} {...rest} />;
@@ -177,7 +177,7 @@ export function CommitInput({
 // ── Surfaces ───────────────────────────────────────────────────────────────
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cx('rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/60', className)}>{children}</div>;
+  return <div className={cx('rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,36,60,0.03)] dark:border-zinc-800 dark:bg-zinc-900/60', className)}>{children}</div>;
 }
 
 export function CardHeader({ title, subtitle, action, icon }: { title: ReactNode; subtitle?: ReactNode; action?: ReactNode; icon?: ReactNode }) {
@@ -197,9 +197,9 @@ export function CardHeader({ title, subtitle, action, icon }: { title: ReactNode
 
 export function PageHeader({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-zinc-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6 dark:border-zinc-800 dark:bg-zinc-900/40">
+    <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-6 sm:flex-row sm:items-center sm:justify-between md:px-8 dark:border-zinc-800 dark:bg-zinc-900/40">
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-zinc-100">{title}</h1>
         {subtitle && <p className="mt-0.5 text-sm text-zinc-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -209,7 +209,7 @@ export function PageHeader({ title, subtitle, actions }: { title: ReactNode; sub
 
 export function EmptyState({ icon, title, body, action }: { icon: ReactNode; title: string; body: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 px-6 py-12 text-center dark:border-zinc-700">
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white/70 px-6 py-12 dark:bg-zinc-900/30 text-center dark:border-zinc-700">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">{icon}</div>
       <h3 className="font-semibold">{title}</h3>
       <p className="mt-1 max-w-sm text-sm text-zinc-500">{body}</p>
@@ -228,7 +228,7 @@ export function Spinner({ label = 'Loading' }: { label?: string }) {
 }
 
 export function ProgressBar({ value, className, tone = 'indigo' }: { value: number; className?: string; tone?: 'indigo' | 'emerald' | 'amber' | 'rose' }) {
-  const color = { indigo: 'bg-indigo-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500', rose: 'bg-rose-500' }[tone];
+  const color = { indigo: 'bg-blue-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500', rose: 'bg-rose-500' }[tone];
   return (
     <div
       className={cx('h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800', className)}
@@ -246,7 +246,7 @@ const stageColors: Record<string, { dot: string; badge: string }> = {
   zinc: { dot: 'bg-zinc-400', badge: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 border-zinc-500/20' },
   sky: { dot: 'bg-sky-500', badge: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20' },
   blue: { dot: 'bg-blue-500', badge: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20' },
-  indigo: { dot: 'bg-indigo-500', badge: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20' },
+  indigo: { dot: 'bg-blue-500', badge: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20' },
   violet: { dot: 'bg-violet-500', badge: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20' },
   amber: { dot: 'bg-amber-500', badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20' },
   emerald: { dot: 'bg-emerald-500', badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' },

@@ -103,7 +103,7 @@ export function MaterialsPage() {
                           <p className="text-xs text-zinc-500">
                             {m.category}
                             {m.sourceUrl && (
-                              <a href={m.sourceUrl} target="_blank" rel="noreferrer noopener" className="ml-2 inline-flex items-center gap-0.5 text-indigo-600 hover:underline dark:text-indigo-400">
+                              <a href={m.sourceUrl} target="_blank" rel="noreferrer noopener" className="ml-2 inline-flex items-center gap-0.5 text-blue-600 hover:underline dark:text-blue-400">
                                 source <ExternalLink className="h-3 w-3" />
                               </a>
                             )}
@@ -140,7 +140,7 @@ export function MaterialsPage() {
                           ) : (
                             <div className="flex flex-wrap gap-1">
                               {used.map((u) => (
-                                <Link key={u.id} to={`/products/${u.id}/materials`} className="rounded-md bg-zinc-100 px-1.5 py-0.5 hover:bg-indigo-500/10 dark:bg-zinc-800">
+                                <Link key={u.id} to={`/products/${u.id}/materials`} className="rounded-md bg-zinc-100 px-1.5 py-0.5 hover:bg-blue-500/10 dark:bg-zinc-800">
                                   {u.name}
                                 </Link>
                               ))}

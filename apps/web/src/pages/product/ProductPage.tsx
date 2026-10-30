@@ -41,7 +41,7 @@ function JourneyStepper({ product, onPick }: { product: Product; onPick: (s: Sta
               className={cx(
                 'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
                 isCurrent
-                  ? 'border-indigo-500 bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                  ? 'border-blue-500 bg-blue-600 text-white shadow-sm shadow-blue-500/30'
                   : done
                     ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                     : 'border-zinc-200 text-zinc-500 hover:border-zinc-300 dark:border-zinc-800'
@@ -79,7 +79,7 @@ export function ProductPage() {
           title="Product not found"
           body="It may have been deleted by someone on your team."
           action={
-            <Link to="/products" className="text-sm font-medium text-indigo-600">
+            <Link to="/products" className="text-sm font-medium text-blue-600">
               Back to products
             </Link>
           }
@@ -126,12 +126,12 @@ export function ProductPage() {
                 >
                   {STAGES.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.emoji} {s.label}
+                      {s.label}
                     </option>
                   ))}
                 </Select>
                 <span className="text-xs text-zinc-500 tabular-nums">
-                  Quest {quest.done}/{quest.total}
+                  Checklist {quest.done}/{quest.total}
                 </span>
               </div>
             </div>
@@ -180,7 +180,7 @@ export function ProductPage() {
               className={cx(
                 'flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors',
                 activeTab === t.id
-                  ? 'border-indigo-600 text-zinc-900 dark:border-indigo-400 dark:text-white'
+                  ? 'border-blue-600 text-zinc-900 dark:border-blue-400 dark:text-white'
                   : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
               )}
             >

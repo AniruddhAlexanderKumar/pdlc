@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { CheckCircle2, ChevronLeft, ChevronRight, Layers3, ListChecks, PartyPopper, SkipForward } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Layers3, ListChecks, SkipForward } from 'lucide-react';
 import { getStage, isAnswered, questionsForStage, STAGES, type AnswerValue, type Product, type Question, type StageId } from '@sv/shared';
 import { useAnswer } from '../../api/hooks';
-import { Burst } from '../../components/Celebrate';
 import { Button, Card, cx, Input, ProgressBar, Textarea } from '../../components/ui';
 import { useMoney } from '../../lib/money';
 
@@ -68,7 +67,7 @@ function AnswerInput({ q, value, onChange, onSubmit, autoFocus }: { q: Question;
               onClick={() => onChange(o.v)}
               className={cx(
                 'min-w-24 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
-                value === o.v ? 'border-indigo-500 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'
+                value === o.v ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'
               )}
             >
               {o.label}
@@ -89,7 +88,7 @@ function AnswerInput({ q, value, onChange, onSubmit, autoFocus }: { q: Question;
                 onClick={() => onChange(n)}
                 className={cx(
                   'h-11 w-11 rounded-lg border text-sm font-semibold tabular-nums transition-all',
-                  value === n ? 'scale-105 border-indigo-500 bg-indigo-600 text-white shadow-sm' : 'border-zinc-200 hover:border-indigo-300 dark:border-zinc-700'
+                  value === n ? 'scale-105 border-blue-500 bg-blue-600 text-white shadow-sm' : 'border-zinc-200 hover:border-blue-300 dark:border-zinc-700'
                 )}
               >
                 {n}
@@ -122,7 +121,7 @@ function AnswerInput({ q, value, onChange, onSubmit, autoFocus }: { q: Question;
                 }}
                 className={cx(
                   'rounded-full border px-3 py-1.5 text-sm transition-colors',
-                  on ? 'border-indigo-500 bg-indigo-500/10 font-medium text-indigo-700 dark:text-indigo-300' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'
+                  on ? 'border-blue-500 bg-blue-500/10 font-medium text-blue-700 dark:text-blue-300' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'
                 )}
               >
                 {o}
@@ -179,14 +178,13 @@ function Deck({ product, questions, stage, onDone }: { product: Product; questio
     const allDone = answeredCount === questions.length;
     return (
       <Card className="relative overflow-hidden p-8 text-center">
-        {allDone && <Burst />}
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
-          {allDone ? <PartyPopper className="h-7 w-7" /> : <CheckCircle2 className="h-7 w-7" />}
+          <CheckCircle2 className="h-7 w-7" />
         </div>
-        <h3 className="text-lg font-semibold">{allDone ? `${stage} questions complete!` : 'End of the deck'}</h3>
+        <h3 className="text-lg font-semibold">{allDone ? `${stage} questions complete` : 'End of the deck'}</h3>
         <p className="mx-auto mt-1 max-w-sm text-sm text-zinc-500">
           {allDone
-            ? 'Great work. Solution Velocity now knows a lot more about this product, and your suggestions just got sharper.'
+            ? 'Your answers are saved. Review them any time as the product develops.'
             : `${questions.length - answeredCount} question${questions.length - answeredCount === 1 ? '' : 's'} left unanswered. You can come back to them any time.`}
         </p>
         <div className="mt-6 flex justify-center gap-2">
@@ -213,7 +211,7 @@ function Deck({ product, questions, stage, onDone }: { product: Product; questio
           <span>
             Question {i + 1} of {questions.length}
           </span>
-          <span className={cx('rounded-full px-2 py-0.5 font-semibold', isDone ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300')}>
+          <span className={cx('rounded-full px-2 py-0.5 font-semibold', isDone ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'bg-blue-500/10 text-blue-700 dark:text-blue-300')}>
             {isDone ? 'Answered' : `+${q.xp} XP`}
           </span>
         </div>
@@ -225,7 +223,7 @@ function Deck({ product, questions, stage, onDone }: { product: Product; questio
               aria-label={`Go to question ${n + 1}`}
               className={cx(
                 'h-1.5 flex-1 rounded-full transition-colors',
-                n === i ? 'bg-indigo-600' : isAnswered(product.answers[x.key]) ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-800'
+                n === i ? 'bg-blue-600' : isAnswered(product.answers[x.key]) ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-800'
               )}
             />
           ))}
@@ -368,15 +366,15 @@ export function DiscoverTab({ product }: { product: Product }) {
               onClick={() => pickStage(s.id)}
               className={cx(
                 'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                stage === s.id ? 'border-indigo-500 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' : 'border-zinc-200 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400'
+                stage === s.id ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-zinc-200 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400'
               )}
             >
-              {done ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <span>{s.emoji}</span>}
+              {done ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <span className="h-1.5 w-1.5 rounded-full bg-current opacity-50" aria-hidden="true" />}
               {s.label}
               <span className="tabular-nums opacity-60">
                 {a}/{qs.length}
               </span>
-              {s.id === product.stage && <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" title="Current stage" />}
+              {s.id === product.stage && <span className="h-1.5 w-1.5 rounded-full bg-blue-500" title="Current stage" />}
             </button>
           );
         })}
@@ -384,7 +382,7 @@ export function DiscoverTab({ product }: { product: Product }) {
 
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Tell us · {stageMeta.label}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Tell us · {stageMeta.label}</p>
           <h2 className="mt-0.5 text-base font-semibold">
             {answered} of {questions.length} answered
           </h2>
