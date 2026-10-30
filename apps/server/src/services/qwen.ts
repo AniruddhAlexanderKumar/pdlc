@@ -81,6 +81,57 @@ function cleanJsonString(str: string): string {
   return cleaned;
 }
 
+function repairTruncatedJson(str: string): string {
+  let inString = false;
+  let escape = false;
+  const stack: string[] = [];
+
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (ch === '{') stack.push('}');
+      else if (ch === '[') stack.push(']');
+      else if (ch === '}' || ch === ']') {
+        if (stack.length > 0 && stack[stack.length - 1] === ch) {
+          stack.pop();
+        }
+      }
+    }
+  }
+
+  let result = str;
+  if (inString) {
+    result += '"';
+  }
+  result = result.replace(/,\s*$/, '');
+  while (stack.length > 0) {
+    result += stack.pop();
+  }
+  return result;
+}
+
+function safeParseJson(raw: string): any {
+  const cleaned = cleanJsonString(raw);
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const repaired = repairTruncatedJson(cleaned);
+    return JSON.parse(repaired);
+  }
+}
+
 function sanitizeKey(raw: string): string {
   const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!clean || !/^[A-Z]/.test(clean)) return 'PROJ';
@@ -219,23 +270,36 @@ export async function processVoiceTranscript(transcript: string): Promise<VoiceP
   // 1. Attempt llama.cpp server (OpenAI-compatible /v1/chat/completions)
   try {
     const controller = new AbortController();
-    // Allow up to 90s in case a thinking model or CPU-only inference takes extra time
-    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+    // Allow up to 120s in case CPU-only inference takes extra time
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
 
-    const endpoint = config.LLAMA_CPP_URL.includes('8080') && config.AI_BASE_URL && !config.AI_BASE_URL.includes('8091')
-      ? `${config.aiBaseUrl}/chat/completions`
-      : `${config.LLAMA_CPP_URL.replace(/\/$/, '')}/v1/chat/completions`;
+    let baseUrl = config.LLAMA_CPP_URL || 'http://127.0.0.1:8091';
+    if (baseUrl.includes('8080') && config.AI_BASE_URL) {
+      baseUrl = config.aiBaseUrl;
+    }
+    const endpoint = baseUrl.endsWith('/chat/completions')
+      ? baseUrl
+      : baseUrl.endsWith('/v1')
+      ? `${baseUrl}/chat/completions`
+      : `${baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
     logger.info({ url: endpoint }, 'Attempting server-side Qwen inference via llama.cpp / local AI server');
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (config.AI_API_KEY) {
+      headers['Authorization'] = `Bearer ${config.AI_API_KEY}`;
+    }
 
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
+        model: config.AI_MODEL || 'qwen2.5-14b-instruct',
         messages: [
           { role: 'system', content: QWEN_SYSTEM_PROMPT },
           { role: 'user', content: `Spoken Voice Transcription:\n${trimmed}\n\nJSON Output:` }
         ],
         temperature: 0.2,
+        max_tokens: 1200,
         response_format: { type: 'json_object' }
       }),
       signal: controller.signal
@@ -246,7 +310,7 @@ export async function processVoiceTranscript(transcript: string): Promise<VoiceP
       const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
       const content = data.choices?.[0]?.message?.content;
       if (content) {
-        const parsed = JSON.parse(cleanJsonString(content)) as VoiceImportPayload;
+        const parsed = safeParseJson(content) as VoiceImportPayload;
         if (parsed.product && parsed.project && Array.isArray(parsed.issues)) {
           if (!STAGE_IDS.includes(parsed.product.stage as any)) {
             parsed.product.stage = 'Prototype';

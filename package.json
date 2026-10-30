@@ -2,7 +2,7 @@
   "name": "solution-velocity",
   "private": true,
   "version": "1.0.0",
-  "description": "Solution Velocity \u2014 a gamified product development lifecycle workspace",
+  "description": "Solution Velocity — a gamified product development lifecycle workspace",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -19,5 +19,8 @@
   },
   "engines": {
     "node": ">=20.19"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }
