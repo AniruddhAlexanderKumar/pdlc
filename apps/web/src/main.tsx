@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation } from 'react-router';
@@ -21,6 +21,7 @@ import { ProductPage } from './pages/product/ProductPage';
 import { ProductsPage } from './pages/Products';
 import { ProjectsPage } from './pages/Projects';
 import { ProjectIssuesPage } from './pages/ProjectIssues';
+const TeamworkGraphPage = lazy(() => import('./pages/TeamworkGraph').then(m => ({ default: m.TeamworkGraphPage })));
 import { RequestAccessPage } from './pages/RequestAccess';
 import { SettingsPage } from './pages/Settings';
 import { SuppliersPage } from './pages/Suppliers';
@@ -154,6 +155,7 @@ const router = createBrowserRouter([
               { path: '/', element: <DashboardPage /> },
               { path: '/products', element: <ProductsPage /> },
               { path: '/projects', element: <ProjectsPage /> },
+              { path: '/teamwork-graph', element: <Suspense fallback={<Spinner label="Loading Teamwork Graph" />}><TeamworkGraphPage /></Suspense> },
               { path: '/projects/:projectId/issues', element: <ProjectIssuesPage /> },
               { path: '/products/:id', element: <ProductPage /> },
               { path: '/products/:id/:tab', element: <ProductPage /> },

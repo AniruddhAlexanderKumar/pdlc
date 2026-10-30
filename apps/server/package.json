@@ -11,6 +11,7 @@
     "migrate": "tsx --env-file-if-exists=../../.env src/scripts/migrate.ts",
     "create-admin": "tsx --env-file-if-exists=../../.env src/scripts/create-admin.ts",
     "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/services/graph-intent.test.ts",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
