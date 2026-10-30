@@ -51,8 +51,9 @@ export interface VoiceImportPayload {
 }
 
 export interface VoiceProcessResult {
+  transcript?: string;
   data: VoiceImportPayload;
-  provider: 'llama-cpp' | 'qwen' | 'gemini' | 'server_fallback';
+  provider: string;
 }
 
 export interface VoiceImportResult {

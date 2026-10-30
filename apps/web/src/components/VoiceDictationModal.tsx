@@ -12,13 +12,15 @@ import {
   Mic,
   MicOff,
   Package,
+  Play,
   RotateCcw,
   Sparkles,
+  Square,
   Tag,
   Wand2
 } from 'lucide-react';
 import { XP, type VoiceImportPayload } from '@sv/shared';
-import { useImportVoice, useProcessVoice } from '../api/hooks';
+import { useImportVoice, useProcessVoice, useProcessVoiceAudio } from '../api/hooks';
 import { Burst } from './Celebrate';
 import { Button, Card, cx, Modal, ProgressBar, StageBadge } from './ui';
 import { useMoney } from '../lib/money';
@@ -38,103 +40,120 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const { symbol, fmt } = useMoney();
   const processVoice = useProcessVoice();
+  const processVoiceAudio = useProcessVoiceAudio();
   const importVoice = useImportVoice();
 
-  const [step, setStep] = useState<'dictate' | 'preview'>('dictate');
+  const [step, setStep] = useState<'record' | 'preview'>('record');
   const [transcript, setTranscript] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [recognitionSupported, setRecognitionSupported] = useState(true);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
   const [payloadDraft, setPayloadDraft] = useState<VoiceImportPayload | null>(null);
-  const [providerUsed, setProviderUsed] = useState<string>('qwen');
+  const [providerUsed, setProviderUsed] = useState<string>('server');
+  const [serverTranscript, setServerTranscript] = useState<string>('');
   const [expandedIssue, setExpandedIssue] = useState<number | null>(0);
   const [celebrate, setCelebrate] = useState(false);
 
-  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
 
-  // Setup Web Speech Recognition
   useEffect(() => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+    };
+  }, [audioUrl]);
 
-    if (!SpeechRecognition) {
-      setRecognitionSupported(false);
-      return;
-    }
+  const startRecording = async () => {
+    setMicError(null);
+    setAudioBlob(null);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl(null);
+    audioChunksRef.current = [];
 
     try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+        .find((type) => MediaRecorder.isTypeSupported(type)) || '';
 
-      recognition.onresult = (event: any) => {
-        let full = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          full += event.results[i][0].transcript + ' ';
-        }
-        setTranscript(full.trim());
-      };
-
-      recognition.onerror = (event: any) => {
-        if (event.error !== 'no-speech') {
-          setMicError(`Microphone error: ${event.error}`);
-          setIsRecording(false);
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
       };
 
-      recognition.onend = () => {
-        setIsRecording(false);
+      recorder.onstop = () => {
+        const recordedBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        setAudioBlob(recordedBlob);
+        setAudioUrl(URL.createObjectURL(recordedBlob));
+        stream.getTracks().forEach((track) => track.stop());
       };
 
-      recognitionRef.current = recognition;
-    } catch {
-      setRecognitionSupported(false);
-    }
+      recorder.start(250); // Slice every 250ms
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordingSeconds(0);
 
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
-      }
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
-
-  const toggleRecording = () => {
-    setMicError(null);
-    if (isRecording) {
-      if (recognitionRef.current) recognitionRef.current.stop();
+      timerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch (err: any) {
+      setMicError(err?.message || 'Microphone access denied or not available');
       setIsRecording(false);
-      if (timerRef.current) clearInterval(timerRef.current);
-    } else {
-      if (!recognitionRef.current) {
-        setMicError('Speech recognition is not supported in this browser. You can type or paste your thoughts below.');
-        return;
-      }
-      try {
-        recognitionRef.current.start();
-        setIsRecording(true);
-        setRecordingSeconds(0);
-        timerRef.current = setInterval(() => {
-          setRecordingSeconds((s) => s + 1);
-        }, 1000);
-      } catch (err: any) {
-        setMicError(err?.message || 'Failed to start microphone');
-      }
     }
   };
 
-  const handleProcess = () => {
-    if (!transcript.trim()) return;
-    if (isRecording) toggleRecording();
+  const stopRecording = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
 
-    processVoice.mutate(transcript.trim(), {
+  const handleProcessAudioOnServer = (blobToProcess?: Blob) => {
+    const targetBlob = blobToProcess || audioBlob;
+    if (!targetBlob) return;
+
+    if (isRecording) {
+      stopRecording();
+    }
+
+    setMicError(null);
+    processVoiceAudio.mutate(targetBlob, {
       onSuccess: (res) => {
         setPayloadDraft(res.data);
         setProviderUsed(res.provider);
+        setServerTranscript(res.transcript || '');
         setStep('preview');
+      },
+      onError: (err: any) => {
+        setMicError(err?.message || 'Failed to process audio on server');
+      }
+    });
+  };
+
+  const handleProcessText = (customText?: string) => {
+    const target = (customText || transcript).trim();
+    if (!target) return;
+
+    setMicError(null);
+    processVoice.mutate(target, {
+      onSuccess: (res) => {
+        setPayloadDraft(res.data);
+        setProviderUsed(res.provider);
+        setServerTranscript(target);
+        setStep('preview');
+      },
+      onError: (err: any) => {
+        setMicError(err?.message || 'Failed to process transcript with server LLM');
       }
     });
   };
@@ -142,11 +161,11 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
   const handleImport = () => {
     if (!payloadDraft) return;
     importVoice.mutate(payloadDraft, {
-      onSuccess: (res) => {
+      onSuccess: () => {
         setCelebrate(true);
         setTimeout(() => {
           onClose();
-          navigate(`/projects`);
+          navigate('/projects');
         }, 900);
       }
     });
@@ -158,35 +177,48 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const isServerProcessing = processVoiceAudio.isPending || processVoice.isPending;
+
   return (
     <>
       <Modal
-        title={step === 'dictate' ? 'Hands-Free Voice AI · Product Ideation' : 'Review & Import to Workspace'}
+        title={step === 'record' ? 'Hands-Free Voice AI (Server STT & LLM)' : 'Review & Import to Workspace'}
         subtitle={
-          step === 'dictate'
-            ? 'Speak freely about your idea. Server Qwen will distill facts, answer discovery questionnaires, and build your starter Jira board.'
-            : `Synthesized by ${providerUsed === 'llama-cpp' ? 'llama.cpp (Qwen 30B A3B)' : providerUsed === 'qwen' ? 'Ollama (Qwen 2.5)' : 'server intelligence engine'}. Check your beginner board and confirm.`
+          step === 'record'
+            ? 'Record raw audio hands-free. Audio is streamed to the server where Whisper STT transcribes it and Qwen builds your beginner Jira board.'
+            : `Synthesized entirely on server via ${providerUsed}. Check your beginner board and confirm.`
         }
         onClose={onClose}
         size="lg"
         footer={
-          step === 'dictate' ? (
+          step === 'record' ? (
             <>
-              <Button variant="secondary" onClick={onClose}>
+              <Button variant="secondary" onClick={onClose} disabled={isServerProcessing}>
                 Cancel
               </Button>
-              <Button
-                onClick={handleProcess}
-                disabled={!transcript.trim() || processVoice.isPending}
-                loading={processVoice.isPending}
-                icon={<Sparkles className="h-4 w-4" />}
-              >
-                Synthesize with Server Qwen
-              </Button>
+              {audioBlob ? (
+                <Button
+                  onClick={() => handleProcessAudioOnServer()}
+                  disabled={isServerProcessing}
+                  loading={processVoiceAudio.isPending}
+                  icon={<Sparkles className="h-4 w-4" />}
+                >
+                  Process Audio on Server
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => handleProcessText()}
+                  disabled={!transcript.trim() || isServerProcessing}
+                  loading={processVoice.isPending}
+                  icon={<Sparkles className="h-4 w-4" />}
+                >
+                  Synthesize Text on Server
+                </Button>
+              )}
             </>
           ) : (
             <>
-              <Button variant="secondary" icon={<RotateCcw className="h-4 w-4" />} onClick={() => setStep('dictate')}>
+              <Button variant="secondary" icon={<RotateCcw className="h-4 w-4" />} onClick={() => setStep('record')}>
                 Back to Dictation
               </Button>
               <Button
@@ -200,49 +232,84 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
           )
         }
       >
-        {step === 'dictate' ? (
+        {step === 'record' ? (
           <div className="space-y-5">
-            {/* Mic Controls */}
+            {/* Server-Side Recording Card */}
             <div className="flex flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50/50 p-6 text-center dark:border-zinc-800 dark:bg-zinc-900/40">
               <button
                 type="button"
-                onClick={toggleRecording}
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isServerProcessing}
                 className={cx(
                   'relative flex h-20 w-20 items-center justify-center rounded-full transition-all duration-300 shadow-md',
                   isRecording
                     ? 'bg-rose-600 text-white shadow-rose-500/40 animate-pulse ring-4 ring-rose-500/20'
                     : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-500/30 hover:scale-105'
                 )}
-                aria-label={isRecording ? 'Stop recording' : 'Start speaking'}
+                aria-label={isRecording ? 'Stop recording audio' : 'Start recording audio'}
               >
-                {isRecording ? <MicOff className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
+                {isRecording ? <Square className="h-7 w-7" /> : <Mic className="h-8 w-8" />}
               </button>
 
               <div className="mt-3">
                 <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                  {isRecording ? `Listening… ${formatTime(recordingSeconds)}` : 'Click to start speaking hands-free'}
+                  {isRecording
+                    ? `Recording Audio… ${formatTime(recordingSeconds)}`
+                    : audioBlob
+                    ? `Recorded Audio Ready (${formatTime(recordingSeconds)})`
+                    : 'Click to Record Hands-Free Audio'}
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   {isRecording
-                    ? 'Talk about the problem, who it is for, key materials, target price, and next steps.'
-                    : recognitionSupported
-                    ? 'Microphone ready. Speaks directly into the transcript.'
-                    : 'Browser speech recognition unavailable. You can type or paste below.'}
+                    ? 'Speak freely about the problem, materials, price, and first tasks. Raw audio will be transcribed by Whisper on the server.'
+                    : audioBlob
+                    ? 'Audio recorded. Click below to upload and transcribe on server, or record again.'
+                    : 'Audio is recorded directly from your microphone and processed on your server (zero browser speech-to-text).'}
                 </p>
               </div>
 
+              {/* Audio playback preview if recorded */}
+              {audioUrl && !isRecording && (
+                <div className="mt-4 flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-900">
+                  <audio src={audioUrl} controls className="h-8 max-w-xs" />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<RotateCcw className="h-3.5 w-3.5" />}
+                    onClick={startRecording}
+                  >
+                    Re-record
+                  </Button>
+                </div>
+              )}
+
+              {/* Status message while server processes */}
+              {isServerProcessing && (
+                <div className="mt-4 flex items-center gap-2 rounded-xl bg-indigo-500/10 px-3.5 py-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                  <span className="h-2 w-2 animate-ping rounded-full bg-indigo-500" />
+                  <span>
+                    {processVoiceAudio.isPending
+                      ? 'Streaming audio to server → Transcribing with Whisper STT → Synthesizing with Qwen…'
+                      : 'Synthesizing product roadmap with server Qwen…'}
+                  </span>
+                </div>
+              )}
+
               {micError && (
-                <div className="mt-3 flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{micError}</span>
+                <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-rose-50 p-2.5 text-left text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-semibold">Notice</p>
+                    <p>{micError}</p>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Live Transcript / Brain Dump Textarea */}
+            {/* Manual Notes / Fallback Text Input */}
             <div>
               <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-zinc-500">
-                <span>Spoken Transcript / Brain Dump</span>
+                <span>Or Type / Paste Notes Directly (Processed by Server Qwen)</span>
                 {transcript && (
                   <button type="button" onClick={() => setTranscript('')} className="hover:text-zinc-800 dark:hover:text-zinc-200">
                     Clear text
@@ -252,25 +319,28 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
               <textarea
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
-                rows={4}
-                placeholder="Talk into your microphone or paste your rambling thoughts here… (e.g. 'I want to build a low noise desktop fan for remote workers with brushless motor and CNC aluminum tube for $49...')"
+                rows={3}
+                placeholder="Prefer typing? Paste notes here (e.g. 'I want to build a low noise desktop fan for remote workers with brushless motor for $49...')"
                 className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-800 dark:bg-zinc-900"
               />
             </div>
 
-            {/* Quick Demo Fillers */}
+            {/* 1-Click Quick Scenarios */}
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Quick Test Scenarios (1-Click Demo)</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">1-Click Test Scenarios (Instant Demo)</p>
               <div className="flex flex-wrap gap-2">
                 {DEMO_TRANSCRIPTS.map((demo) => (
                   <button
                     key={demo.title}
                     type="button"
-                    onClick={() => setTranscript(demo.text)}
+                    onClick={() => {
+                      setTranscript(demo.text);
+                      handleProcessText(demo.text);
+                    }}
                     className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/30 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-indigo-700"
                   >
                     <Wand2 className="h-3.5 w-3.5 text-indigo-500" />
-                    <span>{demo.title}</span>
+                    <span>Run {demo.title}</span>
                   </button>
                 ))}
               </div>
@@ -279,6 +349,21 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
         ) : (
           payloadDraft && (
             <div className="space-y-6">
+              {/* Server Whisper Transcript Box */}
+              {serverTranscript && (
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/50">
+                  <div className="mb-1 flex items-center justify-between text-zinc-500">
+                    <span className="font-semibold uppercase tracking-wider text-[10px]">
+                      Server Transcript (Whisper STT)
+                    </span>
+                    <span className="rounded bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400">
+                      Processed on Server
+                    </span>
+                  </div>
+                  <p className="text-zinc-700 dark:text-zinc-300 italic">“{serverTranscript}”</p>
+                </div>
+              )}
+
               {/* Product Header Card */}
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 dark:border-indigo-900/40 dark:bg-indigo-950/20">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

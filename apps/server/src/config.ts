@@ -32,7 +32,11 @@ const schema = z.object({
   /** Host endpoint for local/server Ollama inference, e.g. http://127.0.0.1:11434 */
   OLLAMA_HOST: z.string().default('http://127.0.0.1:11434'),
   /** Qwen model tag to run on Ollama, e.g. qwen2.5:latest, qwen2.5:7b, qwen2.5:14b */
-  QWEN_MODEL: z.string().default('qwen2.5:latest')
+  QWEN_MODEL: z.string().default('qwen2.5:latest'),
+  /** Host endpoint for local Whisper STT server (OpenAI /v1/audio/transcriptions format) */
+  WHISPER_URL: z.string().default('http://127.0.0.1:8081/v1/audio/transcriptions'),
+  /** Whisper model tag if required by the server */
+  WHISPER_MODEL: z.string().default('whisper-1')
 });
 
 const parsed = schema.safeParse(process.env);
