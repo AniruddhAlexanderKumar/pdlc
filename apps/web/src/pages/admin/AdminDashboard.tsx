@@ -200,7 +200,7 @@ export function AdminDashboard() {
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
               <Shield className="h-5 w-5" />
             </div>
             <div>
@@ -228,7 +228,7 @@ export function AdminDashboard() {
             <Button
               variant="secondary"
               size="sm"
-              icon={<LayoutGrid className="h-4 w-4 text-indigo-500" />}
+              icon={<LayoutGrid className="h-4 w-4 text-blue-500" />}
               onClick={() => navigate('/')}
               title="Switch to user workspace dashboard"
             >
@@ -281,7 +281,7 @@ export function AdminDashboard() {
                   className={cx(
                     'flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs sm:text-sm font-medium transition-colors',
                     active
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                      ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
                       : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-800 dark:hover:border-zinc-700 dark:hover:text-zinc-300'
                   )}
                 >
@@ -292,7 +292,7 @@ export function AdminDashboard() {
                       className={cx(
                         'ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
                         active
-                          ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
                           : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
                       )}
                     >
@@ -477,10 +477,10 @@ function OverviewTab({
     <div className="space-y-6">
       {/* 4 Metric Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4 border-l-4 border-l-indigo-600">
+        <Card className="p-4 border-l-4 border-l-blue-600">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Total Users</p>
-            <div className="rounded-lg bg-indigo-500/10 p-2 text-indigo-600 dark:text-indigo-400">
+            <div className="rounded-lg bg-blue-500/10 p-2 text-blue-600 dark:text-blue-400">
               <Users className="h-5 w-5" />
             </div>
           </div>
@@ -529,10 +529,10 @@ function OverviewTab({
       </div>
 
       {/* Analytics & Activity Quick Card */}
-      <Card className="overflow-hidden border-indigo-100 bg-gradient-to-r from-indigo-50/50 via-white to-transparent dark:border-indigo-900/30 dark:from-indigo-950/20 dark:via-zinc-900 p-5">
+      <Card className="overflow-hidden border-blue-100 bg-gradient-to-r from-blue-50/50 via-white to-transparent dark:border-blue-900/30 dark:from-blue-950/20 dark:via-zinc-900 p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-400">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400">
               <BarChart3 className="h-6 w-6" />
             </div>
             <div>
@@ -610,7 +610,7 @@ function OverviewTab({
               stats.recentUsers.map((u) => (
                 <div key={u.id} className="flex items-center justify-between p-3.5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/10 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10 text-xs font-semibold text-blue-600 dark:text-blue-400">
                       {u.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
@@ -805,14 +805,14 @@ function UsersTab({
                     <tr key={u.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-xs font-semibold text-blue-700 dark:text-blue-300">
                             {u.name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5">
                               <span className="font-semibold text-zinc-900 dark:text-zinc-100">{u.name}</span>
                               {isAdminUser && (
-                                <span className="rounded bg-indigo-500/10 px-1.5 py-0.2 text-[10px] font-semibold text-indigo-700 dark:text-indigo-400 border border-indigo-500/20">
+                                <span className="rounded bg-blue-500/10 px-1.5 py-0.2 text-[10px] font-semibold text-blue-700 dark:text-blue-400 border border-blue-500/20">
                                   SUPERADMIN
                                 </span>
                               )}
@@ -1056,7 +1056,7 @@ function OrganizationsTab({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 px-1.5 text-[11px] text-indigo-600 dark:text-indigo-400"
+                          className="h-6 px-1.5 text-[11px] text-blue-600 dark:text-blue-400"
                           onClick={() => onManageMembers(w)}
                         >
                           Manage
@@ -1545,7 +1545,7 @@ function EditUserModal({
               id="edit-user-disabled"
               checked={form.isDisabled}
               onChange={(e) => setForm((f) => ({ ...f, isDisabled: e.target.checked }))}
-              className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
             />
             <label htmlFor="edit-user-disabled" className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
               Account is disabled (cannot sign in)
@@ -1686,7 +1686,7 @@ function ViewUserModal({
                     <Building2 className="h-4 w-4 text-zinc-400" />
                     <span className="font-medium">{w.name}</span>
                   </div>
-                  <span className="rounded bg-indigo-500/10 px-2 py-0.5 font-bold uppercase text-indigo-700 dark:text-indigo-300 text-[10px]">
+                  <span className="rounded bg-blue-500/10 px-2 py-0.5 font-bold uppercase text-blue-700 dark:text-blue-300 text-[10px]">
                     {w.role}
                   </span>
                 </div>
@@ -2099,7 +2099,7 @@ function EditProductModal({
           >
             {STAGES.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.emoji} {s.label}
+                {s.label}
               </option>
             ))}
           </Select>

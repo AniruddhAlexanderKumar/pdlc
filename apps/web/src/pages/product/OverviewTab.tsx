@@ -33,7 +33,7 @@ export function OverviewTab({ product, materials, goTab }: { product: Product; m
   ];
 
   const costRows = [
-    { label: 'Materials', value: summary.materialsCost, color: 'bg-indigo-500' },
+    { label: 'Materials', value: summary.materialsCost, color: 'bg-blue-500' },
     { label: 'Labour', value: summary.labour, color: 'bg-sky-500' },
     { label: 'Packaging', value: summary.packaging, color: 'bg-amber-500' },
     { label: 'Overhead', value: summary.overhead, color: 'bg-rose-400' }
@@ -43,17 +43,17 @@ export function OverviewTab({ product, materials, goTab }: { product: Product; m
     <div className="grid gap-5 lg:grid-cols-3">
       <div className="space-y-5 lg:col-span-2">
         <Card className="overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-4 text-white">
+          <div className="bg-[#174e78] px-4 py-4 text-white">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-100">Current quest</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-100">Stage checklist</p>
                 <h2 className="mt-0.5 text-lg font-semibold">
-                  {stage.emoji} {stage.label}
+                  {stage.label}
                 </h2>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold tabular-nums">{quest.progress}%</p>
-                <p className="text-[11px] text-indigo-100">
+                <p className="text-[11px] text-blue-100">
                   {quest.done} of {quest.total} done
                 </p>
               </div>
@@ -75,12 +75,12 @@ export function OverviewTab({ product, materials, goTab }: { product: Product; m
                 </button>
               </li>
             ))}
-            {quest.items.length === 0 && <li className="px-4 py-3 text-sm text-zinc-500">No quest for this stage.</li>}
+            {quest.items.length === 0 && <li className="px-4 py-3 text-sm text-zinc-500">No checklist items for this stage.</li>}
           </ul>
           {next && (
             <div className="flex flex-col gap-2 border-t border-zinc-100 bg-zinc-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:bg-zinc-900">
               <p className="text-xs text-zinc-500">
-                {quest.complete ? `Quest complete. Move to ${next} to earn +${XP.stageAdvanced} XP.` : `Complete the quest for +${XP.questComplete} XP, then move to ${next}.`}
+                {quest.complete ? `Checklist complete. Move to ${next} to earn +${XP.stageAdvanced} XP.` : `Complete the checklist for +${XP.questComplete} XP, then move to ${next}.`}
               </p>
               <Button
                 size="sm"

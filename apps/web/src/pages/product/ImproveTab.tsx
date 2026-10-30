@@ -7,7 +7,7 @@ import type { TabId } from './ProductPage';
 
 const toneStyle: Record<Insight['tone'], { icon: typeof Lightbulb; ring: string; iconBg: string }> = {
   warning: { icon: AlertTriangle, ring: 'border-amber-500/30', iconBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-  tip: { icon: Lightbulb, ring: 'border-indigo-500/20', iconBg: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
+  tip: { icon: Lightbulb, ring: 'border-blue-500/20', iconBg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
   win: { icon: Trophy, ring: 'border-emerald-500/30', iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' }
 };
 
@@ -24,7 +24,7 @@ export function ImproveTab({ product, goTab }: { product: Product; goTab: (t: Ta
     <div className="mx-auto max-w-3xl space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Improve it</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Improve it</p>
           <h2 className="mt-0.5 text-base font-semibold">Smarter choices for {product.name}</h2>
           <p className="mt-0.5 text-sm text-zinc-500">
             {potential > 0 ? (

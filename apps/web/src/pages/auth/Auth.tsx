@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  Gauge,
   Lightbulb,
   LineChart,
   Plus,
@@ -23,41 +22,40 @@ import { Button, Field, Input, Select, Spinner } from '../../components/ui';
 
 export function Logo({ className = '' }: { className?: string }) {
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-sm shadow-indigo-500/30">
-        <Gauge className="h-4.5 w-4.5" />
-      </div>
-      <span className="font-semibold tracking-tight">Solution Velocity</span>
+    <div className={`flex items-center gap-3 ${className}`}>
+      <span className="flex h-9 w-[3.75rem] shrink-0 items-center justify-center rounded-md bg-white px-1">
+        <img src="/solution-velocity-logo.png" alt="" className="h-7 w-full object-contain" />
+      </span>
+      <span className="text-[13px] font-semibold leading-tight tracking-tight text-slate-800 dark:text-slate-100">Solution<br /><span className="font-normal">Velocity</span></span>
     </div>
   );
 }
 
 function Shell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   return (
-    <div className="grid min-h-full lg:grid-cols-2">
+    <div className="grid min-h-full bg-white lg:grid-cols-2 dark:bg-zinc-950">
       <div className="flex flex-col justify-center px-4 py-10 sm:px-12">
         <div className={`mx-auto w-full transition-all duration-200 ${wide ? 'max-w-lg' : 'max-w-sm'}`}>
           <Logo className="mb-8" />
           {children}
         </div>
       </div>
-      <div className="relative hidden overflow-hidden bg-zinc-900 lg:flex lg:flex-col lg:justify-center lg:px-16 dark:bg-zinc-900/60">
-        <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-indigo-600/30 blur-3xl" />
-        <div className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+      <div className="relative hidden overflow-hidden bg-[#123451] lg:flex lg:flex-col lg:justify-center lg:px-16">
+        <div className="absolute inset-x-16 top-16 h-px bg-white/15" aria-hidden="true" />
         <div className="relative max-w-md text-white">
-          <h2 className="text-3xl font-semibold leading-tight tracking-tight">Plan, track and improve your products, one level at a time.</h2>
+          <h2 className="text-3xl font-semibold leading-tight tracking-tight">Bring your product work into focus.</h2>
           <div className="mt-10 space-y-6">
             {[
-              { icon: Lightbulb, title: 'Tell us', body: 'Answer quick questions about your product and earn XP as the picture comes together.' },
+              { icon: Lightbulb, title: 'Tell us', body: 'Capture the idea, customer and questions that shape your product.' },
               { icon: LineChart, title: 'Track it', body: 'See exactly where your money goes and how much you keep on every sale.' },
-              { icon: Rocket, title: 'Improve it', body: 'Get smart suggestions, such as a cheaper supplier or a better price, and level up each product.' }
+              { icon: Rocket, title: 'Improve it', body: 'Review suggestions and identify the next useful step.' }
             ].map((s, i) => (
               <div key={s.title} className="flex gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10">
                   <s.icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Step {i + 1}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-300">Step {i + 1}</p>
                   <p className="font-medium">{s.title}</p>
                   <p className="mt-0.5 text-sm text-zinc-400">{s.body}</p>
                 </div>
@@ -135,7 +133,7 @@ function StepIndicator({ currentStep }: { currentStep: 1 | 2 | 3 }) {
                     isDone
                       ? 'bg-emerald-600 text-white'
                       : isActive
-                        ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 dark:ring-indigo-900/50'
+                        ? 'bg-blue-600 text-white ring-4 ring-blue-100 dark:ring-blue-900/50'
                         : 'border border-zinc-200 bg-zinc-50 text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500'
                   }`}
                 >
@@ -144,7 +142,7 @@ function StepIndicator({ currentStep }: { currentStep: 1 | 2 | 3 }) {
                 <span
                   className={`mt-1.5 text-[11px] font-medium tracking-tight ${
                     isActive
-                      ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                      ? 'text-blue-600 dark:text-blue-400 font-semibold'
                       : isDone
                         ? 'text-zinc-700 dark:text-zinc-300'
                         : 'text-zinc-400 dark:text-zinc-500'
@@ -351,7 +349,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
         </div>
         <p className="mt-6 text-center text-sm text-zinc-500">
           Already have an account?{' '}
-          <Link className="font-medium text-indigo-600 hover:underline dark:text-indigo-400" to={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
+          <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
             Sign in
           </Link>
         </p>
@@ -410,7 +408,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
 
         <p className="mt-6 text-center text-sm text-zinc-500">
           New here?{' '}
-          <Link className="font-medium text-indigo-600 hover:underline dark:text-indigo-400" to={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
+          <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
             Create an account
           </Link>
         </p>
@@ -595,7 +593,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
           {!inviteToken && (
             <p className="mt-6 text-center text-sm text-zinc-500">
               Already have an account?{' '}
-              <Link className="font-medium text-indigo-600 hover:underline dark:text-indigo-400" to={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
+              <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
                 Sign in
               </Link>
             </p>
@@ -636,12 +634,12 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
               </Select>
             </Field>
 
-            <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3.5 text-xs text-indigo-900 dark:border-indigo-900/40 dark:bg-indigo-950/20 dark:text-indigo-200">
+            <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3.5 text-xs text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
               <div className="flex items-center gap-2 font-medium">
-                <Building2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span>Workspace summary</span>
               </div>
-              <p className="mt-1 text-indigo-700/80 dark:text-indigo-300/80">
+              <p className="mt-1 text-blue-700/80 dark:text-blue-300/80">
                 You’ll start as owner of <strong>{form.workspaceName.trim() || suggestedWorkspaceName}</strong> with currency <strong>{form.currency} ({currencySymbol(form.currency)})</strong>. You can invite team members anytime.
               </p>
             </div>
@@ -683,14 +681,14 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
             </p>
           </div>
 
-          <div className="rounded-xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50/60 to-purple-50/30 p-5 dark:border-indigo-900/50 dark:from-indigo-950/30 dark:to-zinc-900">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+          <div className="rounded-xl border border-blue-200/60 bg-gradient-to-br from-blue-50/60 to-purple-50/30 p-5 dark:border-blue-900/50 dark:from-blue-950/30 dark:to-zinc-900">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
               <Sparkles className="h-4 w-4" />
               <span>Option 1 · Start with your product</span>
             </div>
             <h3 className="mt-1 text-base font-semibold text-zinc-900 dark:text-white">Create your first product</h3>
             <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-              Answer quick discovery questions, track component costs, and earn XP as you level it up.
+              Capture discovery notes, track component costs, and keep product work in one place.
             </p>
 
             <div className="mt-4 space-y-3">
@@ -815,7 +813,7 @@ export function JoinPage() {
       <Shell>
         <h1 className="text-2xl font-semibold tracking-tight">Invite not valid</h1>
         <p className="mt-2 text-sm text-zinc-500">{(invite.error as ApiError).message}</p>
-        <Link to="/login" className="mt-6 inline-block text-sm font-medium text-indigo-600 dark:text-indigo-400">
+        <Link to="/login" className="mt-6 inline-block text-sm font-medium text-blue-600 dark:text-blue-400">
           Go to sign in →
         </Link>
       </Shell>
@@ -845,13 +843,13 @@ export function JoinPage() {
 
   return (
     <Shell>
-      <div className="mb-6 rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-700 dark:text-indigo-300">
+      <div className="mb-6 rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-sm text-blue-700 dark:text-blue-300">
         You’ve been invited to join <strong>{ws}</strong>.
       </div>
       <AuthForm mode="register" inviteToken={token} />
       <p className="mt-6 text-center text-sm text-zinc-500">
         Already have an account?{' '}
-        <Link className="font-medium text-indigo-600 hover:underline dark:text-indigo-400" to={`/login?next=${encodeURIComponent(`/join/${token}`)}`}>
+        <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/login?next=${encodeURIComponent(`/join/${token}`)}`}>
           Sign in to join
         </Link>
       </p>
@@ -878,7 +876,7 @@ export function ResetPage() {
       <Shell>
         <h1 className="text-2xl font-semibold tracking-tight">Link expired</h1>
         <p className="mt-2 text-sm text-zinc-500">{(info.error as Error).message}</p>
-        <Link to="/login" className="mt-6 inline-block text-sm font-medium text-indigo-600 dark:text-indigo-400">
+        <Link to="/login" className="mt-6 inline-block text-sm font-medium text-blue-600 dark:text-blue-400">
           Go to sign in →
         </Link>
       </Shell>

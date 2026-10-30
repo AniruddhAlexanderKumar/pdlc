@@ -33,12 +33,12 @@ export function ProductsPage() {
     <>
       <PageHeader
         title="Products"
-        subtitle="Every product in your workspace, with its health grade and current quest."
+        subtitle="Products in your workspace, with their stage and progress."
         actions={
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
-              icon={<Mic className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+              icon={<Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
               onClick={openVoice}
             >
               Voice dictate

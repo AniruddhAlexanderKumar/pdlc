@@ -14,7 +14,7 @@ export function CostsTab({ product, materials }: { product: Product; materials: 
   const marketPrice = product.answers['research.market_price'];
 
   const segments = [
-    { label: 'Materials', value: summary.materialsCost, color: 'bg-indigo-500' },
+    { label: 'Materials', value: summary.materialsCost, color: 'bg-blue-500' },
     { label: 'Labour', value: summary.labour, color: 'bg-sky-500' },
     { label: 'Packaging', value: summary.packaging, color: 'bg-amber-500' },
     { label: 'Overhead', value: summary.overhead, color: 'bg-rose-400' }

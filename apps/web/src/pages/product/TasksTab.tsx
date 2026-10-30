@@ -129,7 +129,7 @@ export function TasksTab({ product }: { product: Product }) {
               }}
               onDragLeave={() => setOver((o) => (o === col.id ? null : o))}
               onDrop={() => drop(col.id)}
-              className={cx('rounded-xl border bg-zinc-100/60 p-2 transition-colors dark:bg-zinc-900/40', over === col.id ? 'border-indigo-400' : 'border-transparent')}
+              className={cx('rounded-xl border bg-zinc-100/60 p-2 transition-colors dark:bg-zinc-900/40', over === col.id ? 'border-blue-400' : 'border-transparent')}
             >
               <div className="mb-2 flex items-center justify-between px-1.5 pt-1">
                 <span className="text-xs font-semibold">{col.label}</span>
@@ -162,7 +162,7 @@ export function TasksTab({ product }: { product: Product }) {
                           {t.status === 'done' ? (
                             <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500" />
                           ) : (
-                            <Circle className="h-4.5 w-4.5 text-zinc-300 hover:text-indigo-500 dark:text-zinc-600" />
+                            <Circle className="h-4.5 w-4.5 text-zinc-300 hover:text-blue-500 dark:text-zinc-600" />
                           )}
                         </button>
                         <div className="min-w-0 flex-1">

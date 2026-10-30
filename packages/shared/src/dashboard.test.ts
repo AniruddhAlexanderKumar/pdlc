@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { DEFAULT_PRESET, PRESET_IDS, PRESETS, resolveLayout, sanitizeItems, WIDGETS } from './dashboard.js';
+import { DEFAULT_PRESET, PRESET_IDS, PRESETS, resolveLayout, sanitizeItems, TEMPLATE_IDS, WIDGET_DEFINITIONS, WIDGETS } from './dashboard.js';
 
 describe('dashboard layouts', () => {
   it('every preset uses known widgets once, with supported spans, and fits whole rows', () => {
@@ -12,8 +12,18 @@ describe('dashboard layouts', () => {
     }
   });
 
-  it('there are five presets', () => {
-    assert.equal(PRESET_IDS.length, 5);
+  it('provides five new templates and preserves the five existing presets', () => {
+    assert.equal(TEMPLATE_IDS.length, 5);
+    assert.equal(PRESET_IDS.length, 10);
+  });
+
+  it('has scoped metadata for every widget', () => {
+    for (const id of Object.keys(WIDGETS) as (keyof typeof WIDGETS)[]) {
+      assert.equal(WIDGET_DEFINITIONS[id].id, id);
+      assert.equal(WIDGET_DEFINITIONS[id].permissions, 'workspace member');
+      assert.ok(WIDGET_DEFINITIONS[id].dataSource);
+      assert.deepEqual(WIDGET_DEFINITIONS[id].widths, WIDGETS[id].spans);
+    }
   });
 
   it('resolves a stored preset to its current items', () => {
@@ -28,6 +38,16 @@ describe('dashboard layouts', () => {
       assert.equal(layout.preset, DEFAULT_PRESET);
       assert.deepEqual(layout.items, PRESETS[DEFAULT_PRESET].items);
     }
+  });
+
+  it('retains customized items, empty layouts, density and save time with an active preset', () => {
+    const saved = { preset: 'personal', items: [{widget: 'assigned-issues', span: 12}], density: 'compact', updatedAt: '2026-01-01T00:00:00.000Z' };
+    const result = resolveLayout(saved);
+    assert.equal(result.preset, 'personal');
+    assert.deepEqual(result.items, saved.items);
+    assert.equal(result.density, 'compact');
+    assert.equal(result.updatedAt, saved.updatedAt);
+    assert.deepEqual(resolveLayout({preset: 'personal', items: []}).items, []);
   });
 
   it('returns copies so callers cannot mutate a preset', () => {

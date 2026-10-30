@@ -200,16 +200,16 @@ export interface AchievementContext {
   streakDays: number;
 }
 
-export const ACHIEVEMENTS: { id: string; title: string; description: string; emoji: string; test: (c: AchievementContext) => boolean }[] = [
-  { id: 'first_product', title: 'Day One', description: 'Create your first product', emoji: '🌱', test: (c) => c.productsCreated >= 1 },
-  { id: 'curious', title: 'Curious Mind', description: 'Answer 10 discovery questions', emoji: '🧠', test: (c) => c.questionsAnswered >= 10 },
-  { id: 'deep_diver', title: 'Deep Diver', description: 'Answer 50 discovery questions', emoji: '🤿', test: (c) => c.questionsAnswered >= 50 },
-  { id: 'closer', title: 'Closer', description: 'Complete 10 tasks', emoji: '✅', test: (c) => c.tasksCompleted >= 10 },
-  { id: 'quest_master', title: 'Quest Master', description: 'Complete 3 stage quests', emoji: '🗝️', test: (c) => c.questsCompleted >= 3 },
-  { id: 'momentum', title: 'Momentum', description: 'Move products forward 5 stages', emoji: '⚡', test: (c) => c.stagesAdvanced >= 5 },
-  { id: 'ship_it', title: 'Ship It', description: 'Take a product to Launch', emoji: '🚀', test: (c) => c.launchedProducts >= 1 },
-  { id: 'margin_master', title: 'Margin Master', description: 'Get a product to a 50% margin', emoji: '💰', test: (c) => (c.bestMargin ?? 0) >= 50 },
-  { id: 'optimizer', title: 'Optimizer', description: 'Apply 3 improvement suggestions', emoji: '🔧', test: (c) => c.suggestionsApplied >= 3 },
-  { id: 'scout', title: 'Supplier Scout', description: 'Add 3 suppliers', emoji: '🧭', test: (c) => c.suppliers >= 3 },
-  { id: 'on_fire', title: 'On Fire', description: 'Keep a 5-day streak', emoji: '🔥', test: (c) => c.streakDays >= 5 }
+export const ACHIEVEMENTS: { id: string; title: string; description: string; test: (c: AchievementContext) => boolean }[] = [
+  { id: 'first_product', title: 'Day One', description: 'Create your first product', test: (c) => c.productsCreated >= 1 },
+  { id: 'curious', title: 'Curious Mind', description: 'Answer 10 discovery questions', test: (c) => c.questionsAnswered >= 10 },
+  { id: 'deep_diver', title: 'Deep Diver', description: 'Answer 50 discovery questions', test: (c) => c.questionsAnswered >= 50 },
+  { id: 'closer', title: 'Closer', description: 'Complete 10 tasks', test: (c) => c.tasksCompleted >= 10 },
+  { id: 'quest_master', title: 'Quest Master', description: 'Complete 3 stage quests', test: (c) => c.questsCompleted >= 3 },
+  { id: 'momentum', title: 'Momentum', description: 'Move products forward 5 stages', test: (c) => c.stagesAdvanced >= 5 },
+  { id: 'ship_it', title: 'Ship It', description: 'Take a product to Launch', test: (c) => c.launchedProducts >= 1 },
+  { id: 'margin_master', title: 'Margin Master', description: 'Get a product to a 50% margin', test: (c) => (c.bestMargin ?? 0) >= 50 },
+  { id: 'optimizer', title: 'Optimizer', description: 'Apply 3 improvement suggestions', test: (c) => c.suggestionsApplied >= 3 },
+  { id: 'scout', title: 'Supplier Scout', description: 'Add 3 suppliers', test: (c) => c.suppliers >= 3 },
+  { id: 'on_fire', title: 'On Fire', description: 'Keep a 5-day streak', test: (c) => c.streakDays >= 5 }
 ];

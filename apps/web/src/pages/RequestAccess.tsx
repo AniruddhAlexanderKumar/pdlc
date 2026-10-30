@@ -35,7 +35,7 @@ const INITIAL_FORM: RequestForm = {
 };
 
 const selectClass =
-  "w-full rounded-lg border border-blue-100 bg-white px-3 py-2.5 text-sm text-[#17365e] transition-colors focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/15";
+  "w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15";
 
 export function RequestAccessPage() {
   const [form, setForm] = useState(INITIAL_FORM);
@@ -72,7 +72,7 @@ export function RequestAccessPage() {
   };
 
   return (
-    <main className="min-h-full bg-gradient-to-br from-white via-[#f2f8ff] to-[#e6f2ff] px-5 py-10 text-[#17365e] sm:px-8 sm:py-16">
+    <main className="min-h-full bg-[#f4f7fa] px-5 py-10 text-slate-900 sm:px-8 sm:py-16">
       <div className="mx-auto max-w-3xl">
         <Link
           to="/"
@@ -82,13 +82,13 @@ export function RequestAccessPage() {
           Back to Solution Velocity
         </Link>
 
-        <div className="mt-7 rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-white to-blue-50/80 p-6 shadow-[0_28px_72px_-48px_rgba(30,64,110,0.38)] sm:p-10">
+        <div className="mt-7 rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
           {submitted ? (
             <div className="py-8 text-center">
-              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                 <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
               </span>
-              <h1 className="mt-5 font-serif text-3xl text-[#102f55] sm:text-4xl">
+              <h1 className="mt-5 text-3xl font-semibold tracking-tight text-[#102f55] sm:text-4xl">
                 Thanks for reaching out.
               </h1>
               <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[#526b88]">
@@ -99,7 +99,7 @@ export function RequestAccessPage() {
               </p>
               <Link
                 to="/"
-                className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-full bg-gradient-to-r from-[#123c70] to-[#168ac2] px-5 py-2.5 text-sm font-medium text-white transition-all hover:brightness-110"
+                className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-md bg-[#174e78] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#123b5b]"
               >
                 Return to home{" "}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -110,7 +110,7 @@ export function RequestAccessPage() {
               <p className="text-xs font-semibold tracking-[0.2em] text-blue-700 uppercase">
                 Connect the Tools. Accelerate the Build.
               </p>
-              <h1 className="mt-3 font-serif text-4xl tracking-[-0.035em] text-[#102f55] sm:text-5xl">
+              <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[#102f55] sm:text-5xl">
                 Request access
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-[#526b88] sm:text-base">
@@ -122,7 +122,7 @@ export function RequestAccessPage() {
               <form onSubmit={submit} className="mt-8 space-y-6">
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field
-                    label="What should we call you?"
+                    label="Full name"
                     htmlFor="request-name"
                   >
                     <Input
@@ -136,7 +136,7 @@ export function RequestAccessPage() {
                     />
                   </Field>
                   <Field
-                    label="Where can we reach you?"
+                    label="Email address"
                     htmlFor="request-email"
                   >
                     <Input
@@ -151,7 +151,7 @@ export function RequestAccessPage() {
                     />
                   </Field>
                   <Field
-                    label="What is your company or team called?"
+                    label="Company or team"
                     htmlFor="request-organization"
                   >
                     <Input
@@ -165,7 +165,7 @@ export function RequestAccessPage() {
                     />
                   </Field>
                   <Field
-                    label="What best describes your role?"
+                    label="Role"
                     htmlFor="request-role"
                   >
                     <Select
@@ -184,7 +184,7 @@ export function RequestAccessPage() {
                     </Select>
                   </Field>
                   <Field
-                    label="Which industry are you working in?"
+                    label="Industry"
                     htmlFor="request-industry"
                   >
                     <Select
@@ -203,7 +203,7 @@ export function RequestAccessPage() {
                     </Select>
                   </Field>
                   <Field
-                    label="How many people are on your product team?"
+                    label="Team size"
                     htmlFor="request-team-size"
                   >
                     <Select
@@ -222,7 +222,7 @@ export function RequestAccessPage() {
                     </Select>
                   </Field>
                   <Field
-                    label="Where is your product in its journey?"
+                    label="Product stage"
                     htmlFor="request-stage"
                   >
                     <Select
@@ -241,7 +241,7 @@ export function RequestAccessPage() {
                     </Select>
                   </Field>
                   <Field
-                    label="What tools or processes do you use today?"
+                    label="Current tools or processes"
                     htmlFor="request-tools"
                     hint="Optional — for example, spreadsheets or separate product tools."
                   >
@@ -256,7 +256,7 @@ export function RequestAccessPage() {
                 </div>
 
                 <Field
-                  label="What would you most like to improve?"
+                  label="What would you like to improve?"
                   htmlFor="request-goals"
                   hint="Tell us what is difficult today or what you hope to accomplish."
                 >
@@ -289,7 +289,7 @@ export function RequestAccessPage() {
                   <Button
                     type="submit"
                     loading={submitting}
-                    className="min-h-11 rounded-full bg-gradient-to-r from-[#123c70] to-[#168ac2] px-6 text-white shadow-sm hover:brightness-110"
+                    className="min-h-11 px-6"
                   >
                     Send access request{" "}
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
