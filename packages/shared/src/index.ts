@@ -9,3 +9,6 @@ export * from './dashboard.js';
 export * from './projects.js';
 export * from './voice.js';
 export * from './teamworkGraph.js';
+export * from './app-layout.js';
+
+export * from './language.js';

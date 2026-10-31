@@ -7,6 +7,7 @@ import {
   ACCESS_REQUEST_STAGES,
   ACCESS_REQUEST_TEAM_SIZES,
 } from "@sv/shared";
+import { LanguageSelect, useLanguage } from "../lib/language";
 import { ApiError, post } from "../api/client";
 import { Button, Field, Input, Select, Textarea } from "../components/ui";
 
@@ -38,6 +39,7 @@ const selectClass =
   "w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15";
 
 export function RequestAccessPage() {
+  const { t } = useLanguage();
   const [form, setForm] = useState(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -79,9 +81,10 @@ export function RequestAccessPage() {
           className="inline-flex items-center gap-2 text-sm font-medium text-[#31577d] transition-colors hover:text-blue-700"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Back to Solution Velocity
+          {t('Back to Solution Velocity')}
         </Link>
 
+        <div className="ml-auto mt-4 max-w-xs"><LanguageSelect /></div>
         <div className="mt-7 rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
           {submitted ? (
             <div className="py-8 text-center">
@@ -89,7 +92,7 @@ export function RequestAccessPage() {
                 <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
               </span>
               <h1 className="mt-5 text-3xl font-semibold tracking-tight text-[#102f55] sm:text-4xl">
-                Thanks for reaching out.
+                {t('Thanks for reaching out.')}
               </h1>
               <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[#526b88]">
                 Your request is with our team. We’ll review your product, team,
@@ -101,7 +104,7 @@ export function RequestAccessPage() {
                 to="/"
                 className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-md bg-[#174e78] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#123b5b]"
               >
-                Return to home{" "}
+                {t('Return to home')}{" "}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
@@ -111,18 +114,16 @@ export function RequestAccessPage() {
                 Connect the Tools. Accelerate the Build.
               </p>
               <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[#102f55] sm:text-5xl">
-                Request access
+                {t('Request access')}
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-[#526b88] sm:text-base">
-                Tell us a little about your team and what you’re building. These
-                details help us understand how Solution Velocity could fit your
-                product workflow.
+                {t('Tell us a little about your team and what you’re building. These details help us understand how Solution Velocity could fit your product workflow.')}
               </p>
 
               <form onSubmit={submit} className="mt-8 space-y-6">
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field
-                    label="Full name"
+                    label={t('Full name')}
                     htmlFor="request-name"
                   >
                     <Input
@@ -132,11 +133,11 @@ export function RequestAccessPage() {
                       maxLength={100}
                       value={form.name}
                       onChange={set("name")}
-                      placeholder="Your full name"
+                      placeholder={t('Your full name')}
                     />
                   </Field>
                   <Field
-                    label="Email address"
+                    label={t('Email address')}
                     htmlFor="request-email"
                   >
                     <Input
@@ -151,7 +152,7 @@ export function RequestAccessPage() {
                     />
                   </Field>
                   <Field
-                    label="Company or team"
+                    label={t('Company or team')}
                     htmlFor="request-organization"
                   >
                     <Input
@@ -161,11 +162,11 @@ export function RequestAccessPage() {
                       maxLength={120}
                       value={form.organization}
                       onChange={set("organization")}
-                      placeholder="Company or team name"
+                      placeholder={t('Company or team name')}
                     />
                   </Field>
                   <Field
-                    label="Role"
+                    label={t('Role')}
                     htmlFor="request-role"
                   >
                     <Select
@@ -175,16 +176,16 @@ export function RequestAccessPage() {
                       onChange={set("role")}
                       className={selectClass}
                     >
-                      <option value="">Choose your role</option>
+                      <option value="">{t('Choose your role')}</option>
                       {ACCESS_REQUEST_ROLES.map((role) => (
                         <option key={role} value={role}>
-                          {role}
+                          {t(role)}
                         </option>
                       ))}
                     </Select>
                   </Field>
                   <Field
-                    label="Industry"
+                    label={t('Industry')}
                     htmlFor="request-industry"
                   >
                     <Select
@@ -194,16 +195,16 @@ export function RequestAccessPage() {
                       onChange={set("industry")}
                       className={selectClass}
                     >
-                      <option value="">Choose an industry</option>
+                      <option value="">{t('Choose an industry')}</option>
                       {ACCESS_REQUEST_INDUSTRIES.map((industry) => (
                         <option key={industry} value={industry}>
-                          {industry}
+                          {t(industry)}
                         </option>
                       ))}
                     </Select>
                   </Field>
                   <Field
-                    label="Team size"
+                    label={t('Team size')}
                     htmlFor="request-team-size"
                   >
                     <Select
@@ -213,16 +214,16 @@ export function RequestAccessPage() {
                       onChange={set("teamSize")}
                       className={selectClass}
                     >
-                      <option value="">Choose team size</option>
+                      <option value="">{t('Choose team size')}</option>
                       {ACCESS_REQUEST_TEAM_SIZES.map((size) => (
                         <option key={size} value={size}>
-                          {size}
+                          {t(size)}
                         </option>
                       ))}
                     </Select>
                   </Field>
                   <Field
-                    label="Product stage"
+                    label={t('Product stage')}
                     htmlFor="request-stage"
                   >
                     <Select
@@ -232,33 +233,33 @@ export function RequestAccessPage() {
                       onChange={set("productStage")}
                       className={selectClass}
                     >
-                      <option value="">Choose a product stage</option>
+                      <option value="">{t('Choose a product stage')}</option>
                       {ACCESS_REQUEST_STAGES.map((stage) => (
                         <option key={stage} value={stage}>
-                          {stage}
+                          {t(stage)}
                         </option>
                       ))}
                     </Select>
                   </Field>
                   <Field
-                    label="Current tools or processes"
+                    label={t('Current tools or processes')}
                     htmlFor="request-tools"
-                    hint="Optional — for example, spreadsheets or separate product tools."
+                    hint={t('Optional — for example, spreadsheets or separate product tools.')}
                   >
                     <Input
                       id="request-tools"
                       maxLength={500}
                       value={form.currentTools}
                       onChange={set("currentTools")}
-                      placeholder="Your current workflow"
+                      placeholder={t('Your current workflow')}
                     />
                   </Field>
                 </div>
 
                 <Field
-                  label="What would you like to improve?"
+                  label={t('What would you like to improve?')}
                   htmlFor="request-goals"
-                  hint="Tell us what is difficult today or what you hope to accomplish."
+                  hint={t('Tell us what is difficult today or what you hope to accomplish.')}
                 >
                   <Textarea
                     id="request-goals"
@@ -268,7 +269,7 @@ export function RequestAccessPage() {
                     rows={5}
                     value={form.goals}
                     onChange={set("goals")}
-                    placeholder="What are you building, and where would a more connected workflow help?"
+                    placeholder={t('What are you building, and where would a more connected workflow help?')}
                   />
                 </Field>
 
@@ -283,15 +284,14 @@ export function RequestAccessPage() {
 
                 <div className="flex flex-col gap-3 border-t border-blue-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
                   <p className="max-w-md text-xs leading-5 text-[#6b7f99]">
-                    We’ll use your answers only to review this request and
-                    respond to you.
+                    {t('We’ll use your answers only to review this request and respond to you.')}
                   </p>
                   <Button
                     type="submit"
                     loading={submitting}
                     className="min-h-11 px-6"
                   >
-                    Send access request{" "}
+                    {t('Send access request')}{" "}
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>

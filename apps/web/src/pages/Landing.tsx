@@ -5,6 +5,7 @@ import {
   Sparkles, Users, Workflow, Zap
 } from 'lucide-react';
 import { Link } from 'react-router';
+import { LanguageSelect, useLanguage } from '../lib/language';
 
 const STAGES = ['Idea', 'Research', 'Planning', 'Design', 'Prototype', 'Testing', 'Launch', 'Improvement'];
 const GRAPH_RECORDS = [
@@ -16,6 +17,7 @@ const GRAPH_RECORDS = [
 ] as const;
 
 export function LandingPage() {
+  const { t } = useLanguage();
   const [selectedGraphNode, setSelectedGraphNode] = useState(0);
   const [selectedFlowStep, setSelectedFlowStep] = useState(0);
   const selectedRecord = GRAPH_RECORDS[selectedGraphNode];
@@ -44,7 +46,7 @@ export function LandingPage() {
             <a href="#automation" className="hover:text-blue-700">Automation</a>
           </nav>
           <div className="flex items-center gap-1 sm:gap-3">
-            <Link to="/login" className="hidden rounded-md px-3 py-2.5 text-sm font-semibold text-slate-600 hover:text-blue-700 sm:inline-flex">Sign in</Link>
+            <Link to="/login" className="hidden rounded-md px-3 py-2.5 text-sm font-semibold text-slate-600 hover:text-blue-700 sm:inline-flex">{t('Sign in')}</Link>
             <Link to="/request-access" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[#164e82] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#103d69] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Get started <ArrowRight className="hidden h-4 w-4 sm:block" aria-hidden="true" /></Link>
           </div>
           </div>
@@ -54,6 +56,7 @@ export function LandingPage() {
         </div>
       </header>
 
+      <div className="mx-auto max-w-[1280px] px-5 pt-4 sm:px-8 lg:px-12"><div className="max-w-xs"><LanguageSelect /></div></div>
       <main>
         {/* 01 — Hero */}
         <section className="relative overflow-hidden border-b border-slate-200 bg-white">
@@ -188,7 +191,7 @@ export function LandingPage() {
         {/* 07 — CTA */}
         <section className="bg-[#123451] px-5 py-14 text-white sm:px-8 sm:py-16 lg:px-12"><div className="mx-auto flex max-w-[1184px] flex-col items-start justify-between gap-7 sm:flex-row sm:items-center"><div><p className="text-xs font-bold uppercase tracking-[0.17em] text-[#91c5e1]">Bring the work together</p><h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Your engineering ecosystem. Connected.</h2><p className="mt-3 max-w-xl text-sm leading-6 text-blue-100/75">Bring product development, engineering collaboration and practical intelligence together in one workspace.</p></div><Link to="/request-access" className="inline-flex min-h-12 shrink-0 items-center gap-3 rounded-md bg-white px-5 text-sm font-semibold text-[#164e82] transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Explore Solution Velocity <ArrowRight className="h-4 w-4" /></Link></div></section>
       </main>
-      <footer className="border-t border-slate-200 bg-white px-5 py-8 sm:px-8 lg:px-12"><div className="mx-auto flex max-w-[1184px] flex-col justify-between gap-4 text-xs text-slate-500 sm:flex-row sm:items-center"><div className="flex items-center gap-2 font-semibold text-[#17365e]"><Package className="h-4 w-4 text-[#307ba9]" /> Solution Velocity</div><p>Connect the tools. Accelerate the build.</p><div className="flex gap-5"><Link to="/login" className="hover:text-blue-700">Sign in</Link><Link to="/request-access" className="hover:text-blue-700">Request access</Link></div></div></footer>
+      <footer className="border-t border-slate-200 bg-white px-5 py-8 sm:px-8 lg:px-12"><div className="mx-auto flex max-w-[1184px] flex-col justify-between gap-4 text-xs text-slate-500 sm:flex-row sm:items-center"><div className="flex items-center gap-2 font-semibold text-[#17365e]"><Package className="h-4 w-4 text-[#307ba9]" /> Solution Velocity</div><p>Connect the tools. Accelerate the build.</p><div className="flex gap-5"><Link to="/login" className="hover:text-blue-700">{t('Sign in')}</Link><Link to="/request-access" className="hover:text-blue-700">Request access</Link></div></div></footer>
     </div>
   );
 }

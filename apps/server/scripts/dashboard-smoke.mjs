@@ -35,6 +35,39 @@ const foreign = await register('foreign');
 let r = await call(owner.cookie, 'POST', '/workspace/invites', { role: 'member' });
 assert.equal(r.status, 201, JSON.stringify(r.data));
 const member = await register('member', new URL(r.data.url).pathname.split('/').pop());
+for (const language of ['en', 'zh', 'hi', 'es', 'fr']) {
+  r = await call(owner.cookie, 'PUT', '/auth/language', { language });
+  assert.equal(r.status, 200);
+  r = await call(owner.cookie, 'GET', '/auth/me');
+  assert.equal(r.data.user.language, language);
+}
+r = await call(owner.cookie, 'PUT', '/auth/language', { language: 'hi' });
+assert.equal(r.status, 200);
+r = await call(owner.cookie, 'GET', '/auth/me');
+assert.equal(r.data.user.language, 'hi');
+r = await call(member.cookie, 'GET', '/auth/me');
+assert.equal(r.data.user.language, null);
+r = await call(owner.cookie, 'PUT', '/auth/language', { language: 'invalid' });
+assert.equal(r.status, 400);
+r = await call('', 'PUT', '/auth/language', { language: 'es' });
+assert.equal(r.status, 401);
+
+r = await call(owner.cookie, 'GET', '/dashboard/app-layout');
+assert.deepEqual(r.data, { navigation: 'expanded', contentWidth: 'full' });
+for (const navigation of ['expanded', 'compact', 'tabs', 'menu']) {
+  r = await call(owner.cookie, 'PUT', '/dashboard/app-layout', { navigation, contentWidth: 'full' });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  r = await call(owner.cookie, 'GET', '/dashboard/app-layout');
+  assert.equal(r.data.navigation, navigation);
+}
+r = await call(owner.cookie, 'PUT', '/dashboard/app-layout', { navigation: 'compact', contentWidth: 'constrained' });
+assert.equal(r.status, 200);
+r = await call(member.cookie, 'GET', '/dashboard/app-layout');
+assert.deepEqual(r.data, { navigation: 'expanded', contentWidth: 'full' });
+r = await call(member.cookie, 'PUT', '/dashboard/app-layout', { navigation: 'invalid', contentWidth: 'full' });
+assert.equal(r.status, 400);
+r = await call('', 'GET', '/dashboard/app-layout');
+assert.equal(r.status, 401);
 r = await call(owner.cookie, 'GET', '/dashboard');
 assert.equal(r.data.preset, 'executive');
 assert.equal(r.data.isDefault, true);
@@ -79,10 +112,14 @@ assert.equal(r.status, 204);
 r = await call('', 'POST', '/auth/login', { email: owner.email, password });
 assert.equal(r.status, 200, JSON.stringify(r.data));
 owner.cookie = r.cookie;
+r = await call(owner.cookie, 'GET', '/auth/me');
+assert.equal(r.data.user.language, 'hi');
 r = await call(owner.cookie, 'GET', '/dashboard');
 assert.equal(r.data.preset, 'engineering');
 assert.deepEqual(r.data.items, layout.items);
 assert.equal(r.data.density, 'compact');
+r = await call(owner.cookie, 'GET', '/dashboard/app-layout');
+assert.deepEqual(r.data, { navigation: 'compact', contentWidth: 'constrained' });
 r = await call(owner.cookie, 'POST', '/projects', { key: 'DASH', name: 'Dashboard project' });
 assert.equal(r.status, 201, JSON.stringify(r.data));
 const project = r.data;

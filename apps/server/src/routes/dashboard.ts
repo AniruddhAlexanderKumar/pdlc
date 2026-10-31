@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import { PRESET_IDS, WIDGETS, resolveLayout, type DashboardSettings, type WidgetId } from '@sv/shared';
+import { APP_NAVIGATION_STYLES, PRESET_IDS, WIDGETS, resolveAppLayout, resolveLayout, type DashboardSettings, type WidgetId } from '@sv/shared';
 import { auth } from '../auth/session.js';
 import { db } from '../db/index.js';
 import { parse, route } from '../lib/http.js';
@@ -58,6 +58,31 @@ dashboardRouter.put(
       .where('id', '=', auth(req).userId)
       .execute();
     res.json(resolveLayout(settings));
+  }),
+);
+
+/** Separate from dashboard preferences; only the authenticated account can read or update it. */
+dashboardRouter.get(
+  '/app-layout',
+  route(async (req, res) => {
+    const row = await db.selectFrom('users').select('app_layout').where('id', '=', auth(req).userId).executeTakeFirstOrThrow();
+    res.json(resolveAppLayout(row.app_layout));
+  }),
+);
+
+dashboardRouter.put(
+  '/app-layout',
+  route(async (req, res) => {
+    const settings = parse(
+      z.object({ navigation: z.enum(APP_NAVIGATION_STYLES), contentWidth: z.enum(['full', 'constrained']) }).strict(),
+      req.body,
+    );
+    await db
+      .updateTable('users')
+      .set({ app_layout: JSON.stringify(settings) })
+      .where('id', '=', auth(req).userId)
+      .execute();
+    res.json(settings);
   }),
 );
 

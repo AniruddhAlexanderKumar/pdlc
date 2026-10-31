@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import { CURRENCIES, type Me, type Role, type Workspace, type CurrencyCode } from '@sv/shared';
+import { LANGUAGES, isLanguage, CURRENCIES, type Me, type Role, type Workspace, type CurrencyCode } from '@sv/shared';
 import { config } from '../config.js';
 import { db, type Db } from '../db/index.js';
 import { getDummyHash, hashPassword, hashToken, verifyPassword } from '../auth/crypto.js';
@@ -40,7 +40,7 @@ const strictLimiter = rateLimit({
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 export async function loadMe(trx: Db, userId: string, workspaceId: string): Promise<Me> {
-  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at']).where('id', '=', userId).executeTakeFirstOrThrow();
+  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at', 'language']).where('id', '=', userId).executeTakeFirstOrThrow();
   const rows = await trx
     .selectFrom('memberships as m')
     .innerJoin('workspaces as w', 'w.id', 'm.workspace_id')
@@ -57,7 +57,8 @@ export async function loadMe(trx: Db, userId: string, workspaceId: string): Prom
       email: user.email,
       name: user.name,
       createdAt: user.created_at.toISOString(),
-      isAdmin: user.is_admin
+      isAdmin: user.is_admin,
+      language: isLanguage(user.language) ? user.language : null
     },
     workspace,
     workspaces
@@ -250,6 +251,16 @@ authRouter.get(
   route(async (req, res) => {
     const a = auth(req);
     res.json(await loadMe(db, a.userId, a.workspaceId));
+  })
+);
+
+authRouter.put(
+  '/language',
+  requireAuth,
+  route(async (req, res) => {
+    const { language } = parse(z.object({ language: z.enum(LANGUAGES) }).strict(), req.body);
+    await db.updateTable('users').set({ language }).where('id', '=', auth(req).userId).execute();
+    res.json({ language });
   })
 );
 

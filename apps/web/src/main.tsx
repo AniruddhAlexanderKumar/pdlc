@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation } from 'react-router';
 import './index.css';
 import './lib/theme';
+import { LanguageProvider } from './lib/language';
 import { ApiError } from './api/client';
 import { keys, useMe } from './api/hooks';
 import { CelebrateProvider } from './components/Celebrate';
@@ -64,9 +65,7 @@ function RequireAuth() {
     );
   }
   if (!data) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-  if (data.user.isAdmin) {
-    return <Navigate to="/admin" replace />;
-  }
+  // System admins also have a workspace membership and may use its dashboard and settings.
   return <Outlet />;
 }
 
@@ -96,11 +95,8 @@ function GuestOnly() {
   const location = useLocation();
   if (isLoading) return <Spinner />;
   if (data) {
-    if (data.user.isAdmin) {
-      return <Navigate to="/admin" replace />;
-    }
     const next = new URLSearchParams(location.search).get('next');
-    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : '/'} replace />;
+    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : data.user.isAdmin ? '/admin' : '/'} replace />;
   }
   return <Outlet />;
 }
@@ -176,11 +172,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
+        <LanguageProvider>
         <CelebrateProvider>
           <ConfirmProvider>
             <RouterProvider router={router} />
           </ConfirmProvider>
         </CelebrateProvider>
+        </LanguageProvider>
       </ToastProvider>
     </QueryClientProvider>
   </StrictMode>

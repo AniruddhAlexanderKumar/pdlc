@@ -16,12 +16,15 @@ export interface UsersTable {
   name: string;
   password_hash: string;
   is_admin: Generated<boolean>;
+  language: string | null;
   is_disabled: Generated<boolean>;
   failed_logins: Generated<number>;
   locked_until: Date | null;
   last_login_at: Date | null;
   /** DashboardSettings from @sv/shared; write with JSON.stringify. */
   dashboard_layout: ColumnType<unknown, string | null | undefined, string | null>;
+  /** Per-account workspace shell preferences. */
+  app_layout: ColumnType<unknown, string | null | undefined, string | null>;
   created_at: CreatedAt;
 }
 

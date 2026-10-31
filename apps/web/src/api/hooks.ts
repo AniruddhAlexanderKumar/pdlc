@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AppLayoutSettings,
   DashboardLayout,
   DashboardSettings,
   Insight,
@@ -99,6 +100,28 @@ export function useSaveDashboardLayout() {
       toast.success('Dashboard saved');
     },
     onError: (e) => { if (qc.getQueryData<Me>(keys.me)?.user.id === user.id) toast.error(e instanceof Error ? e.message : 'Could not save your dashboard'); }
+  });
+}
+
+export function useAppLayout() {
+  const { user } = useSession();
+  return useQuery({ queryKey: ['app-layout', user.id], queryFn: () => get<AppLayoutSettings>('/dashboard/app-layout') });
+}
+
+export function useSaveAppLayout() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { user } = useSession();
+  return useMutation({
+    mutationFn: (settings: AppLayoutSettings) => put<AppLayoutSettings>('/dashboard/app-layout', settings),
+    onSuccess: (settings) => {
+      if (qc.getQueryData<Me>(keys.me)?.user.id !== user.id) return;
+      qc.setQueryData(['app-layout', user.id], settings);
+      toast.success('Application layout saved');
+    },
+    onError: (e) => {
+      if (qc.getQueryData<Me>(keys.me)?.user.id === user.id) toast.error(e instanceof Error ? e.message : 'Could not save application layout');
+    }
   });
 }
 
