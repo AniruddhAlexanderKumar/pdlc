@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowRight, Boxes, Check, CircleDot, ClipboardList, GitBranch, Layers3, LineChart, ListChecks, Network, Package, Workflow } from 'lucide-react';
 import { Link } from 'react-router';
+import { LanguageSelect, useLanguage } from '../lib/language';
 
 const CAPABILITIES = [
   { icon: Layers3, number: '01', title: 'Keep the full picture', body: 'Bring product details, lifecycle stages, materials and costs into one workspace.' },
@@ -9,6 +10,7 @@ const CAPABILITIES = [
 const STAGES = ['Idea', 'Research', 'Planning', 'Design', 'Prototype', 'Testing', 'Launch', 'Improvement'];
 
 export function LandingPage() {
+  const { t } = useLanguage();
   return (
     <div className="landing min-h-full bg-[#f8fafc] text-[#172c44] selection:bg-blue-100">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur">
@@ -23,12 +25,13 @@ export function LandingPage() {
             <a href="#stages" className="transition-colors hover:text-blue-700">Lifecycle</a>
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link to="/login" className="rounded-md px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:text-blue-700">Sign in</Link>
-            <Link to="/request-access" className="inline-flex items-center gap-2 rounded-md bg-[#164e82] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#103d69] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Request access <ArrowRight className="hidden h-4 w-4 sm:block" aria-hidden="true" /></Link>
+            <Link to="/login" className="rounded-md px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:text-blue-700">{t('Sign in')}</Link>
+            <Link to="/request-access" className="inline-flex items-center gap-2 rounded-md bg-[#164e82] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#103d69] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">{t('Request access')} <ArrowRight className="hidden h-4 w-4 sm:block" aria-hidden="true" /></Link>
           </div>
         </div>
       </header>
 
+      <div className="mx-auto max-w-[1280px] px-5 pt-4 sm:px-8 lg:px-12"><div className="max-w-xs"><LanguageSelect /></div></div>
       <main>
         <section className="relative overflow-hidden border-b border-slate-200 bg-white">
           <div className="pointer-events-none absolute right-0 top-0 h-full w-1/2 bg-[#f3f7fb] max-lg:hidden" aria-hidden="true" />
@@ -38,7 +41,7 @@ export function LandingPage() {
               <h1 className="mt-7 text-[clamp(2.8rem,5.4vw,5rem)] font-semibold leading-[1.06] tracking-[-0.055em] text-[#102c4a]">From first idea to <span className="text-[#2379aa]">what’s next.</span></h1>
               <p className="mt-6 max-w-lg text-base leading-8 text-slate-600 sm:text-lg">A clearer way to develop products, coordinate work and keep the details connected—from discovery through launch and beyond.</p>
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Link to="/request-access" className="inline-flex min-h-12 items-center gap-3 rounded-md bg-[#164e82] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#103d69] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Request access <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+                <Link to="/request-access" className="inline-flex min-h-12 items-center gap-3 rounded-md bg-[#164e82] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#103d69] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">{t('Request access')} <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
                 <a href="#workflow" className="inline-flex min-h-12 items-center gap-2 rounded-md border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-700">Explore the platform <ArrowDown className="h-4 w-4" aria-hidden="true" /></a>
               </div>
               <div className="mt-12 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-slate-500"><span>Product development</span><span className="h-1 w-1 rounded-full bg-slate-300" /><span>Project coordination</span><span className="h-1 w-1 rounded-full bg-slate-300" /><span>Team context</span></div>
@@ -70,9 +73,9 @@ export function LandingPage() {
 
         <section id="stages" className="scroll-mt-20 border-t border-slate-200 bg-[#f1f6fa] px-5 py-20 sm:px-8 lg:px-12"><div className="mx-auto max-w-[1184px]"><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="text-xs font-bold uppercase tracking-[0.17em] text-[#307ba9]">The product lifecycle</p><h2 className="mt-4 text-3xl font-semibold tracking-[-0.035em] text-[#102c4a] sm:text-4xl">Keep the whole journey in view.</h2></div><p className="max-w-sm text-sm leading-7 text-slate-500">A shared view of where your product is today—and where it can go next.</p></div><ol className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 sm:grid-cols-4 lg:grid-cols-8">{STAGES.map((stage, i) => <li key={stage} className="min-h-24 bg-white p-4"><span className="text-[11px] font-semibold text-[#80a3ba]">{String(i + 1).padStart(2, '0')}</span><p className="mt-4 text-sm font-semibold text-[#26435e]">{stage}</p></li>)}</ol></div></section>
 
-        <section className="bg-[#123451] px-5 py-16 text-white sm:px-8 lg:px-12"><div className="mx-auto flex max-w-[1184px] flex-col items-start justify-between gap-7 sm:flex-row sm:items-center"><div><p className="text-xs font-bold uppercase tracking-[0.17em] text-[#91c5e1]">Ready when you are</p><h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Make room for your next good idea.</h2><p className="mt-2 text-sm text-blue-100/70">Bring your product work together in Solution Velocity.</p></div><Link to="/request-access" className="inline-flex min-h-12 items-center gap-3 rounded-md bg-white px-5 text-sm font-semibold text-[#164e82] transition-colors hover:bg-blue-50">Request access <ArrowRight className="h-4 w-4" /></Link></div></section>
+        <section className="bg-[#123451] px-5 py-16 text-white sm:px-8 lg:px-12"><div className="mx-auto flex max-w-[1184px] flex-col items-start justify-between gap-7 sm:flex-row sm:items-center"><div><p className="text-xs font-bold uppercase tracking-[0.17em] text-[#91c5e1]">Ready when you are</p><h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Make room for your next good idea.</h2><p className="mt-2 text-sm text-blue-100/70">Bring your product work together in Solution Velocity.</p></div><Link to="/request-access" className="inline-flex min-h-12 items-center gap-3 rounded-md bg-white px-5 text-sm font-semibold text-[#164e82] transition-colors hover:bg-blue-50">{t('Request access')} <ArrowRight className="h-4 w-4" /></Link></div></section>
       </main>
-      <footer className="border-t border-slate-200 bg-white px-5 py-8 sm:px-8 lg:px-12"><div className="mx-auto flex max-w-[1184px] flex-col justify-between gap-4 text-xs text-slate-500 sm:flex-row sm:items-center"><div className="flex items-center gap-2 font-semibold text-[#17365e]"><Package className="h-4 w-4 text-[#307ba9]" /> Solution Velocity</div><p>Connect the tools. Accelerate the build.</p><div className="flex gap-5"><Link to="/login" className="hover:text-blue-700">Sign in</Link><Link to="/request-access" className="hover:text-blue-700">Request access</Link></div></div></footer>
+      <footer className="border-t border-slate-200 bg-white px-5 py-8 sm:px-8 lg:px-12"><div className="mx-auto flex max-w-[1184px] flex-col justify-between gap-4 text-xs text-slate-500 sm:flex-row sm:items-center"><div className="flex items-center gap-2 font-semibold text-[#17365e]"><Package className="h-4 w-4 text-[#307ba9]" /> Solution Velocity</div><p>Connect the tools. Accelerate the build.</p><div className="flex gap-5"><Link to="/login" className="hover:text-blue-700">{t('Sign in')}</Link><Link to="/request-access" className="hover:text-blue-700">Request access</Link></div></div></footer>
     </div>
   );
 }

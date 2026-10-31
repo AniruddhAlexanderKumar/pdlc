@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import { PRESET_IDS, WIDGETS, resolveAppLayout, resolveLayout, type DashboardSettings, type WidgetId } from '@sv/shared';
+import { APP_NAVIGATION_STYLES, PRESET_IDS, WIDGETS, resolveAppLayout, resolveLayout, type DashboardSettings, type WidgetId } from '@sv/shared';
 import { auth } from '../auth/session.js';
 import { db } from '../db/index.js';
 import { parse, route } from '../lib/http.js';
@@ -74,7 +74,7 @@ dashboardRouter.put(
   '/app-layout',
   route(async (req, res) => {
     const settings = parse(
-      z.object({ navigation: z.enum(['expanded', 'compact']), contentWidth: z.enum(['full', 'constrained']) }).strict(),
+      z.object({ navigation: z.enum(APP_NAVIGATION_STYLES), contentWidth: z.enum(['full', 'constrained']) }).strict(),
       req.body,
     );
     await db

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useBlocker, useSearchParams } from 'react-router';
 import { DashboardSettings } from '../components/dashboard/DashboardSettings';
+import { LanguageSelect } from '../lib/language';
 import { AppLayoutSettings } from '../components/AppLayoutSettings';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Cookie, Copy, KeyRound, Link2, LogOut, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
@@ -400,7 +401,13 @@ export function SettingsPage() {
         {isDashboard ? (
           <DashboardSettings onDirtyChange={setDashboardDirty} />
         ) : isLayout ? (
-          <><AppLayoutSettings onDirtyChange={setAppDirty} /><DashboardSettings mode="layout" onDirtyChange={setDashboardDirty} /></>
+          <>
+            <AppLayoutSettings onDirtyChange={setAppDirty} />
+            <details className="rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+              <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Advanced: arrange dashboard widgets</summary>
+              <div className="border-t border-slate-200 p-4 dark:border-zinc-800"><DashboardSettings mode="layout" onDirtyChange={setDashboardDirty} /></div>
+            </details>
+          </>
         ) : (
           <>
             <Card>
@@ -414,6 +421,7 @@ export function SettingsPage() {
                 </Link>
               </div>
             </Card>
+            <Card><div className="p-4"><LanguageSelect /></div></Card>
             <WorkspaceSettings />
             <Team />
             <Account />

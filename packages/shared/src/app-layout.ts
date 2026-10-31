@@ -1,6 +1,8 @@
+export const APP_NAVIGATION_STYLES = ['expanded', 'compact', 'tabs', 'menu'] as const;
+
 /** Per-account layout preferences for the workspace shell. */
 export interface AppLayoutSettings {
-  navigation: 'expanded' | 'compact';
+  navigation: (typeof APP_NAVIGATION_STYLES)[number];
   contentWidth: 'full' | 'constrained';
 }
 
@@ -10,7 +12,7 @@ export const DEFAULT_APP_LAYOUT: Readonly<AppLayoutSettings> = { navigation: 'ex
 export function resolveAppLayout(value: unknown): AppLayoutSettings {
   const saved = value && typeof value === 'object' ? (value as Partial<AppLayoutSettings>) : {};
   return {
-    navigation: saved.navigation === 'compact' ? 'compact' : 'expanded',
+    navigation: APP_NAVIGATION_STYLES.includes(saved.navigation as AppLayoutSettings['navigation']) ? saved.navigation! : 'expanded',
     contentWidth: saved.contentWidth === 'constrained' ? 'constrained' : 'full',
   };
 }

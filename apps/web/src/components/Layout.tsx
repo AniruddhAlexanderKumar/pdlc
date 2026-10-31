@@ -1,10 +1,11 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
+import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
 import { DEFAULT_APP_LAYOUT, type Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
+import { useLanguage } from '../lib/language';
 import { openCookiePreferences } from '../lib/cookieConsent';
 import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
@@ -58,7 +59,7 @@ function PlayerCard() {
   );
 }
 
-function WorkspaceMenu({ compact = false }: { compact?: boolean }) {
+function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boolean; placement?: 'above' | 'below' }) {
   const me = useSession();
   const resetSession = useResetSession();
   const toast = useToast();
@@ -105,7 +106,7 @@ function WorkspaceMenu({ compact = false }: { compact?: boolean }) {
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="animate-rise absolute bottom-full left-0 z-40 mb-2 w-64 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+          <div className={cx('animate-rise absolute z-40 w-64 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900', placement === 'below' ? 'right-0 top-full mt-2' : 'bottom-full left-0 mb-2')}>
             <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-400">Workspaces</p>
             {me.workspaces.map((w) => (
               <button
@@ -168,14 +169,57 @@ function WorkspaceMenu({ compact = false }: { compact?: boolean }) {
   );
 }
 
+function DesktopTopNavigation({ style, onNew, onVoice }: { style: 'tabs' | 'menu'; onNew: () => void; onVoice: () => void }) {
+  const me = useSession();
+  const { t } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => { setOpen(false); }, [style]);
+  const links = [
+    ...NAV,
+    ...(me.user.isAdmin ? [{ to: '/admin', label: 'Admin Console', icon: Shield }] : []),
+    { to: '/settings', label: 'Settings', icon: Settings },
+  ];
+  return (
+    <header className="relative z-40 hidden shrink-0 border-b border-slate-200 bg-white md:block dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex h-16 items-center gap-3 px-5">
+        {style === 'menu' && (
+          <div className="relative" onKeyDown={(event) => { if (event.key === 'Escape' && open) { setOpen(false); menuButton.current?.focus(); } }}>
+            <button ref={menuButton} type="button" aria-label="Open navigation menu" aria-expanded={open} aria-controls="desktop-navigation-menu" onClick={() => setOpen((v) => !v)} className={cx('relative rounded-md p-2 hover:bg-slate-100 dark:hover:bg-zinc-800', open && 'z-40')}>
+              <Menu className="h-5 w-5" />
+            </button>
+            {open && <>
+              <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+              <nav id="desktop-navigation-menu" aria-label="Main" className="absolute left-0 top-full z-40 mt-2 max-h-[calc(100vh-5rem)] w-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => cx('flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium', isActive ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" />{t(n.label)}</NavLink>)}
+              </nav>
+            </>}
+          </div>
+        )}
+        <Logo />
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onNew}>{t('New product')}</Button>
+          <IconButton label="Voice capture" onClick={onVoice}><Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" /></IconButton>
+          <WorkspaceMenu compact placement="below" />
+        </div>
+      </div>
+      {style === 'tabs' && <nav aria-label="Main" className="flex overflow-x-auto px-4">
+        {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium', isActive ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-zinc-600 hover:text-blue-700 dark:text-zinc-400')}><n.icon className="h-4 w-4" />{t(n.label)}</NavLink>)}
+      </nav>}
+    </header>
+  );
+}
+
 export function Layout() {
   const me = useSession();
+  const { t } = useLanguage();
   const [newOpen, setNewOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const { data } = useWorkspaceData();
   const { data: appLayout } = useAppLayout();
   const layout = appLayout ?? DEFAULT_APP_LAYOUT;
   const compact = layout.navigation === 'compact';
+  const topNavigation = layout.navigation === 'tabs' || layout.navigation === 'menu';
   const { theme, toggle } = useTheme();
   const counts: Record<string, number | undefined> = {
     '/products': data?.products.length,
@@ -186,15 +230,15 @@ export function Layout() {
   return (
     <NewProductCtx.Provider value={() => setNewOpen(true)}>
       <VoiceDictationCtx.Provider value={() => setVoiceOpen(true)}>
-        <div className="flex h-full flex-col md:flex-row">
+        <div className={cx('flex h-full flex-col', !topNavigation && 'md:flex-row')}>
           {/* Desktop sidebar */}
-          <aside className={cx('hidden shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-900', compact ? 'w-20' : 'w-64')}>
+          {!topNavigation && <aside className={cx('hidden shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-900', compact ? 'w-20' : 'w-64')}>
             <div className={cx('flex h-[72px] items-center border-b border-slate-100 dark:border-zinc-800', compact ? 'justify-center px-2' : 'px-5')}>
               {compact ? <span className="flex h-9 w-14 items-center justify-center rounded-md bg-white px-1"><img src="/solution-velocity-logo.png" alt="Solution Velocity" className="h-7 w-full object-contain" /></span> : <Logo />}
             </div>
             <div className={cx('space-y-2 pb-5 pt-5', compact ? 'px-3' : 'px-4')}>
               <Button className="w-full" aria-label="New product" title={compact ? 'New product' : undefined} icon={<Plus className="h-4 w-4" />} onClick={() => setNewOpen(true)}>
-                {!compact && 'New product'}
+                {!compact && t('New product')}
               </Button>
               <Button
                 variant="secondary"
@@ -204,7 +248,7 @@ export function Layout() {
                 icon={<Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
                 onClick={() => setVoiceOpen(true)}
               >
-                {!compact && 'Voice capture'}
+                {!compact && t('Voice capture')}
               </Button>
             </div>
           <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Main">
@@ -216,7 +260,7 @@ export function Layout() {
                 className={cx('flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 dark:text-amber-400 dark:bg-amber-500/10 border border-amber-500/20 mb-1', compact && 'justify-center')}
               >
                 <Shield className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                <span className={compact ? 'sr-only' : undefined}>Admin Console</span>
+                <span className={compact ? 'sr-only' : undefined}>{t('Admin Console')}</span>
               </NavLink>
             )}
             {NAV.map((n) => (
@@ -224,7 +268,7 @@ export function Layout() {
                 key={n.to}
                 to={n.to}
                 end={n.end}
-                title={compact ? n.label : undefined}
+                title={compact ? t(n.label) : undefined}
                 className={({ isActive }) =>
                   cx(
                     'flex items-center justify-between rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors',
@@ -239,7 +283,7 @@ export function Layout() {
                   <>
                     <span className="flex items-center gap-2.5">
                       <n.icon className={cx('h-4 w-4', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400')} />
-                      <span className={compact ? 'sr-only' : undefined}>{n.label}</span>
+                      <span className={compact ? 'sr-only' : undefined}>{t(n.label)}</span>
                     </span>
                     {!compact && counts[n.to] !== undefined && <span className="text-[11px] tabular-nums text-zinc-400">{counts[n.to]}</span>}
                   </>
@@ -255,14 +299,15 @@ export function Layout() {
                 isActive ? 'bg-blue-50 text-[#16598d] dark:bg-blue-500/15 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100/70 dark:text-zinc-400 dark:hover:bg-zinc-800/50'
               )}
             >
-              <Settings className="h-4 w-4" /> <span className={compact ? 'sr-only' : undefined}>Settings</span>
+              <Settings className="h-4 w-4" /> <span className={compact ? 'sr-only' : undefined}>{t('Settings')}</span>
             </NavLink>
           </nav>
           <div className={cx('mt-auto space-y-2 border-t border-zinc-200/80 dark:border-zinc-800/80', compact ? 'p-2' : 'p-4')}>
             {!compact && <PlayerCard />}
             <WorkspaceMenu compact={compact} />
           </div>
-        </aside>
+        </aside>}
+        {topNavigation && <DesktopTopNavigation style={layout.navigation as 'tabs' | 'menu'} onNew={() => setNewOpen(true)} onVoice={() => setVoiceOpen(true)} />}
 
         {/* Mobile top bar */}
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden dark:border-zinc-800 dark:bg-zinc-900">
@@ -302,7 +347,7 @@ export function Layout() {
               }
             >
               <n.icon className="h-5 w-5" />
-              {n.label}
+              {t(n.label)}
             </NavLink>
           ))}
         </nav>
