@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
+import { resolveAppLayout, DEFAULT_APP_LAYOUT } from './app-layout.js';
 import { describe, it } from 'node:test';
 import { DEFAULT_PRESET, PRESET_IDS, PRESETS, resolveLayout, sanitizeItems, TEMPLATE_IDS, WIDGET_DEFINITIONS, WIDGETS } from './dashboard.js';
+
+describe('application layout', () => {
+  it('defaults safely and preserves supported preferences', () => {
+    for (const value of [undefined, null, {}, 'bad', { navigation: 'bad', contentWidth: 'bad' }]) {
+      assert.deepEqual(resolveAppLayout(value), DEFAULT_APP_LAYOUT);
+    }
+    assert.deepEqual(resolveAppLayout({ navigation: 'compact', contentWidth: 'constrained' }), { navigation: 'compact', contentWidth: 'constrained' });
+  });
+});
 
 describe('dashboard layouts', () => {
   it('every preset uses known widgets once, with supported spans, and fits whole rows', () => {

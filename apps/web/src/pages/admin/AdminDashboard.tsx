@@ -18,6 +18,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Settings,
   Shield,
   ShieldAlert,
   Sun,
@@ -233,6 +234,17 @@ export function AdminDashboard() {
               title="Switch to user workspace dashboard"
             >
               <span className="hidden sm:inline">Open PDLC View</span>
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Settings className="h-4 w-4" />}
+              onClick={() => navigate('/settings?section=dashboard')}
+              aria-label="Dashboard personalization settings"
+              title="Dashboard personalization settings"
+            >
+              <span className="hidden sm:inline">Settings</span>
             </Button>
 
             <IconButton label="Toggle theme" onClick={toggle}>

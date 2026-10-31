@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { Link } from 'react-router';
 import {
@@ -43,7 +43,13 @@ function Preview({ items }: { items: readonly LayoutItem[] }) {
   );
 }
 
-export function DashboardSettings() {
+export function DashboardSettings({
+  mode = 'full',
+  onDirtyChange,
+}: {
+  mode?: 'full' | 'layout';
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const query = useDashboardLayout();
   if (query.isLoading) return <Spinner label="Loading dashboard settings" />;
   if (query.isError || !query.data)
@@ -55,21 +61,36 @@ export function DashboardSettings() {
         </button>
       </div>
     );
-  return <DashboardEditor layout={query.data} />;
+  return <DashboardEditor layout={query.data} mode={mode} onDirtyChange={onDirtyChange} />;
 }
 
-function DashboardEditor({ layout }: { layout: DashboardLayout }) {
+function DashboardEditor({
+  layout,
+  mode,
+  onDirtyChange,
+}: {
+  layout: DashboardLayout;
+  mode: 'full' | 'layout';
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const me = useSession();
   const confirm = useConfirm();
   const save = useSaveDashboardLayout();
   const [draft, setDraft] = useState<Draft>(() => fromLayout(layout));
   const saved = useMemo(() => fromLayout(layout), [layout]);
   const dirty = !equal(draft, saved);
+  const previousSaved = useRef(saved);
   const custom = layout.preset === null || !equal(layout.items, PRESETS[layout.preset].items) || layout.density === 'compact';
   useEffect(() => {
-    // A background refetch from another device must not discard a local edit.
-    if (!dirty) setDraft(fromLayout(layout));
-  }, [layout, dirty]);
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  useEffect(() => {
+    // Update a clean editor on refetch, but never replace an in-progress edit.
+    const previous = previousSaved.current;
+    previousSaved.current = saved;
+    setDraft((current) => (equal(current, previous) ? saved : current));
+  }, [saved]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => {
@@ -78,26 +99,34 @@ function DashboardEditor({ layout }: { layout: DashboardLayout }) {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
-  const select = async (id: PresetId) => {
-    if (id === draft.preset) return;
-    const customizedDraft = draft.preset === null || !equal(draft.items, PRESETS[draft.preset].items) || draft.density !== 'expanded';
+  const applyPreset = async (id: PresetId) => {
+    if (save.isPending) return;
     if (
-      dirty &&
-      customizedDraft &&
+      (custom || dirty) &&
       !(await confirm({
-        title: 'Discard unsaved changes?',
-        body: 'Selecting another preview will discard your unsaved dashboard edits. Your saved dashboard is unchanged.',
-        confirmLabel: 'Discard changes',
+        title: 'Replace your custom layout?',
+        body: 'Your current dashboard arrangement and any unsaved edits will be replaced by this preset. Your workspace data will not change.',
+        confirmLabel: 'Use this layout',
       }))
     )
       return;
-    setDraft(templateDraft(id));
+    try {
+      const applied = await save.mutateAsync({ preset: id, density: 'expanded' });
+      setDraft(fromLayout(applied));
+    } catch {
+      // The save hook reports the error. Keep the existing layout and draft unchanged.
+    }
   };
   const persist = async (next: Draft, message: string) => {
     if (!(await confirm({ title: 'Update your dashboard?', body: message, confirmLabel: 'Apply dashboard' }))) return;
     const canonical = next.preset && equal(next.items, PRESETS[next.preset].items);
     const settings: DashboardSettings = { preset: next.preset, ...(canonical ? {} : { items: next.items }), density: next.density };
-    await save.mutateAsync(settings).catch(() => {});
+    try {
+      const applied = await save.mutateAsync(settings);
+      setDraft(fromLayout(applied));
+    } catch {
+      // Keep the draft so the user can retry.
+    }
   };
   const restoreDefault = () =>
     persist(
@@ -113,42 +142,8 @@ function DashboardEditor({ layout }: { layout: DashboardLayout }) {
       return { ...d, items };
     });
   const available = (Object.keys(WIDGETS) as WidgetId[]).filter((id) => !draft.items.some((i) => i.widget === id));
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400">Personalization / Dashboard</p>
-          <h2 className="mt-2 text-2xl font-semibold">Customize Your Dashboard</h2>
-          <p className="mt-2 text-sm text-zinc-500">Your layout is private to your account and does not change shared records.</p>
-          <p className="mt-2 text-sm">
-            Current: <strong>{layout.preset ? PRESETS[layout.preset].label : 'Custom layout'}</strong>
-            {layout.isDefault ? ' · Suggested for your role' : custom ? ' · Customized' : ''}{' '}
-            <span className="text-zinc-500">
-              · {layout.updatedAt ? `Saved ${new Date(layout.updatedAt).toLocaleString()}` : 'No saved changes yet'}
-            </span>
-          </p>
-        </div>
-        <Link to="/" className="text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">
-          Back to dashboard
-        </Link>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        {TEMPLATE_IDS.map((id) => (
-          <TemplateCard key={id} id={id} selected={draft.preset === id} active={layout.preset === id} onSelect={() => void select(id)} />
-        ))}
-      </div>
-      <details className="rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <summary className="cursor-pointer text-sm font-semibold">Previous dashboard presets</summary>
-        <p className="mt-2 text-xs text-zinc-500">Your existing product-focused presets remain available.</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {PRESET_IDS.filter((id) => !(TEMPLATE_IDS as readonly string[]).includes(id)).map((id) => (
-            <Button key={id} size="sm" variant={draft.preset === id ? 'primary' : 'secondary'} onClick={() => void select(id)}>
-              {PRESETS[id].label}
-              {layout.preset === id ? ' · Active' : ''}
-            </Button>
-          ))}
-        </div>
-      </details>
+  const widgetEditor = (
+    <fieldset disabled={save.isPending} className="min-w-0 space-y-4">
       <Card>
         <div className="border-b border-slate-200 p-4 dark:border-zinc-800">
           <div className="flex flex-wrap justify-between gap-3">
@@ -273,7 +268,7 @@ function DashboardEditor({ layout }: { layout: DashboardLayout }) {
             )
           }
         >
-          Apply Template
+          Save widget changes
         </Button>
         <Button variant="secondary" disabled={save.isPending} onClick={() => void restoreDefault()}>
           Reset to Default
@@ -282,49 +277,149 @@ function DashboardEditor({ layout }: { layout: DashboardLayout }) {
           {save.isPending ? 'Saving…' : dirty ? 'Unsaved changes' : 'Saved layout shown'}
         </span>
       </div>
+    </fieldset>
+  );
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400">Personalization / Dashboard</p>
+          <h2 className="mt-2 text-2xl font-semibold">{mode === 'layout' ? 'Dashboard layout' : 'Choose your dashboard layout'}</h2>
+          <p className="mt-2 text-sm text-zinc-500">Your layout is private to your account and does not change shared records.</p>
+          <p className="mt-2 text-sm">
+            Current: <strong>{layout.preset ? PRESETS[layout.preset].label : 'Custom layout'}</strong>
+            {layout.isDefault ? ' · Suggested for your role' : custom ? ' · Customized' : ''}{' '}
+            <span className="text-zinc-500">
+              · {layout.updatedAt ? `Saved ${new Date(layout.updatedAt).toLocaleString()}` : 'No saved changes yet'}
+            </span>
+          </p>
+        </div>
+        <Link to="/" className="text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">
+          Back to dashboard
+        </Link>
+      </div>
+      {mode === 'full' && (
+        <>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-semibold">Ready-made layouts</h3>
+              <p className="mt-1 text-sm text-zinc-500">Pick a layout to apply it immediately. You can change it whenever you like.</p>
+            </div>
+            <Button variant="secondary" size="sm" disabled={save.isPending} onClick={() => void restoreDefault()}>
+              Reset to default
+            </Button>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {TEMPLATE_IDS.map((id) => (
+              <TemplateCard
+                key={id}
+                id={id}
+                active={layout.preset === id}
+                suggested={Boolean(layout.isDefault)}
+                custom={custom}
+                dirty={dirty}
+                loading={save.isPending}
+                onApply={() => void applyPreset(id)}
+              />
+            ))}
+          </div>
+          <details className="rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <summary className="cursor-pointer text-sm font-semibold">More product-focused layouts</summary>
+            <p className="mt-2 text-xs text-zinc-500">Your previous dashboard presets are still available.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {PRESET_IDS.filter((id) => !(TEMPLATE_IDS as readonly string[]).includes(id)).map((id) => (
+                <Button
+                  key={id}
+                  size="sm"
+                  variant={layout.preset === id && !custom && !layout.isDefault ? 'primary' : 'secondary'}
+                  disabled={save.isPending || (layout.preset === id && !custom && !layout.isDefault && !dirty)}
+                  onClick={() => void applyPreset(id)}
+                >
+                  {PRESETS[id].label}
+                  {layout.preset === id ? ' · Current' : ''}
+                </Button>
+              ))}
+            </div>
+          </details>
+        </>
+      )}
+      {mode === 'layout' && (
+        <p className="text-sm text-zinc-500">
+          Adjust the currently active template below, or{' '}
+          <Link to="/settings?section=dashboard" className="font-semibold text-blue-700 underline dark:text-blue-400">
+            choose another dashboard template
+          </Link>
+          .
+        </p>
+      )}
+      {mode === 'full' ? (
+        <details className="rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Advanced: customize individual widgets</summary>
+          <div className="border-t border-slate-200 p-4 dark:border-zinc-800">{widgetEditor}</div>
+        </details>
+      ) : (
+        widgetEditor
+      )}
     </div>
   );
 }
 
 function TemplateCard({
   id,
-  selected,
   active,
-  onSelect,
+  suggested,
+  custom,
+  dirty,
+  loading,
+  onApply,
 }: {
   id: (typeof TEMPLATE_IDS)[number];
-  selected: boolean;
   active: boolean;
-  onSelect: () => void;
+  suggested: boolean;
+  custom: boolean;
+  dirty: boolean;
+  loading: boolean;
+  onApply: () => void;
 }) {
   const template = PRESETS[id];
   const details = TEMPLATE_DETAILS[id];
+  const alreadyApplied = active && !custom && !suggested && !dirty;
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
+    <article
       className={cx(
-        'rounded-lg border bg-white p-4 text-left transition-colors dark:bg-zinc-900',
-        selected ? 'border-blue-600 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-blue-300 dark:border-zinc-800',
+        'flex h-full flex-col rounded-lg border bg-white p-4 dark:bg-zinc-900',
+        active ? 'border-blue-400 ring-1 ring-blue-400/30' : 'border-slate-200 dark:border-zinc-800',
       )}
     >
-      <div className="flex flex-wrap justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">{details.audience}</span>
-        {active && <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Active</span>}
+        {active && (
+          <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+            {suggested ? 'Suggested' : custom ? 'Current · customized' : 'Current layout'}
+          </span>
+        )}
       </div>
       <h3 className="mt-2 font-semibold">{template.label}</h3>
-      <p className="mt-1 min-h-10 text-sm text-zinc-500">{template.blurb}</p>
+      <p className="mt-1 text-sm text-zinc-500">{template.blurb}</p>
       <div className="mt-4">
         <Preview items={template.items} />
       </div>
-      <p className="mt-3 text-xs leading-5 text-zinc-600 dark:text-zinc-400">
-        <strong>Includes:</strong> {template.items.map((i) => WIDGETS[i.widget].title).join(', ')}.
-      </p>
-      <p className="mt-2 text-xs leading-5 text-zinc-500">{details.unavailable}</p>
-      <span className="mt-3 block text-xs font-semibold text-blue-700 dark:text-blue-400">
-        {selected ? 'Selected preview' : 'Preview template'}
-      </span>
-    </button>
+      <details className="mt-3 text-xs text-zinc-600 dark:text-zinc-400">
+        <summary className="cursor-pointer font-medium">See included widgets</summary>
+        <p className="mt-2 leading-5">{template.items.map((i) => WIDGETS[i.widget].title).join(', ')}.</p>
+        <p className="mt-2 leading-5 text-zinc-500">{details.unavailable}</p>
+      </details>
+      <div className="mt-auto pt-4">
+        <Button
+          className="w-full"
+          variant={active ? 'secondary' : 'primary'}
+          disabled={loading || alreadyApplied}
+          onClick={onApply}
+          aria-label={`${alreadyApplied ? 'Current layout' : 'Use layout'}: ${template.label}`}
+        >
+          {alreadyApplied ? 'Current layout' : active && custom ? 'Use original layout' : 'Use layout'}
+        </Button>
+      </div>
+    </article>
   );
 }

@@ -14,3 +14,9 @@ The personalization system builds on the existing dashboard renderer; it does no
 
 - `npm run typecheck`, `npm test`, and `npm run build`.
 - For an isolated development database and server, run `DASHBOARD_SMOKE_URL=http://localhost:4000 DASHBOARD_SMOKE_ORIGIN=http://localhost:5173 node apps/server/scripts/dashboard-smoke.mjs`. The script creates test users, workspaces, projects and issues; **never point it at production**. It checks user isolation, persistence after logout/login, validation, scoped results, assignments and recorded dependencies.
+
+## Layout settings
+
+**Settings → Layout** contains both the active dashboard's widget editor and workspace-shell preferences. The shell supports expanded or compact desktop navigation and full or constrained content width; mobile navigation remains unchanged. Shell settings are account-specific, saved separately in `users.app_layout`, and do not replace dashboard preferences. Existing users retain the expanded, full-width layout until they choose otherwise. Unsaved edits prompt before leaving the settings section. Migration `009_app_layout` adds the nullable preference column and is applied by the server's normal migration process.
+
+The Dashboard settings page presents the five role-oriented layouts as ready-to-use cards with visual previews. Selecting one applies it immediately; replacing a customized layout or unsaved widget edits requires confirmation. The individual widget editor and the earlier product-focused presets remain available in expandable sections.

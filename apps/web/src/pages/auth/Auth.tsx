@@ -213,12 +213,8 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
     mutationFn: () => post<Me>('/auth/login', { email: form.email, password: form.password }),
     onSuccess: (me) => {
       signedIn(me);
-      if (me.user.isAdmin) {
-        navigate('/admin');
-      } else {
-        const next = params.get('next');
-        navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
-      }
+      const next = params.get('next');
+      navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : me.user.isAdmin ? '/admin' : '/');
     }
   });
 

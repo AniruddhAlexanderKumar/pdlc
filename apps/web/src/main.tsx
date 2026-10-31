@@ -64,9 +64,7 @@ function RequireAuth() {
     );
   }
   if (!data) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-  if (data.user.isAdmin) {
-    return <Navigate to="/admin" replace />;
-  }
+  // System admins also have a workspace membership and may use its dashboard and settings.
   return <Outlet />;
 }
 
@@ -96,11 +94,8 @@ function GuestOnly() {
   const location = useLocation();
   if (isLoading) return <Spinner />;
   if (data) {
-    if (data.user.isAdmin) {
-      return <Navigate to="/admin" replace />;
-    }
     const next = new URLSearchParams(location.search).get('next');
-    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : '/'} replace />;
+    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : data.user.isAdmin ? '/admin' : '/'} replace />;
   }
   return <Outlet />;
 }

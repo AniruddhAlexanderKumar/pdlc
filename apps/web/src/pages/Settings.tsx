@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useBlocker, useSearchParams } from 'react-router';
 import { DashboardSettings } from '../components/dashboard/DashboardSettings';
+import { AppLayoutSettings } from '../components/AppLayoutSettings';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Cookie, Copy, KeyRound, Link2, LogOut, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { CURRENCIES, type Me, type Role } from '@sv/shared';
@@ -354,18 +355,71 @@ function PrivacyAndCookies() {
 
 export function SettingsPage() {
   const [params] = useSearchParams();
+  const [appDirty, setAppDirty] = useState(false);
+  const [dashboardDirty, setDashboardDirty] = useState(false);
+  const confirm = useConfirm();
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    (appDirty || dashboardDirty) && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search)
+  );
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    let active = true;
+    void confirm({ title: 'Discard unsaved layout changes?', body: 'Your unsaved changes will be lost if you leave this section.', confirmLabel: 'Discard changes' }).then((ok) => {
+      if (!active) return;
+      if (ok) blocker.proceed(); else blocker.reset();
+    });
+    return () => { active = false; };
+  }, [blocker, confirm]);
   const isDashboard = params.get('section') === 'dashboard';
+  const isLayout = params.get('section') === 'layout';
   return (
     <>
-      <PageHeader title="Settings" subtitle="Workspace, team and account." />
+      <PageHeader title="Settings" subtitle="Manage your workspace, account and personal dashboard." />
       <div className="mx-auto max-w-4xl space-y-5 px-4 py-5 md:px-6">
-        {isDashboard ? <DashboardSettings /> : <>
-        <Card><div className="flex flex-wrap items-center justify-between gap-3 p-4"><div><h2 className="font-semibold">Personalization</h2><p className="mt-1 text-sm text-zinc-500">Choose and arrange your dashboard widgets.</p></div><Link to="/settings?section=dashboard" className="text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">Dashboard settings →</Link></div></Card>
-        <WorkspaceSettings />
-        <Team />
-        <Account />
-        <PrivacyAndCookies />
-        </>}
+        <nav aria-label="Settings sections" className="flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800">
+          <Link
+            to="/settings"
+            aria-current={!isDashboard && !isLayout ? 'page' : undefined}
+            className={cx('rounded-md px-4 py-2 text-sm font-semibold', !isDashboard && !isLayout ? 'bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')}
+          >
+            Workspace & account
+          </Link>
+          <Link
+            to="/settings?section=dashboard"
+            aria-current={isDashboard ? 'page' : undefined}
+            className={cx('rounded-md px-4 py-2 text-sm font-semibold', isDashboard ? 'bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')}
+          >
+            Dashboard personalization
+          </Link>
+          <Link
+            to="/settings?section=layout"
+            aria-current={isLayout ? 'page' : undefined}
+            className={cx('rounded-md px-4 py-2 text-sm font-semibold', isLayout ? 'bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')}
+          >Layout</Link>
+        </nav>
+        {isDashboard ? (
+          <DashboardSettings onDirtyChange={setDashboardDirty} />
+        ) : isLayout ? (
+          <><AppLayoutSettings onDirtyChange={setAppDirty} /><DashboardSettings mode="layout" onDirtyChange={setDashboardDirty} /></>
+        ) : (
+          <>
+            <Card>
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div>
+                  <h2 className="font-semibold">Dashboard personalization</h2>
+                  <p className="mt-1 text-sm text-zinc-500">Choose a template and arrange your dashboard widgets.</p>
+                </div>
+                <Link to="/settings?section=dashboard" className="inline-flex min-h-10 items-center rounded-md border border-zinc-200 bg-white px-4 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-blue-400 dark:hover:bg-zinc-800">
+                  Customize dashboard
+                </Link>
+              </div>
+            </Card>
+            <WorkspaceSettings />
+            <Team />
+            <Account />
+            <PrivacyAndCookies />
+          </>
+        )}
       </div>
     </>
   );

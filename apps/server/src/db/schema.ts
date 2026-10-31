@@ -22,6 +22,8 @@ export interface UsersTable {
   last_login_at: Date | null;
   /** DashboardSettings from @sv/shared; write with JSON.stringify. */
   dashboard_layout: ColumnType<unknown, string | null | undefined, string | null>;
+  /** Per-account workspace shell preferences. */
+  app_layout: ColumnType<unknown, string | null | undefined, string | null>;
   created_at: CreatedAt;
 }
 

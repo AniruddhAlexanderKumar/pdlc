@@ -2,9 +2,9 @@ import { createContext, useContext, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
-import type { Me } from '@sv/shared';
+import { DEFAULT_APP_LAYOUT, type Me } from '@sv/shared';
 import { post } from '../api/client';
-import { useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
+import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
 import { openCookiePreferences } from '../lib/cookieConsent';
 import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
@@ -58,7 +58,7 @@ function PlayerCard() {
   );
 }
 
-function WorkspaceMenu() {
+function WorkspaceMenu({ compact = false }: { compact?: boolean }) {
   const me = useSession();
   const resetSession = useResetSession();
   const toast = useToast();
@@ -84,7 +84,9 @@ function WorkspaceMenu() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+        aria-label="Account and workspace menu"
+        title={compact ? `${me.user.name} · ${me.workspace.name}` : undefined}
+        className={cx('flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60', compact && 'justify-center', open && 'relative z-40')}
       >
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600/10 text-xs font-semibold text-blue-700 dark:text-blue-300">
           {me.user.name
@@ -94,11 +96,11 @@ function WorkspaceMenu() {
             .join('')
             .toUpperCase()}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className={cx('min-w-0 flex-1', compact && 'sr-only')}>
           <p className="truncate text-xs font-medium">{me.user.name}</p>
           <p className="truncate text-[11px] text-zinc-500">{me.workspace.name}</p>
         </div>
-        <ChevronsUpDown className="h-4 w-4 text-zinc-400" />
+        {!compact && <ChevronsUpDown className="h-4 w-4 text-zinc-400" />}
       </button>
       {open && (
         <>
@@ -171,6 +173,9 @@ export function Layout() {
   const [newOpen, setNewOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const { data } = useWorkspaceData();
+  const { data: appLayout } = useAppLayout();
+  const layout = appLayout ?? DEFAULT_APP_LAYOUT;
+  const compact = layout.navigation === 'compact';
   const { theme, toggle } = useTheme();
   const counts: Record<string, number | undefined> = {
     '/products': data?.products.length,
@@ -183,32 +188,35 @@ export function Layout() {
       <VoiceDictationCtx.Provider value={() => setVoiceOpen(true)}>
         <div className="flex h-full flex-col md:flex-row">
           {/* Desktop sidebar */}
-          <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex h-[72px] items-center border-b border-slate-100 px-5 dark:border-zinc-800">
-              <Logo />
+          <aside className={cx('hidden shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-900', compact ? 'w-20' : 'w-64')}>
+            <div className={cx('flex h-[72px] items-center border-b border-slate-100 dark:border-zinc-800', compact ? 'justify-center px-2' : 'px-5')}>
+              {compact ? <span className="flex h-9 w-14 items-center justify-center rounded-md bg-white px-1"><img src="/solution-velocity-logo.png" alt="Solution Velocity" className="h-7 w-full object-contain" /></span> : <Logo />}
             </div>
-            <div className="space-y-2 px-4 pb-5 pt-5">
-              <Button className="w-full" icon={<Plus className="h-4 w-4" />} onClick={() => setNewOpen(true)}>
-                New product
+            <div className={cx('space-y-2 pb-5 pt-5', compact ? 'px-3' : 'px-4')}>
+              <Button className="w-full" aria-label="New product" title={compact ? 'New product' : undefined} icon={<Plus className="h-4 w-4" />} onClick={() => setNewOpen(true)}>
+                {!compact && 'New product'}
               </Button>
               <Button
                 variant="secondary"
+                aria-label="Voice capture"
+                title={compact ? 'Voice capture' : undefined}
                 className="w-full border-blue-200 bg-blue-50/60 text-blue-700 hover:bg-blue-100/70 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
                 icon={<Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
                 onClick={() => setVoiceOpen(true)}
               >
-                Voice capture
+                {!compact && 'Voice capture'}
               </Button>
             </div>
           <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Main">
-            <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p>
+            {!compact && <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p>}
             {me.user.isAdmin && (
               <NavLink
                 to="/admin"
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 dark:text-amber-400 dark:bg-amber-500/10 border border-amber-500/20 mb-1"
+                title={compact ? 'Admin Console' : undefined}
+                className={cx('flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 dark:text-amber-400 dark:bg-amber-500/10 border border-amber-500/20 mb-1', compact && 'justify-center')}
               >
                 <Shield className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                <span>Admin Console</span>
+                <span className={compact ? 'sr-only' : undefined}>Admin Console</span>
               </NavLink>
             )}
             {NAV.map((n) => (
@@ -216,9 +224,11 @@ export function Layout() {
                 key={n.to}
                 to={n.to}
                 end={n.end}
+                title={compact ? n.label : undefined}
                 className={({ isActive }) =>
                   cx(
                     'flex items-center justify-between rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors',
+                    compact && 'justify-center',
                     isActive
                       ? 'bg-blue-50 text-[#16598d] dark:bg-blue-500/15 dark:text-blue-300'
                       : 'text-zinc-600 hover:bg-zinc-100/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200'
@@ -229,17 +239,28 @@ export function Layout() {
                   <>
                     <span className="flex items-center gap-2.5">
                       <n.icon className={cx('h-4 w-4', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400')} />
-                      {n.label}
+                      <span className={compact ? 'sr-only' : undefined}>{n.label}</span>
                     </span>
-                    {counts[n.to] !== undefined && <span className="text-[11px] tabular-nums text-zinc-400">{counts[n.to]}</span>}
+                    {!compact && counts[n.to] !== undefined && <span className="text-[11px] tabular-nums text-zinc-400">{counts[n.to]}</span>}
                   </>
                 )}
               </NavLink>
             ))}
+            <NavLink
+              to="/settings"
+              title={compact ? 'Settings' : undefined}
+              className={({ isActive }) => cx(
+                'flex items-center gap-2.5 rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors',
+                compact && 'justify-center',
+                isActive ? 'bg-blue-50 text-[#16598d] dark:bg-blue-500/15 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100/70 dark:text-zinc-400 dark:hover:bg-zinc-800/50'
+              )}
+            >
+              <Settings className="h-4 w-4" /> <span className={compact ? 'sr-only' : undefined}>Settings</span>
+            </NavLink>
           </nav>
-          <div className="mt-auto space-y-2 border-t border-zinc-200/80 p-4 dark:border-zinc-800/80">
-            <PlayerCard />
-            <WorkspaceMenu />
+          <div className={cx('mt-auto space-y-2 border-t border-zinc-200/80 dark:border-zinc-800/80', compact ? 'p-2' : 'p-4')}>
+            {!compact && <PlayerCard />}
+            <WorkspaceMenu compact={compact} />
           </div>
         </aside>
 
@@ -263,7 +284,7 @@ export function Layout() {
         </header>
 
         <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#f6f8fa] pb-20 md:pb-0 dark:bg-zinc-950">
-          <Outlet />
+          <div className={cx('h-full min-h-full', layout.contentWidth === 'constrained' && 'mx-auto w-full max-w-7xl')}><Outlet /></div>
         </main>
 
         {/* Mobile bottom nav */}
