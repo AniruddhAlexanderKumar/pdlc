@@ -23,6 +23,7 @@ import { ProjectsPage } from './pages/Projects';
 import { ProjectIssuesPage } from './pages/ProjectIssues';
 const TeamworkGraphPage = lazy(() => import('./pages/TeamworkGraph').then(m => ({ default: m.TeamworkGraphPage })));
 import { RequestAccessPage } from './pages/RequestAccess';
+import { TryDemoPage } from './pages/TryDemo';
 import { SettingsPage } from './pages/Settings';
 import { SuppliersPage } from './pages/Suppliers';
 import { CookieBanner } from './components/CookieBanner';
@@ -134,6 +135,7 @@ const router = createBrowserRouter([
       },
       { path: '/join/:token', element: <JoinPage /> },
       { path: '/request-access', element: <RequestAccessPage /> },
+      { path: '/try-demo', element: <TryDemoPage /> },
       {
         element: <RequireAdmin />,
         children: [
