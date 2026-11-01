@@ -25,7 +25,7 @@ const HELP_STEPS = [
   {
     icon: Compass,
     title: 'Get oriented',
-    detail: 'Open the demo to explore a read-only workspace with preset products, projects, issues, and contribution examples. No account is needed.'
+    detail: 'Open the demo to explore a workspace you can view but not edit, with preset products, projects, issues, and contribution examples. No account is needed.'
   },
   {
     icon: Package,
@@ -166,7 +166,7 @@ export function LandingPage() {
                 to="/demo"
                 className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-full border border-[#17365e] px-5 py-2.5 text-sm font-medium text-[#17365e] transition-colors hover:bg-[#17365e] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
               >
-                Open the preset-data demo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                Open the demo with preset data <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
             <ol className="divide-y divide-[#cfd6d5] border-y border-[#cfd6d5]">
@@ -188,7 +188,7 @@ export function LandingPage() {
             <p className="max-w-3xl border-l-2 border-[#9baab3] pl-4 text-xs leading-5 text-[#6b7880]">
               Contribution tracking depends on workspace size: smaller teams use XP to follow personal activity
               consistency; reviewed contribution scoring is available when a workspace has more than two members.
-              Demo records are fictional, read-only examples.
+              Demo records are fictional examples that you can view but not edit.
             </p>
           </div>
         </section>
