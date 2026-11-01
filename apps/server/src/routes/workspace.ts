@@ -32,9 +32,25 @@ workspaceRouter.patch(
   admin,
   route(async (req, res) => {
     const a = auth(req);
-    const body = parse(z.object({ name: shortText(80).min(1), currency: z.enum(CURRENCIES) }).partial(), req.body);
+    const body = parse(z.object({ name: shortText(80).min(1), currency: z.enum(CURRENCIES) }).partial().strict(), req.body);
     if (Object.keys(body).length > 0) await db.updateTable('workspaces').set(body).where('id', '=', a.workspaceId).execute();
     res.json(await loadMe(db, a.userId, a.workspaceId));
+  })
+);
+
+/** Create a separate workspace and switch only this session into it. */
+workspaceRouter.post(
+  '/workspaces',
+  route(async (req, res) => {
+    const a = auth(req);
+    const body = parse(z.object({ name: shortText(80).min(1), mode: z.enum(['solo', 'team']), currency: z.enum(CURRENCIES).default('USD') }).strict(), req.body);
+    const me = await db.transaction().execute(async (trx) => {
+      const ws = await trx.insertInto('workspaces').values(body).returning('id').executeTakeFirstOrThrow();
+      await trx.insertInto('memberships').values({ workspace_id: ws.id, user_id: a.userId, role: 'owner' }).execute();
+      await trx.updateTable('sessions').set({ workspace_id: ws.id }).where('id', '=', a.sessionId).execute();
+      return loadMe(trx, a.userId, ws.id);
+    });
+    res.status(201).json(me);
   })
 );
 
@@ -195,6 +211,8 @@ workspaceRouter.post(
   route(async (req, res) => {
     const a = auth(req);
     const { role } = parse(z.object({ role: z.enum(['admin', 'member']).default('member') }), req.body ?? {});
+    const workspace = await db.selectFrom('workspaces').select('mode').where('id', '=', a.workspaceId).executeTakeFirstOrThrow();
+    if (workspace.mode === 'solo') throw forbidden('Personal workspaces cannot invite members. Create a separate team workspace.');
     const { token, hash } = newToken();
     const row = await db
       .insertInto('invites')

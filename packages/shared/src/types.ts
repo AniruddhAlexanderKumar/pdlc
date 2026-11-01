@@ -1,4 +1,3 @@
-import type { Language } from './language.js';
 import type { AnswerValue } from './questions.js';
 import type { CurrencyCode, Role, StageId, TaskStatus } from './stages.js';
 
@@ -10,10 +9,12 @@ export interface User {
   name: string;
   createdAt: string;
   isAdmin?: boolean;
-  language?: Language | null;
 }
 
+export type WorkspaceMode = 'solo' | 'team';
+
 export interface Workspace {
+  mode: WorkspaceMode;
   id: string;
   name: string;
   currency: CurrencyCode;

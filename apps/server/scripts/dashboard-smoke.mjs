@@ -35,23 +35,10 @@ const foreign = await register('foreign');
 let r = await call(owner.cookie, 'POST', '/workspace/invites', { role: 'member' });
 assert.equal(r.status, 201, JSON.stringify(r.data));
 const member = await register('member', new URL(r.data.url).pathname.split('/').pop());
-for (const language of ['en', 'zh', 'hi', 'es', 'fr']) {
-  r = await call(owner.cookie, 'PUT', '/auth/language', { language });
-  assert.equal(r.status, 200);
-  r = await call(owner.cookie, 'GET', '/auth/me');
-  assert.equal(r.data.user.language, language);
-}
-r = await call(owner.cookie, 'PUT', '/auth/language', { language: 'hi' });
-assert.equal(r.status, 200);
 r = await call(owner.cookie, 'GET', '/auth/me');
-assert.equal(r.data.user.language, 'hi');
-r = await call(member.cookie, 'GET', '/auth/me');
-assert.equal(r.data.user.language, null);
-r = await call(owner.cookie, 'PUT', '/auth/language', { language: 'invalid' });
-assert.equal(r.status, 400);
-r = await call('', 'PUT', '/auth/language', { language: 'es' });
-assert.equal(r.status, 401);
-
+assert.equal('language' in r.data.user, false);
+r = await call(owner.cookie, 'PUT', '/auth/language', { language: 'fr' });
+assert.equal(r.status, 404);
 r = await call(owner.cookie, 'GET', '/dashboard/app-layout');
 assert.deepEqual(r.data, { navigation: 'expanded', contentWidth: 'full' });
 for (const navigation of ['expanded', 'compact', 'tabs', 'menu']) {
@@ -112,8 +99,6 @@ assert.equal(r.status, 204);
 r = await call('', 'POST', '/auth/login', { email: owner.email, password });
 assert.equal(r.status, 200, JSON.stringify(r.data));
 owner.cookie = r.cookie;
-r = await call(owner.cookie, 'GET', '/auth/me');
-assert.equal(r.data.user.language, 'hi');
 r = await call(owner.cookie, 'GET', '/dashboard');
 assert.equal(r.data.preset, 'engineering');
 assert.deepEqual(r.data.items, layout.items);

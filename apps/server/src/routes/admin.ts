@@ -275,8 +275,9 @@ adminRouter.post(
       let targetRole = body.role || 'member';
 
       if (targetWsId) {
-        const ws = await trx.selectFrom('workspaces').select('id').where('id', '=', targetWsId).executeTakeFirst();
+        const ws = await trx.selectFrom('workspaces').select(['id', 'mode']).where('id', '=', targetWsId).executeTakeFirst();
         if (!ws) throw notFound('Workspace');
+        if (ws.mode === 'solo') throw forbidden('Personal workspaces cannot have additional members');
         await trx.insertInto('memberships').values({ workspace_id: targetWsId, user_id: newUser.id, role: targetRole }).execute();
       } else {
         const ws = await trx
@@ -540,8 +541,9 @@ adminRouter.post(
       req.body
     );
 
-    const ws = await db.selectFrom('workspaces').select('id').where('id', '=', wsId).executeTakeFirst();
+    const ws = await db.selectFrom('workspaces').select(['id', 'mode']).where('id', '=', wsId).executeTakeFirst();
     if (!ws) throw notFound('Workspace');
+    if (ws.mode === 'solo') throw forbidden('Personal workspaces cannot have additional members');
 
     const user = await db.selectFrom('users').select('id').where('id', '=', body.userId).executeTakeFirst();
     if (!user) throw notFound('User');
