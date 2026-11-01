@@ -5,17 +5,14 @@ const STAGES = ['Idea', 'Research', 'Planning', 'Design', 'Prototype', 'Testing'
 
 const WORK_AREAS = [
   {
-    number: '01',
     title: 'Product definition',
     detail: 'Keep the original idea, product details, and open questions together as the concept develops.'
   },
   {
-    number: '02',
     title: 'Cost assumptions',
     detail: 'Bring materials, supplier prices, labour, packaging, and overhead into the same product view.'
   },
   {
-    number: '03',
     title: 'Project work',
     detail: 'Connect the people, issues, and decisions involved in moving a product forward.'
   }
@@ -115,7 +112,6 @@ export function LandingPage() {
             <ol className="space-y-0">
               {STAGES.map((stage, index) => (
                 <li key={stage} className="flex items-baseline gap-4 border-b border-[#d9dedf] py-2.5 last:border-0">
-                  <span className="w-6 font-mono text-[11px] text-[#71808a]">{String(index + 1).padStart(2, '0')}</span>
                   <span className={index === 0 || index === STAGES.length - 1 ? 'font-medium text-[#17365e]' : 'text-[#53616c]'}>
                     {stage}
                   </span>
@@ -142,8 +138,7 @@ export function LandingPage() {
             </div>
             <div className="divide-y divide-[#d9dedf] border-y border-[#d9dedf]">
               {WORK_AREAS.map((area) => (
-                <article key={area.number} className="grid gap-3 py-6 sm:grid-cols-[4rem_0.75fr_1.25fr] sm:gap-5 sm:py-7">
-                  <span className="font-mono text-xs text-[#71808a]">{area.number}</span>
+                <article key={area.title} className="grid gap-3 py-6 sm:grid-cols-[0.75fr_1.25fr] sm:gap-5 sm:py-7">
                   <h3 className="font-serif text-xl text-[#17365e]">{area.title}</h3>
                   <p className="max-w-lg text-sm leading-6 text-[#53616c]">{area.detail}</p>
                 </article>
@@ -173,13 +168,12 @@ export function LandingPage() {
               </Link>
             </div>
             <ol className="divide-y divide-[#cfd6d5] border-y border-[#cfd6d5]">
-              {HELP_STEPS.map(({ icon: Icon, title, detail }, index) => (
+              {HELP_STEPS.map(({ icon: Icon, title, detail }) => (
                 <li key={title} className="grid gap-3 py-5 sm:grid-cols-[2.5rem_0.7fr_1.3fr] sm:items-start sm:gap-5 sm:py-6">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#b8c5c9] text-[#477895]" aria-hidden="true">
                     <Icon className="h-4 w-4" />
                   </span>
                   <h3 className="pt-1 font-serif text-lg text-[#17365e]">
-                    <span className="mr-2 font-mono text-[11px] text-[#71808a]">{String(index + 1).padStart(2, '0')}</span>
                     {title}
                   </h3>
                   <p className="text-sm leading-6 text-[#53616c]">{detail}</p>

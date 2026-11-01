@@ -199,7 +199,7 @@ export function ProductDemoPage() {
           <Card className="overflow-hidden p-5 shadow-xl shadow-indigo-950/5">
             <div className="flex items-center justify-between"><div><p className="text-xs font-medium text-zinc-500">One connected workspace</p><p className="mt-1 font-semibold">Product to delivery, in context</p></div><span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">Solution Velocity</span></div>
             <div className="mt-5 space-y-3">
-              {[['01', 'Shape products', 'Capture product details, materials, and costs.'], ['02', 'Coordinate delivery', 'Connect project issues to product work.'], ['03', 'Learn from outcomes', 'Review cost insights and meaningful contribution evidence.']].map(([step, title, detail]) => <div key={step} className="flex gap-3 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-900"><span className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-300">{step}</span><div><p className="text-sm font-medium">{title}</p><p className="mt-1 text-xs leading-5 text-zinc-500">{detail}</p></div></div>)}
+              {[['Shape products', 'Capture product details, materials, and costs.'], ['Coordinate delivery', 'Connect project issues to product work.'], ['Learn from outcomes', 'Review cost insights and meaningful contribution evidence.']].map(([title, detail]) => <div key={title} className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-900"><p className="text-sm font-medium">{title}</p><p className="mt-1 text-xs leading-5 text-zinc-500">{detail}</p></div>)}
             </div>
             <p className="mt-4 text-xs text-zinc-500">Start the timed demo to load fictional example records.</p>
           </Card>
