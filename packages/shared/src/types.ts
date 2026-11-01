@@ -1,6 +1,7 @@
 import type { AnswerValue } from './questions.js';
 import type { CurrencyCode, Role, StageId, TaskStatus } from './stages.js';
 import type { ContributionDimension, ContributionRatings } from './contributions.js';
+import type { LanguageCode } from './languages.js';
 
 /** Shapes exchanged between the API and the web app. */
 
@@ -9,6 +10,7 @@ export interface User {
   email: string;
   name: string;
   createdAt: string;
+  language: LanguageCode;
   isAdmin?: boolean;
 }
 

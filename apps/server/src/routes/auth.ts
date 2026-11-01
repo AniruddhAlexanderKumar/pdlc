@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import { CURRENCIES, type Me, type Role, type Workspace, type CurrencyCode } from '@sv/shared';
+import { CURRENCIES, SUPPORTED_LANGUAGES, type Me, type Role, type Workspace, type CurrencyCode } from '@sv/shared';
 import { config } from '../config.js';
 import { db, type Db } from '../db/index.js';
 import { getDummyHash, hashPassword, hashToken, verifyPassword } from '../auth/crypto.js';
@@ -41,7 +41,7 @@ const strictLimiter = rateLimit({
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 export async function loadMe(trx: Db, userId: string, workspaceId: string): Promise<Me> {
-  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at']).where('id', '=', userId).executeTakeFirstOrThrow();
+  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'language', 'is_admin', 'created_at']).where('id', '=', userId).executeTakeFirstOrThrow();
   const rows = await trx
     .selectFrom('memberships as m')
     .innerJoin('workspaces as w', 'w.id', 'm.workspace_id')
@@ -58,6 +58,7 @@ export async function loadMe(trx: Db, userId: string, workspaceId: string): Prom
       email: user.email,
       name: user.name,
       createdAt: user.created_at.toISOString(),
+      language: user.language,
       isAdmin: user.is_admin
     },
     workspace,
@@ -252,6 +253,17 @@ authRouter.get(
   route(async (req, res) => {
     const a = auth(req);
     res.json(await loadMe(db, a.userId, a.workspaceId));
+  })
+);
+
+authRouter.post(
+  '/language',
+  requireAuth,
+  route(async (req, res) => {
+    const a = auth(req);
+    const { language } = parse(z.object({ language: z.enum(SUPPORTED_LANGUAGES) }), req.body);
+    await db.updateTable('users').set({ language }).where('id', '=', a.userId).executeTakeFirstOrThrow();
+    res.status(204).end();
   })
 );
 

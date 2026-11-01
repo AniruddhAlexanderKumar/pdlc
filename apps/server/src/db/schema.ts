@@ -1,5 +1,5 @@
 import type { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
-import type { IssuePriority, IssueStatus, IssueType, Role, StageId, TaskStatus } from '@sv/shared';
+import type { IssuePriority, IssueStatus, IssueType, LanguageCode, Role, StageId, TaskStatus } from '@sv/shared';
 
 /** Kysely table types. Keep in sync with the SQL in ./migrations. */
 
@@ -14,6 +14,7 @@ export interface UsersTable {
   id: Generated<string>;
   email: string;
   name: string;
+  language: Generated<LanguageCode>;
   password_hash: string;
   is_admin: Generated<boolean>;
   is_disabled: Generated<boolean>;
