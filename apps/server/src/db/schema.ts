@@ -16,7 +16,6 @@ export interface UsersTable {
   name: string;
   password_hash: string;
   is_admin: Generated<boolean>;
-  language: string | null;
   is_disabled: Generated<boolean>;
   failed_logins: Generated<number>;
   locked_until: Date | null;
@@ -29,6 +28,7 @@ export interface UsersTable {
 }
 
 export interface WorkspacesTable {
+  mode: Generated<'solo' | 'team'>;
   id: Generated<string>;
   name: string;
   currency: Generated<string>;

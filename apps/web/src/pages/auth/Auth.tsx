@@ -18,7 +18,7 @@ import {
 import { CURRENCIES, currencySymbol, type CurrencyCode, type Me, type Product, type WithXp } from '@sv/shared';
 import { ApiError, get, post } from '../../api/client';
 import { useMe, useResetSession } from '../../api/hooks';
-import { Button, Field, Input, Select, Spinner } from '../../components/ui';
+import { Button, Field, Input, Select, Spinner, cx } from '../../components/ui';
 
 export function Logo({ className = '' }: { className?: string }) {
   return (
@@ -184,6 +184,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
     password: '',
     confirmPassword: '',
     workspaceName: '',
+    workspaceMode: 'team' as 'solo' | 'team',
     currency: 'USD' as CurrencyCode
   });
 
@@ -228,6 +229,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
           ? { inviteToken }
           : {
               workspaceName: form.workspaceName.trim() || undefined,
+              workspaceMode: form.workspaceMode,
               currency: form.currency
             })
       })
@@ -600,9 +602,21 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
       {step === 2 && (
         <>
           <h1 className="text-2xl font-semibold tracking-tight">Set up your workspace</h1>
-          <p className="mt-1.5 text-sm text-zinc-500">Step 2 of 3 · Where you and your team will collaborate</p>
+          <p className="mt-1.5 text-sm text-zinc-500">Step 2 of 3 · Choose how you want to work</p>
 
           <form onSubmit={handleStep2Submit} className="mt-6 space-y-4">
+            <fieldset>
+              <legend className="mb-2 text-sm font-semibold">Workspace type</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([{ value: 'solo', title: 'Personal workspace', detail: 'For your own work. Other members cannot be added.' }, { value: 'team', title: 'Team workspace', detail: 'Invite people and collaborate with roles.' }] as const).map((option) => (
+                  <label key={option.value} className={cx('cursor-pointer rounded-lg border p-3', form.workspaceMode === option.value ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-zinc-200 dark:border-zinc-700')}>
+                    <span className="flex items-center gap-2 text-sm font-medium"><input type="radio" name="workspaceMode" value={option.value} checked={form.workspaceMode === option.value} onChange={() => setForm((f) => ({ ...f, workspaceMode: option.value }))} />{option.title}</span>
+                    <span className="mt-1 block text-xs text-zinc-500">{option.detail}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-zinc-500">The type cannot be changed later, but you can create another workspace. System administrators retain their existing access.</p>
+            </fieldset>
             <Field
               label="Workspace name"
               htmlFor="ws"
@@ -636,7 +650,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
                 <span>Workspace summary</span>
               </div>
               <p className="mt-1 text-blue-700/80 dark:text-blue-300/80">
-                You’ll start as owner of <strong>{form.workspaceName.trim() || suggestedWorkspaceName}</strong> with currency <strong>{form.currency} ({currencySymbol(form.currency)})</strong>. You can invite team members anytime.
+                You’ll start as owner of <strong>{form.workspaceName.trim() || suggestedWorkspaceName}</strong> with currency <strong>{form.currency} ({currencySymbol(form.currency)})</strong>. {form.workspaceMode === 'team' ? 'You can invite team members anytime.' : 'Only you can be a member; create a separate team workspace to collaborate.'}
               </p>
             </div>
 

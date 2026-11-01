@@ -5,7 +5,6 @@ import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Lay
 import { DEFAULT_APP_LAYOUT, type Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
-import { useLanguage } from '../lib/language';
 import { openCookiePreferences } from '../lib/cookieConsent';
 import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
@@ -171,7 +170,6 @@ function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boo
 
 function DesktopTopNavigation({ style, onNew, onVoice }: { style: 'tabs' | 'menu'; onNew: () => void; onVoice: () => void }) {
   const me = useSession();
-  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => { setOpen(false); }, [style]);
@@ -191,20 +189,20 @@ function DesktopTopNavigation({ style, onNew, onVoice }: { style: 'tabs' | 'menu
             {open && <>
               <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
               <nav id="desktop-navigation-menu" aria-label="Main" className="absolute left-0 top-full z-40 mt-2 max-h-[calc(100vh-5rem)] w-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
-                {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => cx('flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium', isActive ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" />{t(n.label)}</NavLink>)}
+                {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => cx('flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium', isActive ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" />{n.label}</NavLink>)}
               </nav>
             </>}
           </div>
         )}
         <Logo />
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onNew}>{t('New product')}</Button>
+          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onNew}>{'New product'}</Button>
           <IconButton label="Voice capture" onClick={onVoice}><Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" /></IconButton>
           <WorkspaceMenu compact placement="below" />
         </div>
       </div>
       {style === 'tabs' && <nav aria-label="Main" className="flex overflow-x-auto px-4">
-        {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium', isActive ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-zinc-600 hover:text-blue-700 dark:text-zinc-400')}><n.icon className="h-4 w-4" />{t(n.label)}</NavLink>)}
+        {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium', isActive ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-zinc-600 hover:text-blue-700 dark:text-zinc-400')}><n.icon className="h-4 w-4" />{n.label}</NavLink>)}
       </nav>}
     </header>
   );
@@ -212,7 +210,6 @@ function DesktopTopNavigation({ style, onNew, onVoice }: { style: 'tabs' | 'menu
 
 export function Layout() {
   const me = useSession();
-  const { t } = useLanguage();
   const [newOpen, setNewOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const { data } = useWorkspaceData();
@@ -238,7 +235,7 @@ export function Layout() {
             </div>
             <div className={cx('space-y-2 pb-5 pt-5', compact ? 'px-3' : 'px-4')}>
               <Button className="w-full" aria-label="New product" title={compact ? 'New product' : undefined} icon={<Plus className="h-4 w-4" />} onClick={() => setNewOpen(true)}>
-                {!compact && t('New product')}
+                {!compact && 'New product'}
               </Button>
               <Button
                 variant="secondary"
@@ -248,7 +245,7 @@ export function Layout() {
                 icon={<Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
                 onClick={() => setVoiceOpen(true)}
               >
-                {!compact && t('Voice capture')}
+                {!compact && 'Voice capture'}
               </Button>
             </div>
           <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Main">
@@ -260,7 +257,7 @@ export function Layout() {
                 className={cx('flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 dark:text-amber-400 dark:bg-amber-500/10 border border-amber-500/20 mb-1', compact && 'justify-center')}
               >
                 <Shield className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                <span className={compact ? 'sr-only' : undefined}>{t('Admin Console')}</span>
+                <span className={compact ? 'sr-only' : undefined}>{'Admin Console'}</span>
               </NavLink>
             )}
             {NAV.map((n) => (
@@ -268,7 +265,7 @@ export function Layout() {
                 key={n.to}
                 to={n.to}
                 end={n.end}
-                title={compact ? t(n.label) : undefined}
+                title={compact ? n.label : undefined}
                 className={({ isActive }) =>
                   cx(
                     'flex items-center justify-between rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors',
@@ -283,7 +280,7 @@ export function Layout() {
                   <>
                     <span className="flex items-center gap-2.5">
                       <n.icon className={cx('h-4 w-4', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400')} />
-                      <span className={compact ? 'sr-only' : undefined}>{t(n.label)}</span>
+                      <span className={compact ? 'sr-only' : undefined}>{n.label}</span>
                     </span>
                     {!compact && counts[n.to] !== undefined && <span className="text-[11px] tabular-nums text-zinc-400">{counts[n.to]}</span>}
                   </>
@@ -299,7 +296,7 @@ export function Layout() {
                 isActive ? 'bg-blue-50 text-[#16598d] dark:bg-blue-500/15 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100/70 dark:text-zinc-400 dark:hover:bg-zinc-800/50'
               )}
             >
-              <Settings className="h-4 w-4" /> <span className={compact ? 'sr-only' : undefined}>{t('Settings')}</span>
+              <Settings className="h-4 w-4" /> <span className={compact ? 'sr-only' : undefined}>{'Settings'}</span>
             </NavLink>
           </nav>
           <div className={cx('mt-auto space-y-2 border-t border-zinc-200/80 dark:border-zinc-800/80', compact ? 'p-2' : 'p-4')}>
@@ -347,7 +344,7 @@ export function Layout() {
               }
             >
               <n.icon className="h-5 w-5" />
-              {t(n.label)}
+              {n.label}
             </NavLink>
           ))}
         </nav>

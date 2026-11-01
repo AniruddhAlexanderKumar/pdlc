@@ -10,6 +10,7 @@ import * as m007 from './migrations/007_teamwork_graph.js';
 import * as m008 from './migrations/008_graph_search_indexes.js';
 import * as m009 from './migrations/009_app_layout.js';
 import * as m010 from './migrations/010_language.js';
+import * as m011 from './migrations/011_workspace_mode.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -26,7 +27,8 @@ const migrations: Record<string, Migration> = {
   '007_teamwork_graph': m007,
   '008_graph_search_indexes': m008,
   '009_app_layout': m009,
-  '010_language': m010
+  '010_language': m010,
+  '011_workspace_mode': m011
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

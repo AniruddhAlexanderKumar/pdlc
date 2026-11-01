@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useBlocker, useSearchParams } from 'react-router';
 import { DashboardSettings } from '../components/dashboard/DashboardSettings';
-import { LanguageSelect } from '../lib/language';
 import { AppLayoutSettings } from '../components/AppLayoutSettings';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Cookie, Copy, KeyRound, Link2, LogOut, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
@@ -86,6 +85,42 @@ function WorkspaceSettings() {
       </form>
     </Card>
   );
+}
+
+function WorkspaceAccess() {
+  const me = useSession();
+  const resetSession = useResetSession();
+  const toast = useToast();
+  const [name, setName] = useState('');
+  const [mode, setMode] = useState<'solo' | 'team'>('team');
+  const create = useMutation({
+    mutationFn: () => post<Me>('/workspace/workspaces', { name: name.trim(), mode, currency: me.workspace.currency }),
+    onSuccess: (next) => { resetSession(next); setName(''); toast.success(`Created ${next.workspace.name}`); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const change = useMutation({
+    mutationFn: (workspaceId: string) => post<Me>('/auth/switch-workspace', { workspaceId }),
+    onSuccess: (next) => { resetSession(next); toast.success(`Switched to ${next.workspace.name}`); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return <Card><div className="space-y-4 p-4">
+    <div><h2 className="font-semibold">Your workspaces</h2><p className="mt-1 text-sm text-zinc-500">Personal and team workspaces are separate. Their projects and products are not shared.</p></div>
+    <label className="block max-w-md text-sm font-medium">Current workspace
+      <Select aria-label="Current workspace" className="mt-1" value={me.workspace.id} disabled={change.isPending || create.isPending} onChange={(e) => change.mutate(e.target.value)}>
+        {me.workspaces.map((w) => <option value={w.id} key={w.id}>{w.name} · {w.mode === 'solo' ? 'Personal' : 'Team'} · {w.role}</option>)}
+      </Select>
+    </label>
+    <p className="text-xs text-zinc-500">{me.workspace.mode === 'solo' ? 'Personal: only you can be a member. System administrators retain their existing access.' : 'Team: owners and admins can invite members and manage roles.'}</p>
+    <details className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700">
+      <summary className="cursor-pointer text-sm font-semibold">Create a separate workspace</summary>
+      <form className="mt-3 space-y-3" onSubmit={(e) => { e.preventDefault(); if (name.trim()) create.mutate(); }}>
+        <Field label="Workspace name" htmlFor="new-workspace-name"><Input id="new-workspace-name" maxLength={80} required value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <label className="block text-sm font-medium">Workspace type<Select aria-label="New workspace type" className="mt-1" value={mode} onChange={(e) => setMode(e.target.value as 'solo' | 'team')}><option value="solo">Personal — only me</option><option value="team">Team — invite members</option></Select></label>
+        <p className="text-xs text-zinc-500">The type cannot be changed later. The new workspace starts empty and uses {me.workspace.currency}.</p>
+        <Button type="submit" loading={create.isPending} disabled={!name.trim() || change.isPending}>Create and switch</Button>
+      </form>
+    </details>
+  </div></Card>;
 }
 
 function Team() {
@@ -355,6 +390,7 @@ function PrivacyAndCookies() {
 }
 
 export function SettingsPage() {
+  const me = useSession();
   const [params] = useSearchParams();
   const [appDirty, setAppDirty] = useState(false);
   const [dashboardDirty, setDashboardDirty] = useState(false);
@@ -421,9 +457,9 @@ export function SettingsPage() {
                 </Link>
               </div>
             </Card>
-            <Card><div className="p-4"><LanguageSelect /></div></Card>
+            <WorkspaceAccess />
             <WorkspaceSettings />
-            <Team />
+            {me.workspace.mode === 'team' ? <Team /> : <Card><div className="p-4"><h2 className="font-semibold">Personal workspace</h2><p className="mt-1 text-sm text-zinc-500">Invitations are disabled here. Create a separate team workspace above to collaborate.</p></div></Card>}
             <Account />
             <PrivacyAndCookies />
           </>

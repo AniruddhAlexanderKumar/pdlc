@@ -221,3 +221,7 @@ Good first AI features: researching market prices from the Research answers, sug
 - Activity feed and comments per product
 - CSV import of materials and suppliers
 - Create additional workspaces from the UI (today: invites, or one per sign-up)
+
+### Personal and team workspaces
+
+At sign-up, choose a **personal** workspace for one member or a **team** workspace for collaboration. Existing workspaces remain team workspaces. Workspace type is fixed: to collaborate from a personal workspace, create a separate team workspace under Settings → Workspace & account. The same screen lets you switch workspaces, including on mobile. Each workspace has its own products and projects; creating one does not copy or move data. Owners and admins can invite members only to team workspaces. Personal workspaces allow only one member, including through admin membership APIs. System administrators retain their existing administrative access.

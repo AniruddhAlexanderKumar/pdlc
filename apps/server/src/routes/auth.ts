@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import { LANGUAGES, isLanguage, CURRENCIES, type Me, type Role, type Workspace, type CurrencyCode } from '@sv/shared';
+import { CURRENCIES, type Me, type Role, type Workspace, type CurrencyCode } from '@sv/shared';
 import { config } from '../config.js';
 import { db, type Db } from '../db/index.js';
 import { getDummyHash, hashPassword, hashToken, verifyPassword } from '../auth/crypto.js';
@@ -40,15 +40,15 @@ const strictLimiter = rateLimit({
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 export async function loadMe(trx: Db, userId: string, workspaceId: string): Promise<Me> {
-  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at', 'language']).where('id', '=', userId).executeTakeFirstOrThrow();
+  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at']).where('id', '=', userId).executeTakeFirstOrThrow();
   const rows = await trx
     .selectFrom('memberships as m')
     .innerJoin('workspaces as w', 'w.id', 'm.workspace_id')
-    .select(['w.id', 'w.name', 'w.currency', 'm.role'])
+    .select(['w.id', 'w.name', 'w.currency', 'w.mode', 'm.role'])
     .where('m.user_id', '=', userId)
     .orderBy('w.created_at')
     .execute();
-  const workspaces: Workspace[] = rows.map((r) => ({ id: r.id, name: r.name, currency: r.currency as CurrencyCode, role: r.role }));
+  const workspaces: Workspace[] = rows.map((r) => ({ id: r.id, name: r.name, currency: r.currency as CurrencyCode, mode: r.mode, role: r.role }));
   const workspace = workspaces.find((w) => w.id === workspaceId) || workspaces[0];
   if (!workspace) throw unauthorized();
   return {
@@ -57,8 +57,7 @@ export async function loadMe(trx: Db, userId: string, workspaceId: string): Prom
       email: user.email,
       name: user.name,
       createdAt: user.created_at.toISOString(),
-      isAdmin: user.is_admin,
-      language: isLanguage(user.language) ? user.language : null
+      isAdmin: user.is_admin
     },
     workspace,
     workspaces
@@ -69,10 +68,10 @@ async function findInvite(trx: Db, token: string) {
   const invite = await trx
     .selectFrom('invites as i')
     .innerJoin('workspaces as w', 'w.id', 'i.workspace_id')
-    .select(['i.id', 'i.workspace_id', 'i.role', 'i.expires_at', 'i.used_at', 'w.name as workspace_name'])
+    .select(['i.id', 'i.workspace_id', 'i.role', 'i.expires_at', 'i.used_at', 'w.name as workspace_name', 'w.mode as workspace_mode'])
     .where('i.token_hash', '=', hashToken(token))
     .executeTakeFirst();
-  if (!invite || invite.used_at || invite.expires_at.getTime() < Date.now()) {
+  if (!invite || invite.workspace_mode !== 'team' || invite.used_at || invite.expires_at.getTime() < Date.now()) {
     throw new HttpError(410, 'This invite link is invalid or has expired. Ask your admin for a new one.', 'invite_invalid');
   }
   return invite;
@@ -110,6 +109,7 @@ authRouter.post(
         email,
         password,
         workspaceName: shortText(80).optional(),
+        workspaceMode: z.enum(['solo', 'team']).default('team'),
         currency: z.enum(CURRENCIES).optional(),
         inviteToken: z.string().max(200).optional()
       }),
@@ -140,7 +140,7 @@ authRouter.post(
       } else {
         const ws = await trx
           .insertInto('workspaces')
-          .values({ name: body.workspaceName || `${body.name.split(' ')[0]}'s workspace`, currency: body.currency ?? 'USD' })
+          .values({ name: body.workspaceName || `${body.name.split(' ')[0]}'s workspace`, currency: body.currency ?? 'USD', mode: body.workspaceMode })
           .returning('id')
           .executeTakeFirstOrThrow();
         await trx.insertInto('memberships').values({ workspace_id: ws.id, user_id: user.id, role: 'owner' }).execute();
@@ -251,16 +251,6 @@ authRouter.get(
   route(async (req, res) => {
     const a = auth(req);
     res.json(await loadMe(db, a.userId, a.workspaceId));
-  })
-);
-
-authRouter.put(
-  '/language',
-  requireAuth,
-  route(async (req, res) => {
-    const { language } = parse(z.object({ language: z.enum(LANGUAGES) }).strict(), req.body);
-    await db.updateTable('users').set({ language }).where('id', '=', auth(req).userId).execute();
-    res.json({ language });
   })
 );
 
