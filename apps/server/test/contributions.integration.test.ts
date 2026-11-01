@@ -96,15 +96,9 @@ test('contribution review is permissioned, auditable, idempotent, and workspace-
   assert.equal(owner.status, 201);
   const ownerCookie = owner.cookie!;
   const ownerId = owner.json.user.id as string;
-  assert.equal(owner.json.user.language, 'en');
-  const anonymousLanguage = await call(undefined, 'POST', '/auth/language', { language: 'hi' });
-  assert.equal(anonymousLanguage.status, 401);
-  const savedLanguage = await call(ownerCookie, 'POST', '/auth/language', { language: 'hi' });
-  assert.equal(savedLanguage.status, 204);
-  const refreshedMe = await call(ownerCookie, 'GET', '/auth/me');
-  assert.equal(refreshedMe.json.user.language, 'hi');
-  const unsupportedLanguage = await call(ownerCookie, 'POST', '/auth/language', { language: 'xx' });
-  assert.equal(unsupportedLanguage.status, 400);
+  assert.equal(Object.hasOwn(owner.json.user, 'language'), false);
+  const removedLanguageEndpoint = await call(ownerCookie, 'POST', '/auth/language', { language: 'hi' });
+  assert.equal(removedLanguageEndpoint.status, 404);
   const invite = await call(ownerCookie, 'POST', '/workspace/invites', { role: 'admin' });
   assert.equal(invite.status, 201);
   const reviewer = await call(undefined, 'POST', '/auth/register', {

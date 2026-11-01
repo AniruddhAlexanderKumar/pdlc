@@ -45,7 +45,7 @@ const HELP_STEPS = [
   {
     icon: CircleHelp,
     title: 'Find progress and settings',
-    detail: 'Use Achievements to see your XP and progress. In Settings, manage your account, workspace, team, dashboard, theme, and language.'
+    detail: 'Use Achievements to see your XP and progress. In Settings, manage your account, workspace, team, dashboard, and theme.'
   }
 ];
 
