@@ -425,7 +425,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   return (
     <LanguageContext.Provider value={{ language, choose, t, busy, error }}>
       {children}
-      {prompt && <LanguagePrompt onDone={() => setPrompt(false)} />}
+      {/* Language chooser popup disabled on request. Nothing was deleted: the
+          LanguagePrompt component below, and the setPrompt(true) trigger in the
+          account effect above, are both left intact. Uncomment the next line to
+          bring the modal back. New visitors now just default to English, which
+          they can still change in Settings via LanguageSelect. */}
+      {/* {prompt && <LanguagePrompt onDone={() => setPrompt(false)} />} */}
     </LanguageContext.Provider>
   );
 }
