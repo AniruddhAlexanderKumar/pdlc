@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowRight } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, BookOpen, CircleHelp, Compass, Package, Users } from 'lucide-react';
 import { Link } from 'react-router';
 
 const STAGES = ['Idea', 'Research', 'Planning', 'Design', 'Prototype', 'Testing', 'Launch', 'Improvement'];
@@ -21,6 +21,34 @@ const WORK_AREAS = [
   }
 ];
 
+const HELP_STEPS = [
+  {
+    icon: Compass,
+    title: 'Get oriented',
+    detail: 'Open the demo to explore a read-only workspace with preset products, projects, issues, and contribution examples. No account is needed.'
+  },
+  {
+    icon: Package,
+    title: 'Start a product',
+    detail: 'In your workspace, choose New product and add the idea and details you already know. Move through the lifecycle as the product develops; you do not need to complete every stage at once.'
+  },
+  {
+    icon: ArrowDownRight,
+    title: 'Add costs and suppliers',
+    detail: 'Record materials and supplier quotes, then fill in labour, packaging, and overhead on the product cost sheet to understand its unit cost and margin.'
+  },
+  {
+    icon: Users,
+    title: 'Coordinate the work',
+    detail: 'Create a project for delivery work, add issues, set status and priority, and assign a workspace member. Keep project work connected to the related product.'
+  },
+  {
+    icon: CircleHelp,
+    title: 'Find progress and settings',
+    detail: 'Use Achievements to see your XP and progress. In Settings, manage your account, workspace, team, dashboard, theme, and language.'
+  }
+];
+
 export function LandingPage() {
   return (
     <div className="min-h-full overflow-y-auto bg-[#f7f6f2] text-[#202b36] selection:bg-[#c7d9e8] selection:text-[#17365e]">
@@ -38,6 +66,12 @@ export function LandingPage() {
             <a href="#how-it-fits" className="hidden text-[#53616c] transition-colors hover:text-[#17365e] sm:inline">
               How it fits together
             </a>
+            <a href="#help" className="hidden text-[#53616c] transition-colors hover:text-[#17365e] sm:inline">
+              Help
+            </a>
+            <Link to="/demo" className="font-medium text-[#17365e] underline decoration-[#9baab3] underline-offset-4 hover:decoration-[#17365e]">
+              Demo
+            </Link>
             <Link to="/login" className="font-medium text-[#17365e] underline decoration-[#9baab3] underline-offset-4 hover:decoration-[#17365e]">
               Sign in
             </Link>
@@ -50,11 +84,10 @@ export function LandingPage() {
           <div className="max-w-3xl">
             <p className="mb-7 flex items-center gap-3 text-xs font-medium tracking-[0.16em] text-[#526b7c] uppercase">
               <span className="h-px w-8 bg-[#477895]" aria-hidden="true" />
-              A workspace for product teams
+              Connect the Tools. Accelerate the Build.
             </p>
             <h1 className="font-serif text-5xl font-normal leading-[1.05] tracking-[-0.045em] text-[#17365e] sm:text-6xl lg:text-7xl">
-              A product takes more than a good idea.
-              <span className="mt-3 block text-[#477895]">Keep the work around it connected.</span>
+              Solution Velocity
             </h1>
             <p className="mt-8 max-w-2xl text-base leading-7 text-[#53616c] sm:text-lg sm:leading-8">
               Solution Velocity brings product details, cost assumptions, project work, and decisions into one
@@ -66,6 +99,12 @@ export function LandingPage() {
             >
               See what stays connected <ArrowDownRight className="h-4 w-4" aria-hidden="true" />
             </a>
+            <Link
+              to="/demo"
+              className="ml-6 mt-8 inline-flex items-center gap-2 text-sm font-medium text-[#17365e] underline decoration-[#9baab3] underline-offset-4 transition-colors hover:decoration-[#17365e]"
+            >
+              Explore the demo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
           </div>
 
           <aside className="self-end border-l border-[#b8c5c9] pl-6 sm:pl-8 lg:mb-2" aria-label="Product lifecycle stages">
@@ -110,6 +149,50 @@ export function LandingPage() {
           </div>
         </section>
 
+        <section id="help" className="scroll-mt-8 border-y border-[#d9dedf] bg-[#f0f2ef]">
+          <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-24">
+            <div className="max-w-md">
+              <p className="flex items-center gap-2 text-xs font-medium tracking-[0.16em] text-[#526b7c] uppercase">
+                <BookOpen className="h-4 w-4" aria-hidden="true" /> Help and getting started
+              </p>
+              <h2 className="mt-5 font-serif text-4xl font-normal leading-tight tracking-[-0.035em] text-[#17365e] sm:text-5xl">
+                Find your way around the workspace.
+              </h2>
+              <p className="mt-6 text-sm leading-7 text-[#53616c] sm:text-base">
+                Start with the demo, then follow these steps when you are ready to use your own workspace. You can
+                add detail as you learn; you do not need a finished plan before getting started.
+              </p>
+              <Link
+                to="/demo"
+                className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-full border border-[#17365e] px-5 py-2.5 text-sm font-medium text-[#17365e] transition-colors hover:bg-[#17365e] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
+              >
+                Open the preset-data demo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
+            <ol className="divide-y divide-[#cfd6d5] border-y border-[#cfd6d5]">
+              {HELP_STEPS.map(({ icon: Icon, title, detail }, index) => (
+                <li key={title} className="grid gap-3 py-5 sm:grid-cols-[2.5rem_0.7fr_1.3fr] sm:items-start sm:gap-5 sm:py-6">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#b8c5c9] text-[#477895]" aria-hidden="true">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <h3 className="pt-1 font-serif text-lg text-[#17365e]">
+                    <span className="mr-2 font-mono text-[11px] text-[#71808a]">{String(index + 1).padStart(2, '0')}</span>
+                    {title}
+                  </h3>
+                  <p className="text-sm leading-6 text-[#53616c]">{detail}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="mx-auto max-w-7xl px-5 pb-12 sm:px-8 sm:pb-16 lg:pl-[calc((100%-7rem)/3)]">
+            <p className="max-w-3xl border-l-2 border-[#9baab3] pl-4 text-xs leading-5 text-[#6b7880]">
+              Contribution tracking depends on workspace size: smaller teams use XP to follow personal activity
+              consistency; reviewed contribution scoring is available when a workspace has more than two members.
+              Demo records are fictional, read-only examples.
+            </p>
+          </div>
+        </section>
+
         <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
           <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-start lg:gap-24">
             <div>
@@ -143,12 +226,20 @@ export function LandingPage() {
                 Request access to explore the workspace with your own product development process.
               </p>
             </div>
-            <Link
-              to="/request-access"
-              className="inline-flex min-h-11 items-center justify-center gap-2 justify-self-start rounded-full border border-[#17365e] px-5 py-2.5 text-sm font-medium text-[#17365e] transition-colors hover:bg-[#17365e] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb] md:justify-self-end"
-            >
-              Request access <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+            <div className="flex flex-wrap gap-3 md:justify-self-end">
+              <Link
+                to="/request-access"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#17365e] px-5 py-2.5 text-sm font-medium text-[#17365e] transition-colors hover:bg-[#17365e] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
+              >
+                Request access <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <Link
+                to="/demo"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#9baab3] px-5 py-2.5 text-sm font-medium text-[#31577d] transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
+              >
+                Explore demo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
           </div>
         </section>
       </main>
@@ -156,9 +247,12 @@ export function LandingPage() {
       <footer className="border-t border-[#d9dedf] bg-[#f7f6f2]">
         <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-3 px-5 py-7 text-xs text-[#6b7880] sm:flex-row sm:items-center sm:px-8">
           <span className="font-medium text-[#31577d]">Solution Velocity · Product work, kept in context.</span>
-          <Link to="/login" className="underline decoration-[#9baab3] underline-offset-4 hover:text-[#17365e]">
-            Sign in to your workspace
-          </Link>
+          <div className="flex gap-5">
+            <Link to="/demo" className="underline decoration-[#9baab3] underline-offset-4 hover:text-[#17365e]">Demo</Link>
+            <Link to="/login" className="underline decoration-[#9baab3] underline-offset-4 hover:text-[#17365e]">
+              Sign in to your workspace
+            </Link>
+          </div>
         </div>
       </footer>
     </div>

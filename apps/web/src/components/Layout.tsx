@@ -1,7 +1,7 @@
 import { createContext, useContext, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Moon, Package, Plus, Settings, Shield, Sun, Trophy, Truck } from 'lucide-react';
+import { BarChart3, ChevronsUpDown, CircleHelp, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Moon, Package, Plus, Settings, Shield, Sun, Trophy, Truck } from 'lucide-react';
 import type { Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
@@ -138,6 +138,15 @@ function WorkspaceMenu() {
             <button
               onClick={() => {
                 setOpen(false);
+                navigate('/help');
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              <CircleHelp className="h-4 w-4 text-zinc-400" /> Help center
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
                 openCookiePreferences();
               }}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -236,6 +245,9 @@ export function Layout() {
             </IconButton>
             <NavLink to="/settings" className="rounded-lg p-1.5 text-zinc-500" aria-label="Settings">
               <Settings className="h-4 w-4" />
+            </NavLink>
+            <NavLink to="/help" className="rounded-lg p-1.5 text-zinc-500" aria-label="Help center">
+              <CircleHelp className="h-4 w-4" />
             </NavLink>
             <Button size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setNewOpen(true)}>
               New

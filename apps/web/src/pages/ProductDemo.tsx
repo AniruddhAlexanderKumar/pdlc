@@ -173,6 +173,9 @@ export function ProductDemoPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <a href="/" className="flex items-center gap-2 font-semibold tracking-tight"><span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 text-white"><Layers3 className="h-4 w-4" /></span>Solution Velocity</a>
           <div className="flex items-center gap-3">
+            <a href="#demo-help" className="text-sm font-medium text-zinc-600 underline decoration-zinc-300 underline-offset-4 hover:text-indigo-600 dark:text-zinc-300">
+              Help
+            </a>
             {active && <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"><Clock3 className="h-3.5 w-3.5" />{minutes}:{seconds} left</span>}
             <a href="/login" className="text-sm font-medium text-zinc-600 hover:text-indigo-600 dark:text-zinc-300">Sign in <ArrowUpRight className="inline h-3.5 w-3.5" /></a>
           </div>
@@ -231,6 +234,24 @@ export function ProductDemoPage() {
 
       <section className="border-t border-zinc-200 bg-white py-14 dark:border-zinc-800 dark:bg-zinc-900/30">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div id="demo-help" className="mb-12 scroll-mt-8 border-b border-zinc-200 pb-10 dark:border-zinc-800">
+            <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-300">Demo help</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Explore the sample workspace</h2>
+            <div className="mt-5 grid gap-5 text-sm leading-6 text-zinc-600 dark:text-zinc-400 md:grid-cols-3">
+              <div>
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Start the demo</h3>
+                <p className="mt-1">Choose “Start 15-minute demo” to load fictional preset records. The timer begins when the workspace opens.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Use the tabs</h3>
+                <p className="mt-1">Overview summarizes the sample workspace. Products shows lifecycle progress, Projects lists sample issues, and Contributions shows reviewed example scores.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Read-only and temporary</h3>
+                <p className="mt-1">Demo records cannot be edited or exported. When the timer ends, the temporary session closes. No customer workspace data is used.</p>
+              </div>
+            </div>
+          </div>
           <div className="max-w-2xl">
             <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-300">Built for product teams</p>
             <h2 className="mt-2 text-3xl font-semibold tracking-tight">A clear view from product idea to delivery.</h2>

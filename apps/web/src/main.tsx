@@ -17,6 +17,7 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AuthPage, JoinPage, ResetPage } from './pages/auth/Auth';
 import { DashboardPage } from './pages/Dashboard';
 import { LandingPage } from './pages/Landing';
+import { HelpPage } from './pages/Help';
 import { MaterialsPage } from './pages/Materials';
 import { ProductPage } from './pages/product/ProductPage';
 import { ProductsPage } from './pages/Products';
@@ -157,6 +158,7 @@ const router = createBrowserRouter([
               { path: '/materials', element: <MaterialsPage /> },
               { path: '/suppliers', element: <SuppliersPage /> },
               { path: '/achievements', element: <AchievementsPage /> },
+              { path: '/help', element: <HelpPage /> },
               { path: '/settings', element: <SettingsPage /> },
               { path: '*', element: <Navigate to="/" replace /> }
             ]
