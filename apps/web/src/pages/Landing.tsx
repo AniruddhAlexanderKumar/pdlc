@@ -69,8 +69,11 @@ export function LandingPage() {
             <a href="#help" className="hidden text-[#53616c] transition-colors hover:text-[#17365e] sm:inline">
               Help
             </a>
-            <Link to="/demo" className="font-medium text-[#17365e] underline decoration-[#9baab3] underline-offset-4 hover:decoration-[#17365e]">
-              Demo
+            <Link
+              to="/demo"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-[#17365e] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#244b77] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
+            >
+              Open demo <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link to="/login" className="font-medium text-[#17365e] underline decoration-[#9baab3] underline-offset-4 hover:decoration-[#17365e]">
               Sign in
@@ -101,9 +104,9 @@ export function LandingPage() {
             </a>
             <Link
               to="/demo"
-              className="ml-6 mt-8 inline-flex items-center gap-2 text-sm font-medium text-[#17365e] underline decoration-[#9baab3] underline-offset-4 transition-colors hover:decoration-[#17365e]"
+              className="ml-6 mt-8 inline-flex min-h-11 items-center gap-2 rounded-full bg-[#17365e] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#244b77] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]"
             >
-              Explore the demo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              Open demo interface <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
 
