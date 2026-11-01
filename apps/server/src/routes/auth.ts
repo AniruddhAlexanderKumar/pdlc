@@ -9,6 +9,7 @@ import { getDummyHash, hashPassword, hashToken, verifyPassword } from '../auth/c
 import { auth, endSession, requireAuth, startSession } from '../auth/session.js';
 import { HttpError, badRequest, conflict, forbidden, parse, route, shortText, unauthorized } from '../lib/http.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
+import { initializeContributionConfig } from '../services/contribution-config.js';
 
 export const authRouter = Router();
 
@@ -143,6 +144,7 @@ authRouter.post(
           .returning('id')
           .executeTakeFirstOrThrow();
         await trx.insertInto('memberships').values({ workspace_id: ws.id, user_id: user.id, role: 'owner' }).execute();
+        await initializeContributionConfig(trx, ws.id, user.id);
         workspaceId = ws.id;
       }
 

@@ -7,6 +7,7 @@
     "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
     "dev:db": "tsx src/scripts/dev-db.ts",
     "build": "node build.mjs",
+    "test": "node --import tsx --test test/*.test.ts",
     "start": "node --enable-source-maps dist/index.js",
     "migrate": "tsx --env-file-if-exists=../../.env src/scripts/migrate.ts",
     "create-admin": "tsx --env-file-if-exists=../../.env src/scripts/create-admin.ts",

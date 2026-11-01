@@ -10,6 +10,8 @@ const schema = z.object({
   HOST: z.string().default('0.0.0.0'),
   /** Public URL users open in the browser, e.g. https://velocity.example.com. Used for invite links and the CSRF origin check. */
   APP_URL: z.string().url().default('http://localhost:5173'),
+  /** Stable secret used to pseudonymize public demo IPs. Set explicitly to preserve deduplication across database URL rotations. */
+  DEMO_IP_HASH_SECRET: z.string().min(32).optional(),
   /** postgres://user:pass@host:5432/db — append ?sslmode=require for TLS to a remote database. */
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
@@ -37,5 +39,6 @@ export const config = {
   ...parsed.data,
   isProd: parsed.data.NODE_ENV === 'production',
   appOrigin: new URL(parsed.data.APP_URL).origin,
-  secureCookies: new URL(parsed.data.APP_URL).protocol === 'https:'
+  secureCookies: new URL(parsed.data.APP_URL).protocol === 'https:',
+  demoIpHashSecret: parsed.data.DEMO_IP_HASH_SECRET ?? parsed.data.DATABASE_URL
 };

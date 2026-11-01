@@ -10,6 +10,7 @@ import { parseArgs } from 'node:util';
 import { hashPassword } from '../auth/crypto.js';
 import { db } from '../db/index.js';
 import { migrateToLatest } from '../db/migrate.js';
+import { initializeContributionConfig } from '../services/contribution-config.js';
 
 const { values } = parseArgs({
   options: {
@@ -58,6 +59,7 @@ if (existing) {
       .returning('id')
       .executeTakeFirstOrThrow();
     await trx.insertInto('memberships').values({ workspace_id: ws.id, user_id: user.id, role: 'owner' }).execute();
+    await initializeContributionConfig(trx, ws.id, user.id);
   });
   console.log(`Created owner ${email}${systemAdmin ? ' with system admin access' : ''}.`);
 }

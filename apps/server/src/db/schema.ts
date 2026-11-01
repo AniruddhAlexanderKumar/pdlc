@@ -235,6 +235,139 @@ export interface AccessRequestsTable {
   updated_at: Timestamp;
 }
 
+export interface ContributionCategoriesTable {
+  workspace_id: string;
+  key: string;
+  name: string;
+  description: string;
+  applicable_dimensions: ColumnType<string[], string | string[] | undefined, string | string[]>;
+  active: Generated<boolean>;
+  created_by: string | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
+export interface ContributionRubricsTable {
+  workspace_id: string;
+  version: string;
+  weights: ColumnType<Record<string, number>, string | Record<string, number>, string | Record<string, number>>;
+  conversion: 'one_point_per_score_point';
+  active: Generated<boolean>;
+  created_by: string | null;
+  activated_by: string | null;
+  created_at: CreatedAt;
+  activated_at: Date | null;
+}
+
+export interface ContributionsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  submitted_by: string | null;
+  idempotency_key: string;
+  category_key: string;
+  title: string;
+  description: string;
+  outcome: Generated<string>;
+  expected_impact: Generated<string>;
+  project_id: string | null;
+  issue_id: string | null;
+  task_id: string | null;
+  product_id: string | null;
+  status: Generated<'draft' | 'submitted' | 'revision_requested' | 'approved' | 'rejected' | 'disputed'>;
+  disputed_from_status: 'approved' | 'rejected' | null;
+  submitted_at: Date | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
+export interface ContributionParticipantsTable {
+  id: Generated<string>;
+  contribution_id: string;
+  user_id: string | null;
+  role_description: string;
+  contribution_description: string;
+  attribution_share: number;
+  created_at: CreatedAt;
+}
+
+export interface ContributionEvidenceTable {
+  id: Generated<string>;
+  contribution_id: string;
+  participant_id: string | null;
+  source_type: 'url' | 'description' | 'project' | 'issue' | 'task' | 'product';
+  url: string | null;
+  description: string;
+  project_id: string | null;
+  issue_id: string | null;
+  task_id: string | null;
+  product_id: string | null;
+  verified_by: string | null;
+  verified_at: Date | null;
+  removed_at: Date | null;
+  created_at: CreatedAt;
+}
+
+export interface ContributionReviewsTable {
+  id: Generated<string>;
+  contribution_id: string;
+  actor_id: string | null;
+  decision: 'submitted' | 'revision_requested' | 'approved' | 'rejected' | 'disputed' | 'dispute_resolved';
+  from_status: ContributionsTable['status'] | null;
+  to_status: ContributionsTable['status'];
+  notes: Generated<string>;
+  created_at: CreatedAt;
+}
+
+export interface ContributionScoresTable {
+  id: Generated<string>;
+  workspace_id: string;
+  contribution_id: string;
+  user_id: string | null;
+  version: number;
+  rubric_version: string;
+  ratings: ColumnType<Record<string, number | null>, string | Record<string, number | null>, string | Record<string, number | null>>;
+  breakdown: ColumnType<Record<string, number | null>, string | Record<string, number | null>, string | Record<string, number | null>>;
+  raw_score: number;
+  attribution_share: number;
+  awarded_xp: number;
+  explanation: string;
+  scored_by: string | null;
+  supersedes_score_id: string | null;
+  created_at: CreatedAt;
+}
+
+export interface ContributionAwardsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  contribution_id: string | null;
+  user_id: string | null;
+  score_id: string | null;
+  idempotency_key: string;
+  points: number;
+  explanation: string;
+  created_by: string | null;
+  created_at: CreatedAt;
+}
+
+export interface ContributionHistoryTable {
+  id: Generated<string>;
+  contribution_id: string | null;
+  workspace_id: string;
+  actor_id: string | null;
+  action: string;
+  before_data: ColumnType<Record<string, unknown> | null, string | Record<string, unknown> | null, string | Record<string, unknown> | null>;
+  after_data: ColumnType<Record<string, unknown> | null, string | Record<string, unknown> | null, string | Record<string, unknown> | null>;
+  reason: Generated<string>;
+  created_at: CreatedAt;
+}
+
+export interface DemoAccessTable {
+  ip_hash: string;
+  token_hash: string;
+  expires_at: Timestamp;
+  created_at: CreatedAt;
+}
+
 export interface Database {
   users: UsersTable;
   workspaces: WorkspacesTable;
@@ -255,6 +388,16 @@ export interface Database {
   xp_events: XpEventsTable;
   analytics_events: AnalyticsEventsTable;
   access_requests: AccessRequestsTable;
+  contribution_categories: ContributionCategoriesTable;
+  contribution_rubrics: ContributionRubricsTable;
+  contributions: ContributionsTable;
+  contribution_participants: ContributionParticipantsTable;
+  contribution_evidence: ContributionEvidenceTable;
+  contribution_reviews: ContributionReviewsTable;
+  contribution_scores: ContributionScoresTable;
+  contribution_awards: ContributionAwardsTable;
+  contribution_history: ContributionHistoryTable;
+  demo_access: DemoAccessTable;
 }
 
 export type UserRow = Selectable<UsersTable>;

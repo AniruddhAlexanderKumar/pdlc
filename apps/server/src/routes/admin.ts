@@ -18,6 +18,7 @@ import { auth, requireAdmin } from '../auth/session.js';
 import { db } from '../db/index.js';
 import { badRequest, conflict, forbidden, notFound, parse, route, shortText, uuid } from '../lib/http.js';
 import { param } from './util.js';
+import { initializeContributionConfig } from '../services/contribution-config.js';
 
 export const adminRouter = Router();
 adminRouter.use(requireAdmin);
@@ -285,6 +286,7 @@ adminRouter.post(
           .returning('id')
           .executeTakeFirstOrThrow();
         await trx.insertInto('memberships').values({ workspace_id: ws.id, user_id: newUser.id, role: 'owner' }).execute();
+        await initializeContributionConfig(trx, ws.id, newUser.id);
       }
 
       return newUser;
@@ -482,6 +484,7 @@ adminRouter.post(
         .executeTakeFirstOrThrow();
 
       await trx.insertInto('memberships').values({ workspace_id: inserted.id, user_id: ownerId, role: 'owner' }).execute();
+      await initializeContributionConfig(trx, inserted.id, ownerId);
 
       return inserted;
     });

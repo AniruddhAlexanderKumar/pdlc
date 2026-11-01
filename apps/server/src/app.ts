@@ -20,6 +20,8 @@ import { materialsRouter, suppliersRouter } from './routes/catalog.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { productsRouter } from './routes/products.js';
 import { projectsRouter } from './routes/projects.js';
+import { contributionsRouter } from './routes/contributions.js';
+import { demoRouter } from './routes/demo.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
 
 export function createApp() {
@@ -62,7 +64,12 @@ export function createApp() {
       // Log writes only (reads are noisy), with just the fields worth keeping.
       autoLogging: { ignore: (req) => req.method === 'GET' },
       serializers: {
-        req: (req) => ({ id: req.id, method: req.method, url: req.url, ip: req.remoteAddress }),
+        req: (req) => ({
+          id: req.id,
+          method: req.method,
+          url: req.url,
+          ...(req.url?.startsWith('/demo/') ? {} : { ip: req.remoteAddress })
+        }),
         res: (res) => ({ statusCode: res.statusCode })
       },
       customProps: (req) => ({ userId: req.auth?.userId })
@@ -83,6 +90,7 @@ export function createApp() {
   api.use(loadSession);
 
   api.use('/auth', authRouter);
+  api.use('/demo', demoRouter);
   api.use('/access-requests', accessRequestsRouter);
   api.use('/analytics', analyticsRouter);
   api.use('/admin', requireAuth, adminRouter);
@@ -91,6 +99,7 @@ export function createApp() {
   api.use('/dashboard', requireAuth, dashboardRouter);
   api.use('/products', requireAuth, productsRouter);
   api.use('/projects', requireAuth, projectsRouter);
+  api.use('/contributions', requireAuth, contributionsRouter);
   api.use('/materials', requireAuth, materialsRouter);
   api.use('/suppliers', requireAuth, suppliersRouter);
   api.use((_req, res) => res.status(404).json({ error: 'Not found' }));

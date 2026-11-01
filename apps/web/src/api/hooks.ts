@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { resolveLayout } from '@sv/shared';
+import type { ContributionRatings } from '@sv/shared';
 import type {
   DashboardLayout,
+  Contribution,
+  ContributionCategory,
+  ContributionRubricConfig,
+  ContributionSummary,
   Insight,
   Invite,
   LeaderboardEntry,
@@ -24,11 +29,130 @@ export const keys = {
   data: ['workspace-data'] as const,
   game: ['game'] as const,
   dashboard: ['dashboard'] as const,
+  contributions: ['contributions'] as const,
   leaderboard: ['leaderboard'] as const,
   members: ['members'] as const,
   invites: ['invites'] as const,
   insights: (id: string) => ['insights', id] as const
 };
+
+export interface ContributionSubmissionInput {
+  idempotencyKey: string;
+  categoryKey: string;
+  title: string;
+  description: string;
+  outcome: string;
+  expectedImpact: string;
+  projectId?: string | null;
+  issueId?: string | null;
+  taskId?: string | null;
+  productId?: string | null;
+  participants: {
+    userId: string;
+    roleDescription: string;
+    contributionDescription: string;
+    attributionShare: number;
+  }[];
+  evidence: {
+    sourceType: 'url' | 'description' | 'project' | 'issue' | 'task' | 'product';
+    url?: string | null;
+    description: string;
+    participantId?: string | null;
+    projectId?: string | null;
+    issueId?: string | null;
+    taskId?: string | null;
+    productId?: string | null;
+  }[];
+}
+
+function useContributionMutation<TInput>(send: (input: TInput) => Promise<Contribution>) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: send,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.contributions });
+      qc.invalidateQueries({ queryKey: keys.game });
+      toast.success('Contribution record updated');
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Could not save contribution')
+  });
+}
+
+export function useContributionCategories() {
+  return useQuery({ queryKey: [...keys.contributions, 'categories'], queryFn: () => get<ContributionCategory[]>('/contributions/categories') });
+}
+
+export function useContributionRubric() {
+  return useQuery({ queryKey: [...keys.contributions, 'rubric'], queryFn: () => get<ContributionRubricConfig>('/contributions/rubric') });
+}
+
+export function useContributionSummary(days: number, enabled = true) {
+  return useQuery({
+    queryKey: [...keys.contributions, 'summary', days],
+    queryFn: () => get<ContributionSummary>(`/contributions/summary?days=${days}`),
+    enabled
+  });
+}
+
+export function useContributions() {
+  return useQuery({ queryKey: [...keys.contributions, 'mine'], queryFn: () => get<Contribution[]>('/contributions?limit=100') });
+}
+
+export function useManagementContributions(
+  params: { userId?: string; projectId?: string; category?: string; status?: string; from?: string; to?: string },
+  enabled = true
+) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) if (value) query.set(key, value);
+  return useQuery({
+    queryKey: [...keys.contributions, 'management', params],
+    queryFn: () => get<Contribution[]>(`/contributions/management?${query.toString()}`),
+    enabled
+  });
+}
+
+export function useCreateContribution() {
+  return useContributionMutation((input: ContributionSubmissionInput) => post<Contribution>('/contributions', input));
+}
+
+export function useEditContribution() {
+  return useContributionMutation(({ id, ...input }: { id: string } & Partial<ContributionSubmissionInput>) =>
+    patch<Contribution>(`/contributions/${id}`, input)
+  );
+}
+
+export function useSubmitContribution() {
+  return useContributionMutation((id: string) => post<Contribution>(`/contributions/${id}/submit`, {}));
+}
+
+export function useReviewContribution() {
+  return useContributionMutation(({ id, ...body }: {
+    id: string;
+    decision: 'revision_requested' | 'approved' | 'rejected';
+    notes: string;
+    scores?: { userId: string; ratings: ContributionRatings; explanation: string }[];
+  }) => post<Contribution>(`/contributions/${id}/review`, body));
+}
+
+export function useDisputeContribution() {
+  return useContributionMutation(({ id, reason }: { id: string; reason: string }) => post<Contribution>(`/contributions/${id}/dispute`, { reason }));
+}
+
+export function useResolveContribution() {
+  return useContributionMutation(({ id, ...body }: {
+    id: string;
+    decision: 'approved' | 'revision_requested' | 'rejected';
+    notes: string;
+    scores?: { userId: string; ratings: ContributionRatings; explanation: string }[];
+  }) => post<Contribution>(`/contributions/${id}/resolve`, body));
+}
+
+export function useVerifyContributionEvidence() {
+  return useContributionMutation(({ id, evidenceId }: { id: string; evidenceId: string }) =>
+    post<Contribution>(`/contributions/${id}/evidence/${evidenceId}/verify`, {})
+  );
+}
 
 /**
  * Swap the signed-in session (login, logout, workspace switch). Sets `me` first, then

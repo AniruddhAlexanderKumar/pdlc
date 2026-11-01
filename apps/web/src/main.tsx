@@ -12,6 +12,7 @@ import { Layout } from './components/Layout';
 import { ToastProvider } from './components/Toast';
 import { Button, ConfirmProvider, Spinner } from './components/ui';
 import { AchievementsPage } from './pages/Achievements';
+import { ProductDemoPage } from './pages/ProductDemo';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AuthPage, JoinPage, ResetPage } from './pages/auth/Auth';
 import { DashboardPage } from './pages/Dashboard';
@@ -115,14 +116,10 @@ function RootApp() {
 }
 
 const router = createBrowserRouter([
-  // Public demo route (Aceternity expandable card) — no auth required.
+  // Time-limited public product demo.
   {
     path: '/demo',
-    element: (
-      <main className="min-h-full bg-zinc-50 dark:bg-zinc-950 p-4 sm:p-8">
-        <ExpandableCardDemo />
-      </main>
-    )
+    element: <ProductDemoPage />
   },
   {
     element: <RootApp />,

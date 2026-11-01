@@ -1,5 +1,6 @@
 import type { AnswerValue } from './questions.js';
 import type { CurrencyCode, Role, StageId, TaskStatus } from './stages.js';
+import type { ContributionDimension, ContributionRatings } from './contributions.js';
 
 /** Shapes exchanged between the API and the web app. */
 
@@ -144,6 +145,109 @@ export interface LeaderboardEntry {
 export interface XpAward {
   points: number;
   label: string;
+}
+
+export type ContributionStatus = 'draft' | 'submitted' | 'revision_requested' | 'approved' | 'rejected' | 'disputed';
+export type ContributionDecision = 'revision_requested' | 'approved' | 'rejected' | 'disputed' | 'dispute_resolved';
+
+export interface ContributionCategory {
+  key: string;
+  name: string;
+  description: string;
+  applicableDimensions: ContributionDimension[];
+  active: boolean;
+}
+
+export interface ContributionEvidence {
+  id: string;
+  sourceType: 'url' | 'description' | 'project' | 'issue' | 'task' | 'product';
+  url: string | null;
+  description: string;
+  projectId: string | null;
+  issueId: string | null;
+  taskId: string | null;
+  productId: string | null;
+  participantId: string | null;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+}
+
+export interface ContributionParticipant {
+  userId: string | null;
+  name: string | null;
+  roleDescription: string;
+  contributionDescription: string;
+  attributionShare: number;
+  score: number | null;
+  awardedXp: number | null;
+  ratings: ContributionRatings | null;
+  breakdown: Record<ContributionDimension, number | null> | null;
+}
+
+export interface ContributionReview {
+  id: string;
+  reviewerId: string | null;
+  reviewerName: string | null;
+  decision: string;
+  fromStatus: ContributionStatus | null;
+  toStatus: ContributionStatus;
+  notes: string;
+  createdAt: string;
+}
+
+export interface Contribution {
+  id: string;
+  category: ContributionCategory;
+  title: string;
+  description: string;
+  outcome: string;
+  expectedImpact: string;
+  status: ContributionStatus;
+  projectId: string | null;
+  issueId: string | null;
+  taskId: string | null;
+  productId: string | null;
+  submittedBy: string | null;
+  participants: ContributionParticipant[];
+  evidence: ContributionEvidence[];
+  reviews: ContributionReview[];
+  createdAt: string;
+  submittedAt: string | null;
+  updatedAt: string;
+}
+
+export interface ContributionRubricConfig {
+  version: string;
+  weights: Record<ContributionDimension, number>;
+  conversion: 'one_point_per_score_point';
+  scale: Record<ContributionDimension, string[]>;
+}
+
+export interface ContributionSummary {
+  approvedXp: number;
+  approvedCount: number;
+  pendingCount: number;
+  byCategory: { key: string; name: string; xp: number; count: number }[];
+  trend: { date: string; xp: number }[];
+}
+
+export interface ContributionManagementRow {
+  userId: string;
+  name: string;
+  categoryKey: string;
+  categoryName: string;
+  projectId: string | null;
+  contributionId: string;
+  title: string;
+  status: ContributionStatus;
+  score: number | null;
+  awardedXp: number | null;
+  impact: number | null;
+  quality: number | null;
+  complexity: number | null;
+  collaboration: number | null;
+  effort: number | null;
+  createdAt: string;
 }
 
 /** Every mutating endpoint may return XP that was just earned so the UI can celebrate. */

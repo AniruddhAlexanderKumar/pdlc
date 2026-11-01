@@ -3,6 +3,7 @@ export * from './questions.js';
 export * from './types.js';
 export * from './costing.js';
 export * from './gamification.js';
+export * from './contributions.js';
 export * from './insights.js';
 export * from './format.js';
 export * from './dashboard.js';

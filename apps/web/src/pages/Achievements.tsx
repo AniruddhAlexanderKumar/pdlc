@@ -1,8 +1,9 @@
 import { Link } from 'react-router';
 import { Crown, Flame, History, Lock, Medal, Trophy } from 'lucide-react';
-import { ACHIEVEMENTS, LEVEL_TITLES, xpForLevel } from '@sv/shared';
-import { useGame, useLeaderboard, useSession } from '../api/hooks';
+import { ACHIEVEMENTS, isContributionScoringEnabled, LEVEL_TITLES, xpForLevel } from '@sv/shared';
+import { useGame, useLeaderboard, useMembers, useSession } from '../api/hooks';
 import { Card, CardHeader, cx, PageHeader, ProgressBar, Spinner } from '../components/ui';
+import { ContributionCenter } from '../components/ContributionCenter';
 
 function timeAgo(iso: string) {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -16,13 +17,27 @@ export function AchievementsPage() {
   const me = useSession();
   const game = useGame();
   const board = useLeaderboard();
+  const members = useMembers();
   if (!game.data) return <Spinner />;
   const g = game.data;
+  const contributionScoringEnabled = members.data ? isContributionScoringEnabled(members.data.length) : false;
+  const xpLabel = contributionScoringEnabled ? 'Legacy Activity XP' : 'Activity XP';
   const unlocked = new Set(g.achievements.filter((a) => a.unlocked).map((a) => a.id));
 
   return (
     <>
-      <PageHeader title="Achievements" subtitle="Earn XP by learning about your products, tracking costs and making them better." />
+      <PageHeader
+        title={contributionScoringEnabled ? 'Achievements & contributions' : 'Achievements & consistency'}
+        subtitle={
+          members.isError
+            ? 'Workspace membership could not be loaded, so contribution scoring is unavailable.'
+            : !members.data
+              ? 'XP tracks your activity consistency in smaller workspaces; reviewed contributions are measured once a workspace has at least three members.'
+              : contributionScoringEnabled
+                ? 'Legacy Activity XP remains unchanged. Reviewed employee contributions are tracked and scored separately.'
+                : 'In workspaces with two or fewer members, XP tracks personal consistency rather than peer contribution.'
+        }
+      />
       <div className="grid gap-5 px-4 py-5 md:px-6 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Card className="overflow-hidden">
@@ -31,7 +46,7 @@ export function AchievementsPage() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-indigo-100">Level {g.level}</p>
                   <h2 className="text-2xl font-bold">{g.levelTitle}</h2>
-                  <p className="mt-1 text-sm text-indigo-100">{g.xp.toLocaleString()} XP total</p>
+                  <p className="mt-1 text-sm text-indigo-100">{g.xp.toLocaleString()} {xpLabel}</p>
                 </div>
                 <div className="text-right">
                   <p className="flex items-center justify-end gap-1 text-2xl font-bold">
@@ -87,42 +102,60 @@ export function AchievementsPage() {
         </div>
 
         <div className="space-y-5">
-          <Card>
-            <CardHeader icon={<Medal className="h-4 w-4" />} title="Team leaderboard" subtitle="XP earned in the last 7 days" />
-            {board.isLoading ? (
-              <Spinner />
-            ) : (
-              <ol className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {(board.data ?? []).map((e, i) => (
-                  <li key={e.userId} className={cx('flex items-center gap-3 px-4 py-2.5', e.userId === me.user.id && 'bg-indigo-500/5')}>
-                    <span className="w-5 text-center text-sm font-semibold tabular-nums text-zinc-400">{i === 0 ? <Crown className="h-4 w-4 text-amber-500" /> : i + 1}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {e.name}
-                        {e.userId === me.user.id && <span className="ml-1 text-xs text-zinc-400">(you)</span>}
-                      </p>
-                      <p className="text-[11px] text-zinc-500">
-                        Level {e.level} · {e.xp.toLocaleString()} XP total
-                      </p>
-                    </div>
-                    <span className="text-sm font-semibold tabular-nums">{e.weeklyXp}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-            {(board.data?.length ?? 0) <= 1 && (
-              <p className="border-t border-zinc-100 px-4 py-3 text-xs text-zinc-500 dark:border-zinc-800">
-                Invite your team from{' '}
-                <Link to="/settings" className="font-medium text-indigo-600 dark:text-indigo-400">
-                  Settings
-                </Link>{' '}
-                to compete.
-              </p>
-            )}
-          </Card>
+          {members.data && !contributionScoringEnabled ? (
+            <Card>
+              <CardHeader icon={<Flame className="h-4 w-4" />} title="Consistency tracker" subtitle="Build a steady habit; XP is personal progress, not a peer ranking." />
+              <div className="space-y-4 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-zinc-500">Current activity streak</span>
+                  <span className="text-xl font-semibold tabular-nums">{g.streakDays} days</span>
+                </div>
+                <div>
+                  <div className="mb-1 flex justify-between text-xs text-zinc-500">
+                    <span>Activity XP this week</span>
+                    <span>{g.weeklyXp} / 200</span>
+                  </div>
+                  <ProgressBar value={Math.min(100, (g.weeklyXp / 200) * 100)} />
+                </div>
+                {(members.data.length <= 1) && (
+                  <p className="border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800">
+                    Reviewed contribution scoring becomes available when your workspace has at least three members. Invite your team from{' '}
+                    <Link to="/settings" className="font-medium text-indigo-600 dark:text-indigo-400">Settings</Link>.
+                  </p>
+                )}
+              </div>
+            </Card>
+          ) : contributionScoringEnabled ? (
+            <Card>
+              <CardHeader icon={<Medal className="h-4 w-4" />} title="Team leaderboard" subtitle="Legacy Activity XP earned in the last 7 days" />
+              {board.isLoading ? (
+                <Spinner />
+              ) : (
+                <ol className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {(board.data ?? []).map((e, i) => (
+                    <li key={e.userId} className={cx('flex items-center gap-3 px-4 py-2.5', e.userId === me.user.id && 'bg-indigo-500/5')}>
+                      <span className="w-5 text-center text-sm font-semibold tabular-nums text-zinc-400">{i === 0 ? <Crown className="h-4 w-4 text-amber-500" /> : i + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {e.name}
+                          {e.userId === me.user.id && <span className="ml-1 text-xs text-zinc-400">(you)</span>}
+                        </p>
+                        <p className="text-[11px] text-zinc-500">
+                          Level {e.level} · {e.xp.toLocaleString()} Legacy Activity XP
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums">{e.weeklyXp}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Card>
+          ) : members.isError ? (
+            <p role="alert" className="text-sm text-rose-600">Workspace membership could not be loaded; team XP mode is unavailable.</p>
+          ) : null}
 
           <Card>
-            <CardHeader icon={<History className="h-4 w-4" />} title="Recent XP" />
+            <CardHeader icon={<History className="h-4 w-4" />} title="Recent Legacy Activity XP" />
             {g.recent.length === 0 ? (
               <p className="px-4 py-4 text-sm text-zinc-500">Nothing yet. Answer a question to get started!</p>
             ) : (
@@ -140,11 +173,12 @@ export function AchievementsPage() {
             )}
             <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
               <ProgressBar value={(g.weeklyXp / Math.max(200, g.weeklyXp)) * 100} />
-              <p className="mt-1.5 text-[11px] text-zinc-500">{g.weeklyXp} XP this week · aim for 200</p>
+              <p className="mt-1.5 text-[11px] text-zinc-500">{g.weeklyXp} {xpLabel} this week · aim for 200</p>
             </div>
           </Card>
         </div>
       </div>
+      {contributionScoringEnabled && <ContributionCenter isManager={me.workspace.role === 'owner' || me.workspace.role === 'admin'} userId={me.user.id} />}
     </>
   );
 }
