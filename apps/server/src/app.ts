@@ -24,6 +24,8 @@ import { projectsRouter } from './routes/projects.js';
 import { teamworkGraphRouter } from './routes/teamwork-graph.js';
 import { graphIntelligenceRouter } from './routes/graph-intelligence.js';
 import { voiceRouter } from './routes/voice.js';
+import { reviewerRouter, reviewManagementRouter } from './routes/external-reviews.js';
+import { helpRouter, helpAdminRouter } from './routes/help.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
 
 export function createApp() {
@@ -85,10 +87,28 @@ export function createApp() {
     })
   );
   api.use(loadSession);
+  // Guest sessions are intentionally restricted to their sample workspace. In particular,
+  // they cannot join/create workspaces, invite people, manage accounts, or invoke AI services.
+  api.use((req, res, next) => {
+    if (!req.auth?.isDemo) return next();
+    const path = req.path;
+    const safeAuth = (req.method === 'GET' && path === '/auth/me') || (req.method === 'POST' && (path === '/auth/logout' || path === '/auth/demo'));
+    const safeWorkspace = (req.method === 'GET' && ['/workspace/data', '/workspace/members'].includes(path)) || (req.method === 'POST' && path === '/workspace/sample-data');
+    const safeFeature = /^\/(products|materials|suppliers|projects|dashboard|game)(\/|$)/.test(path) || (/^\/teamwork-graph(\/|$)/.test(path) && !/^\/teamwork-graph\/ask\/?$/i.test(path));
+    const safeHelp = req.method === 'GET' && /^\/help\/articles(?:\/|$)/.test(path);
+    const safeReviewer = /^\/reviewer(?:\/|$)/.test(path) && ['GET', 'POST'].includes(req.method);
+    const safeAnalytics = path === '/analytics/track' && req.method === 'POST';
+    if (safeAuth || safeWorkspace || safeFeature || safeReviewer || safeHelp || safeAnalytics) return next();
+    res.status(403).json({ error: 'This feature is not available in the temporary demo.', code: 'demo_restricted' });
+  });
 
   api.use('/auth', authRouter);
   api.use('/ai', aiRouter);
   api.use('/access-requests', accessRequestsRouter);
+  api.use('/reviewer', reviewerRouter);
+  api.use('/external-reviews', requireAuth, reviewManagementRouter);
+  api.use('/help', requireAuth, helpRouter);
+  api.use('/help-admin', requireAuth, helpAdminRouter);
   api.use('/analytics', analyticsRouter);
   api.use('/admin', requireAuth, adminRouter);
   api.use('/workspace', requireAuth, workspaceRouter);
@@ -116,9 +136,13 @@ export function createApp() {
         }
       })
     );
-    app.get(/^(?!\/api\/).*/, (_req, res) => {
+    app.get(/^(?!\/api\/).*/, (req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
-      res.sendFile(path.join(webDist, 'index.html'));
+      const pagePath = req.path.replace(/\/+$/, '') || '/';
+      if (pagePath !== '/' && pagePath !== '/request-access') res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      if (pagePath === '/review') res.setHeader('Referrer-Policy', 'no-referrer');
+      const accessPage = path.join(webDist, 'request-access.html');
+      res.sendFile(pagePath === '/request-access' && existsSync(accessPage) ? accessPage : path.join(webDist, 'index.html'));
     });
   }
 

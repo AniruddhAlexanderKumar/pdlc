@@ -29,6 +29,7 @@ export interface UsersTable {
 
 export interface WorkspacesTable {
   mode: Generated<'solo' | 'team'>;
+  allow_unrestricted_reviews: Generated<boolean>;
   id: Generated<string>;
   name: string;
   currency: Generated<string>;
@@ -68,6 +69,12 @@ export interface MembershipsTable {
   user_id: string;
   role: Role;
   created_at: CreatedAt;
+}
+
+export interface DemoGuestsTable {
+  user_id: string;
+  workspace_id: string;
+  expires_at: Date;
 }
 
 export interface SessionsTable {
@@ -226,11 +233,17 @@ export interface AccessRequestsTable {
   organization: string;
   role: string;
   industry: string;
-  team_size: string;
-  product_stage: string;
+  team_size: string | null;
+  country: string | null;
+  pricing_snapshot: ColumnType<import('@sv/shared').PricingQuote | null, string | null | undefined, string | null>;
+  proposed_pricing_snapshot: ColumnType<import('@sv/shared').PricingQuote | null, string | null | undefined, string | null>;
+  education_details: ColumnType<import('@sv/shared').EducationRequestDetails | null, string | null | undefined, string | null>;
+  education_pricing_snapshot: ColumnType<import('@sv/shared').EducationPricingQuote | null, string | null | undefined, string | null>;
+  proposed_education_pricing_snapshot: ColumnType<import('@sv/shared').EducationPricingQuote | null, string | null | undefined, string | null>;
+  product_stage: string | null;
   current_tools: Generated<string>;
   goals: string;
-  status: Generated<'pending' | 'reviewing' | 'approved' | 'declined'>;
+  status: Generated<'pending' | 'reviewing' | 'needs_info' | 'approved' | 'declined'>;
   review_note: Generated<string>;
   reviewed_by: string | null;
   reviewed_at: Date | null;
@@ -249,6 +262,23 @@ export interface IssueRelationshipEventsTable {
   action: 'created' | 'updated' | 'deleted'; actor_id: string | null; created_at: CreatedAt;
 }
 
+export interface HelpArticlesTable {id:Generated<string>;slug:string;title:string;summary:string;body:string;category:string;keywords:Generated<string[]>;audience:'everyone'|'workspace_admin';status:'draft'|'published'|'archived';created_at:CreatedAt;updated_at:Timestamp}
+export interface HelpArticleRevisionsTable {id:Generated<string>;article_id:string;actor_id:string|null;snapshot:ColumnType<unknown,string,never>;created_at:CreatedAt}
+export interface HelpProgressTable {user_id:string;workspace_id:string;guide_key:string;step:Generated<number>;completed:Generated<boolean>;updated_at:Timestamp}
+export interface SupportTicketsTable {id:Generated<string>;workspace_id:string;user_id:string;project_id:string|null;category:string;feature:string;description:string;status:Generated<'open'|'in_progress'|'closed'>;created_at:CreatedAt;updated_at:Timestamp}
+
+export interface AccessRequestEventsTable { id: Generated<string>; request_id: string; actor_id: string | null; old_status: string; new_status: string; proposal_snapshot: ColumnType<import('@sv/shared').PricingQuote | null, string | null, never>; created_at: CreatedAt }
+
+export interface ExternalReviewsTable {
+  id: Generated<string>; workspace_id: string; project_id: string; created_by: string | null; token_hash: string;
+  title: string; instructions: Generated<string>; expires_at: Date | null; revoked_at: Date | null; reviewer_email: string | null;
+  show_links: Generated<boolean>; access_count: Generated<number>; last_accessed_at: Date | null; created_at: CreatedAt; updated_at: Timestamp;
+}
+export interface ExternalReviewIssuesTable { review_id: string; issue_id: string }
+export interface ExternalReviewEventsTable { id: Generated<string>; review_id: string; event_type: string; created_at: CreatedAt }
+export interface ExternalReviewChallengesTable { review_id: string; code_hash: string; expires_at: Date; sent_at: Date; attempts: Generated<number> }
+export interface ExternalReviewSessionsTable { id: string; review_id: string; expires_at: Date }
+
 export interface Database {
   users: UsersTable;
   workspaces: WorkspacesTable;
@@ -258,6 +288,7 @@ export interface Database {
   issue_relationship_events: IssueRelationshipEventsTable;
   memberships: MembershipsTable;
   sessions: SessionsTable;
+  demo_guests: DemoGuestsTable;
   invites: InvitesTable;
   password_resets: PasswordResetsTable;
   suppliers: SuppliersTable;
@@ -271,6 +302,16 @@ export interface Database {
   xp_events: XpEventsTable;
   analytics_events: AnalyticsEventsTable;
   access_requests: AccessRequestsTable;
+  access_request_events: AccessRequestEventsTable;
+  help_articles: HelpArticlesTable;
+  help_article_revisions: HelpArticleRevisionsTable;
+  help_progress: HelpProgressTable;
+  support_tickets: SupportTicketsTable;
+  external_reviews: ExternalReviewsTable;
+  external_review_issues: ExternalReviewIssuesTable;
+  external_review_events: ExternalReviewEventsTable;
+  external_review_challenges: ExternalReviewChallengesTable;
+  external_review_sessions: ExternalReviewSessionsTable;
 }
 
 export type UserRow = Selectable<UsersTable>;

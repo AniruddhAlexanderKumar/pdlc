@@ -174,8 +174,7 @@ export function CookieBanner() {
                   </div>
                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                     Helps us understand how the product is used, which pages are visited, and what features are
-                    popular. All analytics data is securely hosted on our own servers without any third-party data
-                    sharing or ad profiling.
+                    popular. Events are sent to this application's analytics endpoint; data handling depends on the deployment.
                   </p>
                 </div>
               </div>

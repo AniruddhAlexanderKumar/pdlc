@@ -308,7 +308,16 @@ export function Modal({
     const first = panel.current?.querySelector<HTMLElement>('input, textarea, select, button:not([data-close])');
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+      if (dialogs[dialogs.length - 1] !== panel.current) return;
       if (e.key === 'Escape') onClose();
+      if (e.key === 'Tab' && panel.current) {
+        const focusable = Array.from(panel.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => el.getClientRects().length > 0);
+        if (!focusable.length) { e.preventDefault(); return; }
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !panel.current.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && (document.activeElement === last || !panel.current.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+      }
     };
     document.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow;

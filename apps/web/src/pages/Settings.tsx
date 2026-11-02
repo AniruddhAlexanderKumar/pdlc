@@ -457,10 +457,12 @@ export function SettingsPage() {
                 </Link>
               </div>
             </Card>
-            <WorkspaceAccess />
-            <WorkspaceSettings />
-            {me.workspace.mode === 'team' ? <Team /> : <Card><div className="p-4"><h2 className="font-semibold">Personal workspace</h2><p className="mt-1 text-sm text-zinc-500">Invitations are disabled here. Create a separate team workspace above to collaborate.</p></div></Card>}
-            <Account />
+            {me.demo ? <Card><div className="p-4"><h2 className="font-semibold">Temporary demo workspace</h2><p className="mt-1 text-sm text-zinc-500">Account, workspace and team management are unavailable in the demo. Exit the demo to sign in or request access.</p></div></Card> : <>
+              <WorkspaceAccess />
+              <WorkspaceSettings />
+              {me.workspace.mode === 'team' ? <Team /> : <Card><div className="p-4"><h2 className="font-semibold">Personal workspace</h2><p className="mt-1 text-sm text-zinc-500">Invitations are disabled here. Create a separate team workspace above to collaborate.</p></div></Card>}
+              <Account />
+            </>}
             <PrivacyAndCookies />
           </>
         )}

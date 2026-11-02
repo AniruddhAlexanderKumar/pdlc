@@ -11,6 +11,14 @@ import * as m008 from './migrations/008_graph_search_indexes.js';
 import * as m009 from './migrations/009_app_layout.js';
 import * as m010 from './migrations/010_language.js';
 import * as m011 from './migrations/011_workspace_mode.js';
+import * as m012 from './migrations/012_demo_guests.js';
+import * as m013 from './migrations/013_access_request_optional_fields.js';
+import * as m014 from './migrations/014_access_pricing.js';
+import * as m015 from './migrations/015_external_reviews.js';
+import * as m016 from './migrations/016_pricing_proposals.js';
+import * as m017 from './migrations/017_education_requests.js';
+import * as m018 from './migrations/018_help_centre.js';
+import * as m019 from './migrations/019_help_guide_correction.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -28,7 +36,15 @@ const migrations: Record<string, Migration> = {
   '008_graph_search_indexes': m008,
   '009_app_layout': m009,
   '010_language': m010,
-  '011_workspace_mode': m011
+  '011_workspace_mode': m011,
+  '012_demo_guests': m012,
+  '013_access_request_optional_fields': m013,
+  '014_access_pricing': m014,
+  '015_external_reviews': m015,
+  '016_pricing_proposals': m016,
+  '017_education_requests': m017,
+  '018_help_centre': m018,
+  '019_help_guide_correction': m019
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

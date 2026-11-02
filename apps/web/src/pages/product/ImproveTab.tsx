@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowRight, Bot, Lightbulb, RefreshCw, Trophy } from 'lucide-react';
 import { XP, type Insight, type Product } from '@sv/shared';
-import { useApplyInsight, useInsights } from '../../api/hooks';
+import { useApplyInsight, useInsights, useSession } from '../../api/hooks';
 import { Button, Card, cx, EmptyState, Spinner } from '../../components/ui';
 import { useMoney } from '../../lib/money';
 import type { TabId } from './ProductPage';
@@ -12,6 +12,7 @@ const toneStyle: Record<Insight['tone'], { icon: typeof Lightbulb; ring: string;
 };
 
 export function ImproveTab({ product, goTab }: { product: Product; goTab: (t: TabId) => void }) {
+  const { demo } = useSession();
   const insights = useInsights(product.id);
   const apply = useApplyInsight(product.id);
   const { fmt } = useMoney();
@@ -90,7 +91,7 @@ export function ImproveTab({ product, goTab }: { product: Product; goTab: (t: Ta
         </div>
       )}
 
-      <Card className="border-dashed p-4 border-violet-500/30 bg-violet-500/5">
+      {!demo && <Card className="border-dashed p-4 border-violet-500/30 bg-violet-500/5">
         <div className="flex gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
             <Bot className="h-4.5 w-4.5" />
@@ -107,7 +108,7 @@ export function ImproveTab({ product, goTab }: { product: Product; goTab: (t: Ta
             </p>
           </div>
         </div>
-      </Card>
+      </Card>}
     </div>
   );
 }

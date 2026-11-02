@@ -70,6 +70,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function trackClientEvent(name: string, metadata?: Record<string, unknown>) {
+  if (window.location.pathname === '/review') return;
   const consent = getCookieConsent();
 
   const event: AnalyticsEventInput = {
@@ -100,6 +101,7 @@ export function trackClientEvent(name: string, metadata?: Record<string, unknown
 }
 
 export function trackPageView(path: string, title?: string) {
+  if (path.split('?')[0] === '/review') return;
   const consent = getCookieConsent();
 
   const event: AnalyticsEventInput = {

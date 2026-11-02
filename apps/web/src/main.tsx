@@ -1,4 +1,4 @@
-import { StrictMode, Suspense, lazy } from 'react';
+import { StrictMode, Suspense, lazy, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation } from 'react-router';
@@ -7,7 +7,6 @@ import './lib/theme';
 import { ApiError } from './api/client';
 import { keys, useMe } from './api/hooks';
 import { CelebrateProvider } from './components/Celebrate';
-import ExpandableCardDemo from './components/expandable-card-demo-standard';
 import { Layout } from './components/Layout';
 import { ToastProvider } from './components/Toast';
 import { Button, ConfirmProvider, Spinner } from './components/ui';
@@ -23,6 +22,10 @@ import { ProjectsPage } from './pages/Projects';
 import { ProjectIssuesPage } from './pages/ProjectIssues';
 const TeamworkGraphPage = lazy(() => import('./pages/TeamworkGraph').then(m => ({ default: m.TeamworkGraphPage })));
 import { RequestAccessPage } from './pages/RequestAccess';
+import { HelpCentrePage } from './pages/HelpCentre';
+import { HelpAdminPage } from './pages/admin/HelpAdmin';
+import { ExternalReviewPage } from './pages/ExternalReview';
+import { ExternalReviewsPage } from './pages/ExternalReviews';
 import { TryDemoPage } from './pages/TryDemo';
 import { SettingsPage } from './pages/Settings';
 import { SuppliersPage } from './pages/Suppliers';
@@ -90,6 +93,15 @@ function RequireAdmin() {
   return <Outlet />;
 }
 
+// A fragment-only navigation can open a different review without reloading the SPA.
+// Remount the isolated viewer for a new token so no previous review/session remains visible.
+function ReviewRoute() {
+  const { hash } = useLocation();
+  const lastToken = useRef('');
+  if (/^#[A-Za-z0-9_-]{43}$/.test(hash)) lastToken.current = hash.slice(1);
+  return <ExternalReviewPage key={lastToken.current} />;
+}
+
 function GuestOnly() {
   const { data, isLoading } = useMe();
   const location = useLocation();
@@ -102,25 +114,35 @@ function GuestOnly() {
 }
 
 function RootApp() {
+  const location = useLocation();
+  useEffect(() => {
+    const pathname = location.pathname.replace(/\/+$/, '') || '/';
+    const publicPage = pathname === '/' || pathname === '/request-access';
+    const pageName = ({ '/request-access': 'Request Early Access', '/login': 'Sign In', '/signup': 'Create Account', '/register': 'Create Account', '/try-demo': 'Sample Workspace', '/products': 'Products', '/projects': 'Projects', '/teamwork-graph': 'Teamwork Graph', '/materials': 'Materials', '/suppliers': 'Suppliers', '/settings': 'Settings', '/achievements': 'Achievements', '/admin': 'Administration' } as Record<string, string>)[pathname];
+    const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${pageName ?? 'Engineering Workspace'} | Solution Velocity`;
+    const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Bring product records, engineering project work and collaboration together with Solution Velocity, an intelligent product development lifecycle workspace.';
+    document.title = title;
+    const set = (selector: string, value: string) => document.querySelector<HTMLMetaElement>(selector)?.setAttribute('content', value);
+    set('meta[name="description"]', description);
+    set('meta[name="robots"]', publicPage ? 'index,follow' : 'noindex,nofollow');
+    set('meta[property="og:title"]', title); set('meta[property="og:description"]', description);
+    set('meta[name="twitter:title"]', title); set('meta[name="twitter:description"]', description);
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (canonical) {
+      if (publicPage) { canonical.href = `https://pdlc.dalvigroup.co.in${pathname}`; set('meta[property="og:url"]', canonical.href); }
+      else { canonical.removeAttribute('href'); set('meta[property="og:url"]', `https://pdlc.dalvigroup.co.in${pathname}`); }
+    }
+  }, [location.pathname]);
   useAnalyticsPageView();
   return (
     <>
       <Outlet />
-      <CookieBanner />
+      {location.pathname !== '/review' && <CookieBanner />}
     </>
   );
 }
 
 const router = createBrowserRouter([
-  // Public demo route (Aceternity expandable card) — no auth required.
-  {
-    path: '/demo',
-    element: (
-      <main className="min-h-full bg-zinc-50 dark:bg-zinc-950 p-4 sm:p-8">
-        <ExpandableCardDemo />
-      </main>
-    )
-  },
   {
     element: <RootApp />,
     children: [
@@ -135,11 +157,15 @@ const router = createBrowserRouter([
       },
       { path: '/join/:token', element: <JoinPage /> },
       { path: '/request-access', element: <RequestAccessPage /> },
+      { path: '/review', element: <ReviewRoute /> },
+      { path: '/contact', element: <Navigate to="/request-access" replace /> },
+      { path: '/demo', element: <Navigate to="/try-demo" replace /> },
       { path: '/try-demo', element: <TryDemoPage /> },
       {
         element: <RequireAdmin />,
         children: [
           { path: '/admin', element: <AdminDashboard /> },
+          { path: '/admin/help', element: <HelpAdminPage /> },
           { path: '/analytics', element: <AdminDashboard /> }
         ]
       },
@@ -152,6 +178,9 @@ const router = createBrowserRouter([
               { path: '/', element: <DashboardPage /> },
               { path: '/products', element: <ProductsPage /> },
               { path: '/projects', element: <ProjectsPage /> },
+              { path: '/help', element: <HelpCentrePage /> },
+              { path: '/help/:slug', element: <HelpCentrePage /> },
+              { path: '/external-reviews', element: <ExternalReviewsPage /> },
               { path: '/teamwork-graph', element: <Suspense fallback={<Spinner label="Loading Teamwork Graph" />}><TeamworkGraphPage /></Suspense> },
               { path: '/projects/:projectId/issues', element: <ProjectIssuesPage /> },
               { path: '/products/:id', element: <ProductPage /> },

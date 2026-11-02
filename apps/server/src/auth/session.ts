@@ -18,6 +18,7 @@ export interface AuthContext {
   workspaceId: string;
   role: Role;
   isAdmin: boolean;
+  isDemo: boolean;
 }
 
 declare global {
@@ -39,9 +40,9 @@ function cookieOptions(expires: Date) {
   };
 }
 
-export async function startSession(trx: Db, req: Request, res: Response, userId: string, workspaceId: string) {
+export async function startSession(trx: Db, req: Request, res: Response, userId: string, workspaceId: string, expiresAt?: Date) {
   const { token, hash } = newToken();
-  const expires = new Date(Date.now() + config.SESSION_TTL_DAYS * DAY);
+  const expires = expiresAt ?? new Date(Date.now() + config.SESSION_TTL_DAYS * DAY);
   await trx
     .insertInto('sessions')
     .values({
@@ -78,17 +79,18 @@ export async function loadSession(req: Request, res: Response, next: NextFunctio
       .selectFrom('sessions as s')
       .innerJoin('users as u', 'u.id', 's.user_id')
       .leftJoin('memberships as m', (j) => j.onRef('m.user_id', '=', 's.user_id').onRef('m.workspace_id', '=', 's.workspace_id'))
-      .select(['s.id', 's.user_id', 's.workspace_id', 's.expires_at', 's.last_seen_at', 'u.name', 'u.email', 'u.is_admin', 'u.is_disabled', 'm.role'])
+      .leftJoin('demo_guests as d', 'd.user_id', 's.user_id')
+      .select(['s.id', 's.user_id', 's.workspace_id', 's.expires_at', 's.last_seen_at', 'u.name', 'u.email', 'u.is_admin', 'u.is_disabled', 'm.role', 'd.workspace_id as demo_workspace_id', 'd.expires_at as demo_expires_at'])
       .where('s.id', '=', id)
       .executeTakeFirst();
 
-    if (!row || row.expires_at.getTime() < Date.now() || row.is_disabled || !row.role) {
+    if (!row || row.expires_at.getTime() <= Date.now() || row.is_disabled || !row.role || (row.demo_expires_at && (row.demo_expires_at.getTime() <= Date.now() || row.demo_workspace_id !== row.workspace_id))) {
       if (row) await db.deleteFrom('sessions').where('id', '=', id).execute();
       res.clearCookie(SESSION_COOKIE, clearOptions);
       return next();
     }
 
-    if (Date.now() - row.last_seen_at.getTime() > SLIDE_EVERY) {
+    if (!row.demo_expires_at && Date.now() - row.last_seen_at.getTime() > SLIDE_EVERY) {
       const expires = new Date(Date.now() + config.SESSION_TTL_DAYS * DAY);
       await db.updateTable('sessions').set({ last_seen_at: new Date(), expires_at: expires }).where('id', '=', id).execute();
       res.cookie(SESSION_COOKIE, token, cookieOptions(expires));
@@ -101,7 +103,8 @@ export async function loadSession(req: Request, res: Response, next: NextFunctio
       email: row.email,
       workspaceId: row.workspace_id,
       role: row.role,
-      isAdmin: row.is_admin
+      isAdmin: row.is_admin,
+      isDemo: !!row.demo_expires_at
     };
     next();
   } catch (err) {

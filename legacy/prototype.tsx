@@ -848,7 +848,7 @@ export default function App() {
                 </div>
                 <div>
                   <span className="font-semibold text-sm tracking-tight block leading-none">
-                    Forma PDLC
+                    Solution Velocity
                   </span>
                   <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block mt-0.5">
                     Product Lifecycle

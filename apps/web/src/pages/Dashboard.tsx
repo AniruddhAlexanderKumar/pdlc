@@ -5,6 +5,7 @@ import { useDashboardLayout, useLoadSamples, useSession, useSaveDashboardLayout,
 import { useNewProduct, useVoiceDictation } from '../components/Layout';
 import { DashboardModelProvider } from '../components/dashboard/model';
 import { DashboardDensity } from '../components/dashboard/density';
+import { AssignedIssues } from '../components/dashboard/ProjectWidgets';
 import { WIDGET_COMPONENTS } from '../components/dashboard/widgets';
 import { Button, Card, Spinner, useConfirm } from '../components/ui';
 
@@ -26,7 +27,7 @@ function Onboarding() {
       </div>
       <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="border-b border-slate-100 px-6 py-6 dark:border-zinc-800"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400"><Boxes className="h-4 w-4" /> Product workspace</div><h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Start with your first product</h2><p className="mt-2 max-w-lg text-sm leading-6 text-slate-500 dark:text-zinc-400">Capture the idea, track materials and costs, and keep the next steps together as your product develops.</p><div className="mt-6 flex flex-wrap gap-2"><Button icon={<Plus className="h-4 w-4" />} onClick={openNew}>Create a product</Button><Button variant="secondary" icon={<Mic className="h-4 w-4" />} onClick={openVoice}>Use voice capture</Button></div></div>
+          <div className="border-b border-slate-100 px-6 py-6 dark:border-zinc-800"><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400"><Boxes className="h-4 w-4" /> Product workspace</div><h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Start with your first product</h2><p className="mt-2 max-w-lg text-sm leading-6 text-slate-500 dark:text-zinc-400">Capture the idea, track materials and costs, and keep the next steps together as your product develops.</p><div className="mt-6 flex flex-wrap gap-2"><Button icon={<Plus className="h-4 w-4" />} onClick={openNew}>Create a product</Button>{!me.demo && <Button variant="secondary" icon={<Mic className="h-4 w-4" />} onClick={openVoice}>Use voice capture</Button>}</div></div>
           <div className="grid divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-zinc-800">{PHASES.map((phase, i) => <div key={phase.id} className="p-5"><p className="text-[11px] font-semibold text-blue-700 dark:text-blue-400">0{i + 1} / {phase.label}</p><p className="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">{phase.blurb}</p></div>)}</div>
         </section>
         <div className="space-y-4"><Card className="p-6"><div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"><ClipboardList className="h-5 w-5" /></div><h2 className="mt-4 font-semibold text-slate-900 dark:text-white">Coordinate project work</h2><p className="mt-2 text-sm leading-6 text-slate-500 dark:text-zinc-400">Organize issues and follow the connections between work and people.</p><Link to="/projects" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-900 dark:text-blue-400">View projects <ArrowRight className="h-4 w-4" /></Link></Card>
@@ -47,6 +48,7 @@ const DESKTOP_SPAN: Record<DashboardSpan, string> = {
 
 export function DashboardPage() {
   const me = useSession();
+  const openNew = useNewProduct();
   const { data, isLoading, isError, refetch } = useWorkspaceData();
   const layoutQuery = useDashboardLayout();
   const save = useSaveDashboardLayout();
@@ -66,11 +68,14 @@ export function DashboardPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             {greeting()}, {me.user.name.split(' ')[0]}
           </h1>
+          <p className="text-xs font-medium capitalize text-zinc-500">{me.workspace.role} · {me.workspace.mode === 'solo' ? 'Personal workspace' : 'Team workspace'}</p>
           <p className="text-sm text-zinc-500">{preset ? PRESETS[preset].label : 'Custom layout'}{layout.isDefault ? ' · Suggested for your role' : ''} · {layout.updatedAt ? `Saved ${new Date(layout.updatedAt).toLocaleString()}` : 'Not saved yet'}</p>
         </div>
         <div className="flex flex-wrap gap-2"><Link to="/settings?section=dashboard" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 text-sm font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900"><Settings2 className="h-4 w-4" /> Choose layout</Link><Button variant="ghost" loading={save.isPending} onClick={async () => { if (await confirm({ title: 'Reset your dashboard?', body: 'Your personal layout will return to the default for your role. Shared data will not change.', confirmLabel: 'Reset layout' })) save.mutate({ preset: me.workspace.role === 'member' ? 'personal' : 'executive' }); }}>Reset layout</Button></div>
       </div>
 
+      <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><h2 className="text-sm font-semibold">Quick actions</h2><div className="mt-3 flex flex-wrap gap-2">{me.workspace.role !== 'member' && <Link to="/projects?create=1" className="inline-flex min-h-10 items-center rounded-md bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800">Create project</Link>}<Button variant="secondary" onClick={openNew}>Create product</Button><Link to="/projects" className="inline-flex min-h-10 items-center rounded-md border border-zinc-200 px-4 text-sm font-semibold dark:border-zinc-700">View project work</Link><Link to="/help" className="inline-flex min-h-10 items-center rounded-md border border-zinc-200 px-4 text-sm font-semibold dark:border-zinc-700">Get help</Link></div></section>
+      {layout.isDefault && !layout.items.some(item => item.widget === 'assigned-issues') && <AssignedIssues />}
       {layout.isDefault && <p className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">This dashboard is suggested for your role. Choose a template or arrange widgets in <Link className="font-semibold underline" to="/settings?section=dashboard">personalization settings</Link>.</p>}
       {data.products.length === 0 && <Onboarding />}
       <DashboardDensity.Provider value={layout.density ?? 'expanded'}><DashboardModelProvider products={data.products} materials={data.materials}>
