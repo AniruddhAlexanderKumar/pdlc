@@ -95,7 +95,7 @@ export function RequestAccessPage() {
                 Your request is with our team. We’ll review your product, team,
                 and goals and follow up at{" "}
                 <span className="font-medium text-[#17365e]">{form.email}</span>
-                .
+                {' '}within 24 hours of your request.
               </p>
               <Link
                 to="/"
@@ -116,6 +116,7 @@ export function RequestAccessPage() {
               <p className="mt-4 max-w-2xl text-sm leading-7 text-[#526b88] sm:text-base">
                 {'Tell us a little about your team and what you’re building. These details help us understand how Solution Velocity could fit your product workflow.'}
               </p>
+              <p className="mt-3 text-sm font-medium text-[#31577d]">We’ll get back to you within 24 hours of your request.</p>
 
               <form onSubmit={submit} className="mt-8 space-y-6">
                 <div className="grid gap-5 sm:grid-cols-2">

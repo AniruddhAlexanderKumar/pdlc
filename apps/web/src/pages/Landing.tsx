@@ -65,6 +65,7 @@ export function LandingPage() {
               <p className="mt-6 max-w-lg text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">An integrated Product Development Lifecycle Management workspace for product teams, bringing lifecycle planning, engineering project management, collaboration and practical intelligence together.</p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link to="/request-access" className="inline-flex min-h-12 items-center gap-3 rounded-md bg-[#164e82] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#103d69] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Get started <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+                <Link to="/try-demo" className="inline-flex min-h-12 items-center gap-2 rounded-md border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-700">Try demo <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
                 <a href="#platform" className="inline-flex min-h-12 items-center gap-2 rounded-md border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-700">Explore the platform <ArrowDown className="h-4 w-4" aria-hidden="true" /></a>
               </div>
               <p className="mt-7 text-xs font-medium text-slate-500">For teams taking a product from first idea through launch and improvement.</p>

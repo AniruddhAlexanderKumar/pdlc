@@ -343,7 +343,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
         <h1 className="text-2xl font-semibold tracking-tight">Sign up is invite-only</h1>
         <p className="mt-1.5 text-sm text-zinc-500">New workspaces cannot be created directly on this server.</p>
         <div className="mt-8 rounded-lg border border-zinc-200 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-          Sign-up is invite-only on this server. Ask your administrator for an invite link to join an existing workspace.
+          Sign-up is invite-only on this server. Ask your administrator for an invite link or <Link to="/request-access" className="font-semibold text-blue-700 underline dark:text-blue-400">request access</Link>.
         </div>
         <p className="mt-6 text-center text-sm text-zinc-500">
           Already have an account?{' '}
@@ -425,6 +425,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
           <h1 className="text-2xl font-semibold tracking-tight">
             {inviteToken ? 'Join workspace' : 'Create your account'}
           </h1>
+          {params.get('demo') === '1' && !inviteToken && <p className="mt-3 rounded-md border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">To try the demo, create your workspace and choose “Load sample workspace” at the final step.</p>}
           <p className="mt-1.5 text-sm text-zinc-500">
             {inviteToken
               ? 'Complete your profile details to join the workspace.'
@@ -591,7 +592,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
           {!inviteToken && (
             <p className="mt-6 text-center text-sm text-zinc-500">
               Already have an account?{' '}
-              <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
+              <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/login${next || params.get('demo') === '1' ? `?next=${encodeURIComponent(next || '/try-demo')}` : ''}`}>
                 Sign in
               </Link>
             </p>
