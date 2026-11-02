@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { CheckCircle2, ChevronLeft, ChevronRight, Layers3, ListChecks, SkipForward } from 'lucide-react';
 import { getStage, isAnswered, questionsForStage, STAGES, type AnswerValue, type Product, type Question, type StageId } from '@sv/shared';
@@ -105,7 +105,7 @@ function AnswerInput({ q, value, onChange, onSubmit, autoFocus }: { q: Question;
       );
     case 'choice':
     case 'multi': {
-      const selected = q.type === 'multi' ? ((value as string[]) ?? []) : [value as string];
+      const selected: string[] = q.type === 'multi' ? (Array.isArray(value) ? value : []) : typeof value === 'string' ? [value] : [];
       return (
         <div className="flex flex-wrap gap-2">
           {q.options?.map((o) => {
@@ -152,13 +152,17 @@ function Deck({ product, questions, stage, onDone }: { product: Product; questio
   const [i, setI] = useState(firstOpen);
   const q = questions[i];
   const [draft, setDraft] = useState<AnswerValue>(q ? (product.answers[q.key] ?? null) : null);
+  const [draftKey, setDraftKey] = useState<string | undefined>(q?.key);
   const [finished, setFinished] = useState(false);
 
-  useEffect(() => {
-    if (q) setDraft(product.answers[q.key] ?? null);
-    // Only reset the draft when moving to another question.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q?.key]);
+  // Reset the draft while rendering, not in an effect, when moving to another
+  // question. An effect runs after the commit, so the next question's input
+  // would render once still holding the previous answer -- a 1-5 scale number
+  // arriving at a multi-choice question crashed on selected.includes().
+  if (q && q.key !== draftKey) {
+    setDraftKey(q.key);
+    setDraft(product.answers[q.key] ?? null);
+  }
 
   const answeredCount = questions.filter((x) => isAnswered(product.answers[x.key])).length;
 
