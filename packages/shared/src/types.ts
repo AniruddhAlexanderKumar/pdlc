@@ -25,6 +25,7 @@ export interface Me {
   user: User;
   workspace: Workspace;
   workspaces: Workspace[];
+  demo?: { expiresAt: string };
 }
 
 export interface ProductCosts {
@@ -218,10 +219,12 @@ export interface AdminProduct {
   updatedAt: string;
 }
 
-export type AccessRequestStatus = 'pending' | 'reviewing' | 'approved' | 'declined';
+export type AccessRequestStatus = 'pending' | 'reviewing' | 'needs_info' | 'approved' | 'declined';
 
 export const ACCESS_REQUEST_ROLES = [
   'Founder / business owner',
+  'Engineering leader',
+  'R&D leader',
   'Product manager',
   'Designer',
   'Engineer',
@@ -231,6 +234,7 @@ export const ACCESS_REQUEST_ROLES = [
 
 export const ACCESS_REQUEST_INDUSTRIES = [
   'Aerospace & defense',
+  'Hardware & robotics',
   'Automotive & mobility',
   'Medical devices',
   'Energy & infrastructure',
@@ -240,7 +244,7 @@ export const ACCESS_REQUEST_INDUSTRIES = [
   'Other'
 ] as const;
 
-export const ACCESS_REQUEST_TEAM_SIZES = ['Just me', '2–5', '6–20', '21–50', '51+'] as const;
+export const ACCESS_REQUEST_TEAM_SIZES = ['Just me', '2–5', '6–20', '21–50', '51–199', '200+', '51+'] as const;
 
 export const ACCESS_REQUEST_STAGES = [
   'Idea',
@@ -253,15 +257,22 @@ export const ACCESS_REQUEST_STAGES = [
   'Improvement'
 ] as const;
 
+export interface EducationRequestDetails { educationalLevel: string; teacherCount: number | null; programmes: string; campuses: number | null; specialRequirements: string; }
 export interface AdminAccessRequest {
+  educationDetails: EducationRequestDetails | null;
+  educationPricingSnapshot: import('./education-pricing.js').EducationPricingQuote | null;
+  proposedEducationPricingSnapshot: import('./education-pricing.js').EducationPricingQuote | null;
+  country: string | null;
+  pricingSnapshot: import('./pricing.js').PricingQuote | null;
+  proposedPricingSnapshot: import('./pricing.js').PricingQuote | null;
   id: string;
   name: string;
   email: string;
   organization: string;
   role: string;
   industry: string;
-  teamSize: string;
-  productStage: string;
+  teamSize: string | null;
+  productStage: string | null;
   currentTools: string;
   goals: string;
   status: AccessRequestStatus;

@@ -39,6 +39,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-xp-pop, .animate-rise, .burst-piece { animation-duration: 0.01s; }
+  .landing *, .landing *::before, .landing *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 
 .graph-workspace { --graph-node-bg: #fff; --graph-text: #18181b; }

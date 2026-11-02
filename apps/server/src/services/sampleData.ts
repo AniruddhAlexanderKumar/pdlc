@@ -150,7 +150,7 @@ function daysFromNow(days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-export async function loadSampleData(trx: Db, workspaceId: string, userId: string) {
+export async function loadSampleData(trx: Db, workspaceId: string, userId: string, options: { omitExternalImages?: boolean } = {}) {
   const supplierIds = new Map<string, string>();
   for (const s of SUPPLIERS) {
     const row = await trx
@@ -183,7 +183,7 @@ export async function loadSampleData(trx: Db, workspaceId: string, userId: strin
         name: p.name,
         category: p.category,
         stage: p.stage,
-        image_url: p.imageUrl,
+        image_url: options.omitExternalImages ? '' : p.imageUrl,
         description: p.description,
         notes: p.notes,
         target_price: p.price,

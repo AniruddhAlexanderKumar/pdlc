@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /analytics
+Disallow: /settings
+Disallow: /products
+Disallow: /projects
+Disallow: /materials
+Disallow: /suppliers
+Disallow: /teamwork-graph
+Disallow: /achievements
+Disallow: /join/
+Disallow: /reset/
+Sitemap: https://pdlc.dalvigroup.co.in/sitemap.xml

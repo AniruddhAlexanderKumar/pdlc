@@ -64,7 +64,7 @@ workspaceRouter.post(
       await trx.selectFrom('workspaces').select('id').where('id', '=', a.workspaceId).forUpdate().executeTakeFirst();
       const { n } = await trx.selectFrom('products').select(sql<number>`count(*)::int`.as('n')).where('workspace_id', '=', a.workspaceId).executeTakeFirstOrThrow();
       if (n > 0) throw conflict('Sample data can only be added to an empty workspace');
-      await loadSampleData(trx, a.workspaceId, a.userId);
+      await loadSampleData(trx, a.workspaceId, a.userId, { omitExternalImages: a.isDemo });
     });
     res.status(201).json(await loadWorkspaceData(db, a.workspaceId));
   })

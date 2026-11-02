@@ -36,7 +36,7 @@ function Shell({ children, wide = false }: { children: ReactNode; wide?: boolean
     <div className="grid min-h-full bg-white lg:grid-cols-2 dark:bg-zinc-950">
       <div className="flex flex-col justify-center px-4 py-10 sm:px-12">
         <div className={`mx-auto w-full transition-all duration-200 ${wide ? 'max-w-lg' : 'max-w-sm'}`}>
-          <Logo className="mb-8" />
+          <Link to="/" aria-label="Solution Velocity home" className="inline-block focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"><Logo className="mb-8" /></Link>
           {children}
         </div>
       </div>
@@ -46,9 +46,9 @@ function Shell({ children, wide = false }: { children: ReactNode; wide?: boolean
           <h2 className="text-3xl font-semibold leading-tight tracking-tight">Bring your product work into focus.</h2>
           <div className="mt-10 space-y-6">
             {[
-              { icon: Lightbulb, title: 'Tell us', body: 'Capture the idea, customer and questions that shape your product.' },
-              { icon: LineChart, title: 'Track it', body: 'See exactly where your money goes and how much you keep on every sale.' },
-              { icon: Rocket, title: 'Improve it', body: 'Review suggestions and identify the next useful step.' }
+              { icon: Lightbulb, title: 'Capture context', body: 'Bring product ideas and lifecycle details into one workspace.' },
+              { icon: LineChart, title: 'Coordinate work', body: 'Keep product records, project issues and their dependencies in view.' },
+              { icon: Rocket, title: 'Move forward', body: 'Review product progress and identify the next useful step.' }
             ].map((s, i) => (
               <div key={s.title} className="flex gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10">
@@ -207,7 +207,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
   const cfg = useQuery({
     queryKey: ['auth-config'],
     queryFn: () => get<{ allowSignup: boolean }>('/auth/config'),
-    enabled: mode === 'register' && !inviteToken
+    enabled: !inviteToken
   });
 
   const loginMutation = useMutation({
@@ -335,7 +335,10 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
   };
 
   const next = params.get('next');
-  const signupClosed = mode === 'register' && !inviteToken && cfg.data && !cfg.data.allowSignup;
+  const signupClosed = mode === 'register' && step !== 3 && !inviteToken && cfg.data && !cfg.data.allowSignup;
+
+  if (mode === 'register' && step !== 3 && !inviteToken && cfg.isLoading) return <Spinner label="Checking sign-up availability" />;
+  if (mode === 'register' && step !== 3 && !inviteToken && cfg.isError) return <div><h1 className="text-2xl font-semibold">Unable to check sign-up</h1><p role="alert" className="mt-3 text-sm text-zinc-500">We couldn’t check whether account creation is available.</p><div className="mt-5 flex flex-wrap gap-3"><Button variant="secondary" onClick={() => void cfg.refetch()}>Try again</Button><Link to="/request-access" className="py-2 text-sm font-semibold text-blue-700">Request access</Link><Link to="/login" className="py-2 text-sm font-semibold text-blue-700">Sign in</Link></div></div>;
 
   if (signupClosed) {
     return (
@@ -406,9 +409,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
 
         <p className="mt-6 text-center text-sm text-zinc-500">
           New here?{' '}
-          <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
-            Create an account
-          </Link>
+          {cfg.data?.allowSignup ? <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`}>Create an account</Link> : <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to="/request-access">Request access</Link>}
         </p>
         <p className="mt-3 text-center text-xs text-zinc-400">Forgot your password? Ask a workspace admin for a reset link.</p>
       </>

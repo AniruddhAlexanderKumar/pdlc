@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
+import { BarChart3, BookOpen, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
 import { DEFAULT_APP_LAYOUT, type Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
@@ -10,6 +10,7 @@ import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
 import { LevelUpWatcher } from './Celebrate';
 import { NewProductModal } from './NewProductModal';
+import { QuickActions } from './QuickActions';
 import { VoiceDictationModal } from './VoiceDictationModal';
 import { useToast } from './Toast';
 import { Button, cx, IconButton, ProgressBar } from './ui';
@@ -22,8 +23,9 @@ export const useVoiceDictation = () => useContext(VoiceDictationCtx);
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
-  { to: '/products', label: 'Products', icon: Package },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/help', label: 'Help', icon: BookOpen },
+  { to: '/products', label: 'Products', icon: Package },
   { to: '/teamwork-graph', label: 'Teamwork Graph', icon: Network },
   { to: '/materials', label: 'Materials', icon: Layers },
   { to: '/suppliers', label: 'Suppliers', icon: Truck },
@@ -197,7 +199,7 @@ function DesktopTopNavigation({ style, onNew, onVoice }: { style: 'tabs' | 'menu
         <Logo />
         <div className="ml-auto flex items-center gap-2">
           <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onNew}>{'New product'}</Button>
-          <IconButton label="Voice capture" onClick={onVoice}><Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" /></IconButton>
+          {!me.demo && <IconButton label="Voice capture" onClick={onVoice}><Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" /></IconButton>}
           <WorkspaceMenu compact placement="below" />
         </div>
       </div>
@@ -206,6 +208,12 @@ function DesktopTopNavigation({ style, onNew, onVoice }: { style: 'tabs' | 'menu
       </nav>}
     </header>
   );
+}
+
+function DemoNotice({ expiresAt }: { expiresAt: string }) {
+  const toast = useToast();
+  const exit = useMutation({ mutationFn: () => post('/auth/logout'), onSuccess: () => { window.location.assign('/'); }, onError: (error: Error) => toast.error(error.message) });
+  return <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100" role="status"><p><strong>Temporary demo.</strong> Changes stay here and expire at {new Date(expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Don’t enter sensitive information; system administrators retain access. Voice and AI features are unavailable in the demo.</p><Button size="sm" variant="secondary" loading={exit.isPending} onClick={() => exit.mutate()}>Exit demo</Button></div>;
 }
 
 export function Layout() {
@@ -237,7 +245,7 @@ export function Layout() {
               <Button className="w-full" aria-label="New product" title={compact ? 'New product' : undefined} icon={<Plus className="h-4 w-4" />} onClick={() => setNewOpen(true)}>
                 {!compact && 'New product'}
               </Button>
-              <Button
+              {!me.demo && <Button
                 variant="secondary"
                 aria-label="Voice capture"
                 title={compact ? 'Voice capture' : undefined}
@@ -246,7 +254,7 @@ export function Layout() {
                 onClick={() => setVoiceOpen(true)}
               >
                 {!compact && 'Voice capture'}
-              </Button>
+              </Button>}
             </div>
           <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Main">
             {!compact && <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p>}
@@ -260,7 +268,7 @@ export function Layout() {
                 <span className={compact ? 'sr-only' : undefined}>{'Admin Console'}</span>
               </NavLink>
             )}
-            {NAV.map((n) => (
+            {NAV.filter(n => compact || !['/materials','/suppliers','/achievements'].includes(n.to)).map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
@@ -287,6 +295,7 @@ export function Layout() {
                 )}
               </NavLink>
             ))}
+            {!compact && <details className="mt-1"><summary className="cursor-pointer rounded-md px-3 py-2 text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">More tools</summary><div className="ml-3 border-l border-zinc-200 pl-2 dark:border-zinc-700">{NAV.filter(n=>['/materials','/suppliers','/achievements'].includes(n.to)).map(n=><NavLink key={n.to} to={n.to} className={({isActive})=>cx('flex items-center gap-2 rounded-md px-3 py-2 text-sm',isActive?'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300':'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" />{n.label}</NavLink>)}</div></details>}
             <NavLink
               to="/settings"
               title={compact ? 'Settings' : undefined}
@@ -313,9 +322,9 @@ export function Layout() {
             <IconButton label="Toggle theme" onClick={toggle}>
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </IconButton>
-            <IconButton label="Voice capture" onClick={() => setVoiceOpen(true)}>
+            {!me.demo && <IconButton label="Voice capture" onClick={() => setVoiceOpen(true)}>
               <Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </IconButton>
+            </IconButton>}
             <NavLink to="/settings" className="rounded-lg p-1.5 text-zinc-500" aria-label="Settings">
               <Settings className="h-4 w-4" />
             </NavLink>
@@ -326,6 +335,7 @@ export function Layout() {
         </header>
 
         <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#f6f8fa] pb-20 md:pb-0 dark:bg-zinc-950">
+          {me.demo && <DemoNotice expiresAt={me.demo.expiresAt} />}
           <div className={cx('h-full min-h-full', layout.contentWidth === 'constrained' && 'mx-auto w-full max-w-7xl')}><Outlet /></div>
         </main>
 
@@ -349,6 +359,7 @@ export function Layout() {
           ))}
         </nav>
       </div>
+      <QuickActions onNew={() => setNewOpen(true)} />
       {newOpen && <NewProductModal onClose={() => setNewOpen(false)} />}
       {voiceOpen && <VoiceDictationModal onClose={() => setVoiceOpen(false)} />}
       <LevelUpWatcher />

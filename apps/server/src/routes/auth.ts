@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import { rateLimit } from 'express-rate-limit';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -9,6 +10,7 @@ import { getDummyHash, hashPassword, hashToken, verifyPassword } from '../auth/c
 import { auth, endSession, requireAuth, startSession } from '../auth/session.js';
 import { HttpError, badRequest, conflict, forbidden, parse, route, shortText, unauthorized } from '../lib/http.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
+import { loadSampleData } from '../services/sampleData.js';
 
 export const authRouter = Router();
 
@@ -49,6 +51,7 @@ export async function loadMe(trx: Db, userId: string, workspaceId: string): Prom
     .orderBy('w.created_at')
     .execute();
   const workspaces: Workspace[] = rows.map((r) => ({ id: r.id, name: r.name, currency: r.currency as CurrencyCode, mode: r.mode, role: r.role }));
+  const demo = await trx.selectFrom('demo_guests').select('expires_at').where('user_id', '=', userId).executeTakeFirst();
   const workspace = workspaces.find((w) => w.id === workspaceId) || workspaces[0];
   if (!workspace) throw unauthorized();
   return {
@@ -60,7 +63,8 @@ export async function loadMe(trx: Db, userId: string, workspaceId: string): Prom
       isAdmin: user.is_admin
     },
     workspace,
-    workspaces
+    workspaces,
+    ...(demo ? { demo: { expiresAt: demo.expires_at.toISOString() } } : {})
   };
 }
 
@@ -93,11 +97,36 @@ async function consumeInvite(trx: Db, inviteId: string, userId: string) {
 authRouter.get(
   '/config',
   route(async (_req, res) => {
-    const { count } = await db.selectFrom('users').select(sql<number>`count(*)`.as('count')).executeTakeFirstOrThrow();
+    const { count } = await db.selectFrom('users').select(sql<number>`count(*)`.as('count')).where('id', 'not in', db.selectFrom('demo_guests').select('user_id')).executeTakeFirstOrThrow();
     // The very first account can always be created, so a fresh install is never locked out.
     res.json({ allowSignup: config.ALLOW_SIGNUP || count === 0 });
   })
 );
+
+// Each visitor gets an isolated, fixed lifetime workspace. Never replace a real session.
+const demoLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: config.NODE_ENV === 'test' ? 1000 : 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many demo sessions. Please try again later.' } });
+authRouter.post('/demo', demoLimiter, route(async (req, res) => {
+  if (req.auth) {
+    if (!req.auth.isDemo) throw conflict('You are already signed in. Sign out before starting a guest demo.');
+    res.json(await loadMe(db, req.auth.userId, req.auth.workspaceId));
+    return;
+  }
+  const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const me = await db.transaction().execute(async (trx) => {
+    // Serialize the capacity check across application replicas.
+    await sql`SELECT pg_advisory_xact_lock(78642391)`.execute(trx);
+    const { count } = await trx.selectFrom('demo_guests').select(sql<number>`count(*)`.as('count')).where('expires_at', '>', new Date()).executeTakeFirstOrThrow();
+    if (count >= 200) throw new HttpError(503, 'Demo capacity is currently full. Please try again later.', 'demo_capacity');
+    const user = await trx.insertInto('users').values({ email: `demo-${randomUUID()}@example.invalid`, name: 'Demo guest', password_hash: '!', last_login_at: new Date() }).returning('id').executeTakeFirstOrThrow();
+    const ws = await trx.insertInto('workspaces').values({ name: 'Sample workspace', currency: 'USD', mode: 'solo' }).returning('id').executeTakeFirstOrThrow();
+    await trx.insertInto('memberships').values({ workspace_id: ws.id, user_id: user.id, role: 'owner' }).execute();
+    await trx.insertInto('demo_guests').values({ user_id: user.id, workspace_id: ws.id, expires_at: expiresAt }).execute();
+    await loadSampleData(trx, ws.id, user.id, { omitExternalImages: true });
+    await startSession(trx, req, res, user.id, ws.id, expiresAt);
+    return loadMe(trx, user.id, ws.id);
+  });
+  res.status(201).json(me);
+}));
 
 authRouter.post(
   '/register',
@@ -122,7 +151,7 @@ authRouter.post(
 
       const invite = body.inviteToken ? await findInvite(trx, body.inviteToken) : null;
       if (!invite) {
-        const { count } = await trx.selectFrom('users').select(sql<number>`count(*)`.as('count')).executeTakeFirstOrThrow();
+        const { count } = await trx.selectFrom('users').select(sql<number>`count(*)`.as('count')).where('id', 'not in', trx.selectFrom('demo_guests').select('user_id')).executeTakeFirstOrThrow();
         if (!config.ALLOW_SIGNUP && count > 0) throw forbidden('Sign-up is invite-only. Ask an admin for an invite link.');
       }
 

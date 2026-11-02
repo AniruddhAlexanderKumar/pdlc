@@ -367,7 +367,8 @@ productsRouter.get(
   route(async (req, res) => {
     const a = auth(req);
     const id = parse(uuid, param(req, 'id'));
-    res.json(await insightsFor(await insightInput(db, a.workspaceId, id)));
+    const input = await insightInput(db, a.workspaceId, id);
+    res.json(a.isDemo ? rulesFor(input) : await insightsFor(input));
   })
 );
 

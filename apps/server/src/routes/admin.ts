@@ -1,3 +1,5 @@
+import { calculatePricing, calculateEducationPricing } from '@sv/shared';
+import { pricingSelection, educationPricingSelection } from '../lib/pricing.js';
 import { Router } from 'express';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -30,7 +32,7 @@ const emailSchema = z
   .pipe(z.email('Enter a valid email address'));
 
 const stageIds = STAGES.map((s) => s.id) as [StageId, ...StageId[]];
-const accessRequestStatuses = ['pending', 'reviewing', 'approved', 'declined'] as const;
+const accessRequestStatuses = ['pending', 'reviewing', 'needs_info', 'approved', 'declined'] as const;
 
 // ── Overview Stats ─────────────────────────────────────────────────────────
 
@@ -115,6 +117,12 @@ adminRouter.get(
         'role',
         'industry',
         'team_size',
+        'country',
+        'pricing_snapshot',
+        'proposed_pricing_snapshot',
+        'education_details',
+        'education_pricing_snapshot',
+        'proposed_education_pricing_snapshot',
         'product_stage',
         'current_tools',
         'goals',
@@ -134,6 +142,12 @@ adminRouter.get(
       role: row.role,
       industry: row.industry,
       teamSize: row.team_size,
+      country: row.country,
+      pricingSnapshot: row.pricing_snapshot,
+      proposedPricingSnapshot: row.proposed_pricing_snapshot,
+      educationDetails: row.education_details,
+      educationPricingSnapshot: row.education_pricing_snapshot,
+      proposedEducationPricingSnapshot: row.proposed_education_pricing_snapshot,
       productStage: row.product_stage,
       currentTools: row.current_tools,
       goals: row.goals,
@@ -154,23 +168,32 @@ adminRouter.patch(
     const body = parse(
       z.object({
         status: z.enum(accessRequestStatuses),
-        reviewNote: shortText(1000).optional()
+        reviewNote: shortText(1000).optional(),
+        pricing: pricingSelection.optional(),
+        educationPricing: educationPricingSelection.optional()
       }),
       req.body
     );
 
-    const updated = await db
-      .updateTable('access_requests')
-      .set({
+    const updated = await db.transaction().execute(async trx => {
+      const previous = await trx.selectFrom('access_requests').select(['status', 'education_pricing_snapshot']).where('id', '=', requestId).forUpdate().executeTakeFirst();
+      if (!previous) return undefined;
+      if (body.pricing && previous.education_pricing_snapshot) throw badRequest('Use education pricing for an education request');
+      if (body.educationPricing && !previous.education_pricing_snapshot) throw badRequest('Use commercial pricing for a commercial request');
+      if (body.pricing && body.educationPricing) throw badRequest('Choose only one pricing category');
+      const eduSnapshot = body.educationPricing ? calculateEducationPricing(body.educationPricing.plan,body.educationPricing.students,body.educationPricing.billing) : null;
+      const snapshot = body.pricing ? calculatePricing(body.pricing.plan, body.pricing.editors, body.pricing.billing) : null;
+      const row = await trx.updateTable('access_requests').set({
         status: body.status,
         ...(body.reviewNote !== undefined ? { review_note: body.reviewNote } : {}),
+        ...(snapshot ? { proposed_pricing_snapshot: JSON.stringify(snapshot) } : {}),
+        ...(eduSnapshot ? { proposed_education_pricing_snapshot: JSON.stringify(eduSnapshot) } : {}),
         reviewed_by: auth(req).userId,
-        reviewed_at: new Date(),
-        updated_at: new Date()
-      })
-      .where('id', '=', requestId)
-      .returning(['id', 'status', 'review_note', 'reviewed_at'])
-      .executeTakeFirst();
+        reviewed_at: new Date(), updated_at: new Date()
+      }).where('id', '=', requestId).returning(['id', 'status', 'review_note', 'reviewed_at']).executeTakeFirstOrThrow();
+      await trx.insertInto('access_request_events').values({request_id:requestId,actor_id:auth(req).userId,old_status:previous.status,new_status:body.status,proposal_snapshot:snapshot || eduSnapshot ? JSON.stringify(snapshot ?? eduSnapshot) : null}).execute();
+      return row;
+    });
 
     if (!updated) throw notFound('Access request');
     res.json({

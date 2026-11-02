@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { X } from 'lucide-react';
 import type { GraphAnswer, GraphNode } from '@sv/shared';
 import { get, post } from '../api/client';
+import { useSession } from '../api/hooks';
 import { Button, Input, Textarea } from './ui';
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 
 /** Search is database-backed. The assistant classifies requests, but results are calculated on the server. */
 export function GraphExplorer({projectId, selectedIssueId, onIssue, onProject, onNode}: Props) {
+  const { demo } = useSession();
   const [tab, setTab] = useState<'search' | 'assistant' | null>(null);
   const [text, setText] = useState(''); const [debounced, setDebounced] = useState(''); const [question, setQuestion] = useState('');
   useEffect(() => { const timer = window.setTimeout(() => setDebounced(text.trim()), 300); return () => window.clearTimeout(timer); }, [text]);
@@ -25,7 +27,7 @@ export function GraphExplorer({projectId, selectedIssueId, onIssue, onProject, o
   const submit = (e: FormEvent) => { e.preventDefault(); if (question.trim()) ask.mutate(question.trim()); };
   return <div className="relative flex gap-2">
     <button type="button" aria-expanded={tab === 'search'} onClick={() => setTab(tab === 'search' ? null : 'search')} className="rounded-md border border-blue-200 px-2 py-2 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:text-blue-300">Search workspace</button>
-    <button type="button" aria-expanded={tab === 'assistant'} onClick={() => setTab(tab === 'assistant' ? null : 'assistant')} className="rounded-md border border-blue-200 px-2 py-2 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:text-blue-300">Ask graph</button>
+    {!demo && <button type="button" aria-expanded={tab === 'assistant'} onClick={() => setTab(tab === 'assistant' ? null : 'assistant')} className="rounded-md border border-blue-200 px-2 py-2 text-xs font-semibold text-blue-700 dark:border-blue-900 dark:text-blue-300">Ask graph</button>}
     {tab && <section className="absolute left-0 top-full z-40 mt-2 max-h-[70vh] w-[min(92vw,420px)] overflow-auto rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-700 dark:bg-zinc-900" aria-label={tab === 'search' ? 'Workspace graph search' : 'Graph assistant'}>
       <div className="mb-3 flex justify-between"><h2 className="text-sm font-semibold">{tab === 'search' ? 'Find a record' : 'Ask the graph'}</h2><button aria-label="Close panel" onClick={() => setTab(null)}><X className="h-4 w-4" aria-hidden="true" /></button></div>
       {tab === 'search' ? <><Input autoFocus aria-label="Find workspace records" placeholder="Name, issue key or ID" value={text} onChange={e => setText(e.target.value)} /><p className="mt-2 text-xs text-zinc-500">Searches {projectId ? 'this project' : 'the workspace'}, including records outside the current canvas.</p>

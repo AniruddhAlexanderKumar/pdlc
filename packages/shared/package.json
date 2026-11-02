@@ -7,7 +7,7 @@
   "types": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/dashboard.test.ts src/domain.test.ts src/projects.test.ts src/teamworkGraph.test.ts"
+    "test": "node --import tsx --test src/dashboard.test.ts src/domain.test.ts src/projects.test.ts src/teamworkGraph.test.ts src/pricing.test.ts src/education-pricing.test.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
