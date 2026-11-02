@@ -13,7 +13,7 @@
 | Request review | Admin dashboard Access Requests tab; statuses pending/reviewing/approved/declined and internal note; approval is not account provisioning |
 | Registration/sign-in | `/signup`, `/register`, `/login`; workspace creation or invite-based join; password hashing, rate limits, failed-login lockout |
 | Invites | Admin creates expiring one-time invite links; join/register consumes invite and assigns workspace membership |
-| Password reset | Token inspection and redemption routes; workspace admins can generate member reset links |
+| Password reset | Token inspection and redemption routes; workspace admins can email member reset links when SMTP is configured |
 | Session/profile | Server-side session lifecycle, workspace switching, profile update, password change, sign-out |
 
 ## PDLC workspace

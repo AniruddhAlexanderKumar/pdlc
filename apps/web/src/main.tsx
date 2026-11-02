@@ -13,6 +13,8 @@ import { Button, ConfirmProvider, Spinner } from './components/ui';
 import { AchievementsPage } from './pages/Achievements';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AuthPage, JoinPage, ResetPage } from './pages/auth/Auth';
+const AssistantPage = lazy(() => import('./pages/Assistant').then(m => ({ default: m.AssistantPage })));
+import { AssistantAdminPage } from './pages/admin/AssistantAdmin';
 import { DashboardPage } from './pages/Dashboard';
 import { LandingPage } from './pages/Landing';
 import { MaterialsPage } from './pages/Materials';
@@ -151,11 +153,12 @@ const router = createBrowserRouter([
         children: [
           { path: '/login', element: <AuthPage mode="login" /> },
           { path: '/signup', element: <AuthPage mode="register" /> },
-          { path: '/register', element: <AuthPage mode="register" /> },
-          { path: '/reset/:token', element: <ResetPage /> }
+          { path: '/register', element: <AuthPage mode="register" /> }
         ]
       },
       { path: '/join/:token', element: <JoinPage /> },
+      { path: '/reset', element: <ResetPage /> },
+      { path: '/reset/:token', element: <ResetPage /> },
       { path: '/request-access', element: <RequestAccessPage /> },
       { path: '/review', element: <ReviewRoute /> },
       { path: '/contact', element: <Navigate to="/request-access" replace /> },
@@ -166,6 +169,7 @@ const router = createBrowserRouter([
         children: [
           { path: '/admin', element: <AdminDashboard /> },
           { path: '/admin/help', element: <HelpAdminPage /> },
+          { path: '/admin/assistant', element: <AssistantAdminPage /> },
           { path: '/analytics', element: <AdminDashboard /> }
         ]
       },
@@ -178,6 +182,7 @@ const router = createBrowserRouter([
               { path: '/', element: <DashboardPage /> },
               { path: '/products', element: <ProductsPage /> },
               { path: '/projects', element: <ProjectsPage /> },
+              { path: '/assistant', element: <Suspense fallback={<Spinner label="Loading AI Assistant" />}><AssistantPage /></Suspense> },
               { path: '/help', element: <HelpCentrePage /> },
               { path: '/help/:slug', element: <HelpCentrePage /> },
               { path: '/external-reviews', element: <ExternalReviewsPage /> },

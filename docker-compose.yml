@@ -36,7 +36,18 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-1}
       SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      RESET_SMTP_HOST: ${RESET_SMTP_HOST:-}
+      RESET_SMTP_FROM: ${RESET_SMTP_FROM:-}
+      RESET_SMTP_PORT: ${RESET_SMTP_PORT:-587}
+      RESET_SMTP_SECURE: ${RESET_SMTP_SECURE:-false}
+      RESET_SMTP_USER: ${RESET_SMTP_USER:-}
+      RESET_SMTP_PASSWORD: ${RESET_SMTP_PASSWORD:-}
       INSIGHTS_PROVIDER: ${INSIGHTS_PROVIDER:-rules}
+      ASSISTANT_AI_ENABLED: ${ASSISTANT_AI_ENABLED:-false}
+      ASSISTANT_PROVIDERS: ${ASSISTANT_PROVIDERS:-}
+      AI_BASE_URL: ${AI_BASE_URL:-http://127.0.0.1:8091/v1}
+      AI_MODEL: ${AI_MODEL:-qwen2.5-14b-instruct}
+      AI_API_KEY: ${AI_API_KEY:-}
     ports:
       # Bound to localhost: expose it publicly only through your reverse proxy.
       - '127.0.0.1:4000:4000'

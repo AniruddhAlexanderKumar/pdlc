@@ -26,6 +26,7 @@ import { graphIntelligenceRouter } from './routes/graph-intelligence.js';
 import { voiceRouter } from './routes/voice.js';
 import { reviewerRouter, reviewManagementRouter } from './routes/external-reviews.js';
 import { helpRouter, helpAdminRouter } from './routes/help.js';
+import { assistantRouter, assistantAdminRouter } from './routes/assistant.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
 
 export function createApp() {
@@ -107,6 +108,8 @@ export function createApp() {
   api.use('/access-requests', accessRequestsRouter);
   api.use('/reviewer', reviewerRouter);
   api.use('/external-reviews', requireAuth, reviewManagementRouter);
+  api.use('/assistant', requireAuth, assistantRouter);
+  api.use('/assistant-admin', requireAuth, assistantAdminRouter);
   api.use('/help', requireAuth, helpRouter);
   api.use('/help-admin', requireAuth, helpAdminRouter);
   api.use('/analytics', analyticsRouter);
@@ -140,7 +143,7 @@ export function createApp() {
       res.setHeader('Cache-Control', 'no-cache');
       const pagePath = req.path.replace(/\/+$/, '') || '/';
       if (pagePath !== '/' && pagePath !== '/request-access') res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-      if (pagePath === '/review') res.setHeader('Referrer-Policy', 'no-referrer');
+      if (pagePath === '/review' || /^\/reset(?:\/|$)/.test(pagePath)) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('Cache-Control', 'no-store'); }
       const accessPage = path.join(webDist, 'request-access.html');
       res.sendFile(pagePath === '/request-access' && existsSync(accessPage) ? accessPage : path.join(webDist, 'index.html'));
     });

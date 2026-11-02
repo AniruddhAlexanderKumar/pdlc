@@ -332,6 +332,7 @@ authRouter.post(
     if (!(await verifyPassword(body.currentPassword, user.password_hash))) throw badRequest('Current password is incorrect');
     await db.transaction().execute(async (trx) => {
       await trx.updateTable('users').set({ password_hash: await hashPassword(body.newPassword) }).where('id', '=', a.userId).execute();
+      await trx.updateTable('password_resets').set({ used_at: new Date() }).where('user_id', '=', a.userId).where('used_at', 'is', null).execute();
       // Sign out every other device.
       await trx.deleteFrom('sessions').where('user_id', '=', a.userId).where('id', '!=', a.sessionId).execute();
     });
@@ -374,22 +375,21 @@ authRouter.post(
   })
 );
 
-authRouter.get(
-  '/reset/:token',
-  strictLimiter,
-  route(async (req, res) => {
-    const row = await db
-      .selectFrom('password_resets as r')
-      .innerJoin('users as u', 'u.id', 'r.user_id')
-      .select(['u.email', 'r.expires_at', 'r.used_at'])
-      .where('r.token_hash', '=', hashToken(String(req.params.token)))
-      .executeTakeFirst();
-    if (!row || row.used_at || row.expires_at.getTime() < Date.now()) {
-      throw new HttpError(410, 'This reset link is invalid or has expired.', 'reset_invalid');
-    }
-    res.json({ email: row.email });
-  })
-);
+async function resetInfo(token: string) {
+  const row = await db.selectFrom('password_resets as r').innerJoin('users as u', 'u.id', 'r.user_id')
+    .select(['u.email', 'u.is_disabled', 'r.expires_at', 'r.used_at'])
+    .where('r.token_hash', '=', hashToken(token)).executeTakeFirst();
+  if (!row || row.is_disabled || row.used_at || row.expires_at.getTime() <= Date.now()) throw new HttpError(410, 'This reset link is invalid or has expired.', 'reset_invalid');
+  return { email: row.email };
+}
+// POST keeps new reset tokens out of URLs and proxy logs. GET remains for older clients.
+authRouter.post('/reset/validate', strictLimiter, route(async (req, res) => {
+  const { token } = parse(z.object({ token: z.string().min(1).max(200) }).strict(), req.body);
+  res.set('Cache-Control', 'no-store').json(await resetInfo(token));
+}));
+authRouter.get('/reset/:token', strictLimiter, route(async (req, res) => {
+  res.set('Cache-Control', 'no-store').json(await resetInfo(String(req.params.token)));
+}));
 
 authRouter.post(
   '/reset',
@@ -397,6 +397,10 @@ authRouter.post(
   route(async (req, res) => {
     const body = parse(z.object({ token: z.string().min(1).max(200), newPassword: password }), req.body);
     const me = await db.transaction().execute(async (trx) => {
+      const candidate = await trx.selectFrom('password_resets').select('user_id').where('token_hash', '=', hashToken(body.token)).executeTakeFirst();
+      if (!candidate) throw new HttpError(410, 'This reset link is invalid or has expired.', 'reset_invalid');
+      const user = await trx.selectFrom('users').select('id').where('id', '=', candidate.user_id).where('is_disabled', '=', false).forUpdate().executeTakeFirst();
+      if (!user) throw new HttpError(410, 'This reset link is invalid or has expired.', 'reset_invalid');
       const reset = await trx
         .updateTable('password_resets')
         .set({ used_at: new Date() })
@@ -406,6 +410,7 @@ authRouter.post(
         .returning('user_id')
         .executeTakeFirst();
       if (!reset) throw new HttpError(410, 'This reset link is invalid or has expired.', 'reset_invalid');
+      await trx.updateTable('password_resets').set({ used_at: new Date() }).where('user_id', '=', reset.user_id).where('used_at', 'is', null).execute();
       await trx
         .updateTable('users')
         .set({ password_hash: await hashPassword(body.newPassword), failed_logins: 0, locked_until: null })
@@ -422,6 +427,7 @@ authRouter.post(
       await startSession(trx, req, res, reset.user_id, membership.workspace_id);
       return loadMe(trx, reset.user_id, membership.workspace_id);
     });
+    res.set('Cache-Control', 'no-store');
     if (!me) return res.status(204).end();
     res.json(me);
   })

@@ -23,6 +23,7 @@ export const useVoiceDictation = () => useContext(VoiceDictationCtx);
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
+  { to: '/assistant', label: 'AI Assistant', icon: Sparkles },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/help', label: 'Help', icon: BookOpen },
   { to: '/products', label: 'Products', icon: Package },

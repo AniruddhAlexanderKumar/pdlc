@@ -28,3 +28,9 @@ The former hardcoded `admin@gmail.com` / `admin` login path has been removed. Ex
 - Add API integration tests for unauthorized/forbidden admin routes, system-admin promotion/retention, and project/issue cross-workspace access.
 - Use a disposable PostgreSQL database to verify migration `005_system_admins` and existing-user preservation before production rollout.
 - Rotate credentials if the former fixed admin password was ever used outside a disposable development instance.
+
+## Workspace password-reset email
+
+Owners and workspace admins can send a single-use, 24-hour password reset link to another eligible member's registered email from Settings > Team. Members cannot send links, admins cannot target owners, and self-service password changes use Account settings. The server never returns the reset token to the requesting admin. Reset links are carried in the browser URL fragment, are hashed in the database, and are invalidated after use or password change; successful reset revokes existing sessions and outstanding links. Legacy path-based links remain supported. Reset-email generation is rate-limited per administrator; production multi-instance deployments should also use shared or edge rate limiting.
+
+Configure `RESET_SMTP_HOST`, `RESET_SMTP_FROM`, optional `RESET_SMTP_PORT` (default 587), `RESET_SMTP_SECURE` (`true` for implicit TLS), and, when required, both `RESET_SMTP_USER` and `RESET_SMTP_PASSWORD`. Production requires TLS. Set `APP_URL` to the public application origin. SMTP credentials belong in the hosting environment, never source control. If email is not configured or delivery fails, the UI reports the error; a failed send does not leave an active new token. SMTP acceptance does not guarantee inbox delivery. Workspace administrators should confirm addresses and advise members to ignore unexpected requests.

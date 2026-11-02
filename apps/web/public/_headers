@@ -26,8 +26,10 @@
   X-Robots-Tag: noindex, nofollow
 /join/*
   X-Robots-Tag: noindex, nofollow
-/reset/*
+/reset*
   X-Robots-Tag: noindex, nofollow
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store
 /review
   X-Robots-Tag: noindex, nofollow
   Referrer-Policy: no-referrer
