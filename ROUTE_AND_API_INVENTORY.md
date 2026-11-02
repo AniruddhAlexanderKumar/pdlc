@@ -12,7 +12,7 @@ Updated after the approved initial Projects/Issues slice; source presence does n
 | `/request-access` | Public request form | Available without session |
 | `/login` | Guest-only | Redirects authenticated users |
 | `/signup`, `/register` | Guest-only registration | Both render registration mode |
-| `/reset/:token` | Guest-only password reset | Token-based |
+| `/reset#token` (legacy `/reset/:token`) | Password reset | Token-based |
 | `/join/:token` | Invite join | Public token flow |
 | `/admin` | Admin-only | System dashboard |
 | `/analytics` | Admin-only | Admin analytics dashboard route |
@@ -81,7 +81,7 @@ Updated after the approved initial Projects/Issues slice; source presence does n
 | `GET /api/workspace/members` | Authenticated | List current workspace members |
 | `PATCH /api/workspace/members/:userId` | Workspace owner/admin | Change membership role |
 | `DELETE /api/workspace/members/:userId` | Authenticated with role rules | Leave/remove member |
-| `POST /api/workspace/members/:userId/reset-link` | Workspace owner/admin | Generate password reset link |
+| `POST /api/workspace/members/:userId/reset-link` | Workspace owner/admin | Email a password reset link directly to a workspace member |
 | `GET /api/workspace/invites` | Workspace owner/admin | List active invites |
 | `POST /api/workspace/invites` | Workspace owner/admin | Create invite |
 | `DELETE /api/workspace/invites/:id` | Authenticated with role rules | Revoke invite |

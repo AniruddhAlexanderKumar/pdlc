@@ -70,7 +70,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function trackClientEvent(name: string, metadata?: Record<string, unknown>) {
-  if (window.location.pathname === '/review') return;
+  if (window.location.pathname === '/review' || /^\/reset(?:\/|$)/.test(window.location.pathname)) return;
   const consent = getCookieConsent();
 
   const event: AnalyticsEventInput = {
@@ -101,7 +101,7 @@ export function trackClientEvent(name: string, metadata?: Record<string, unknown
 }
 
 export function trackPageView(path: string, title?: string) {
-  if (path.split('?')[0] === '/review') return;
+  if (path.split('?')[0] === '/review' || /^\/reset(?:\/|$)/.test(path.split('?')[0])) return;
   const consent = getCookieConsent();
 
   const event: AnalyticsEventInput = {

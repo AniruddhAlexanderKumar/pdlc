@@ -162,7 +162,7 @@ npm run migrate
 - **Health check:** `GET /api/health` returns 200 when the database is reachable. The Docker image uses it.
 - **Backups:** `pg_dump` the database on a schedule. Everything (users, products, XP) lives there.
 - **Locked-out owner:** run `create-admin` again with the same email. It resets that password and signs them out everywhere. Add `--system-admin` only when intentionally granting system-wide admin access.
-- **Forgotten passwords:** there is no email server dependency. An admin opens **Settings → Team → key icon** to create a one-time reset link (valid 24 h) and sends it to the person.
+- **Forgotten passwords:** an owner or admin opens **Settings → Team → Send reset email**. The server emails a one-time link (valid 24 hours) directly to the member’s registered address. Configure `RESET_SMTP_HOST`, `RESET_SMTP_FROM`, and any needed SMTP credentials; see [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -215,7 +215,7 @@ Good first AI features: researching market prices from the Research answers, sug
 
 ## Roadmap ideas
 
-- Email (SMTP) for invites and self-serve password reset
+- Email (SMTP) for invitations and self-serve password reset requests (administrator-initiated reset emails are supported when configured)
 - SSO (OIDC/SAML) alongside password login
 - File uploads for product images (currently image URLs)
 - Activity feed and comments per product

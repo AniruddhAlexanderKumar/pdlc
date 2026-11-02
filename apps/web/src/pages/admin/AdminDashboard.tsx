@@ -268,7 +268,7 @@ export function AdminDashboard() {
           </div>
         </div>
 
-        <div className="mx-auto w-full max-w-7xl px-4 pb-2 sm:px-6"><Link to="/admin/help" className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400">Manage help articles & support tickets →</Link></div>
+        <div className="mx-auto w-full max-w-7xl px-4 pb-2 sm:px-6"><Link to="/admin/help" className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400">Manage help articles & support tickets →</Link> <Link to="/admin/assistant" className="ml-4 text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400">Assistant token allowances →</Link></div>
         {/* Tab Navigation */}
         <div className="border-t border-zinc-200/80 bg-zinc-50/50 px-4 sm:px-6 dark:border-zinc-800/80 dark:bg-zinc-900/50">
           <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto sm:gap-2">

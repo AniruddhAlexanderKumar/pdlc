@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
@@ -31,16 +31,16 @@ export function Logo({ className = '' }: { className?: string }) {
   );
 }
 
-function Shell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
+function Shell({ children, wide = false, hideAside = false }: { children: ReactNode; wide?: boolean; hideAside?: boolean }) {
   return (
-    <div className="grid min-h-full bg-white lg:grid-cols-2 dark:bg-zinc-950">
+    <div className={cx("grid min-h-full bg-white dark:bg-zinc-950", !hideAside && "lg:grid-cols-2")}>
       <div className="flex flex-col justify-center px-4 py-10 sm:px-12">
         <div className={`mx-auto w-full transition-all duration-200 ${wide ? 'max-w-lg' : 'max-w-sm'}`}>
           <Link to="/" aria-label="Solution Velocity home" className="inline-block focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"><Logo className="mb-8" /></Link>
           {children}
         </div>
       </div>
-      <div className="relative hidden overflow-hidden bg-[#123451] lg:flex lg:flex-col lg:justify-center lg:px-16">
+      {!hideAside && <div className="relative hidden overflow-hidden bg-[#123451] lg:flex lg:flex-col lg:justify-center lg:px-16">
         <div className="absolute inset-x-16 top-16 h-px bg-white/15" aria-hidden="true" />
         <div className="relative max-w-md text-white">
           <h2 className="text-3xl font-semibold leading-tight tracking-tight">Bring your product work into focus.</h2>
@@ -63,7 +63,7 @@ function Shell({ children, wide = false }: { children: ReactNode; wide?: boolean
             ))}
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -407,11 +407,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-zinc-500">
-          New here?{' '}
-          {cfg.data?.allowSignup ? <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`}>Create an account</Link> : <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to="/request-access">Request access</Link>}
-        </p>
-        <p className="mt-3 text-center text-xs text-zinc-400">Forgot your password? Ask a workspace admin for a reset link.</p>
+        <p className="mt-6 text-center text-sm"><Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to="/request-access">Request Access</Link></p>
       </>
     );
   }
@@ -788,7 +784,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   return (
-    <Shell wide={mode === 'register' && step === 3}>
+    <Shell wide={mode === 'register' && step === 3} hideAside={mode === 'login'}>
       <AuthForm mode={mode} step={step} onStepChange={setStep} />
     </Shell>
   );
@@ -870,11 +866,21 @@ export function JoinPage() {
 }
 
 export function ResetPage() {
-  const { token = '' } = useParams();
+  const { token: legacyToken = '' } = useParams();
+  const [token] = useState(() => {
+    const incoming = legacyToken || window.location.hash.slice(1);
+    if (incoming) return incoming;
+    try { return sessionStorage.getItem('sv_reset_token') || ''; } catch { return ''; }
+  });
   const signedIn = useSignedIn();
+  const navigate = useNavigate();
   const [password, setPassword] = useState('');
-  const info = useQuery({ queryKey: ['reset', token], queryFn: () => get<{ email: string }>(`/auth/reset/${token}`), retry: false });
-  const submit = useMutation({ mutationFn: () => post<Me | undefined>('/auth/reset', { token, newPassword: password }), onSuccess: (m) => m && signedIn(m) });
+  useEffect(() => {
+    if (token) { try { sessionStorage.setItem('sv_reset_token', token); } catch { /* Storage can be blocked. */ } }
+    if (window.location.hash) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+  }, [token]);
+  const info = useQuery({ queryKey: ['reset', token], queryFn: () => post<{ email: string }>('/auth/reset/validate', { token }), retry: false, enabled: !!token });
+  const submit = useMutation({ mutationFn: () => post<Me | undefined>('/auth/reset', { token, newPassword: password }), onSuccess: (m) => { try { sessionStorage.removeItem('sv_reset_token'); } catch { /* Storage can be blocked. */ } if (m) signedIn(m); navigate(m ? '/' : '/login', { replace: true }); } });
 
   if (info.isLoading) {
     return (
@@ -883,11 +889,11 @@ export function ResetPage() {
       </Shell>
     );
   }
-  if (info.error) {
+  if (!token || info.error) {
     return (
       <Shell>
         <h1 className="text-2xl font-semibold tracking-tight">Link expired</h1>
-        <p className="mt-2 text-sm text-zinc-500">{(info.error as Error).message}</p>
+        <p className="mt-2 text-sm text-zinc-500">{info.error ? (info.error as Error).message : 'This reset link is invalid or has expired.'}</p>
         <Link to="/login" className="mt-6 inline-block text-sm font-medium text-blue-600 dark:text-blue-400">
           Go to sign in →
         </Link>

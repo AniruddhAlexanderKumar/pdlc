@@ -19,6 +19,12 @@ const schema = z.object({
   ALLOW_SIGNUP: bool.default(true),
   /** Trust X-Forwarded-* headers from this many proxies (set to 1 behind nginx/Caddy). */
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+  RESET_SMTP_HOST: z.string().default(''),
+  RESET_SMTP_FROM: z.string().default(''),
+  RESET_SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  RESET_SMTP_SECURE: bool.default(false),
+  RESET_SMTP_USER: z.string().default(''),
+  RESET_SMTP_PASSWORD: z.string().default(''),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   /** Insight provider: "rules" (built in) or "ai" once an AI provider is configured. */
   INSIGHTS_PROVIDER: z.enum(['rules', 'ai']).default('rules'),

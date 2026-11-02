@@ -19,6 +19,7 @@ import * as m016 from './migrations/016_pricing_proposals.js';
 import * as m017 from './migrations/017_education_requests.js';
 import * as m018 from './migrations/018_help_centre.js';
 import * as m019 from './migrations/019_help_guide_correction.js';
+import * as m020 from './migrations/020_assistant.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -44,7 +45,8 @@ const migrations: Record<string, Migration> = {
   '016_pricing_proposals': m016,
   '017_education_requests': m017,
   '018_help_centre': m018,
-  '019_help_guide_correction': m019
+  '019_help_guide_correction': m019,
+  '020_assistant': m020
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
+import nodemailer from 'nodemailer';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import { CURRENCIES, type Invite, type Member } from '@sv/shared';
@@ -6,7 +8,7 @@ import { newToken } from '../auth/crypto.js';
 import { auth, requireRole } from '../auth/session.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
-import { badRequest, conflict, forbidden, notFound, parse, route, shortText, uuid } from '../lib/http.js';
+import { HttpError, badRequest, conflict, forbidden, notFound, parse, route, shortText, uuid } from '../lib/http.js';
 import { loadWorkspaceData } from '../services/repo.js';
 import { loadSampleData } from '../services/sampleData.js';
 import { leaderboard, playerStats } from '../services/xp.js';
@@ -153,31 +155,35 @@ workspaceRouter.delete(
   })
 );
 
-/** Admins create a one-time password reset link for a member (no email server needed). */
-workspaceRouter.post(
-  '/members/:userId/reset-link',
-  admin,
-  route(async (req, res) => {
-    const a = auth(req);
-    const userId = parse(uuid, param(req, 'userId'));
-    const target = await db
-      .selectFrom('memberships')
-      .select('role')
-      .where('workspace_id', '=', a.workspaceId)
-      .where('user_id', '=', userId)
-      .executeTakeFirst();
-    if (!target) throw notFound('Member');
-    if (target.role === 'owner' && a.role !== 'owner') throw forbidden('Only an owner can reset an owner’s password');
-    if (userId === a.userId) throw badRequest('Use “Change password” for your own account');
-    const { token, hash } = newToken();
-    await db
-      .insertInto('password_resets')
-      .values({ user_id: userId, token_hash: hash, created_by: a.userId, expires_at: new Date(Date.now() + RESET_HOURS * 3600_000) })
-      .execute();
-    req.log.info({ by: a.userId, userId }, 'password reset link created');
-    res.status(201).json({ url: `${config.APP_URL}/reset/${token}`, expiresInHours: RESET_HOURS });
-  })
-);
+/** Send reset links only to the member's registered email; never expose the token to the requesting admin. */
+const resetMailLimiter = rateLimit({ windowMs: 3600_000, limit: config.NODE_ENV === 'test' ? 1000 : 10, keyGenerator: req => auth(req).userId, standardHeaders: 'draft-8', legacyHeaders: false });
+workspaceRouter.post('/members/:userId/reset-link', admin, resetMailLimiter, route(async (req, res) => {
+  const a = auth(req);
+  const userId = parse(uuid, param(req, 'userId'));
+  const target = await db.selectFrom('memberships as m').innerJoin('users as u', 'u.id', 'm.user_id')
+    .select(['m.role', 'u.email', 'u.is_disabled'])
+    .where('m.workspace_id', '=', a.workspaceId).where('m.user_id', '=', userId).executeTakeFirst();
+  if (!target) throw notFound('Member');
+  if (target.role === 'owner' && a.role !== 'owner') throw forbidden('Only an owner can send a reset link to an owner');
+  if (userId === a.userId) throw badRequest('Use “Change password” for your own account');
+  if (target.is_disabled) throw badRequest('This account is disabled');
+  const { RESET_SMTP_HOST: host, RESET_SMTP_FROM: from, RESET_SMTP_PORT: port, RESET_SMTP_SECURE: secure, RESET_SMTP_USER: user, RESET_SMTP_PASSWORD: pass } = config;
+  if (!host || !from || (!!user !== !!pass)) throw new HttpError(503, 'Password reset email is not configured. Contact your system administrator.', 'reset_email_unavailable');
+  const { token, hash } = newToken();
+  await db.insertInto('password_resets').values({ user_id: userId, token_hash: hash, created_by: a.userId, expires_at: new Date(Date.now() + RESET_HOURS * 3600_000) }).execute();
+  const transport = nodemailer.createTransport({ host, port, secure, requireTLS: config.NODE_ENV !== 'test' && !secure, auth: user && pass ? { user, pass } : undefined, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000 });
+  try {
+    const url = `${config.appOrigin}/reset#${token}`;
+    const delivery = await transport.sendMail({ from, to: target.email, subject: 'Reset your Solution Velocity password', text: `A workspace administrator requested a password reset for your account.\n\nUse this link to choose a new password: ${url}\n\nThis link can be used once and expires in ${RESET_HOURS} hours. If you did not expect this message, ignore it and contact your workspace administrator.` });
+    if (!delivery.accepted.length) throw new Error('Recipient was not accepted');
+  } catch {
+    await db.deleteFrom('password_resets').where('token_hash', '=', hash).where('used_at', 'is', null).execute();
+    req.log.warn({ by: a.userId, userId }, 'password reset email could not be sent');
+    throw new HttpError(502, 'Could not send the reset email. Please try again or contact your system administrator.', 'reset_email_failed');
+  } finally { transport.close(); }
+  req.log.info({ by: a.userId, userId }, 'password reset email sent');
+  res.set('Cache-Control', 'no-store').status(201).json({ sent: true, expiresInHours: RESET_HOURS });
+}));
 
 // ── Invites ────────────────────────────────────────────────────────────────
 

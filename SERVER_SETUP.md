@@ -263,7 +263,7 @@ A cron entry for a nightly backup on the host (keeps 14 days):
 
 - **Sign-up** is invite-only when `ALLOW_SIGNUP=false` (recommended). The very first account can always be created, so a fresh install is never locked out.
 - **Inviting people:** an owner or admin goes to Settings → Team → **Invite link** and sends the link. Links work once and expire after 7 days.
-- **Forgotten password:** an owner or admin opens Settings → Team → key icon next to the person, and sends the one-time reset link (valid 24 hours). No email server is required.
+- **Forgotten password:** an owner or admin uses Settings → Team → Send reset email next to the person. Configure `RESET_SMTP_HOST`, `RESET_SMTP_FROM` and optional SMTP credentials as described in SECURITY.md. The server sends a single-use link valid for 24 hours directly to the registered email address.
 - **Owner locked out:** run the `create-admin` command again (A4 or B6) with the owner's email. It resets the password and signs them out everywhere.
 - **System admin:** grant global admin access explicitly when creating or resetting an account with `--system-admin`. Email addresses do not grant admin access.
 - **Roles:** owner (everything, including ownership), admin (settings, invites, members), member (product work).

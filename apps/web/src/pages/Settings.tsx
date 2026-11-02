@@ -155,8 +155,8 @@ function Team() {
     onError
   });
   const resetLink = useMutation({
-    mutationFn: (userId: string) => post<{ url: string; expiresInHours: number }>(`/workspace/members/${userId}/reset-link`),
-    onSuccess: (r) => setLink({ url: r.url, note: `Send this to the member. It lets them set a new password within ${r.expiresInHours} hours.` }),
+    mutationFn: (userId: string) => post<{ sent: boolean; expiresInHours: number }>(`/workspace/members/${userId}/reset-link`),
+    onSuccess: (r) => toast.success(`Reset email sent. The link expires in ${r.expiresInHours} hours.`),
     onError
   });
 
@@ -212,9 +212,7 @@ function Team() {
                   )}
                   {canManage && (
                     <>
-                      <IconButton label={`Password reset link for ${m.name}`} onClick={() => resetLink.mutate(m.userId)}>
-                        <KeyRound className="h-4 w-4" />
-                      </IconButton>
+                      <Button size="sm" variant="ghost" aria-label={`Send password reset email to ${m.name}`} icon={<KeyRound className="h-4 w-4" />} disabled={resetLink.isPending} onClick={async () => { if (await confirm({ title: `Send a password reset to ${m.name}?`, body: `A single-use reset link will be sent to ${m.email}.`, confirmLabel: 'Send reset email' })) resetLink.mutate(m.userId); }}>Send reset email</Button>
                       <IconButton
                         label={`Remove ${m.name}`}
                         className="hover:text-rose-600"
