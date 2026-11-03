@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { sql } from 'kysely';
 import { z } from 'zod';
+import { ISSUE_STATUSES } from '@sv/shared';
 import { auth, requireAdmin } from '../auth/session.js';
 import { db } from '../db/index.js';
 import { badRequest, conflict, forbidden, HttpError, notFound, parse, route, shortText, uuid } from '../lib/http.js';
@@ -15,7 +16,7 @@ const limiter=rateLimit({windowMs:60_000,limit:20,keyGenerator:req=>auth(req).us
 type Conversation={id:string;project_id:string|null;title:string;created_at:Date;updated_at:Date;project_name:string|null;project_key:string|null};
 type Source={type:'project'|'issue'|'help';title:string;url:string;slug?:string;recordId?:string};
 type Msg={id:string;role:'user'|'assistant';content:string;sources:Source[];created_at:Date};
-type Action={id:string;kind:'create_project'|'create_issue';payload:{name?:string;key?:string;summary?:string;projectId?:string;projectName?:string};status:string;result:{url:string;label:string}|null;created_at:Date};
+type Action={id:string;kind:'create_project'|'create_issue'|'update_issue_status';payload:{name?:string;key?:string;summary?:string;projectId?:string;projectName?:string;issueId?:string;issueKey?:string;previousStatus?:string;nextStatus?:string};status:string;result:{url:string;label:string}|null;created_at:Date};
 async function conversation(id:string,userId:string,workspaceId:string):Promise<Conversation>{
  const r=await sql<Conversation>`SELECT c.id,c.project_id,c.title,c.created_at,c.updated_at,p.name AS project_name,p.project_key FROM assistant_conversations c LEFT JOIN projects p ON p.id=c.project_id AND p.workspace_id=c.workspace_id WHERE c.id=${id}::uuid AND c.user_id=${userId}::uuid AND c.workspace_id=${workspaceId}::uuid`.execute(db);
  if(!r.rows[0])throw notFound('Conversation');return r.rows[0];
@@ -37,7 +38,7 @@ assistantRouter.get('/conversations/:id',route(async(req,res)=>{
   return false;
  })?{...m,content:'This response referenced a source that is no longer available or has changed. Ask again for current information.',sources:[]}:{...m,sources:m.sources.map(({recordId:_recordId,slug:_slug,...source})=>source)});
  const actions=await sql<Action>`SELECT id,kind,payload,status,result,created_at FROM assistant_actions WHERE conversation_id=${c.id}::uuid AND user_id=${a.userId}::uuid AND workspace_id=${a.workspaceId}::uuid ORDER BY created_at`.execute(db);
- res.json({conversation:c,messages,actions:actions.rows.map(act=>{const {projectId:_projectId,...payload}=act.payload;return {...act,payload};})});
+ res.json({conversation:c,messages,actions:actions.rows.map(act=>{const {projectId:_projectId,issueId:_issueId,...payload}=act.payload;return {...act,payload};})});
 }));
 assistantRouter.patch('/conversations/:id',route(async(req,res)=>{const a=auth(req),id=convId(req),b=parse(z.object({title:shortText(100).min(1)}).strict(),req.body);await conversation(id,a.userId,a.workspaceId);await sql`UPDATE assistant_conversations SET title=${b.title},updated_at=now() WHERE id=${id}::uuid AND user_id=${a.userId}::uuid AND workspace_id=${a.workspaceId}::uuid`.execute(db);res.json({ok:true});}));
 assistantRouter.delete('/conversations/:id',route(async(req,res)=>{const a=auth(req),id=convId(req);await conversation(id,a.userId,a.workspaceId);await db.transaction().execute(async trx=>{await sql`UPDATE assistant_actions SET status='cancelled' WHERE conversation_id=${id}::uuid AND status='pending'`.execute(trx);await sql`DELETE FROM assistant_conversations WHERE id=${id}::uuid AND user_id=${a.userId}::uuid AND workspace_id=${a.workspaceId}::uuid`.execute(trx);});res.status(204).end();}));
@@ -51,6 +52,7 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
  await sql`UPDATE assistant_conversations SET title=CASE WHEN title='New conversation' THEN ${b.content.slice(0,80)} ELSE title END,updated_at=now() WHERE id=${c.id}::uuid`.execute(db);
  let reply='',sources:Source[]=[];const text=b.content.trim();
  const projectMatch=text.match(/^create\s+(?:a\s+|an\s+|new\s+)*(?:engineering\s+)?project\s+(?:called|named)\s+["“']?(.+?)["”']?[.!]?$/i);
+ const statusMatch=text.match(/^(?:set|change)\s+(?:(?:task|issue)\s+)?([a-z][a-z0-9]{1,9})-(\d+)\s+(?:status\s+)?to\s+(open|in progress|done)[.!]?$/i);
  const issueMatch=text.match(/^create\s+(?:a\s+|an\s+|new\s+)*(?:task|issue)\s+(?:called|named|for)\s+["“']?(.+?)["”']?[.!]?$/i);
  if(projectMatch){
   if(a.role==='member')reply='Only workspace owners and admins can create projects. Ask an owner or admin to create one.';
@@ -59,6 +61,24 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
  } else if(issueMatch){
   if(!c.project_id)reply='Select a project when starting a new conversation before proposing a task.';
   else {const summary=issueMatch[1].trim().slice(0,200);const p={projectId:c.project_id,projectName:c.project_name,summary};await sql<Action>`INSERT INTO assistant_actions(conversation_id,workspace_id,user_id,kind,payload) VALUES(${c.id}::uuid,${a.workspaceId}::uuid,${a.userId}::uuid,'create_issue',${JSON.stringify(p)}::jsonb) RETURNING id,kind,payload,status,result,created_at`.execute(db);reply='Proposed task shown below. Nothing has been created; confirm to proceed.';}
+ } else if(statusMatch){
+  const target=ISSUE_STATUSES.find(status=>status.toLowerCase()===statusMatch[3].toLowerCase())!;
+  const number=Number(statusMatch[2]);
+  if(!c.project_id)reply='Select a project when starting a new conversation before changing a task status.';
+  else if(statusMatch[1].toUpperCase()!==c.project_key || !Number.isSafeInteger(number) || number < 1 || number > 2147483647)reply='That task is not in the selected project. Start a new conversation with the correct project.';
+  else {
+   const issue=await db.selectFrom('issues').select(['id','summary','status','issue_number']).where('project_id','=',c.project_id).where('issue_number','=',number).executeTakeFirst();
+   if(!issue)reply='That task was not found in the selected project. Check its key and try again.';
+   else if(issue.status===target)reply=`${c.project_key}-${number} is already ${target}. No change is needed.`;
+   else {const p={projectId:c.project_id,issueId:issue.id,issueKey:`${c.project_key}-${number}`,summary:issue.summary,previousStatus:issue.status,nextStatus:target};
+    await sql`INSERT INTO assistant_actions(conversation_id,workspace_id,user_id,kind,payload) VALUES(${c.id}::uuid,${a.workspaceId}::uuid,${a.userId}::uuid,'update_issue_status',${JSON.stringify(p)}::jsonb)`.execute(db);
+    reply='Proposed status change shown below. Nothing has been changed; confirm to proceed.';
+   }
+  }
+ } else if(!/^(how|where|what|can you explain)\b/i.test(text) && /\b(create|add|make)\b/i.test(text) && /\b(project|task|issue)\b/i.test(text)){
+  reply='To propose a project, type “Create a project called” followed by its name. To propose a task, select a project when starting a conversation and type “Create a task called” followed by its title.';
+ } else if(/\b(set|change|update|mark|move)\b/i.test(text) && /\b(status|task|issue|done|progress|open)\b/i.test(text)){
+  reply='To propose a status change, select the project and type “Set task ABC-1 status to Done”, replacing ABC-1 with the task key. Available statuses are Open, In Progress and Done.';
  } else if(/\b(requirements?|evidence|verification|milestones?|documents?|cohorts?|licen[cs]es?|billing)\b/i.test(text) && /\b(my|our|current|missing|outstanding|incomplete|overdue|latest|show|list|find|summari[sz]e)\b/i.test(text)){
   reply='Those records are not currently available as project records in Solution Velocity, so I cannot verify or list them. You can track work as project issues and consult the Help Centre.';sources=[];
  } else if(c.project_id && /\b(summari[sz]e|summary|status|progress|outstanding|tasks?|issues?|bottlenecks?)\b/i.test(text)){
@@ -97,11 +117,19 @@ assistantRouter.post('/actions/:id/confirm',limiter,route(async(req,res)=>{
    if(a.role==='member')throw forbidden('Only owners and admins can create projects');const p=parse(z.object({name:shortText(120).min(1),key:z.string().regex(/^[A-Z][A-Z0-9]{1,9}$/)}).strict(),act.payload);
    const existing=await trx.selectFrom('projects').select('id').where('workspace_id','=',a.workspaceId).where('project_key','=',p.key).executeTakeFirst();if(existing)throw new HttpError(409,'That project key is already in use. Start a new proposal or create the project manually.','project_key_taken');
    const project=await trx.insertInto('projects').values({workspace_id:a.workspaceId,project_key:p.key,name:p.name,description:'',created_by:a.userId,updated_at:new Date()}).returning('id').executeTakeFirstOrThrow();outcome={url:`/projects/${project.id}/issues`,label:`Project ${p.key} · ${p.name} created`};
-  } else {
+  } else if(act.kind==='create_issue') {
    const p=parse(z.object({projectId:uuid,projectName:z.string().nullable(),summary:shortText(200).min(1)}).strict(),act.payload);
    const project=await trx.selectFrom('projects').select(['id','project_key','next_issue_number']).where('id','=',p.projectId).where('workspace_id','=',a.workspaceId).forUpdate().executeTakeFirst();if(!project)throw notFound('Project');
    const issue=await trx.insertInto('issues').values({project_id:project.id,issue_number:project.next_issue_number,type:'Task',priority:'Medium',summary:p.summary,description:'',labels:[],reporter_id:a.userId,assignee_id:null,updated_at:new Date()}).returning('id').executeTakeFirstOrThrow();await trx.updateTable('projects').set({next_issue_number:project.next_issue_number+1,updated_at:new Date()}).where('id','=',project.id).execute();outcome={url:`/projects/${project.id}/issues?issueId=${issue.id}`,label:`Task ${project.project_key}-${project.next_issue_number} created`};
   }
+  else if(act.kind==='update_issue_status'){
+   const p=parse(z.object({projectId:uuid,issueId:uuid,issueKey:shortText(40),summary:shortText(200),previousStatus:z.enum(ISSUE_STATUSES),nextStatus:z.enum(ISSUE_STATUSES)}).strict(),act.payload);
+   const project=await trx.selectFrom('projects').select(['id','project_key']).where('id','=',p.projectId).where('workspace_id','=',a.workspaceId).executeTakeFirst();if(!project)throw notFound('Project');
+   const issue=await trx.selectFrom('issues').select(['id','issue_number','status','summary']).where('id','=',p.issueId).where('project_id','=',project.id).forUpdate().executeTakeFirst();if(!issue)throw notFound('Issue');
+   if(issue.status!==p.previousStatus || issue.summary!==p.summary || `${project.project_key}-${issue.issue_number}`!==p.issueKey)throw conflict('This task changed since the proposal. Make a new proposal using its current details.');
+   await trx.updateTable('issues').set({status:p.nextStatus,updated_at:new Date()}).where('id','=',issue.id).where('project_id','=',project.id).execute();
+   outcome={url:`/projects/${project.id}/issues?issueId=${issue.id}`,label:`${p.issueKey} marked ${p.nextStatus}`};
+  } else throw badRequest('Unsupported action');
   await sql`UPDATE assistant_actions SET status='completed',result=${JSON.stringify(outcome)}::jsonb,completed_at=now() WHERE id=${id}::uuid`.execute(trx);return outcome;
  }).catch((err:unknown)=>{if(typeof err==='object'&&err!==null&&'code' in err&&err.code==='23505')throw conflict('The project key or issue number is already in use. Please try a new proposal.');throw err;});res.json(result);
 }));

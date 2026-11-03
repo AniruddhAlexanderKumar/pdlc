@@ -1,18 +1,14 @@
 import { sql } from 'kysely';
-import { z } from 'zod';
 import { db } from '../db/index.js';
 import { config } from '../config.js';
 import { logger } from '../lib/logger.js';
 import { HttpError } from '../lib/http.js';
 import type { AiChatMessage } from './ai.js';
+import { parseAssistantProviders, type AssistantProvider as Provider } from './assistant-providers.js';
 
-const providerSchema = z.object({name:z.string().min(1).max(60),baseUrl:z.string().url(),model:z.string().min(1).max(120),apiKey:z.string().default('')}).strict();
-type Provider = z.infer<typeof providerSchema>;
 function configuredProviders(): Provider[] {
-  if (process.env.ASSISTANT_AI_ENABLED !== 'true') return [];
   try {
-    const providers = process.env.ASSISTANT_PROVIDERS ? z.array(providerSchema).min(1).max(4).parse(JSON.parse(process.env.ASSISTANT_PROVIDERS)) : [providerSchema.parse({name:'configured AI',baseUrl:config.aiBaseUrl,model:config.AI_MODEL,apiKey:config.AI_API_KEY})];
-    return providers.filter(p=>{const u=new URL(p.baseUrl);return !u.username && !u.password && !u.search && !u.hash && (u.protocol==='https:' || (u.protocol==='http:' && ['localhost','127.0.0.1','::1'].includes(u.hostname)));});
+    return parseAssistantProviders(process.env, {name:'configured AI',baseUrl:config.aiBaseUrl,model:config.AI_MODEL,apiKey:config.AI_API_KEY});
   } catch { logger.error('Assistant provider configuration is invalid'); return []; }
 }
 export function assistantConfigured() { return configuredProviders().length > 0; }
