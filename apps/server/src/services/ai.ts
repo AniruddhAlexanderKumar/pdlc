@@ -136,8 +136,7 @@ export async function chatCompletion(
     });
 
     if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      throw new Error(`AI chat completion failed HTTP ${res.status}: ${errText.slice(0, 300)}`);
+      throw new Error(`AI chat completion failed HTTP ${res.status}`);
     }
 
     const data = (await res.json()) as any;
@@ -200,7 +199,7 @@ function parseAiInsightsJson(raw: string, productId: string): Insight[] {
     if (start !== -1 && end > start) {
       parsed = JSON.parse(cleaned.slice(start, end + 1));
     } else {
-      throw new Error(`Failed to parse AI response as JSON array: ${cleaned.slice(0, 100)}`);
+      throw new Error('Failed to parse AI response as JSON array');
     }
   }
 

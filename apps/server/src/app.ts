@@ -7,7 +7,7 @@ import { rateLimit } from 'express-rate-limit';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { sql } from 'kysely';
-import { loadSession, requireAuth, verifyOrigin } from './auth/session.js';
+import { loadSession, requireAuth, requireAdmin, verifyOrigin } from './auth/session.js';
 import { config } from './config.js';
 import { db } from './db/index.js';
 import { HttpError } from './lib/http.js';
@@ -104,7 +104,7 @@ export function createApp() {
   });
 
   api.use('/auth', authRouter);
-  api.use('/ai', aiRouter);
+  api.use('/ai', requireAuth, requireAdmin, aiRouter);
   api.use('/access-requests', accessRequestsRouter);
   api.use('/reviewer', reviewerRouter);
   api.use('/external-reviews', requireAuth, reviewManagementRouter);

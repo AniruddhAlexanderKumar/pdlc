@@ -13,7 +13,7 @@ import {
   type VoiceImportPayload,
   type VoiceImportResult
 } from '@sv/shared';
-import { auth } from '../auth/session.js';
+import { auth, requireRole } from '../auth/session.js';
 import { badRequest, parse, route, shortText } from '../lib/http.js';
 import { processVoiceTranscript } from '../services/qwen.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
@@ -22,14 +22,14 @@ import { mutate } from './util.js';
 export const voiceRouter = Router();
 
 const processInput = z.object({
-  transcript: z.string().min(5, 'Spoken transcript must have at least 5 characters')
+  transcript: z.string().trim().min(5, 'Spoken transcript must have at least 5 characters').max(12000)
 });
 
 const voiceImportSchema = z.object({
   product: z.object({
     name: shortText(120).min(1, 'Product name is required'),
     category: shortText(60).default('General'),
-    stage: z.enum(STAGE_IDS).default('Prototype'),
+    stage: z.enum(STAGE_IDS).default('Idea'),
     description: shortText(2000).default(''),
     target_price: z.number().nullable().default(null),
     labour: z.number().min(0).default(0),
@@ -80,6 +80,7 @@ voiceRouter.post(
 
 voiceRouter.post(
   '/import',
+  requireRole('owner', 'admin'),
   route(async (req, res) => {
     const payload = parse(voiceImportSchema, req.body);
     const result = await mutate<VoiceImportResult>(req, async (trx, ledger, ctx) => {

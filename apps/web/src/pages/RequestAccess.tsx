@@ -154,7 +154,7 @@ export function RequestAccessPage() {
                 Your selected plan and billing preferences are attached. Our
                 team will review your request and contact you at{" "}
                 <span className="font-semibold">{form.email}</span> regarding
-                activation. We’ll follow up within 24 hours.
+                activation.
               </p>
               <p className="mt-3 text-sm text-slate-500">
                 No subscription has been activated and no payment has been
@@ -181,7 +181,7 @@ export function RequestAccessPage() {
                 that fits your organisation and request access to the platform.
               </p>
               <p className="mt-3 text-sm font-medium text-[#315d76]">
-                We’ll get back to you within 24 hours of your request.
+                Our team will review your request and contact you.
               </p>
               <fieldset className="mt-7"><legend className="text-sm font-semibold text-[#12394f]">Choose a pricing category</legend><div className="mt-2 flex flex-wrap gap-2">{([['commercial','Commercial'],['education','Education']] as const).map(([value,label]) => <label key={value} className={`cursor-pointer border px-5 py-3 text-sm font-semibold ${category === value ? 'border-[#237b9e] bg-[#eef8fa] text-[#12394f]' : 'border-slate-200 text-slate-600'}`}><input type="radio" name="category" checked={category === value} onChange={() => setCategory(value)} className="mr-2" />{label}</label>)}</div></fieldset>
               {category === 'education' ? <EducationAccessForm /> : <form onSubmit={submit} className="mt-9 space-y-10">

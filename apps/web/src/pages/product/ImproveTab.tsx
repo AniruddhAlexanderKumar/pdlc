@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowRight, Bot, Lightbulb, RefreshCw, Trophy } from 'lucide-react';
 import { XP, type Insight, type Product } from '@sv/shared';
-import { useApplyInsight, useInsights, useSession } from '../../api/hooks';
+import { useApplyInsight, useInsights } from '../../api/hooks';
 import { Button, Card, cx, EmptyState, Spinner } from '../../components/ui';
 import { useMoney } from '../../lib/money';
 import type { TabId } from './ProductPage';
@@ -12,12 +12,12 @@ const toneStyle: Record<Insight['tone'], { icon: typeof Lightbulb; ring: string;
 };
 
 export function ImproveTab({ product, goTab }: { product: Product; goTab: (t: TabId) => void }) {
-  const { demo } = useSession();
   const insights = useInsights(product.id);
   const apply = useApplyInsight(product.id);
   const { fmt } = useMoney();
 
   if (insights.isLoading) return <Spinner label="Looking for improvements" />;
+  if (insights.isError) return <div role="alert" className="text-sm text-rose-700">Could not load suggestions. <button type="button" className="underline" onClick={() => insights.refetch()}>Try again</button></div>;
   const list = insights.data ?? [];
   const potential = list.reduce((sum, i) => sum + (i.action && i.action.type !== 'open_tab' ? (i.perUnitImpact ?? 0) : 0), 0);
 
@@ -91,24 +91,7 @@ export function ImproveTab({ product, goTab }: { product: Product; goTab: (t: Ta
         </div>
       )}
 
-      {!demo && <Card className="border-dashed p-4 border-violet-500/30 bg-violet-500/5">
-        <div className="flex gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
-            <Bot className="h-4.5 w-4.5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold">Local AI Advisor Active</h3>
-              <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                Connected
-              </span>
-            </div>
-            <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">
-              Powered by local sovereign model <span className="font-mono text-xs font-semibold">Qwen 2.5 14B</span>. Strategic discovery, risk, and cost-reduction insights are synthesized alongside deterministic rules.
-            </p>
-          </div>
-        </div>
-      </Card>}
+      <p className="text-xs text-zinc-500">Suggestions use your recorded product data and rules. Items labelled AI are model-generated and should be reviewed.</p>
     </div>
   );
 }
