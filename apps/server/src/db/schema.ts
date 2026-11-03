@@ -14,6 +14,7 @@ export interface UsersTable {
   id: Generated<string>;
   email: string;
   name: string;
+  language: Generated<'en' | 'hi' | 'zh' | 'fr' | 'es' | null>;
   password_hash: string;
   is_admin: Generated<boolean>;
   is_disabled: Generated<boolean>;

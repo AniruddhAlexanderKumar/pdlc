@@ -70,7 +70,7 @@ export function ProjectsPage() {
 
         {creating && canCreate && (
           <Card className={`p-5 ${params.get('guide') === 'first-project' ? 'ring-2 ring-blue-500' : ''}`}>
-            {params.get('guide') === 'first-project' && <p role="status" className="mb-4 text-sm text-blue-700">Walkthrough: name your project, review the suggested key and create it. <Link to="/help" className="underline">Return to guide</Link></p>}
+            {params.get('guide') === 'first-project' && <p role="status" className="mb-4 text-sm text-blue-700">Walkthrough: name your project, review the suggested key and create it. <Link to="/help#walkthrough" className="underline">Return to guide</Link></p>}
             <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
               <Field label="Project name" htmlFor="project-name">
                 <Input id="project-name" required maxLength={120} value={name} onChange={(event) => {

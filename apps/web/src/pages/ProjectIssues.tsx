@@ -116,7 +116,7 @@ export function ProjectIssuesPage() {
 
         {session.workspace.role !== 'member' && !session.demo && <Link to={`/external-reviews?project=${encodeURIComponent(projectId)}`} className="ml-4 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:underline">External Review Access</Link>}
 
-        {searchParams.get('guide') === 'first-project' && <p role="status" className="rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">Your project is ready. Choose <strong>Create issue</strong> to add work, then <Link className="underline" to="/help">return to the walkthrough</Link>.</p>}
+        {searchParams.get('guide') === 'first-project' && <p role="status" className="rounded-lg border border-blue-300 bg-blue-50 p-3 text-sm text-blue-900">Your project is ready. Choose <strong>Create issue</strong> to add work, then <Link className="underline" to="/help#walkthrough">return to the walkthrough</Link>.</p>}
         {creating && (
           <Card className="p-5">
             <form onSubmit={submit} className="space-y-4">

@@ -1,21 +1,17 @@
 import { sql } from 'kysely';
-import { z } from 'zod';
 import { db } from '../db/index.js';
 import { config } from '../config.js';
 import { logger } from '../lib/logger.js';
 import { HttpError } from '../lib/http.js';
 import type { AiChatMessage } from './ai.js';
+import { assistantRequestBody, parseAssistantProviders, type AssistantProvider as Provider } from './assistant-providers.js';
 
-const providerSchema = z.object({name:z.string().min(1).max(60),baseUrl:z.string().url(),model:z.string().min(1).max(120),apiKey:z.string().default('')}).strict();
-type Provider = z.infer<typeof providerSchema>;
 function configuredProviders(): Provider[] {
-  if (process.env.ASSISTANT_AI_ENABLED !== 'true') return [];
   try {
-    const providers = process.env.ASSISTANT_PROVIDERS ? z.array(providerSchema).min(1).max(4).parse(JSON.parse(process.env.ASSISTANT_PROVIDERS)) : [providerSchema.parse({name:'configured AI',baseUrl:config.aiBaseUrl,model:config.AI_MODEL,apiKey:config.AI_API_KEY})];
-    return providers.filter(p=>{const u=new URL(p.baseUrl);return !u.username && !u.password && !u.search && !u.hash && (u.protocol==='https:' || (u.protocol==='http:' && ['localhost','127.0.0.1','::1'].includes(u.hostname)));});
+    return parseAssistantProviders(process.env, {name:'configured AI',baseUrl:config.aiBaseUrl,model:config.AI_MODEL,apiKey:config.AI_API_KEY});
   } catch { logger.error('Assistant provider configuration is invalid'); return []; }
 }
-export function assistantConfigured() { return configuredProviders().length > 0; }
+export function assistantProviderNames() { return configuredProviders().map(provider => provider.name); }
 
 /** Reserve before each attempt. On ambiguous transport errors the reservation is charged, never silently released. */
 async function reserve(workspaceId:string,userId:string,conversationId:string,provider:Provider,amount:number) {
@@ -42,14 +38,14 @@ export async function generateAssistantReply(actor:{workspaceId:string;userId:st
   const usageId=await reserve(actor.workspaceId,actor.userId,conversationId,provider,budget);
   let response:Response;
   try {
-   response=await fetch(`${provider.baseUrl.replace(/\/+$/,'')}/chat/completions`,{method:'POST',headers:{'content-type':'application/json',...(provider.apiKey?{authorization:`Bearer ${provider.apiKey}`}:{})},body:JSON.stringify({model:provider.model,messages,max_tokens:maxOutput,temperature:0.2}),signal:AbortSignal.timeout(20000)});
+   response=await fetch(`${provider.baseUrl.replace(/\/+$/,'')}/chat/completions`,{method:'POST',headers:{'content-type':'application/json',...(provider.apiKey?{authorization:`Bearer ${provider.apiKey}`}:{})},body:JSON.stringify(assistantRequestBody(provider,messages,maxOutput)),signal:AbortSignal.timeout(20000)});
   } catch {
    await settle(usageId,actor.workspaceId,budget,budget,'uncertain');
    logger.warn({provider:provider.name,attempt:index+1},'Assistant provider transport failed; reserved credits retained for reconciliation');
    continue;
   }
   if(!response.ok) {
-   const retry=[401,403,408,429].includes(response.status)||response.status>=500;
+   const retry=[401,402,403,408,429].includes(response.status)||response.status>=500;
    // A provider error may have incurred usage. Retain the reservation for uncertain server/time-out failures.
    const uncertain=response.status===408||response.status>=500;
    await settle(usageId,actor.workspaceId,budget,uncertain?budget:0,uncertain?'uncertain':'failed');

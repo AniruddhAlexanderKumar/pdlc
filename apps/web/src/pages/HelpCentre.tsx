@@ -1,43 +1,120 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router';
-import { BookOpen, Search, ArrowRight } from 'lucide-react';
+import { Link, useLocation, useParams } from 'react-router';
+import { ArrowRight, ChevronDown, Search } from 'lucide-react';
 import type { Project } from '@sv/shared';
-import { get, post, put } from '../api/client';
+import { ApiError, get, post, put } from '../api/client';
 import { useSession } from '../api/hooks';
 import { Button, Card, Field, Input, Select, Spinner, Textarea } from '../components/ui';
-export type HelpArticle={id:string;slug:string;title:string;summary:string;body:string;category:string;keywords:string[];audience:'everyone'|'workspace_admin';status:'draft'|'published'|'archived';updated_at:string};
-type Progress={guide_key:string;step:number;completed:boolean};
-type Ticket={id:string;category:string;feature:string;description:string;status:string;created_at:string};
-export function HelpCentrePage(){
- const {slug}=useParams();const me=useSession();const [search,setSearch]=useState(''),[category,setCategory]=useState('all');
- const articles=useQuery({queryKey:['help-articles'],queryFn:()=>get<HelpArticle[]>('/help/articles')});
- if(articles.isLoading)return <Spinner label="Loading help"/>;
- if(articles.isError)return <div className="p-6" role="alert">Could not load help articles. <Button variant="secondary" onClick={()=>articles.refetch()}>Try again</Button></div>;
- const all=articles.data??[], article=slug?all.find(a=>a.slug===slug):null;
- if(slug)return <div className="mx-auto max-w-4xl px-5 py-8"><Link to="/help" className="text-sm font-semibold text-blue-700">← Help Centre</Link>{article?<article className="mt-6 rounded-xl border bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">{article.category}</p><h1 className="mt-2 text-3xl font-semibold">{article.title}</h1><p className="mt-3 text-sm text-zinc-500">{article.summary}</p><p className="mt-6 whitespace-pre-wrap text-sm leading-7">{article.body}</p>{article.slug==='first-project'&&<Link to="/projects?create=1&guide=first-project" className="mt-6 inline-flex text-sm font-semibold text-blue-700">Open project creation →</Link>}{article.slug==='external-review'&&<Link to="/external-reviews" className="mt-6 inline-flex text-sm font-semibold text-blue-700">Open External Reviews →</Link>}</article>:<p role="alert" className="mt-6">This article is unavailable.</p>}</div>;
- const categories=[...new Set(all.map(a=>a.category))].sort();const term=search.trim().toLowerCase();const filtered=all.filter(a=>(category==='all'||a.category===category)&&(!term||`${a.title} ${a.summary} ${a.body} ${a.category} ${a.keywords.join(' ')}`.toLowerCase().includes(term)));
- return <div className="mx-auto max-w-6xl space-y-7 px-5 py-8 md:px-8"><header><p className="text-xs font-bold uppercase tracking-wider text-blue-700">Help Centre</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">How can we help you build?</h1><p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">Find guides, learn workflows, explore product features and get assistance using Solution Velocity.</p><div className="mt-5 grid gap-3 sm:grid-cols-[1fr_220px]"><label className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-zinc-400"/><Input className="pl-9" aria-label="Search help" placeholder="Search guides and troubleshooting" value={search} onChange={e=>setSearch(e.target.value)}/></label><Select aria-label="Filter help category" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All categories</option>{categories.map(c=><option key={c}>{c}</option>)}</Select></div></header>
- {!term&&category==='all'&&<><Guide key={me.workspace.id} demo={!!me.demo} canCreate={me.workspace.role!=='member'}/><div className="grid gap-3 sm:grid-cols-3">{[['first-project','Create your first project'],['project-issues','Manage project work'],['external-review','Share a review']].map(([s,t])=><Link key={s} to={`/help/${s}`} className="rounded-lg border bg-white p-4 text-sm font-semibold text-blue-700 hover:border-blue-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-blue-400">{t} <ArrowRight className="inline h-4 w-4"/></Link>)}</div></>}
- <section><h2 className="text-xl font-semibold">{term||category!=='all'?'Search results':'Browse guides'}</h2><p className="mt-1 text-xs text-zinc-500">{filtered.length} {filtered.length===1?'article':'articles'}</p><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{filtered.map(a=><Link key={a.id} to={`/help/${a.slug}`}><Card className="h-full p-4 hover:border-blue-300"><p className="text-xs font-semibold text-blue-700">{a.category}</p><h3 className="mt-2 font-semibold">{a.title}</h3><p className="mt-2 text-sm leading-6 text-zinc-500">{a.summary}</p></Card></Link>)}</div>{filtered.length===0&&<p className="mt-4 text-sm text-zinc-600">No matching guides. Try a different search{!me.demo?' or contact support below':''}.</p>}</section>
- {!me.demo&&<><HelpAssistant key={me.workspace.id}/><SupportPanel key={me.workspace.id}/></>}<section className="rounded-lg border border-slate-200 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400"><BookOpen className="mr-2 inline h-4 w-4"/>Video tutorials are not yet available. Search uses the published guides above.</section></div>;
+import { searchHelpArticles } from '../lib/help/search';
+
+export type HelpArticle = { id: string; slug: string; title: string; summary: string; body: string; category: string; keywords: string[]; audience: 'everyone' | 'workspace_admin'; status: 'draft' | 'published' | 'archived'; updated_at: string };
+type Progress = { guide_key: string; step: number; completed: boolean };
+type Ticket = { id: string; category: string; feature: string; description: string; status: string; created_at: string };
+
+export function HelpCentrePage() {
+  const { slug } = useParams();
+  const me = useSession();
+  // Reset local filters and expanded forms when switching workspace or role.
+  const scope = `${me.user.id}:${me.workspace.id}:${me.workspace.role}:${me.user.isAdmin}`;
+  return slug ? <HelpArticlePage key={`${scope}:${slug}`} slug={slug} /> : <HelpHome key={scope} />;
 }
+
+function HelpArticlePage({ slug }: { slug: string }) {
+  const me = useSession();
+  const article = useQuery({
+    queryKey: ['help-article', me.user.id, me.workspace.id, me.workspace.role, me.user.isAdmin, slug],
+    queryFn: () => get<HelpArticle>(`/help/articles/${encodeURIComponent(slug)}`),
+    retry: false
+  });
+  const canManage = me.workspace.role === 'owner' || me.workspace.role === 'admin';
+  return <div className="mx-auto max-w-4xl px-5 py-8">
+    <Link to="/help" className="text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">← Back to Help</Link>
+    {article.isLoading ? <div className="mt-8"><Spinner label="Loading guide" /></div> : article.isError ?
+      <div className="mt-8 rounded-xl border bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900" role="alert">
+        <h1 className="text-xl font-semibold">{article.error instanceof ApiError && article.error.status === 404 ? 'Guide unavailable' : 'Could not load this guide'}</h1>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{article.error instanceof ApiError && article.error.status === 404 ? 'It may have been removed or may not be available to your role.' : 'Check your connection and try again.'}</p>
+        {!(article.error instanceof ApiError && article.error.status === 404) && <Button className="mt-4" variant="secondary" onClick={() => article.refetch()}>Try again</Button>}
+      </div> : article.data && <article className="mt-6 rounded-xl border bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-400">{article.data.category}</p>
+        <h1 className="mt-2 text-3xl font-semibold">{article.data.title}</h1>
+        <p className="mt-3 text-sm text-zinc-500">{article.data.summary}</p>
+        <p className="mt-6 whitespace-pre-wrap text-sm leading-7">{article.data.body}</p>
+        {article.data.slug === 'first-project' && canManage && <Link to="/projects?create=1&guide=first-project" className="mt-6 inline-flex text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">Open project creation →</Link>}
+        {article.data.slug === 'external-review' && canManage && !me.demo && <Link to="/external-reviews" className="mt-6 inline-flex text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">Open External Reviews →</Link>}
+      </article>}
+  </div>;
+}
+
+function HelpHome() {
+  const me = useSession();
+  const location = useLocation();
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('all');
+  const [supportOpen, setSupportOpen] = useState(location.hash === '#support');
+  const [walkthroughOpen, setWalkthroughOpen] = useState(location.hash === '#walkthrough');
+  useEffect(() => {
+    if (location.hash === '#support') setSupportOpen(true);
+    if (location.hash === '#walkthrough') setWalkthroughOpen(true);
+  }, [location.hash]);
+  const articles = useQuery({
+    queryKey: ['help-articles', me.user.id, me.workspace.id, me.workspace.role, me.user.isAdmin],
+    queryFn: () => get<HelpArticle[]>('/help/articles')
+  });
+  if (articles.isLoading) return <Spinner label="Loading help" />;
+  if (articles.isError) return <div className="p-6" role="alert">Could not load help articles. <Button variant="secondary" onClick={() => articles.refetch()}>Try again</Button></div>;
+
+  const all = articles.data ?? [];
+  const categories = [...new Set(all.map(a => a.category))].sort();
+  const filtered = searchHelpArticles(all, search, category);
+  const hasFilters = !!search.trim() || category !== 'all';
+  const popular = ['first-project', 'project-issues', 'external-review'].flatMap(slug => {
+    const article = all.find(item => item.slug === slug);
+    return article ? [article] : [];
+  });
+  const clear = () => { setSearch(''); setCategory('all'); };
+  return <div className="mx-auto max-w-6xl space-y-7 px-5 py-8 md:px-8">
+    <header>
+      <p className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">Help Centre</p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight">How can we help?</h1>
+      <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">Search guides or explore common tasks.</p>
+      {!me.demo && <a href="#support" onClick={() => setSupportOpen(true)} className="mt-2 inline-block text-sm font-semibold text-blue-700 underline dark:text-blue-400">Contact support</a>}
+      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_220px]">
+        <label className="relative block"><Search aria-hidden="true" className="absolute left-3 top-3 h-4 w-4 text-zinc-400" /><Input type="search" className="pl-9" aria-label="Search help" placeholder="Search for a task or question" value={search} onChange={e => setSearch(e.target.value)} /></label>
+        <Select aria-label="Filter help category" value={category} onChange={e => setCategory(e.target.value)}><option value="all">All categories</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}</Select>
+      </div>
+    </header>
+    {!hasFilters && popular.length > 0 && <section aria-labelledby="popular-help"><h2 id="popular-help" className="text-lg font-semibold">Popular guides</h2><div className="mt-3 grid gap-3 sm:grid-cols-3">{popular.map(a => <Link key={a.id} to={`/help/${a.slug}`} className="flex items-center justify-between gap-3 rounded-lg border bg-white p-4 text-sm font-semibold text-blue-700 hover:border-blue-300 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-blue-400">{a.title}<ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></Link>)}</div></section>}
+    <section aria-labelledby="browse-help">
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><div><h2 id="browse-help" className="text-xl font-semibold">{hasFilters ? 'Search results' : 'Browse all guides'}</h2><p className="mt-1 text-xs text-zinc-500" aria-live="polite">{filtered.length} {filtered.length === 1 ? 'guide' : 'guides'}</p></div>{hasFilters && <Button size="sm" variant="ghost" onClick={clear}>Clear filters</Button>}</div>
+      {filtered.length ? <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{filtered.map(a => <Link key={a.id} to={`/help/${a.slug}`} className="rounded-xl focus-visible:outline-2 focus-visible:outline-blue-500"><Card className="h-full p-4 hover:border-blue-300"><p className="text-xs font-semibold text-blue-700 dark:text-blue-400">{a.category}</p><h3 className="mt-2 font-semibold">{a.title}</h3><p className="mt-2 text-sm leading-6 text-zinc-500">{a.summary}</p></Card></Link>)}</div> : <div className="mt-4 rounded-lg border border-dashed p-5 text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"><p>No guides matched. Try different words or clear your filters.</p>{hasFilters && <Button size="sm" variant="secondary" className="mt-3" onClick={clear}>Clear filters</Button>}{!me.demo && <a href="#support" onClick={() => setSupportOpen(true)} className="ml-3 inline-block font-semibold text-blue-700 underline dark:text-blue-400">Contact support</a>}</div>}
+    </section>
+    {!hasFilters && <details id="walkthrough" open={walkthroughOpen} onToggle={e => setWalkthroughOpen(e.currentTarget.open)} className="group rounded-xl border bg-white dark:border-zinc-800 dark:bg-zinc-900"><summary className="flex cursor-pointer items-center justify-between gap-3 p-5 font-semibold focus-visible:outline-2 focus-visible:outline-blue-500">Try the first-project walkthrough <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" /></summary>{walkthroughOpen && <div className="px-5 pb-5"><Guide key={me.workspace.id} demo={!!me.demo} canCreate={me.workspace.role !== 'member'} /></div>}</details>}
+    {!me.demo && <>
+      <details id="support" open={supportOpen} onToggle={e => setSupportOpen(e.currentTarget.open)} className="group rounded-xl border bg-white dark:border-zinc-800 dark:bg-zinc-900"><summary className="flex cursor-pointer items-center justify-between gap-3 p-5 font-semibold focus-visible:outline-2 focus-visible:outline-blue-500">Contact support or check your requests <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" /></summary>{supportOpen && <div className="px-5 pb-5"><SupportPanel key={me.workspace.id} /></div>}</details>
+      <details className="group rounded-xl border bg-white dark:border-zinc-800 dark:bg-zinc-900"><summary className="flex cursor-pointer items-center justify-between gap-3 p-5 font-semibold focus-visible:outline-2 focus-visible:outline-blue-500">Ask a question about a guide <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" /></summary><div className="px-5 pb-5"><HelpAssistant key={me.workspace.id} /></div></details>
+    </>}
+  </div>;
+}
+
 function HelpAssistant(){
  const [question,setQuestion]=useState('');
  const ask=useMutation({mutationFn:()=>post<{mode:'ai'|'search'|'no_match';articles:{slug:string;title:string;body:string}[]}>('/help/ask',{question})});
- return <section className="space-y-3 rounded-xl border bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"><h2 className="text-xl font-semibold">Ask the Help Centre</h2><p className="text-sm text-zinc-600 dark:text-zinc-400">Find answers in published guides. When enabled, AI selects relevant guides; answers quote their published text. Don't include passwords or sensitive information. If AI is enabled, your question and relevant published guides are sent to the configured AI provider.</p><form className="flex flex-wrap gap-2" onSubmit={e=>{e.preventDefault();ask.mutate();}}><label htmlFor="help-question" className="sr-only">Your help question</label><Input id="help-question" required minLength={3} maxLength={500} className="min-w-0 flex-1" value={question} onChange={e=>setQuestion(e.target.value)} placeholder="How do I create a project?"/><Button type="submit" loading={ask.isPending}>Find an answer</Button></form>{ask.isError&&<p role="alert" className="text-sm text-rose-700">{(ask.error as Error).message}</p>}{ask.data&&<div role="status" className="space-y-3"><p className="text-sm text-zinc-600 dark:text-zinc-400">{ask.data.mode==='ai'?'AI-selected published guides:':ask.data.mode==='search'?'Matching published guides (AI is not available or enabled):':'No matching published guide found.'} These may not fully answer your question.</p>{ask.data.articles.length===0&&<p className="text-sm">Try different words, browse the guides, or submit a support request below.</p>}{ask.data.articles.map(a=><div key={a.slug} className="rounded-lg border p-3 dark:border-zinc-800"><Link className="font-semibold text-blue-700 underline dark:text-blue-400" to={`/help/${a.slug}`}>{a.title}</Link><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{a.body}</p></div>)}</div>}</section>;
+ return <section className="space-y-3 rounded-xl border bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"><h2 className="text-xl font-semibold">Ask the Help Centre</h2><p className="text-sm text-zinc-600 dark:text-zinc-400">Find answers in published guides. When enabled, AI selects relevant guides; answers quote their published text. Don't include passwords or sensitive information. If AI is enabled, your question and relevant published guides are sent to the configured AI provider.</p><form className="flex flex-wrap gap-2" onSubmit={e=>{e.preventDefault();ask.mutate();}}><label htmlFor="help-question" className="sr-only">Your help question</label><Input id="help-question" required minLength={3} maxLength={500} className="min-w-0 flex-1" value={question} onChange={e=>setQuestion(e.target.value)} placeholder="How do I create a project?"/><Button type="submit" loading={ask.isPending}>Find an answer</Button></form>{ask.isError&&<p role="alert" className="text-sm text-rose-700">{(ask.error as Error).message}</p>}{ask.data&&<div role="status" className="space-y-3"><p className="text-sm text-zinc-600 dark:text-zinc-400">{ask.data.mode==='ai'?'AI-selected published guides:':ask.data.mode==='search'?'Matching published guides (AI is not available or enabled):':'No matching published guide found.'} These may not fully answer your question.</p>{ask.data.articles.length===0&&<p className="text-sm">Try different words, browse the guides, or submit a support request.</p>}{ask.data.articles.map(a=><div key={a.slug} className="rounded-lg border p-3 dark:border-zinc-800"><Link className="font-semibold text-blue-700 underline dark:text-blue-400" to={`/help/${a.slug}`}>{a.title}</Link><p className="mt-2 whitespace-pre-wrap text-sm leading-6">{a.body}</p></div>)}</div>}</section>;
 }
 function Guide({demo,canCreate}:{demo:boolean;canCreate:boolean}){
- const qc=useQueryClient(),[local,setLocal]=useState<Progress>({guide_key:'first-project',step:0,completed:false});
- const saved=useQuery({queryKey:['help-progress'],queryFn:()=>get<Progress[]>('/help/progress'),enabled:!demo});const progress=demo?local:(saved.data?.find(p=>p.guide_key==='first-project')??local);
- const save=useMutation({mutationFn:(p:{step:number;completed:boolean})=>put('/help/progress/first-project',p),onSuccess:()=>qc.invalidateQueries({queryKey:['help-progress']})});
+ const me=useSession();const qc=useQueryClient(),[local,setLocal]=useState<Progress>({guide_key:'first-project',step:0,completed:false});
+ const saved=useQuery({queryKey:['help-progress',me.user.id,me.workspace.id],queryFn:()=>get<Progress[]>('/help/progress'),enabled:!demo});const progress=demo?local:(saved.data?.find(p=>p.guide_key==='first-project')??local);
+ const save=useMutation({mutationFn:(p:{step:number;completed:boolean})=>put('/help/progress/first-project',p),onSuccess:()=>qc.invalidateQueries({queryKey:['help-progress',me.user.id,me.workspace.id]})});
+ if (!demo && saved.isLoading) return <Spinner label="Loading walkthrough"/>;
+ if (!demo && saved.isError) return <p role="alert" className="text-sm text-rose-700">Could not load walkthrough progress. <Button size="sm" variant="secondary" onClick={()=>saved.refetch()}>Try again</Button></p>;
  const update=(step:number,completed:boolean)=>demo?setLocal({guide_key:'first-project',step,completed}):save.mutate({step,completed});
  const steps=[{title:'Create a project',description:'Give the work a name and a short key. A workspace owner or admin can create projects.',to:'/projects?create=1&guide=first-project',label:'Open project form'}, {title:'Add an issue',description:'Inside your project, create an issue to give the team a concrete next action.',to:'/projects',label:'Find a project'}, {title:'Explore connections',description:'Use Teamwork Graph to see the relationships that your team has explicitly recorded.',to:'/teamwork-graph',label:'Open the graph'}];
  const current=steps[Math.min(progress.step,2)];return <section className="rounded-xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950"><p className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Optional walkthrough</p><h2 className="mt-2 text-lg font-semibold">First project · {progress.completed?'Complete':progress.step===3?'Skipped':`Step ${Math.min(progress.step+1,3)} of 3`}</h2>{progress.completed||progress.step===3?<p className="mt-2 text-sm">{progress.completed?'You have marked this guide complete.':'You skipped this walkthrough.'}</p>:<><p className="mt-2 font-medium">{current.title}</p><p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{current.description}</p><div className="mt-4 flex flex-wrap gap-2">{(progress.step!==0||canCreate)&&<Link className="inline-flex min-h-9 items-center rounded-md bg-blue-700 px-3 text-sm font-semibold text-white" to={current.to}>{current.label}</Link>}<Button size="sm" variant="secondary" loading={save.isPending} onClick={()=>update(Math.min(progress.step+1,3),progress.step>=2)}>Mark step complete</Button><Button size="sm" variant="ghost" onClick={()=>update(3,false)}>Skip walkthrough</Button></div></>}{(progress.completed||progress.step===3)&&<Button size="sm" variant="secondary" className="mt-3" onClick={()=>update(0,false)}>Restart walkthrough</Button>}{save.isError&&<p role="alert" className="mt-2 text-xs text-rose-700">Could not save guide progress.</p>}{demo&&<p className="mt-2 text-xs">Progress in a temporary demo is not saved.</p>}</section>;
 }
 function SupportPanel(){
- const qc=useQueryClient();const [category,setCategory]=useState('Workspace access'),[feature,setFeature]=useState(''),[description,setDescription]=useState(''),[projectId,setProjectId]=useState('');
- const tickets=useQuery({queryKey:['help-tickets'],queryFn:()=>get<Ticket[]>('/help/tickets')});const projects=useQuery({queryKey:['projects'],queryFn:()=>get<Project[]>('/projects')});
- const submit=useMutation({mutationFn:()=>post<Ticket>('/help/tickets',{category,feature,description,projectId:projectId||null}),onSuccess:()=>{setFeature('');setDescription('');setProjectId('');qc.invalidateQueries({queryKey:['help-tickets']});}});
- return <section id="support" className="rounded-xl border bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"><h2 className="text-xl font-semibold">Contact support</h2><p className="mt-2 text-sm text-zinc-500">Submit an in-app ticket and check its status here. Do not include passwords or secrets. Attachments and email notifications are not available.</p><form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={(e:FormEvent)=>{e.preventDefault();submit.mutate();}}><Field label="Issue category" htmlFor="support-category"><Select id="support-category" value={category} onChange={e=>setCategory(e.target.value)}>{['Workspace access','Projects and issues','External review','Pricing request','Other'].map(c=><option key={c}>{c}</option>)}</Select></Field><Field label="Affected feature" htmlFor="support-feature"><Input id="support-feature" required maxLength={120} value={feature} onChange={e=>setFeature(e.target.value)}/></Field><Field label="Project (optional)" htmlFor="support-project"><Select id="support-project" value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">None</option>{projects.data?.map(p=><option key={p.id} value={p.id}>{p.key} · {p.name}</option>)}</Select></Field><div className="sm:col-span-2"><Field label="Description" htmlFor="support-description"><Textarea id="support-description" required minLength={10} maxLength={4000} rows={3} value={description} onChange={e=>setDescription(e.target.value)}/></Field></div><div className="sm:col-span-2"><Button type="submit" loading={submit.isPending}>Submit support request</Button>{submit.isError&&<p role="alert" className="mt-2 text-sm text-rose-700">{(submit.error as Error).message}</p>}{submit.isSuccess&&<p role="status" className="mt-2 text-sm text-teal-700">Ticket created: {submit.data.id}</p>}</div></form><h3 className="mt-6 font-semibold">Your requests</h3>{tickets.isLoading?<p className="mt-2 text-sm">Loading…</p>:tickets.isError?<p role="alert" className="mt-2 text-sm text-rose-700">Could not load your tickets.</p>:tickets.data?.length?<ul className="mt-2 divide-y">{tickets.data.map(t=><li className="py-3 text-sm" key={t.id}><p className="font-medium">{t.feature} · {t.status.replaceAll('_',' ')}</p><p className="mt-1 break-all text-xs text-zinc-500">{t.id} · {new Date(t.created_at).toLocaleDateString()}</p></li>)}</ul>:<p className="mt-2 text-sm text-zinc-500">No support requests yet.</p>}</section>;
+ const me=useSession();const qc=useQueryClient();const [category,setCategory]=useState('Workspace access'),[feature,setFeature]=useState(''),[description,setDescription]=useState(''),[projectId,setProjectId]=useState('');
+ const tickets=useQuery({queryKey:['help-tickets',me.user.id,me.workspace.id],queryFn:()=>get<Ticket[]>('/help/tickets')});const projects=useQuery({queryKey:['projects',me.user.id,me.workspace.id],queryFn:()=>get<Project[]>('/projects')});
+ const submit=useMutation({mutationFn:()=>post<Ticket>('/help/tickets',{category,feature,description,projectId:projectId||null}),onSuccess:()=>{setFeature('');setDescription('');setProjectId('');qc.invalidateQueries({queryKey:['help-tickets',me.user.id,me.workspace.id]});}});
+ return <section className="rounded-xl border bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"><h2 className="text-xl font-semibold">Contact support</h2><p className="mt-2 text-sm text-zinc-500">Submit an in-app ticket and check its status here. Do not include passwords or secrets. Attachments and email notifications are not available.</p><form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={(e:FormEvent)=>{e.preventDefault();submit.mutate();}}><Field label="Issue category" htmlFor="support-category"><Select id="support-category" value={category} onChange={e=>setCategory(e.target.value)}>{['Workspace access','Projects and issues','External review','Pricing request','Other'].map(c=><option key={c}>{c}</option>)}</Select></Field><Field label="Affected feature" htmlFor="support-feature"><Input id="support-feature" required maxLength={120} value={feature} onChange={e=>setFeature(e.target.value)}/></Field><Field label="Project (optional)" htmlFor="support-project"><Select id="support-project" value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">None</option>{projects.data?.map(p=><option key={p.id} value={p.id}>{p.key} · {p.name}</option>)}</Select>{projects.isError&&<p role="alert" className="mt-2 text-xs text-rose-700">Could not load projects. You can still submit without one. <button type="button" className="underline" onClick={()=>projects.refetch()}>Try again</button></p>}</Field><div className="sm:col-span-2"><Field label="Description" htmlFor="support-description"><Textarea id="support-description" required minLength={10} maxLength={4000} rows={3} value={description} onChange={e=>setDescription(e.target.value)}/></Field></div><div className="sm:col-span-2"><Button type="submit" loading={submit.isPending}>Submit support request</Button>{submit.isError&&<p role="alert" className="mt-2 text-sm text-rose-700">{(submit.error as Error).message}</p>}{submit.isSuccess&&<p role="status" className="mt-2 text-sm text-teal-700">Ticket created: {submit.data.id}</p>}</div></form><h3 className="mt-6 font-semibold">Your requests</h3>{tickets.isLoading?<p className="mt-2 text-sm">Loading…</p>:tickets.isError?<p role="alert" className="mt-2 text-sm text-rose-700">Could not load your tickets. <button type="button" className="underline" onClick={()=>tickets.refetch()}>Try again</button></p>:tickets.data?.length?<ul className="mt-2 divide-y">{tickets.data.map(t=><li className="py-3 text-sm" key={t.id}><p className="font-medium">{t.feature} · {t.status.replaceAll('_',' ')}</p><p className="mt-1 break-all text-xs text-zinc-500">{t.id} · {new Date(t.created_at).toLocaleDateString()}</p></li>)}</ul>:<p className="mt-2 text-sm text-zinc-500">No support requests yet.</p>}</section>;
 }
