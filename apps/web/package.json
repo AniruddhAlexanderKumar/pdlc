@@ -11,6 +11,7 @@
     "test": "node --import tsx --test src/lib/marketing/scenario.test.ts src/lib/help/search.test.ts src/lib/marketing/education.test.ts src/pages/Landing.test.tsx"
   },
   "dependencies": {
+    "@sv/cad-core": "^0.0.0",
     "@sv/shared": "*",
     "@tanstack/react-query": "^5.104.4",
     "@xyflow/react": "^12.12.0",

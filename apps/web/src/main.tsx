@@ -32,6 +32,7 @@ import { TryDemoPage } from './pages/TryDemo';
 import { SettingsPage } from './pages/Settings';
 import { WorkspaceSetupPage } from './pages/WorkspaceSetup';
 import { DesignEditorPage, DesignStudioPage } from './pages/DesignStudio';
+import { CadDocumentsPage, CadDocumentPage } from './pages/CadDocuments';
 import { SuppliersPage } from './pages/Suppliers';
 import { CookieBanner } from './components/CookieBanner';
 import { useAnalyticsPageView } from './lib/analytics';
@@ -186,6 +187,8 @@ const router = createBrowserRouter([
               { path: '/projects', element: <ProjectsPage /> },
               { path: '/designs', element: <DesignStudioPage /> },
               { path: '/designs/:id', element: <DesignEditorPage /> },
+              { path: '/designs/cad', element: <CadDocumentsPage /> },
+              { path: '/designs/cad/:id', element: <CadDocumentPage /> },
               { path: '/assistant', element: <Suspense fallback={<Spinner label="Loading AI Assistant" />}><AssistantPage /></Suspense> },
               { path: '/help', element: <HelpCentrePage /> },
               { path: '/help/:slug', element: <HelpCentrePage /> },

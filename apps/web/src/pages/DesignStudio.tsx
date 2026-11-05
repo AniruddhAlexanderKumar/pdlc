@@ -5,16 +5,19 @@ import type { DesignDetail, DesignDocument, DesignRevision, DiagramSource, Proje
 import { get, post, put } from '../api/client';
 import { useSession, useWorkspaceData } from '../api/hooks';
 import { Button, Card, Input, PageHeader, Select, Spinner } from '../components/ui';
+import { useCadDocuments } from './CadDocuments';
 
 export function DesignStudioPage() {
  const me=useSession(), navigate=useNavigate(), qc=useQueryClient();
  const [title,setTitle]=useState(''); const [projectId,setProjectId]=useState(''); const [productId,setProductId]=useState(''); const [search,setSearch]=useState('');
+ const cad=useCadDocuments();
  const designs=useQuery({queryKey:['designs',me.workspace.id],queryFn:()=>get<DesignDocument[]>('/designs'),enabled:!me.demo});
  const projects=useQuery({queryKey:['design-projects',me.workspace.id],queryFn:()=>get<Project[]>('/projects'),enabled:!me.demo});
  const products=useWorkspaceData();
  const create=useMutation({mutationFn:()=>post<DesignDetail>('/designs',{title,projectId:projectId||null,productId:productId||null}),onSuccess:d=>{void qc.invalidateQueries({queryKey:['designs',me.workspace.id]});navigate(`/designs/${d.document.id}`)}});
  if(me.demo)return <div className="p-6">Design Studio is not available in the temporary demo.</div>;
  return <><PageHeader title="Design Studio" subtitle="Create and revise conceptual diagrams in this workspace."/><div className="space-y-5 p-4 md:p-6">
+  {cad.isSuccess&&<p><Link to="/designs/cad" className="text-sm font-medium text-blue-700 underline dark:text-blue-300">Experimental CAD documents (sketch source only)</Link></p>}
   <p className="text-sm text-zinc-600 dark:text-zinc-400">This first slice supports labeled boxes and connectors. It is not a verified engineering schematic, CAD tool or UI prototyping editor. Members can read workspace designs; the creator and workspace owners/admins can edit. The list shows the 200 most recently updated designs.</p>
   <Card className="p-5"><h2 className="font-semibold">New conceptual diagram</h2><form className="mt-3 grid gap-3 md:grid-cols-2" onSubmit={(e:FormEvent)=>{e.preventDefault();create.mutate()}}>
    <label className="text-sm">Name<Input required maxLength={120} value={title} onChange={e=>setTitle(e.target.value)} /></label>
