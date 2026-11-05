@@ -16,7 +16,8 @@ import type {
   VoiceImportResult,
   VoiceProcessResult,
   WithXp,
-  WorkspaceData
+  WorkspaceData,
+  WorkspaceProfile
 } from '@sv/shared';
 import { ApiError, del, get, patch, post, put } from './client';
 import { useCelebrate } from '../components/Celebrate';
@@ -68,6 +69,15 @@ export function useSession(): Me {
   const { data } = useMe();
   if (!data) throw new Error('useSession used outside an authenticated route');
   return data;
+}
+
+export function useWorkspaceProfile() {
+  const me = useSession();
+  return useQuery({
+    queryKey: ['workspace-profile', me.workspace.id],
+    queryFn: () => get<WorkspaceProfile>(`/workspace/profile?workspaceId=${encodeURIComponent(me.workspace.id)}`),
+    enabled: !me.demo
+  });
 }
 
 export function useWorkspaceData() {
@@ -248,7 +258,8 @@ export function useCreateTask(productId: string) {
 
 export function useUpdateTask(productId: string) {
   const setProduct = useSetProduct();
-  return useXpMutation(({ id, ...body }: TaskInput & { id: string }) => patch<WithXp<Product>>(`/products/${productId}/tasks/${id}`, body), setProduct);
+  const qc = useQueryClient();
+  return useXpMutation(({ id, ...body }: TaskInput & { id: string }) => patch<WithXp<Product>>(`/products/${productId}/tasks/${id}`, body), product => { setProduct(product); qc.invalidateQueries({ queryKey: ['project-issues'] }); qc.invalidateQueries({ queryKey: ['projects'] }); });
 }
 
 export function useDeleteTask(productId: string) {
@@ -331,7 +342,7 @@ export function useImportVoice() {
   const qc = useQueryClient();
   const setProduct = useSetProduct();
   return useXpMutation(
-    (payload: VoiceImportPayload) => post<WithXp<VoiceImportResult>>('/voice/import', payload),
+    (input: { requestId: string; draft: VoiceImportPayload }) => post<WithXp<VoiceImportResult>>('/voice/import', input),
     (result) => {
       setProduct(result.product);
       qc.invalidateQueries({ queryKey: keys.data });

@@ -2,9 +2,7 @@ import { Router } from 'express';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import {
-  ISSUE_PRIORITIES,
   ISSUE_STATUSES,
-  ISSUE_TYPES,
   formatIssueKey,
   type Issue,
   type Project
@@ -13,23 +11,10 @@ import { auth, requireRole } from '../auth/session.js';
 import { db, type Db } from '../db/index.js';
 import { badRequest, notFound, parse, route, shortText, uuid } from '../lib/http.js';
 import { param } from './util.js';
+import { projectInput, issueInput } from '../lib/record-validation.js';
 
 export const projectsRouter = Router();
 
-const projectKey = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9]{1,9}$/, 'Use 2–10 letters or numbers, starting with a letter');
-const projectInput = z.object({
-  key: projectKey,
-  name: shortText(120).min(1),
-  description: shortText(2000).default('')
-});
-const issueInput = z.object({
-  type: z.enum(ISSUE_TYPES).default('Task'),
-  priority: z.enum(ISSUE_PRIORITIES).default('Medium'),
-  summary: shortText(200).min(1),
-  description: shortText(5000).default(''),
-  labels: z.array(shortText(32).min(1)).max(20).default([]).refine((labels) => new Set(labels).size === labels.length, 'Labels must be unique'),
-  assigneeId: uuid.nullable().optional()
-});
 const issueUpdate = issueInput.partial().extend({ status: z.enum(ISSUE_STATUSES).optional() });
 const issueQuery = z.object({
   q: z.string().trim().max(100).optional(),
@@ -48,6 +33,16 @@ async function findProject(dbOrTrx: Db, workspaceId: string, projectId: string) 
     .executeTakeFirst();
 }
 
+async function linkedTasks(dbOrTrx: Db, workspaceId: string, issueIds: string[]) {
+  if (!issueIds.length) return new Map<string, { id: string; productId: string; productName: string }>();
+  const rows = await dbOrTrx.selectFrom('voice_import_work_items as l')
+    .innerJoin('tasks as t', 't.id', 'l.task_id').innerJoin('products as prod', 'prod.id', 't.product_id')
+    .select(['l.issue_id', 't.id', 'prod.id as product_id', 'prod.name as product_name'])
+    .where('l.workspace_id', '=', workspaceId).where('prod.workspace_id', '=', workspaceId)
+    .where('l.issue_id', 'in', issueIds).execute();
+  return new Map(rows.map(row => [row.issue_id, { id: row.id, productId: row.product_id, productName: row.product_name }]));
+}
+
 async function toIssue(dbOrTrx: Db, projectId: string, issueId: string): Promise<Issue> {
   const row = await dbOrTrx
     .selectFrom('issues as i')
@@ -56,6 +51,7 @@ async function toIssue(dbOrTrx: Db, projectId: string, issueId: string): Promise
       'i.id',
       'i.project_id',
       'p.project_key',
+      'p.workspace_id',
       'i.issue_number',
       'i.type',
       'i.status',
@@ -72,6 +68,7 @@ async function toIssue(dbOrTrx: Db, projectId: string, issueId: string): Promise
     .where('i.id', '=', issueId)
     .executeTakeFirst();
   if (!row) throw notFound('Issue');
+  const link = (await linkedTasks(dbOrTrx, row.workspace_id, [row.id])).get(row.id);
   return {
     id: row.id,
     projectId: row.project_id,
@@ -84,6 +81,7 @@ async function toIssue(dbOrTrx: Db, projectId: string, issueId: string): Promise
     labels: row.labels,
     reporterId: row.reporter_id,
     assigneeId: row.assignee_id,
+    ...(link ? { linkedTask: link } : {}),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString()
   };
@@ -218,6 +216,7 @@ projectsRouter.get(
       countQuery.executeTakeFirstOrThrow()
     ]);
 
+    const links = await linkedTasks(db, actor.workspaceId, rows.map(row => row.id));
     const items: Issue[] = rows.map((row) => ({
       id: row.id,
       projectId: row.project_id,
@@ -230,6 +229,7 @@ projectsRouter.get(
       labels: row.labels,
       reporterId: row.reporter_id,
       assigneeId: row.assignee_id,
+      ...(links.has(row.id) ? { linkedTask: links.get(row.id)! } : {}),
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString()
     }));

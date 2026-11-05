@@ -35,11 +35,28 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
   const [recognitionSupported, setRecognitionSupported] = useState(true);
   const [micError, setMicError] = useState<string | null>(null);
   const [payloadDraft, setPayloadDraft] = useState<VoiceImportPayload | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const recoveryKey = `sv-voice-pending:${me.user.id}:${me.workspace.id}`;
   const [providerUsed, setProviderUsed] = useState<string>('qwen');
   const [expandedIssue, setExpandedIssue] = useState<number | null>(0);
 
   const recognitionRef = useRef<any>(null);
   const timerRef = useRef<any>(null);
+
+  // Keep only a submitted draft in this tab so an uncertain response can be retried
+  // with the same idempotency key after a reload. Never send storage as authority.
+  useEffect(() => {
+    setPayloadDraft(null); setRequestId(null); setPendingImport(false); setStep('dictate'); setRecoveryError(null);
+    try {
+      const saved = sessionStorage.getItem(recoveryKey);
+      if (!saved) return;
+      const item = JSON.parse(saved) as { requestId: string; draft: VoiceImportPayload; provider: string };
+      if (!item.requestId || !item.draft) return;
+      setRequestId(item.requestId); setPayloadDraft(item.draft); setProviderUsed(item.provider); setPendingImport(true); setStep('preview');
+    } catch { setRecoveryError('Could not restore a pending import. Check existing records before creating another.'); }
+  }, [recoveryKey]);
 
   // Setup Web Speech Recognition
   useEffect(() => {
@@ -120,6 +137,7 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
     processVoice.mutate(transcript.trim(), {
       onSuccess: (res) => {
         setPayloadDraft(res.data);
+        setRequestId(crypto.randomUUID());
         setProviderUsed(res.provider);
         setStep('preview');
       }
@@ -127,9 +145,18 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
   };
 
   const handleImport = () => {
-    if (!payloadDraft) return;
-    importVoice.mutate(payloadDraft, {
-      onSuccess: (res) => {
+    if (!payloadDraft || !requestId) return;
+    try {
+      sessionStorage.setItem(recoveryKey, JSON.stringify({ requestId, draft: payloadDraft, provider: providerUsed }));
+      setPendingImport(true); setRecoveryError(null);
+    } catch {
+      setRecoveryError('Cannot save a retry key in this tab. Enable session storage before importing to prevent duplicate work.');
+      return;
+    }
+    importVoice.mutate({ requestId, draft: payloadDraft }, {
+      onSuccess: () => {
+        try { sessionStorage.removeItem(recoveryKey); } catch { /* A retry remains safe if removal fails. */ }
+        setPendingImport(false);
         setTimeout(() => {
           onClose();
           navigate(`/projects`);
@@ -172,13 +199,13 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
             </>
           ) : (
             <>
-              <Button variant="secondary" icon={<RotateCcw className="h-4 w-4" />} onClick={() => setStep('dictate')}>
+              <Button variant="secondary" disabled={importVoice.isPending} icon={<RotateCcw className="h-4 w-4" />} onClick={() => { if (pendingImport && !window.confirm('This import may already have completed. Check existing records before starting over. Discard the saved retry key?')) return; try { sessionStorage.removeItem(recoveryKey); } catch { setRecoveryError('Could not clear the saved retry key.'); return; } setPendingImport(false); setStep('dictate'); }}>
                 Back to Dictation
               </Button>
               <Button
                 onClick={handleImport}
                 loading={importVoice.isPending}
-                disabled={me.workspace.role === 'member'}
+                disabled={me.workspace.role === 'member' || importVoice.isPending || importVoice.isSuccess}
                 icon={<CheckCircle2 className="h-4 w-4" />}
               >
                 Confirm & Create Records · +{XP.productCreated} XP
@@ -247,13 +274,16 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
               />
             </div>
 
+            {recoveryError && <p role="alert" className="text-sm text-rose-700">{recoveryError}</p>}
             {processVoice.isError && <p role="alert" className="text-sm text-rose-700">{(processVoice.error as Error).message}</p>}
           </div>
         ) : (
           payloadDraft && (
             <div className="space-y-6">
-              <p className="text-sm text-amber-700 dark:text-amber-300">Review the draft carefully. AI output may be inaccurate; zero costs can mean unspecified. Go back to revise the transcript or cancel if anything is wrong.</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">Each imported work item creates a linked project issue and product task. Their statuses stay synchronized; titles and descriptions can be edited independently. Deleting one removes the link, not the other record. Review the draft carefully. AI output may be inaccurate; zero costs can mean unspecified. Go back to revise the transcript or cancel if anything is wrong.</p>
               {me.workspace.role === 'member' && <p role="alert" className="text-sm text-rose-700">Only workspace owners and admins can create the project required for this import.</p>}
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">On import, the draft and retry key are temporarily stored in this browser tab until confirmation, so you can retry after a connection error or reload. Starting over may create a separate import. Milestones cannot be imported and must be recorded separately.</p>
+              {recoveryError && <p role="alert" className="text-sm text-rose-700">{recoveryError}</p>}
               {importVoice.isError && <p role="alert" className="text-sm text-rose-700">{(importVoice.error as Error).message}</p>}
 
               {/* Product Header Card */}
@@ -388,6 +418,7 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
+                            <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">Status: {issue.status}</span>
                             <span
                               className={cx(
                                 'rounded px-1.5 py-0.5 text-[10px] font-semibold',

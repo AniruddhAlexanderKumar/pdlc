@@ -12,3 +12,4 @@ export * from './teamworkGraph.js';
 export * from './app-layout.js';
 export * from './pricing.js';
 export * from './education-pricing.js';
+export * from './workspace-profile.js';

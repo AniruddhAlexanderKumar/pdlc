@@ -52,6 +52,13 @@ export async function loadProducts(db: Db, workspaceId: string, productId?: stri
     db.selectFrom('answers').select(['product_id', 'question_key', 'value']).where('product_id', 'in', ids).execute()
   ]);
 
+  const links = tasks.length ? await db.selectFrom('voice_import_work_items as l')
+    .innerJoin('issues as i', 'i.id', 'l.issue_id').innerJoin('projects as p', 'p.id', 'i.project_id')
+    .select(['l.task_id', 'i.id', 'p.id as project_id', 'p.project_key', 'i.issue_number'])
+    .where('l.workspace_id', '=', workspaceId).where('p.workspace_id', '=', workspaceId)
+    .where('l.task_id', 'in', tasks.map(t => t.id)).execute() : [];
+  const linked = new Map(links.map(l => [l.task_id, { id: l.id, projectId: l.project_id, key: `${l.project_key}-${l.issue_number}` }]));
+
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -63,7 +70,7 @@ export async function loadProducts(db: Db, workspaceId: string, productId?: stri
     targetSellingPrice: r.target_price,
     costs: { labour: r.labour, packaging: r.packaging, overhead: r.overhead },
     materials: bom.filter((b) => b.product_id === r.id).map((b) => ({ materialId: b.material_id, quantity: b.quantity })),
-    tasks: tasks.filter((t) => t.product_id === r.id).map(toTask),
+    tasks: tasks.filter((t) => t.product_id === r.id).map(t => ({ ...toTask(t), ...(linked.has(t.id) ? { linkedIssue: linked.get(t.id)! } : {}) })),
     answers: Object.fromEntries(answers.filter((a) => a.product_id === r.id).map((a) => [a.question_key, a.value as AnswerValue])),
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString()

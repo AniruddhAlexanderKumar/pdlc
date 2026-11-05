@@ -17,8 +17,7 @@ function accessPageMetadata(): Plugin {
       const description = 'Request early access to Solution Velocity and tell us about your engineering workflow.';
       const page = root
         .replaceAll('Solution Velocity | Engineering Product Development Lifecycle Management', title)
-        .replaceAll('Bring product records, engineering project work and collaboration together with Solution Velocity, an intelligent product development lifecycle workspace.', description)
-        .replaceAll('Bring product records, engineering project work and collaboration together with Solution Velocity.', description)
+        .replaceAll('Bring product and project work together for engineering teams, students and educational organisations with Solution Velocity.', description)
         .replace('<link rel="canonical" href="https://pdlc.dalvigroup.co.in/" />', '<link rel="canonical" href="https://pdlc.dalvigroup.co.in/request-access" />')
         .replace('<meta property="og:url" content="https://pdlc.dalvigroup.co.in/" />', '<meta property="og:url" content="https://pdlc.dalvigroup.co.in/request-access" />');
       await writeFile(resolve(output, 'request-access.html'), page);

@@ -162,6 +162,10 @@ export function createApp() {
       res.status(413).json({ error: 'Request body is too large' });
       return;
     }
+    if (err?.code === '40P01' || err?.code === '40001') {
+      res.status(409).json({ error: 'A concurrent update conflicted. Reload and retry.', code: 'retryable_conflict' });
+      return;
+    }
     // Postgres unique violation, e.g. two sign-ups racing for the same email.
     if (err?.code === '23505') {
       res.status(409).json({ error: 'That already exists' });

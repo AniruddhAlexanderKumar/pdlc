@@ -22,6 +22,8 @@ import * as m019 from './migrations/019_help_guide_correction.js';
 import * as m020 from './migrations/020_assistant.js';
 import * as m021 from './migrations/021_assistant_status.js';
 import * as m022 from './migrations/022_assistant_priority.js';
+import * as m023 from './migrations/023_workspace_profiles.js';
+import * as m024 from './migrations/024_voice_import_integrity.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -50,7 +52,9 @@ const migrations: Record<string, Migration> = {
   '019_help_guide_correction': m019,
   '020_assistant': m020,
   '021_assistant_status': m021,
-  '022_assistant_priority': m022
+  '022_assistant_priority': m022,
+  '023_workspace_profiles': m023,
+  '024_voice_import_integrity': m024
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

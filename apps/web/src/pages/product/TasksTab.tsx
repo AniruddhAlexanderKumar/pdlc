@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { Calendar, CheckCircle2, Circle, Edit3, Plus, Trash2 } from 'lucide-react';
 import { XP, type Product, type Task, type TaskStatus } from '@sv/shared';
 import { useCreateTask, useDeleteTask, useUpdateTask } from '../../api/hooks';
@@ -168,6 +169,7 @@ export function TasksTab({ product }: { product: Product }) {
                         <div className="min-w-0 flex-1">
                           <p className={cx('text-sm font-medium', t.status === 'done' && 'text-zinc-400 line-through')}>{t.title}</p>
                           {t.description && <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{t.description}</p>}
+                          {t.linkedIssue && <p className="mt-1 text-xs"><Link className="text-blue-700 underline dark:text-blue-300" to={`/projects/${t.linkedIssue.projectId}/issues?issueId=${t.linkedIssue.id}`}>Linked issue {t.linkedIssue.key}</Link> · status synced</p>}
                           {t.dueDate && (
                             <p className={cx('mt-1.5 flex items-center gap-1 text-[11px]', overdue ? 'font-medium text-rose-600 dark:text-rose-400' : 'text-zinc-500')}>
                               <Calendar className="h-3 w-3" />
