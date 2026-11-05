@@ -1,20 +1,17 @@
 import { Router } from 'express';
+import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import {
-  ISSUE_PRIORITIES,
-  ISSUE_STATUSES,
-  ISSUE_TYPES,
   QUESTIONS_BY_KEY,
-  STAGE_IDS,
   XP,
-  formatIssueKey,
   isAnswered,
-  type VoiceImportPayload,
   type VoiceImportResult
 } from '@sv/shared';
 import { auth, requireRole } from '../auth/session.js';
-import { badRequest, parse, route, shortText } from '../lib/http.js';
+import { badRequest, conflict, HttpError, parse, route, uuid } from '../lib/http.js';
+import { loadProduct } from '../services/repo.js';
+import { validateVoiceDraft } from '../services/voice-validation.js';
 import { processVoiceTranscript } from '../services/qwen.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
 import { mutate } from './util.js';
@@ -25,56 +22,17 @@ const processInput = z.object({
   transcript: z.string().trim().min(5, 'Spoken transcript must have at least 5 characters').max(12000)
 });
 
-const voiceImportSchema = z.object({
-  product: z.object({
-    name: shortText(120).min(1, 'Product name is required'),
-    category: shortText(60).default('General'),
-    stage: z.enum(STAGE_IDS).default('Idea'),
-    description: shortText(2000).default(''),
-    target_price: z.number().nullable().default(null),
-    labour: z.number().min(0).default(0),
-    packaging: z.number().min(0).default(0),
-    overhead: z.number().min(0).default(0)
-  }),
-  answers: z.array(
-    z.object({
-      question_key: z.string(),
-      value: z.union([z.string(), z.number(), z.boolean()])
-    })
-  ).default([]),
-  materials: z.array(
-    z.object({
-      name: shortText(120).min(1),
-      category: shortText(60).default('General'),
-      unit: shortText(20).default('pcs'),
-      unit_price: z.number().min(0).default(0),
-      quantity: z.number().positive().default(1)
-    })
-  ).default([]),
-  project: z.object({
-    project_key: z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9]{1,9}$/, 'Project key must be 2-10 alphanumeric characters'),
-    name: shortText(120).min(1),
-    description: shortText(2000).default('')
-  }),
-  issues: z.array(
-    z.object({
-      type: z.enum(ISSUE_TYPES).default('Task'),
-      status: z.enum(ISSUE_STATUSES).default('Open'),
-      priority: z.enum(ISSUE_PRIORITIES).default('Medium'),
-      summary: shortText(200).min(1),
-      description: shortText(5000).default(''),
-      labels: z.array(shortText(32)).default([]),
-      milestone_tag: shortText(60).optional()
-    })
-  ).default([])
-});
 
 voiceRouter.post(
   '/process',
   route(async (req, res) => {
     const { transcript } = parse(processInput, req.body);
     const result = await processVoiceTranscript(transcript);
-    res.json(result);
+    try { res.json({ ...result, data: validateVoiceDraft(result.data) }); }
+    catch (err) {
+      if (err instanceof HttpError && err.status === 400) throw badRequest(`The generated draft is invalid: ${err.message}. Revise the transcript and try again.`);
+      throw err;
+    }
   })
 );
 
@@ -82,8 +40,23 @@ voiceRouter.post(
   '/import',
   requireRole('owner', 'admin'),
   route(async (req, res) => {
-    const payload = parse(voiceImportSchema, req.body);
+    if (!req.body?.requestId || !req.body?.draft) throw badRequest('Refresh the application before importing: a draft and retry-safe request ID are required.');
+    const input = parse(z.object({ requestId: uuid, draft: z.unknown() }).strict(), req.body);
+    const payload = validateVoiceDraft(input.draft);
+    const payloadHash = createHash('sha256').update(JSON.stringify(payload)).digest('hex');
     const result = await mutate<VoiceImportResult>(req, async (trx, ledger, ctx) => {
+      // Serialize same-key retries and project-key allocation. Receipts survive record deletion
+      // so a retry cannot silently recreate work that was deliberately removed.
+      await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${ctx.workspaceId}:${ctx.userId}:${input.requestId}`}, 0))`.execute(trx);
+      const receipt = await trx.selectFrom('voice_import_receipts').selectAll().where('workspace_id', '=', ctx.workspaceId).where('user_id', '=', ctx.userId).where('request_id', '=', input.requestId).executeTakeFirst();
+      if (receipt) {
+        if (receipt.payload_hash !== payloadHash) throw conflict('This import request ID was already used for a different draft.');
+        if (!receipt.product_id || !receipt.project_id) throw new HttpError(410, 'This import was already completed, but its product or project was deleted. It will not be recreated.', 'import_deleted');
+        const project = await trx.selectFrom('projects').select('project_key').where('id', '=', receipt.project_id).where('workspace_id', '=', ctx.workspaceId).executeTakeFirst();
+        if (!project) throw new HttpError(410, 'The imported project was deleted. It will not be recreated.', 'import_deleted');
+        return { productId: receipt.product_id, projectId: receipt.project_id, projectKey: project.project_key, product: await loadProduct(trx, ctx.workspaceId, receipt.product_id) };
+      }
+      await trx.selectFrom('workspaces').select('id').where('id', '=', ctx.workspaceId).forUpdate().executeTakeFirstOrThrow();
       // 1. Ensure unique project key in workspace
       let key = payload.project.project_key;
       let counter = 1;
@@ -96,7 +69,9 @@ voiceRouter.post(
           .executeTakeFirst();
         if (!existing) break;
         counter++;
-        key = `${payload.project.project_key.slice(0, 7)}${counter}`;
+        const suffix = String(counter);
+        if (suffix.length >= 10) throw conflict('Unable to allocate a project key');
+        key = `${payload.project.project_key.slice(0, 10 - suffix.length)}${suffix}`;
       }
 
       // 2. Create Project
@@ -144,7 +119,7 @@ voiceRouter.post(
       // 5. Award product creation XP
       await ledger.award('product_created', productId, XP.productCreated, `Created ${payload.product.name} via voice dictation`, productId);
 
-      // 6. Insert Discovery Answers (Bypassing manual forms!)
+      // 6. Insert answers validated and normalised by the same question rules as manual entry.
       for (const ans of payload.answers) {
         const q = QUESTIONS_BY_KEY.get(ans.question_key);
         if (q && !q.retired && isAnswered(ans.value)) {
@@ -214,8 +189,8 @@ voiceRouter.post(
         const issue = payload.issues[i];
         const issueNumber = currentIssueNumber++;
 
-        // Add to Jira issues
-        await trx
+        // Create explicitly linked project issue and product task.
+        const issueRow = await trx
           .insertInto('issues')
           .values({
             project_id: projectRow.id,
@@ -229,20 +204,24 @@ voiceRouter.post(
             reporter_id: ctx.userId,
             updated_at: new Date()
           })
-          .execute();
+          .returning('id')
+          .executeTakeFirstOrThrow();
 
-        // Also add to Product Tasks so tasks appear on the product page
-        await trx
+        const taskStatus = { Open: 'todo', 'In Progress': 'in_progress', Done: 'done' } as const;
+        const taskRow = await trx
           .insertInto('tasks')
           .values({
             product_id: productId,
             title: issue.summary,
             description: issue.description,
-            status: 'todo',
+            status: taskStatus[issue.status],
+            completed_at: issue.status === 'Done' ? new Date() : null,
             position: i,
             updated_at: new Date()
           })
-          .execute();
+          .returning('id')
+          .executeTakeFirstOrThrow();
+        await trx.insertInto('voice_import_work_items').values({ task_id: taskRow.id, issue_id: issueRow.id, workspace_id: ctx.workspaceId }).execute();
       }
 
       await trx
@@ -250,6 +229,8 @@ voiceRouter.post(
         .set({ next_issue_number: currentIssueNumber, updated_at: new Date() })
         .where('id', '=', projectRow.id)
         .execute();
+
+      await trx.insertInto('voice_import_receipts').values({ workspace_id: ctx.workspaceId, user_id: ctx.userId, request_id: input.requestId, payload_hash: payloadHash, product_id: productId, project_id: projectRow.id }).execute();
 
       // Record analytics
       await recordAnalyticsEvent({
@@ -264,7 +245,7 @@ voiceRouter.post(
           issuesCount: payload.issues.length,
           materialsCount: payload.materials.length
         }
-      });
+      }, trx);
 
       const evaluated = await ledger.evaluateProduct(productId);
       return {

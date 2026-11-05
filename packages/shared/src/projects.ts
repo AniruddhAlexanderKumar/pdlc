@@ -29,6 +29,7 @@ export interface Issue {
   labels: string[];
   reporterId: string | null;
   assigneeId: string | null;
+  linkedTask?: { id: string; productId: string; productName: string };
   createdAt: string;
   updatedAt: string;
 }

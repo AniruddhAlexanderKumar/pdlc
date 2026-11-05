@@ -52,7 +52,8 @@ export function ProjectIssuesPage() {
   const refreshIssues = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['project-issues', projectId] }),
-      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['projects'] }),
+      queryClient.invalidateQueries({ queryKey: ['workspace-data'] })
     ]);
   };
   const createIssue = useMutation({
@@ -188,6 +189,7 @@ function IssueCard({ issue, members, onStatusChange, onAssigneeChange }: { issue
           <p className="text-xs font-semibold tracking-wide text-blue-600 dark:text-blue-400">{issue.key} · {issue.type}</p>
           <h2 className="mt-1 font-semibold">{issue.summary}</h2>
           {issue.description && <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-500">{issue.description}</p>}
+          {issue.linkedTask && <p className="mt-2 text-xs"><Link className="text-blue-700 underline dark:text-blue-300" to={`/products/${issue.linkedTask.productId}/tasks`}>Linked product task · {issue.linkedTask.productName}</Link> · status synced</p>}
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
             <span className="rounded-full bg-zinc-100 px-2 py-1 dark:bg-zinc-800">{issue.priority}</span>
             {issue.labels.map((label) => <span key={label} className="rounded-full bg-blue-500/10 px-2 py-1 text-blue-700 dark:text-blue-300">{label}</span>)}

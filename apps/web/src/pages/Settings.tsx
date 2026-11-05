@@ -458,6 +458,7 @@ export function SettingsPage() {
             {me.demo ? <Card><div className="p-4"><h2 className="font-semibold">Temporary demo workspace</h2><p className="mt-1 text-sm text-zinc-500">Account, workspace and team management are unavailable in the demo. Exit the demo to sign in or request access.</p></div></Card> : <>
               <WorkspaceAccess />
               <WorkspaceSettings />
+              <Card><div className="flex flex-wrap items-center justify-between gap-3 p-4"><div><h2 className="font-semibold">Workspace setup</h2><p className="mt-1 text-sm text-zinc-500">Describe your work and prioritise existing navigation tools for this workspace.</p></div><Link to="/workspace-setup" className="inline-flex min-h-10 items-center rounded-md border border-zinc-200 px-4 text-sm font-semibold text-blue-700 dark:border-zinc-700 dark:text-blue-400">Open workspace setup</Link></div></Card>
               {me.workspace.mode === 'team' ? <Team /> : <Card><div className="p-4"><h2 className="font-semibold">Personal workspace</h2><p className="mt-1 text-sm text-zinc-500">Invitations are disabled here. Create a separate team workspace above to collaborate.</p></div></Card>}
               <Account />
             </>}

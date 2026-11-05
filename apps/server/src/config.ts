@@ -30,6 +30,8 @@ const schema = z.object({
   INSIGHTS_PROVIDER: z.enum(['rules', 'ai']).default('rules'),
   /** Optional help article ranking; only a user question and permitted published help text are sent to the AI provider. */
   HELP_AI_ENABLED: bool.default(false),
+  /** Internal, opt-in API for the unfinished native sketch work. No product UI yet. */
+  CAD_NATIVE_EXPERIMENTAL: bool.default(false),
   AI_BASE_URL: z.string().default('http://127.0.0.1:8091/v1'),
   AI_MODEL: z.string().default('qwen2.5-14b-instruct'),
   AI_API_KEY: z.string().optional().default(''),

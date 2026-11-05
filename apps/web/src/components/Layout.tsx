@@ -1,15 +1,12 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, BookOpen, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
-import { DEFAULT_APP_LAYOUT, type Me } from '@sv/shared';
+import { BarChart3, BookOpen, PenTool, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
+import { DEFAULT_APP_LAYOUT, NAV_FOCUS_PATHS, type Me } from '@sv/shared';
 import { post } from '../api/client';
-import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData } from '../api/hooks';
+import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData, useWorkspaceProfile } from '../api/hooks';
 import { openCookiePreferences } from '../lib/cookieConsent';
 import { useTheme } from '../lib/theme';
-import { useLanguage } from '../lib/i18n/useLanguage';
-import { languageTag, navigationLabel } from '../lib/i18n/language';
-import { LanguageSelector } from './LanguageSelector';
 import { Logo } from '../pages/auth/Auth';
 import { LevelUpWatcher } from './Celebrate';
 import { NewProductModal } from './NewProductModal';
@@ -28,6 +25,7 @@ const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
   { to: '/assistant', label: 'AI Assistant', icon: Sparkles },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/designs', label: 'Design Studio', icon: PenTool },
   { to: '/help', label: 'Help', icon: BookOpen },
   { to: '/products', label: 'Products', icon: Package },
   { to: '/teamwork-graph', label: 'Teamwork Graph', icon: Network },
@@ -74,6 +72,7 @@ function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boo
 
   const switchWs = useMutation({
     mutationFn: (workspaceId: string) => post<Me>('/auth/switch-workspace', { workspaceId }),
+    onError: () => window.dispatchEvent(new Event('sv:session-change-failed')),
     onSuccess: (m) => {
       resetSession(m);
       navigate('/');
@@ -118,6 +117,7 @@ function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boo
                 key={w.id}
                 disabled={w.id === me.workspace.id}
                 onClick={() => {
+                  if (!window.dispatchEvent(new Event('sv:before-session-change', { cancelable: true }))) return;
                   setOpen(false);
                   switchWs.mutate(w.id);
                 }}
@@ -162,7 +162,7 @@ function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boo
               {theme === 'dark' ? 'Light mode' : 'Dark mode'}
             </button>
             <button
-              onClick={() => logout.mutate()}
+              onClick={() => { if (window.dispatchEvent(new Event('sv:before-session-change', { cancelable: true }))) logout.mutate(); }}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
             >
               <LogOut className="h-4 w-4" /> Sign out
@@ -174,14 +174,13 @@ function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boo
   );
 }
 
-function DesktopTopNavigation({ style, onNew, onVoice }: { style: 'tabs' | 'menu'; onNew: () => void; onVoice: () => void }) {
+function DesktopTopNavigation({ style, onNew, onVoice, navigation }: { style: 'tabs' | 'menu'; onNew: () => void; onVoice: () => void; navigation: typeof NAV }) {
   const me = useSession();
-  const {language} = useLanguage();
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => { setOpen(false); }, [style]);
   const links = [
-    ...NAV,
+    ...navigation,
     ...(me.user.isAdmin ? [{ to: '/admin', label: 'Admin Console', icon: Shield }] : []),
     { to: '/settings', label: 'Settings', icon: Settings },
   ];
@@ -196,7 +195,7 @@ function DesktopTopNavigation({ style, onNew, onVoice }: { style: 'tabs' | 'menu
             {open && <>
               <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
               <nav id="desktop-navigation-menu" aria-label="Main" className="absolute left-0 top-full z-40 mt-2 max-h-[calc(100vh-5rem)] w-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
-                {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => cx('flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium', isActive ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" /><span lang={languageTag[language]}>{navigationLabel(n.label,language)}</span></NavLink>)}
+                {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => cx('flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium', isActive ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" />{n.label}</NavLink>)}
               </nav>
             </>}
           </div>
@@ -209,7 +208,7 @@ function DesktopTopNavigation({ style, onNew, onVoice }: { style: 'tabs' | 'menu
         </div>
       </div>
       {style === 'tabs' && <nav aria-label="Main" className="flex overflow-x-auto px-4">
-        {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium', isActive ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-zinc-600 hover:text-blue-700 dark:text-zinc-400')}><n.icon className="h-4 w-4" /><span lang={languageTag[language]}>{navigationLabel(n.label,language)}</span></NavLink>)}
+        {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium', isActive ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-zinc-600 hover:text-blue-700 dark:text-zinc-400')}><n.icon className="h-4 w-4" />{n.label}</NavLink>)}
       </nav>}
     </header>
   );
@@ -223,11 +222,14 @@ function DemoNotice({ expiresAt }: { expiresAt: string }) {
 
 export function Layout() {
   const me = useSession();
-  const {language} = useLanguage();
   const [newOpen, setNewOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const { data } = useWorkspaceData();
   const { data: appLayout } = useAppLayout();
+  const { data: workspaceProfile } = useWorkspaceProfile();
+  const priorities = (workspaceProfile?.profile?.navigation ?? []).map(id => NAV_FOCUS_PATHS[id]);
+  const availableNav = me.demo ? NAV.filter(n => n.to !== '/designs') : NAV;
+  const navigation = priorities.length ? [availableNav[0], ...priorities.flatMap(path => availableNav.filter(n => n.to === path)), ...availableNav.slice(1).filter(n => !priorities.includes(n.to))] : availableNav;
   const layout = appLayout ?? DEFAULT_APP_LAYOUT;
   const compact = layout.navigation === 'compact';
   const topNavigation = layout.navigation === 'tabs' || layout.navigation === 'menu';
@@ -274,12 +276,12 @@ export function Layout() {
                 <span className={compact ? 'sr-only' : undefined}>{'Admin Console'}</span>
               </NavLink>
             )}
-            {NAV.filter(n => compact || !['/materials','/suppliers','/achievements'].includes(n.to)).map((n) => (
+            {navigation.filter(n => compact || priorities.includes(n.to) || !['/materials','/suppliers','/achievements'].includes(n.to)).map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
                 end={n.end}
-                title={compact ? navigationLabel(n.label,language) : undefined}
+                title={compact ? n.label : undefined}
                 className={({ isActive }) =>
                   cx(
                     'flex items-center justify-between rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors',
@@ -294,14 +296,14 @@ export function Layout() {
                   <>
                     <span className="flex items-center gap-2.5">
                       <n.icon className={cx('h-4 w-4', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400')} />
-                      <span className={compact ? 'sr-only' : undefined}><span lang={languageTag[language]}>{navigationLabel(n.label,language)}</span></span>
+                      <span className={compact ? 'sr-only' : undefined}>{n.label}</span>
                     </span>
                     {!compact && counts[n.to] !== undefined && <span className="text-[11px] tabular-nums text-zinc-400">{counts[n.to]}</span>}
                   </>
                 )}
               </NavLink>
             ))}
-            {!compact && <details className="mt-1"><summary className="cursor-pointer rounded-md px-3 py-2 text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"><span lang={languageTag[language]}>{navigationLabel('More tools',language)}</span></summary><div className="ml-3 border-l border-zinc-200 pl-2 dark:border-zinc-700">{NAV.filter(n=>['/materials','/suppliers','/achievements'].includes(n.to)).map(n=><NavLink key={n.to} to={n.to} className={({isActive})=>cx('flex items-center gap-2 rounded-md px-3 py-2 text-sm',isActive?'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300':'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" /><span lang={languageTag[language]}>{navigationLabel(n.label,language)}</span></NavLink>)}</div></details>}
+            {!compact && <details className="mt-1"><summary className="cursor-pointer rounded-md px-3 py-2 text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">More tools</summary><div className="ml-3 border-l border-zinc-200 pl-2 dark:border-zinc-700">{navigation.filter(n=>!priorities.includes(n.to) && ['/materials','/suppliers','/achievements'].includes(n.to)).map(n=><NavLink key={n.to} to={n.to} className={({isActive})=>cx('flex items-center gap-2 rounded-md px-3 py-2 text-sm',isActive?'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300':'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" />{n.label}</NavLink>)}</div></details>}
             <NavLink
               to="/settings"
               title={compact ? 'Settings' : undefined}
@@ -311,7 +313,7 @@ export function Layout() {
                 isActive ? 'bg-blue-50 text-[#16598d] dark:bg-blue-500/15 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100/70 dark:text-zinc-400 dark:hover:bg-zinc-800/50'
               )}
             >
-              <Settings className="h-4 w-4" /> <span lang={languageTag[language]} className={compact ? 'sr-only' : undefined}>{navigationLabel('Settings',language)}</span>
+              <Settings className="h-4 w-4" /> <span className={compact ? 'sr-only' : undefined}>{'Settings'}</span>
             </NavLink>
           </nav>
           <div className={cx('mt-auto space-y-2 border-t border-zinc-200/80 dark:border-zinc-800/80', compact ? 'p-2' : 'p-4')}>
@@ -319,7 +321,7 @@ export function Layout() {
             <WorkspaceMenu compact={compact} />
           </div>
         </aside>}
-        {topNavigation && <DesktopTopNavigation style={layout.navigation as 'tabs' | 'menu'} onNew={() => setNewOpen(true)} onVoice={() => setVoiceOpen(true)} />}
+        {topNavigation && <DesktopTopNavigation style={layout.navigation as 'tabs' | 'menu'} onNew={() => setNewOpen(true)} onVoice={() => setVoiceOpen(true)} navigation={navigation} />}
 
         {/* Mobile top bar */}
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden dark:border-zinc-800 dark:bg-zinc-900">
@@ -342,7 +344,6 @@ export function Layout() {
 
         <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#f6f8fa] pb-20 md:pb-0 dark:bg-zinc-950">
           {me.demo && <DemoNotice expiresAt={me.demo.expiresAt} />}
-          <div className="border-b border-slate-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900"><LanguageSelector /></div>
           <div className={cx('h-full min-h-full', layout.contentWidth === 'constrained' && 'mx-auto w-full max-w-7xl')}><Outlet /></div>
         </main>
 
@@ -351,7 +352,7 @@ export function Layout() {
           className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
           aria-label="Main"
         >
-          {NAV.map((n) => (
+          {navigation.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -361,7 +362,7 @@ export function Layout() {
               }
             >
               <n.icon className="h-5 w-5" />
-              <span lang={languageTag[language]}>{navigationLabel(n.label,language)}</span>
+              {n.label}
             </NavLink>
           ))}
         </nav>

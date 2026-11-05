@@ -30,6 +30,8 @@ import { ExternalReviewPage } from './pages/ExternalReview';
 import { ExternalReviewsPage } from './pages/ExternalReviews';
 import { TryDemoPage } from './pages/TryDemo';
 import { SettingsPage } from './pages/Settings';
+import { WorkspaceSetupPage } from './pages/WorkspaceSetup';
+import { DesignEditorPage, DesignStudioPage } from './pages/DesignStudio';
 import { SuppliersPage } from './pages/Suppliers';
 import { CookieBanner } from './components/CookieBanner';
 import { useAnalyticsPageView } from './lib/analytics';
@@ -122,7 +124,7 @@ function RootApp() {
     const publicPage = pathname === '/' || pathname === '/request-access';
     const pageName = ({ '/request-access': 'Request Early Access', '/login': 'Sign In', '/signup': 'Create Account', '/register': 'Create Account', '/try-demo': 'Sample Workspace', '/products': 'Products', '/projects': 'Projects', '/teamwork-graph': 'Teamwork Graph', '/materials': 'Materials', '/suppliers': 'Suppliers', '/settings': 'Settings', '/achievements': 'Achievements', '/admin': 'Administration' } as Record<string, string>)[pathname];
     const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${pageName ?? 'Engineering Workspace'} | Solution Velocity`;
-    const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Bring product records, engineering project work and collaboration together with Solution Velocity, an intelligent product development lifecycle workspace.';
+    const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Bring product and project work together for engineering teams, students and educational organisations with Solution Velocity.';
     document.title = title;
     const set = (selector: string, value: string) => document.querySelector<HTMLMetaElement>(selector)?.setAttribute('content', value);
     set('meta[name="description"]', description);
@@ -182,6 +184,8 @@ const router = createBrowserRouter([
               { path: '/', element: <DashboardPage /> },
               { path: '/products', element: <ProductsPage /> },
               { path: '/projects', element: <ProjectsPage /> },
+              { path: '/designs', element: <DesignStudioPage /> },
+              { path: '/designs/:id', element: <DesignEditorPage /> },
               { path: '/assistant', element: <Suspense fallback={<Spinner label="Loading AI Assistant" />}><AssistantPage /></Suspense> },
               { path: '/help', element: <HelpCentrePage /> },
               { path: '/help/:slug', element: <HelpCentrePage /> },
@@ -194,6 +198,7 @@ const router = createBrowserRouter([
               { path: '/suppliers', element: <SuppliersPage /> },
               { path: '/achievements', element: <AchievementsPage /> },
               { path: '/settings', element: <SettingsPage /> },
+              { path: '/workspace-setup', element: <WorkspaceSetupPage /> },
               { path: '*', element: <Navigate to="/" replace /> }
             ]
           }
@@ -204,7 +209,7 @@ const router = createBrowserRouter([
 ]);
 
 // Remove the obsolete browser preference from earlier versions.
-try { localStorage.removeItem('sv-language'); } catch { /* Storage may be unavailable. */ }
+try { localStorage.removeItem('sv-language'); localStorage.removeItem('sv-public-language'); } catch { /* Storage may be unavailable. */ }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

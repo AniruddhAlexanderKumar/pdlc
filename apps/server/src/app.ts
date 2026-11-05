@@ -24,6 +24,8 @@ import { projectsRouter } from './routes/projects.js';
 import { teamworkGraphRouter } from './routes/teamwork-graph.js';
 import { graphIntelligenceRouter } from './routes/graph-intelligence.js';
 import { voiceRouter } from './routes/voice.js';
+import { designsRouter } from './routes/designs.js';
+import { cadDocumentsRouter } from './routes/cad-documents.js';
 import { reviewerRouter, reviewManagementRouter } from './routes/external-reviews.js';
 import { helpRouter, helpAdminRouter } from './routes/help.js';
 import { assistantRouter, assistantAdminRouter } from './routes/assistant.js';
@@ -121,6 +123,8 @@ export function createApp() {
   api.use('/projects', requireAuth, projectsRouter);
   api.use('/teamwork-graph', requireAuth, graphIntelligenceRouter, teamworkGraphRouter);
   api.use('/voice', requireAuth, voiceRouter);
+  api.use('/designs', requireAuth, designsRouter);
+  if(config.CAD_NATIVE_EXPERIMENTAL) api.use('/cad-documents', requireAuth, rateLimit({windowMs:60_000, limit:config.NODE_ENV==='test'?10000:60, standardHeaders:'draft-8', legacyHeaders:false}), cadDocumentsRouter);
   api.use('/materials', requireAuth, materialsRouter);
   api.use('/suppliers', requireAuth, suppliersRouter);
   api.use((_req, res) => res.status(404).json({ error: 'Not found' }));
@@ -160,6 +164,10 @@ export function createApp() {
     }
     if (err?.type === 'entity.too.large') {
       res.status(413).json({ error: 'Request body is too large' });
+      return;
+    }
+    if (err?.code === '40P01' || err?.code === '40001') {
+      res.status(409).json({ error: 'A concurrent update conflicted. Reload and retry.', code: 'retryable_conflict' });
       return;
     }
     // Postgres unique violation, e.g. two sign-ups racing for the same email.

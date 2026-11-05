@@ -14,7 +14,6 @@ export interface UsersTable {
   id: Generated<string>;
   email: string;
   name: string;
-  language: Generated<'en' | 'hi' | 'zh' | 'fr' | 'es' | null>;
   password_hash: string;
   is_admin: Generated<boolean>;
   is_disabled: Generated<boolean>;
@@ -35,6 +34,15 @@ export interface WorkspacesTable {
   name: string;
   currency: Generated<string>;
   created_at: CreatedAt;
+}
+
+export interface WorkspaceProfilesTable {
+  workspace_id: string;
+  schema_version: Generated<number>;
+  revision: Generated<number>;
+  profile: ColumnType<unknown, string, string>;
+  updated_by: string | null;
+  updated_at: Timestamp;
 }
 
 export interface ProjectsTable {
@@ -280,9 +288,15 @@ export interface ExternalReviewEventsTable { id: Generated<string>; review_id: s
 export interface ExternalReviewChallengesTable { review_id: string; code_hash: string; expires_at: Date; sent_at: Date; attempts: Generated<number> }
 export interface ExternalReviewSessionsTable { id: string; review_id: string; expires_at: Date }
 
+export interface VoiceImportReceiptsTable { workspace_id: string; user_id: string; request_id: string; payload_hash: string; product_id: string | null; project_id: string | null; created_at: CreatedAt }
+export interface VoiceImportWorkItemsTable { task_id: string; issue_id: string; workspace_id: string; created_at: CreatedAt }
+
 export interface Database {
   users: UsersTable;
   workspaces: WorkspacesTable;
+  workspace_profiles: WorkspaceProfilesTable;
+  voice_import_receipts: VoiceImportReceiptsTable;
+  voice_import_work_items: VoiceImportWorkItemsTable;
   projects: ProjectsTable;
   issues: IssuesTable;
   issue_relationships: IssueRelationshipsTable;

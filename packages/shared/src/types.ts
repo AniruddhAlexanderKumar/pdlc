@@ -3,16 +3,12 @@ import type { CurrencyCode, Role, StageId, TaskStatus } from './stages.js';
 
 /** Shapes exchanged between the API and the web app. */
 
-export const LANGUAGES = ['en', 'hi', 'zh', 'fr'] as const;
-export type Language = (typeof LANGUAGES)[number];
-
 export interface User {
   id: string;
   email: string;
   name: string;
   createdAt: string;
   isAdmin?: boolean;
-  language?: Language;
 }
 
 export type WorkspaceMode = 'solo' | 'team';
@@ -51,6 +47,7 @@ export interface Task {
   dueDate: string | null;
   position: number;
   completedAt: string | null;
+  linkedIssue?: { id: string; projectId: string; key: string };
 }
 
 export interface Product {
