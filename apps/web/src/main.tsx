@@ -13,6 +13,7 @@ import { ToastProvider } from './components/Toast';
 import { Button, ConfirmProvider, Spinner } from './components/ui';
 import { AchievementsPage } from './pages/Achievements';
 import { ProductDemoPage } from './pages/ProductDemo';
+import { DesignStudioPage } from './pages/DesignStudio';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AuthPage, JoinPage, ResetPage } from './pages/auth/Auth';
 import { DashboardPage } from './pages/Dashboard';
@@ -121,6 +122,10 @@ const router = createBrowserRouter([
   {
     path: '/demo',
     element: <ProductDemoPage />
+  },
+  {
+    path: '/design-studio',
+    element: <DesignStudioPage />
   },
   {
     element: <RootApp />,
