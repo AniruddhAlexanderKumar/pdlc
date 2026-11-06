@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 await build({
-  entryPoints: ['src/index.ts', 'src/scripts/migrate.ts', 'src/scripts/create-admin.ts'],
+  entryPoints: ['src/index.ts', 'src/scripts/migrate.ts', 'src/scripts/create-admin.ts', 'src/scripts/founder-bootstrap.ts'],
   outdir: 'dist',
   outbase: 'src',
   bundle: true,

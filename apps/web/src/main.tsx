@@ -33,6 +33,7 @@ import { SettingsPage } from './pages/Settings';
 import { WorkspaceSetupPage } from './pages/WorkspaceSetup';
 import { DesignEditorPage, DesignStudioPage } from './pages/DesignStudio';
 import { CadDocumentsPage, CadDocumentPage } from './pages/CadDocuments';
+import { FoundersExperimental } from './pages/FoundersExperimental';
 import { SuppliersPage } from './pages/Suppliers';
 import { CookieBanner } from './components/CookieBanner';
 import { useAnalyticsPageView } from './lib/analytics';
@@ -135,7 +136,7 @@ function RootApp() {
     const pathname = location.pathname.replace(/\/+$/, '') || '/';
     const publicPage = pathname === '/' || pathname === '/request-access';
     const pageName = ({ '/request-access': 'Request Early Access', '/login': 'Sign In', '/signup': 'Create Account', '/register': 'Create Account', '/try-demo': 'Sample Workspace', '/products': 'Products', '/projects': 'Projects', '/teamwork-graph': 'Teamwork Graph', '/materials': 'Materials', '/suppliers': 'Suppliers', '/settings': 'Settings', '/achievements': 'Achievements', '/admin': 'Administration' } as Record<string, string>)[pathname];
-    const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${/^\/founders(?:\/|$)/i.test(pathname) ? 'Founders Console unavailable' : pageName ?? 'Engineering Workspace'} | Solution Velocity`;
+    const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${/^\/founders(?:\/|$)/i.test(pathname) ? (import.meta.env.VITE_FOUNDER_AUTH_EXPERIMENTAL === 'true' ? 'Founder authentication (experimental)' : 'Founders Console unavailable') : pageName ?? 'Engineering Workspace'} | Solution Velocity`;
     const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Bring product and project work together for engineering teams, students and educational organisations with Solution Velocity.';
     document.title = title;
     const set = (selector: string, value: string) => document.querySelector<HTMLMetaElement>(selector)?.setAttribute('content', value);
@@ -175,7 +176,7 @@ const router = createBrowserRouter([
       { path: '/reset/:token', element: <ResetPage /> },
       { path: '/request-access', element: <RequestAccessPage /> },
       { path: '/review', element: <ReviewRoute /> },
-      { path: '/founders/*', element: <FoundersUnavailable /> },
+      { path: '/founders/*', element: import.meta.env.VITE_FOUNDER_AUTH_EXPERIMENTAL === 'true' ? <FoundersExperimental /> : <FoundersUnavailable /> },
       { path: '/contact', element: <Navigate to="/request-access" replace /> },
       { path: '/demo', element: <Navigate to="/try-demo" replace /> },
       { path: '/try-demo', element: <TryDemoPage /> },

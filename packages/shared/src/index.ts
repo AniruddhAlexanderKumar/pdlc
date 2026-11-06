@@ -13,5 +13,6 @@ export * from './app-layout.js';
 export * from './pricing.js';
 export * from './education-pricing.js';
 export * from './workspace-profile.js';
+export * from './founder-identity.js';
 
 export * from './design.js';

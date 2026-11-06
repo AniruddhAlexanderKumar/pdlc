@@ -30,6 +30,9 @@ import { reviewerRouter, reviewManagementRouter } from './routes/external-review
 import { helpRouter, helpAdminRouter } from './routes/help.js';
 import { assistantRouter, assistantAdminRouter } from './routes/assistant.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
+import { createFoundersExperimentalRouter } from './routes/founders-experimental.js';
+import { founderTransportGuard } from './auth/founder-transport.js';
+import { databaseErrorCode, founderErrorHandler, founderRequestContext, founderRequestLogger } from './auth/founder-errors.js';
 
 export function createApp() {
   const app = express();
@@ -53,6 +56,14 @@ export function createApp() {
       strictTransportSecurity: config.secureCookies
     })
   );
+
+  // The incomplete founder lifecycle is opt-in and local/test only. Unknown
+  // paths still fall through to the deny-all boundary below. Only allowlisted
+  // request metadata and sanitized errors may be logged for this namespace.
+  if (config.FOUNDER_AUTH_EXPERIMENTAL && config.NODE_ENV !== 'production') {
+    app.use('/api/founders', founderRequestContext, founderRequestLogger(logger), founderTransportGuard(config.appOrigin), express.json({ limit: '8kb' }), cookieParser(), createFoundersExperimentalRouter());
+    app.use('/api/founders', founderErrorHandler(logger));
+  }
 
   // The founder console is not implemented yet. Reserve its entire API namespace
   // before ordinary session loading and request logging: no existing workspace or
@@ -185,7 +196,9 @@ export function createApp() {
       res.status(409).json({ error: 'That already exists' });
       return;
     }
-    (req.log ?? logger).error({ err }, 'unhandled error');
+    const sqlState = databaseErrorCode(err);
+    if (sqlState) (req.log ?? logger).error({ category: 'database_error', sqlState }, 'unhandled error');
+    else (req.log ?? logger).error({ err }, 'unhandled error');
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
   };
   app.use(onError);

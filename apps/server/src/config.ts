@@ -13,6 +13,8 @@ const schema = z.object({
   /** postgres://user:pass@host:5432/db — append ?sslmode=require for TLS to a remote database. */
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+  /** Preserve legacy automatic migrations by default. Controlled deployments may disable them. */
+  MIGRATIONS_ON_STARTUP: bool.default(true),
   /** Session lifetime in days. Sessions slide forward while in use. */
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
   /** When false, people can only join with an invite link from an admin. */
@@ -32,6 +34,12 @@ const schema = z.object({
   HELP_AI_ENABLED: bool.default(false),
   /** Internal, opt-in API for the unfinished native sketch work. No product UI yet. */
   CAD_NATIVE_EXPERIMENTAL: bool.default(false),
+  /** Local-only founder lifecycle testing. Never enabled in production. */
+  FOUNDER_AUTH_EXPERIMENTAL: bool.default(false),
+  /** Additional opt-in for an unfinished local-only founder customer dashboard. */
+  FOUNDER_MANAGEMENT_EXPERIMENTAL: bool.default(false),
+  SV_FOUNDER_TOTP_KEY: z.string().default(''),
+  SV_FOUNDER_RATE_LIMIT_KEY: z.string().default(''),
   AI_BASE_URL: z.string().default('http://127.0.0.1:8091/v1'),
   AI_MODEL: z.string().default('qwen2.5-14b-instruct'),
   AI_API_KEY: z.string().optional().default(''),

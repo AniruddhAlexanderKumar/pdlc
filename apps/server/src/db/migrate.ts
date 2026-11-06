@@ -1,4 +1,5 @@
 import { Migrator, type Migration, type MigrationProvider } from 'kysely/migration';
+import { sql } from 'kysely';
 import { db } from './index.js';
 import * as m001 from './migrations/001_init.js';
 import * as m002 from './migrations/002_analytics.js';
@@ -26,6 +27,11 @@ import * as m023 from './migrations/023_workspace_profiles.js';
 import * as m024 from './migrations/024_voice_import_integrity.js';
 import * as m025 from './migrations/025_design_studio.js';
 import * as m026 from './migrations/026_native_sketch_documents.js';
+import * as m027 from './migrations/027_founder_identity_foundation.js';
+import * as m028 from './migrations/028_founder_auth_foundation.js';
+import * as m029 from './migrations/029_founder_rate_limits.js';
+import * as m030 from './migrations/030_founder_audit_validation.js';
+import * as m031 from './migrations/031_founder_customer_audit.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -58,7 +64,12 @@ const migrations: Record<string, Migration> = {
   '023_workspace_profiles': m023,
   '024_voice_import_integrity': m024,
   '025_design_studio': m025,
-  '026_native_sketch_documents': m026
+  '026_native_sketch_documents': m026,
+  '027_founder_identity_foundation': m027,
+  '028_founder_auth_foundation': m028,
+  '029_founder_rate_limits': m029,
+  '030_founder_audit_validation': m030,
+  '031_founder_customer_audit': m031
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };
@@ -66,9 +77,22 @@ const provider: MigrationProvider = { getMigrations: async () => migrations };
 export async function migrateToLatest(log: (msg: string) => void = console.log): Promise<void> {
   const migrator = new Migrator({ db, provider });
   const { error, results } = await migrator.migrateToLatest();
-  for (const r of results ?? []) {
-    if (r.status === 'Success') log(`migration ${r.migrationName} applied`);
-    else if (r.status === 'Error') log(`migration ${r.migrationName} failed`);
+  // PostgreSQL applies pending migrations as one transaction. Never report an
+  // earlier step as committed when a later step has rolled the transaction back.
+  if (error) {
+    for (const r of results ?? []) if (r.status === 'Error') log(`migration ${r.migrationName} failed; pending batch rolled back`);
+    throw error;
   }
-  if (error) throw error;
+  for (const r of results ?? []) if (r.status === 'Success') log(`migration ${r.migrationName} applied`);
+}
+
+/** Read-only startup check for an independently migrated deployment. Missing,
+ * unknown or out-of-order migrations fail closed; this performs no DDL. */
+export async function requireCurrentMigrations(): Promise<void> {
+  const records = await sql<{ name: string }>`select name from public.kysely_migration order by name`.execute(db);
+  const expected = Object.keys(migrations).sort();
+  const actual = records.rows.map((row) => row.name);
+  if (actual.length !== expected.length || expected.some((name, index) => actual[index] !== name)) {
+    throw new Error('Database migration history does not match this application build');
+  }
 }

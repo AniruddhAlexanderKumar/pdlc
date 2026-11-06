@@ -15,7 +15,7 @@ import {
   Sparkles,
   Wand2
 } from 'lucide-react';
-import { CURRENCIES, currencySymbol, type CurrencyCode, type Me, type Product, type WithXp } from '@sv/shared';
+import { CURRENCIES, INITIAL_FOUNDER_EMAIL, currencySymbol, type CurrencyCode, type Me, type Product, type WithXp } from '@sv/shared';
 import { ApiError, get, post } from '../../api/client';
 import { useMe, useResetSession } from '../../api/hooks';
 import { Button, Field, Input, Select, Spinner, cx } from '../../components/ui';
@@ -211,11 +211,31 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
   });
 
   const loginMutation = useMutation({
-    mutationFn: () => post<Me>('/auth/login', { email: form.email, password: form.password }),
-    onSuccess: (me) => {
-      signedIn(me);
+    mutationFn: async () => {
+      // Routing hint in the explicitly enabled local experiment only. This does
+      // not grant access: the separate founder endpoint verifies password + MFA.
+      if (import.meta.env.VITE_FOUNDER_AUTH_EXPERIMENTAL === 'true' && form.email.trim().toLowerCase() === INITIAL_FOUNDER_EMAIL) {
+        try {
+          const result = await post<{ step: 'enroll' | 'verify' }>('/founders/login', { email: form.email, password: form.password });
+          return { kind: 'founder' as const, step: result.step };
+        } catch (error) {
+          // A separately existing ordinary account can still sign in; an
+          // ordinary session is never a founder session. Do not bypass founder
+          // throttling, CSRF, suspension or service failures via this fallback.
+          if (!(error instanceof ApiError) || (error.status !== 401 && error.status !== 404)) throw error;
+        }
+      }
+      return { kind: 'ordinary' as const, me: await post<Me>('/auth/login', { email: form.email, password: form.password }) };
+    },
+    onSuccess: (result) => {
+      setForm((previous) => ({ ...previous, password: '' }));
+      if (result.kind === 'founder') {
+        navigate('/founders', { replace: true, state: { founderStep: result.step } });
+        return;
+      }
+      signedIn(result.me);
       const next = params.get('next');
-      navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : me.user.isAdmin ? '/admin' : '/');
+      navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : result.me.user.isAdmin ? '/admin' : '/');
     }
   });
 
