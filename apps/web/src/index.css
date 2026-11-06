@@ -1,0 +1,61 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+}
+
+@keyframes xp-pop {
+  0% { transform: translateY(8px) scale(0.96); opacity: 0; }
+  15% { transform: translateY(0) scale(1.03); opacity: 1; }
+  25% { transform: scale(1); }
+  85% { opacity: 1; }
+  100% { transform: translateY(-6px); opacity: 0; }
+}
+.animate-xp-pop { animation: xp-pop 2.6s ease-out forwards; }
+
+@keyframes rise {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-rise { animation: rise 0.25s ease-out; }
+
+@keyframes burst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.4); opacity: 0; }
+}
+.burst-piece { animation: burst 1.1s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-xp-pop, .animate-rise, .burst-piece { animation-duration: 0.01s; }
+  .landing *, .landing *::before, .landing *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+.graph-workspace { --graph-node-bg: #fff; --graph-text: #18181b; }
+.dark .graph-workspace { --graph-node-bg: #18181b; --graph-text: #fafafa; }
+.graph-workspace:fullscreen { overflow: auto; }
+
+/* Lightweight, decorative product-context illustration. */
+.hero-grid { background-image: linear-gradient(rgba(160,209,222,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(160,209,222,.07) 1px, transparent 1px); background-size: 34px 34px; mask-image: linear-gradient(to bottom, #000, transparent 95%); }
+.hero-art-body { isolation: isolate; background: radial-gradient(circle at center, rgba(42,151,176,.19), transparent 55%); }
+.hero-orbit { position: absolute; left: 50%; top: 50%; border: 1px solid rgba(125,200,216,.17); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; }
+.hero-orbit-one { width: 210px; height: 210px; }
+.hero-orbit-two { width: 290px; height: 290px; border-style: dashed; }
+.hero-orbit-three { width: 370px; height: 370px; }
+.hero-core { background: radial-gradient(circle at 50% 35%, #276a80, #0a344b 70%); box-shadow: 0 0 55px rgba(71,202,218,.16), inset 0 0 25px rgba(109,219,229,.12); }
+.hero-float { position: absolute; z-index: 20; display: flex; align-items: center; gap: 10px; min-width: 150px; border: 1px solid rgba(149,210,221,.26); background: rgba(11,51,72,.95); padding: 12px; box-shadow: 0 12px 30px rgba(0,19,29,.25); }
+.hero-float-left { left: 4%; top: 25%; }
+.hero-float-right { right: 4%; bottom: 24%; }
+.hero-float-icon { display: flex; width: 34px; height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; color: #9de2e9; background: rgba(109,211,224,.12); }
+@media (max-width: 420px) { .hero-float { min-width: 0; padding: 8px; gap: 6px; } .hero-float-left { left: 2%; top: 17%; } .hero-float-right { right: 2%; bottom: 15%; } .hero-float-icon { width: 28px; height: 28px; } }

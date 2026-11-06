@@ -1,0 +1,25 @@
+# systemd unit for running Solution Velocity directly on a host (see SERVER_SETUP.md, section B).
+# Install: sudo cp deploy/solution-velocity.service /etc/systemd/system/ && sudo systemctl daemon-reload
+[Unit]
+Description=Solution Velocity
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=velocity
+Group=velocity
+WorkingDirectory=/opt/solution-velocity/apps/server
+EnvironmentFile=/etc/solution-velocity.env
+ExecStart=/usr/bin/node --enable-source-maps dist/index.js
+Restart=on-failure
+RestartSec=5
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/solution-velocity
+
+[Install]
+WantedBy=multi-user.target

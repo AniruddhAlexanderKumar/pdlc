@@ -1,0 +1,6 @@
+# Caddy gets and renews a Let's Encrypt certificate automatically.
+# Replace the hostname, then: caddy run --config deploy/Caddyfile
+velocity.yourcompany.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:4000
+}

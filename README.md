@@ -1,183 +1,227 @@
-# PDLC Platform
+# Solution Velocity
 
-Product Development Life Cycle platform for regulated and complex
-engineering across any industry — aerospace, automotive, medical devices,
-energy, and more. Modular monolith:
-Next.js (App Router) · TypeScript · Tailwind · Prisma · **PostgreSQL** ·
-self-hosted authentication.
+A gamified product development lifecycle (PDLC) workspace. Teams move each product through
+**Tell us → Track it → Improve it**:
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for how the system is put together,
-[DEPLOYMENT.md](./DEPLOYMENT.md) for running it in production —
-provisioning PostgreSQL, migrations, the production container, backups, and
-what is and is not covered by this repository's own tooling —
-[SECURITY.md](./SECURITY.md) for the threat model, authentication and
-authorization architecture, and known limitations, and
-[RELEASE_READINESS.md](./RELEASE_READINESS.md) for the current V1
-release-readiness assessment, verification results, and known limitations
-at a glance.
+1. **Tell us**: answer short question decks for each lifecycle stage (Idea → Research → Planning → Design → Prototype → Testing → Launch → Improvement). Answers earn XP, fill the stage quest, and give the insight engine context.
+2. **Track it**: a bill of materials from a shared materials library, labour, packaging and overhead, a selling price, and live unit cost, profit and margin.
+3. **Improve it**: suggestions such as a cheaper supplier quote, a price that hits your target margin, the biggest cost driver, overdue tasks, or "ready for the next stage". Apply one with a click.
 
-## The database is PostgreSQL
+Gamification is what keeps it simple: XP, levels, per-stage quests, a product health grade (A–D), badges, daily streaks and a team leaderboard.
 
-PostgreSQL is the only supported database, in development and in tests.
-The schema uses PostgreSQL-native enums and the client connects through the
-`@prisma/adapter-pg` driver adapter. There is no SQLite fallback, no in-memory
-substitute, and no emulation layer anywhere in this repository — tests that
-need a database either talk to a real PostgreSQL server or skip and say so.
+---
 
-## What runs without a database
+## Stack
 
-Most day-to-day work needs no database at all:
+| Layer    | Choice                                                                                |
+| -------- | ------------------------------------------------------------------------------------- |
+| Web      | React 19, Vite, Tailwind CSS 4, TanStack Query, React Router                          |
+| API      | Node.js (≥ 20), Express 5, Zod validation, Pino logs                                  |
+| Database | PostgreSQL (your own server) via Kysely (typed SQL) with versioned migrations          |
+| Auth     | Email + password stored in your DB: scrypt hashes, server-side sessions, httpOnly cookies |
+| Shared   | `packages/shared`: stages, question bank, costing, XP rules, insight rules (used by API and web) |
+
+```
+apps/
+  server/        Express API, also serves the built web app in production
+    src/auth/      password hashing, sessions, CSRF origin check
+    src/db/        Kysely schema + migrations (run automatically on boot)
+    src/routes/    auth, products, materials/suppliers, workspace/team, game
+    src/services/  XP ledger, insight provider (AI seam), sample data
+  web/           React app
+packages/
+  shared/        domain logic + unit tests
+legacy/          the original single-file prototype (reference only)
+deploy/          Caddy and nginx examples
+```
+
+## Requesting access
+
+The public landing page links to `/request-access`. Prospective teams can share their
+contact details, role, industry, team size, product stage, current tools, and goals.
+Requests are stored in PostgreSQL and reviewed by an administrator in the **Access
+Requests** tab of `/admin`. The tab supports pending, reviewing, approved, and declined
+statuses, plus internal review notes. Approval records the review only; an administrator
+must still provision an account or workspace invitation and contact the requester.
+Public submissions are rate-limited.
+
+---
+
+## Run it locally
+
+Requirements: Node.js 20.19+ (tested on 26). No Docker or system Postgres needed for development.
+
+```bash
+npm install
+cp .env.example .env
+```
+
+In one terminal, start a local PostgreSQL. It runs from `node_modules` and keeps its data in `.data/postgres`:
+
+```bash
+npm run dev:db
+```
+
+In a second terminal, start the API and the web app. Migrations apply automatically:
+
+```bash
+npm run dev
+```
+
+Open http://localhost:5173 and create an account. The first account can always be created, even when sign-up is turned off. On the empty dashboard, **Explore with sample products** loads a demo workspace.
+
+### Checks
+
+```bash
+npm run typecheck
+```
+
+```bash
+npm test
+```
+
+The API smoke test needs the dev server running and creates throwaway users:
+
+```bash
+npm run smoke --workspace @sv/server
+```
+
+---
+
+## Deploy on your server
+
+> **Server managers:** follow [SERVER_SETUP.md](SERVER_SETUP.md). It is the complete step-by-step guide (Docker or bare metal, HTTPS, first admin, upgrades, backups, troubleshooting). The summary below is for developers.
+
+### Option A: Docker Compose (app + Postgres)
+
+```bash
+cp .env.production.example .env.production
+```
+
+Set `APP_URL` (your real `https://` address) and a long random `POSTGRES_PASSWORD` in `.env.production`, then:
+
+```bash
+docker compose --env-file .env.production up -d --build
+```
+
+Create the first owner and system administrator account. The generated password is printed once, so change it after signing in:
+
+```bash
+docker compose exec app node dist/scripts/create-admin.js --email you@company.com --name "Your Name" --workspace "Your Company" --system-admin
+```
+
+The app listens on `127.0.0.1:4000`. Put a TLS reverse proxy in front: [deploy/Caddyfile](deploy/Caddyfile) gets certificates automatically, or use [deploy/nginx.conf](deploy/nginx.conf).
+
+### Option B: Node directly, with your existing PostgreSQL
 
 ```bash
 npm ci
-npx prisma generate     # generates the typed client from prisma/schema.prisma
-npm run typecheck
-npm run lint
-npm run test            # unit suite: repositories are faked
+```
+
+```bash
 npm run build
 ```
 
-`prisma generate` is required before the first typecheck or build because the
-generated client is not committed.
+Set the environment (see [.env.example](.env.example)), at minimum:
 
-`npm run dev` and `npm run build` use **webpack** (`next dev --webpack`,
-`next build --webpack`), not Next 16's default Turbopack — run them through
-npm rather than calling `next dev` directly, or you will get Turbopack.
+```
+NODE_ENV=production
+APP_URL=https://velocity.yourcompany.com
+DATABASE_URL=postgres://user:pass@db-host:5432/velocity
+TRUST_PROXY=1
+ALLOW_SIGNUP=false
+```
 
-## Running PostgreSQL locally (Docker — the supported path)
-
-Docker is not required to edit the code, but it is the supported way to
-reproduce the real database environment.
+Then start it under systemd, pm2 or similar:
 
 ```bash
-docker compose up -d --wait      # or: npm run db:up
+npm start
 ```
 
-That starts PostgreSQL 17 on `localhost:5432` with database `pdlc_dev`, using
-the local-only credentials in `docker-compose.yml`. If port 5432 is already
-taken:
+The server applies pending migrations on start (with a lock, so several instances can boot at once). To run them separately:
 
 ```bash
-PDLC_DB_PORT=5433 docker compose up -d --wait
-# then set the port in your .env DATABASE_URL to match
+npm run migrate
 ```
 
-Then configure the environment and apply the schema:
+### Configuration
 
-```bash
-cp .env.example .env             # then edit it (see below)
-npm run db:migrate:deploy        # applies the committed migrations
-```
+| Variable              | Default                 | Notes                                                                       |
+| --------------------- | ----------------------- | --------------------------------------------------------------------------- |
+| `APP_URL`             | `http://localhost:5173` | Public URL. Used for invite/reset links and the CSRF origin check. `https://` turns on secure cookies and HSTS. |
+| `DATABASE_URL`        | required                | Add `?sslmode=require` for TLS to a remote database.                        |
+| `ALLOW_SIGNUP`        | `true`                  | `false` = invite-only (recommended in production).                          |
+| `TRUST_PROXY`         | `0`                     | Set to `1` behind nginx, Caddy or a load balancer so rate limits see real IPs. |
+| `SESSION_TTL_DAYS`    | `30`                    | Sessions slide forward while in use.                                        |
+| `DATABASE_POOL_MAX`   | `10`                    |                                                                             |
+| `LOG_LEVEL`           | `info`                  | JSON logs to stdout. Cookies and passwords are redacted.                    |
+| `INSIGHTS_PROVIDER`   | `rules`                 | `ai` once an AI provider is implemented (see below).                        |
 
-`.env` is gitignored. `.env.example` is the documented template and contains
-no real credentials.
+### Operations
 
-### Seeding a local account
+- **Health check:** `GET /api/health` returns 200 when the database is reachable. The Docker image uses it.
+- **Backups:** `pg_dump` the database on a schedule. Everything (users, products, XP) lives there.
+- **Locked-out owner:** run `create-admin` again with the same email. It resets that password and signs them out everywhere. Add `--system-admin` only when intentionally granting system-wide admin access.
+- **Forgotten passwords:** an owner or admin opens **Settings → Team → Send reset email**. The server emails a one-time link (valid 24 hours) directly to the member’s registered address. Configure `RESET_SMTP_HOST`, `RESET_SMTP_FROM`, and any needed SMTP credentials; see [SECURITY.md](SECURITY.md).
 
-The seed refuses to run without credentials supplied by you — it will not
-invent a password, so no well-known account can ever reach a deployed
-database. Set these in `.env` first:
+---
 
-```dotenv
-SEED_ORGANIZATION_NAME="Example Aerospace"
-SEED_ADMIN_NAME="Your Name"
-SEED_ADMIN_EMAIL="you@example.test"
-SEED_ADMIN_PASSWORD="choose at least 12 characters"
-```
+## Security model
 
-```bash
-npm run db:seed
-npm run dev            # then sign in at http://localhost:3000/sign-in
-```
+- Passwords are hashed with scrypt (N=2¹⁵, per-hash salt; parameters are stored with each hash so they can be raised later). The policy is at least 10 characters, mixing letters with numbers or symbols.
+- Sessions use a random 256-bit token in an `httpOnly`, `SameSite=Lax` cookie (`__Host-` prefixed and `Secure` on https). Only the token's SHA-256 is stored, and sessions can be revoked server-side. Changing or resetting a password revokes other sessions.
+- Login and sign-up are rate-limited. An account locks for 15 minutes after 8 failed attempts, and unknown emails take the same time as known ones.
+- CSRF: every state-changing request must come from `APP_URL`'s origin, bodies must be JSON, and cookies are SameSite.
+- Every query is scoped to the caller's workspace, and roles are enforced server-side: **owner** (everything, including ownership), **admin** (settings, invites, members, reset links), **member** (product work).
+- Helmet sets security headers: a strict CSP (`script-src 'self'`), `frame-ancestors 'none'`, nosniff, and HSTS on https.
+- Invite and reset links are single-use, expire, and are stored hashed.
+- System-wide admin access is stored on the user record and can only be granted through the explicit `create-admin --system-admin` operator command. A matching email address alone never grants privileges; system admin accounts cannot be disabled or deleted through the user-management UI.
 
-The seeded account is the organization's owner and a manager of the sample
-project. A database seeded by an older version gave it neither, so the
-sample project was listed but answered "no access" when opened — run
-`npm run db:seed` again to repair it (it is idempotent).
+---
 
-You can skip the seed entirely and register through `/sign-up`, which creates
-an organization and its first administrator in one step. That is the preferred
-path for anything other than local development.
+## Gamification rules
 
-### Seeding a realistic demo scenario
+| Action                                   | XP                     |
+| ---------------------------------------- | ---------------------- |
+| Create a product                         | 20                     |
+| Answer a discovery question              | 5–15 (per question)    |
+| Complete a task                          | 15                     |
+| Add a material to a product              | 5                      |
+| Set a price / fill in all costs          | 10 / 20                |
+| Move a product forward a stage           | 50                     |
+| Complete a stage quest                   | 100                    |
+| Apply an improvement suggestion          | 25                     |
+| Add a supplier / library material        | 10 / 5                 |
 
-`npm run db:seed` gives you one empty project. For a populated one — a
-requirement, a decision, a verification activity, evidence, a supplier, an
-active baseline, a change request with a real impact analysis, a
-certification programme, and a real Sentinel detection, all built through the
-real application services — run:
+Each award has a unique reference (for example, the product plus question key), so editing an answer or toggling a task never pays out twice. Levels need `50 × L × (L − 1)` total XP (L2 = 100, L3 = 300, L4 = 600…). The rules live in [packages/shared/src/gamification.ts](packages/shared/src/gamification.ts).
 
-```bash
-npm run db:seed:scenario
-```
+### Adding or changing questions
 
-This is a separate script (`prisma/seed-scenario.ts`), never wired into
-Prisma's own `db seed` hook, so `npm run db:seed` and `prisma migrate reset`
-never invoke it and stay exactly as minimal as documented above. It creates
-its own organization and prints every account it creates — an owner plus one
-user per project role (manager/engineer/reviewer/viewer, and one
-organization member deliberately left off the project) — with a fresh
-Argon2id-hashed password each, shown once so you can actually sign in. It
-refuses to run with `NODE_ENV=production` and requires `DATABASE_URL`, same
-as every other database command here; see DEPLOYMENT.md's Data retention
-section for why production must never run it.
+Edit [packages/shared/src/questions.ts](packages/shared/src/questions.ts). Keys are stored with answers, so **never rename a key**. Add a new question instead, and mark old ones `retired: true`. Supported types are text, longtext, number, money, date, yes/no, 1–5 scale, single choice and multi choice. `syncsTo` writes an answer into a product field (price, description, category).
 
-### Everyday database commands
+---
 
-| Command                             | What it does                                                      |
-| ----------------------------------- | ----------------------------------------------------------------- |
-| `npm run db:up` / `npm run db:down` | Start / stop the PostgreSQL container                             |
-| `npm run db:migrate`                | Create and apply a migration during development                   |
-| `npm run db:migrate:deploy`         | Apply committed migrations (what CI and deploys run)              |
-| `npm run db:seed`                   | Create the local bootstrap account                                |
-| `npm run db:seed:scenario`          | Populate a realistic demo project (dev-only, never in production) |
-| `npm run db:studio`                 | Browse the data                                                   |
-| `npm run db:reset:local`            | **Destroys the local volume**, restarts, re-migrates              |
+## Adding AI later
 
-`db:reset:local` is deliberately named: it only ever affects the local Docker
-volume. Nothing in this repository resets a database it did not create.
+The seam is already in place:
 
-## Tests that need PostgreSQL
+- [apps/server/src/services/insights.ts](apps/server/src/services/insights.ts) defines an `AiProvider` interface with `insights()` (market research, supplier discovery, pricing advice) and an optional `followUpQuestions()`. Implement it, return it from `aiProvider()`, and set `INSIGHTS_PROVIDER=ai` plus `AI_API_KEY`/`AI_MODEL`.
+- The provider receives the product, every discovery answer, the bill of materials, supplier quotes and the workspace currency. That context is what the question decks are designed to collect.
+- AI suggestions merge after the rule-based ones, are tagged with an **AI** badge in the UI, and time out after 15 s with a fallback to rules. The server only *applies* actions it can re-derive and verify itself, so AI output is advisory unless you add a verified action type.
 
-```bash
-npm run test:integration   # repository layer against real PostgreSQL
-npm run test:e2e           # full browser flows against real PostgreSQL
-```
+Good first AI features: researching market prices from the Research answers, suggesting suppliers for the most expensive materials, generating follow-up questions from vague answers, and drafting launch plans.
 
-Both **skip rather than fail** when no database is reachable, and say why. A
-skipped suite is never reported as a passing one. With `docker compose up -d`
-and migrations applied, they execute for real.
+---
 
-The split is deliberate:
+## Roadmap ideas
 
-| Suite                      | Needs a database | What it proves                                                                                                          |
-| -------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `npm run test`             | no               | Domain rules, service logic, API contracts, UI behavior (repositories faked)                                            |
-| `npm run test:integration` | **yes**          | The Prisma queries themselves: composite keys, `include`/`select` shapes, unique constraints, cascades, project scoping |
-| `npm run test:e2e`         | **yes**          | Real browser against the running app and a real database                                                                |
+- Email (SMTP) for invitations and self-serve password reset requests (administrator-initiated reset emails are supported when configured)
+- SSO (OIDC/SAML) alongside password login
+- File uploads for product images (currently image URLs)
+- Activity feed and comments per product
+- CSV import of materials and suppliers
+- Create additional workspaces from the UI (today: invites, or one per sign-up)
 
-## Continuous integration
+### Personal and team workspaces
 
-`.github/workflows/ci.yml` runs two jobs:
-
-- **static** — typecheck, lint and the unit suite. No database.
-- **database** — boots a **PostgreSQL 17 service container**, applies the
-  committed migrations with `migrate deploy`, verifies the migrations still
-  match `schema.prisma`, builds the actual production Docker image and
-  starts it against that migrated database to confirm both health endpoints
-  respond, then runs the integration suite, the build and the end-to-end
-  suite against it.
-
-CI uses real PostgreSQL, not SQLite and not a mock. The credentials in the
-workflow belong to an ephemeral container on an isolated runner and are
-destroyed with the job; deployments read `DATABASE_URL` from their own secret
-store.
-
-## Secrets
-
-- `.env` is gitignored; `.env.example` is a template with no real values.
-- The seed has no default password and refuses to run without one.
-- Sessions are opaque random tokens stored hashed in PostgreSQL, so there is
-  no signing secret to configure, leak or rotate.
-- Passwords are hashed with Argon2id in-process; no credential leaves the
-  application.
+At sign-up, choose a **personal** workspace for one member or a **team** workspace for collaboration. Existing workspaces remain team workspaces. Workspace type is fixed: to collaborate from a personal workspace, create a separate team workspace under Settings → Workspace & account. The same screen lets you switch workspaces, including on mobile. Each workspace has its own products and projects; creating one does not copy or move data. Owners and admins can invite members only to team workspaces. Personal workspaces allow only one member, including through admin membership APIs. System administrators retain their existing administrative access.

@@ -1,98 +1,88 @@
-import React from 'react';
-import { LayoutGrid, Menu, Palette, Settings, Trash, ZoomIn, ZoomOut } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useBlocker, useNavigate, useParams } from 'react-router';
+import type { DesignDetail, DesignDocument, DesignRevision, DiagramSource, Project } from '@sv/shared';
+import { get, post, put } from '../api/client';
+import { useSession, useWorkspaceData } from '../api/hooks';
+import { Button, Card, Input, PageHeader, Select, Spinner } from '../components/ui';
+import { useCadDocuments } from './CadDocuments';
+import { exportDiagram, exportDraft } from '../design-studio/export';
+import { diagramDraftProblem } from '../design-studio/autosave';
 
 export function DesignStudioPage() {
-  const [tools, setTools] = React.useState<'create' | 'modify' | 'inspect' | 'view'>('view');
-  const [gridSize, setGridSize] = React.useState<'none' | '24' | '48' | '72'>('24');
+ const me=useSession(), navigate=useNavigate(), qc=useQueryClient();
+ const [title,setTitle]=useState(''); const [projectId,setProjectId]=useState(''); const [productId,setProductId]=useState(''); const [search,setSearch]=useState('');
+ const cad=useCadDocuments();
+ const designs=useQuery({queryKey:['designs',me.workspace.id],queryFn:()=>get<DesignDocument[]>('/designs'),enabled:!me.demo});
+ const projects=useQuery({queryKey:['design-projects',me.workspace.id],queryFn:()=>get<Project[]>('/projects'),enabled:!me.demo});
+ const products=useWorkspaceData();
+ const create=useMutation({mutationFn:()=>post<DesignDetail>('/designs',{title,projectId:projectId||null,productId:productId||null}),onSuccess:d=>{void qc.invalidateQueries({queryKey:['designs',me.workspace.id]});navigate(`/designs/${d.document.id}`)}});
+ if(me.demo)return <div className="p-6">Design Studio is not available in the temporary demo.</div>;
+ return <><PageHeader title="Design Studio" subtitle="Create and revise conceptual diagrams in this workspace."/><div className="space-y-5 p-4 md:p-6">
+  {cad.isSuccess&&<p><Link to="/designs/cad" className="text-sm font-medium text-blue-700 underline dark:text-blue-300">Experimental CAD documents (sketch source only)</Link></p>}
+  <p className="text-sm text-zinc-600 dark:text-zinc-400">This first slice supports labeled boxes and connectors. It is not a verified engineering schematic, CAD tool or UI prototyping editor. Members can read workspace designs; the creator and workspace owners/admins can edit. The list shows the 200 most recently updated designs.</p>
+  <Card className="p-5"><h2 className="font-semibold">New conceptual diagram</h2><form className="mt-3 grid gap-3 md:grid-cols-2" onSubmit={(e:FormEvent)=>{e.preventDefault();create.mutate()}}>
+   <label className="text-sm">Name<Input required maxLength={120} value={title} onChange={e=>setTitle(e.target.value)} /></label>
+   <label className="text-sm">Project (optional)<Select value={projectId} onChange={e=>setProjectId(e.target.value)}><option value="">No project</option>{projects.data?.map(p=><option value={p.id} key={p.id}>{p.key} · {p.name}</option>)}</Select></label>
+   <label className="text-sm">Product (optional)<Select value={productId} onChange={e=>setProductId(e.target.value)}><option value="">No product</option>{products.data?.products.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</Select></label>
+   <div className="flex items-end"><Button type="submit" loading={create.isPending} disabled={!title.trim()}>Create diagram</Button></div>
+  </form>{(projects.isError||products.isError)&&<p role="alert" className="mt-2 text-sm text-rose-700">Could not load project or product choices. Retry the page before associating a design.</p>}{create.isError&&<p role="alert" className="mt-2 text-sm text-rose-700">{create.error.message}</p>}</Card>
+  <label className="block max-w-md text-sm">Search designs<Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name" /></label>
+  {designs.isLoading?<Spinner label="Loading designs"/>:designs.isError?<p role="alert">{designs.error.message}</p>:<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{designs.data?.filter(d=>d.title.toLowerCase().includes(search.toLowerCase())).map(d=><Link key={d.id} to={`/designs/${d.id}`} className="rounded-xl focus-visible:outline-2 focus-visible:outline-blue-500"><Card className="h-full p-4"><h2 className="font-semibold">{d.title}</h2><p className="mt-2 text-sm text-zinc-500">Conceptual diagram · revision {d.headRevision}</p><p className="mt-1 text-xs text-zinc-500">{d.ownerName ?? 'Former member'} · updated {new Date(d.updatedAt).toLocaleString()}</p></Card></Link>)}{!designs.data?.length&&<p className="text-sm text-zinc-500">No designs yet. Create a conceptual diagram to get started.</p>}</div>}
+ </div></>;
+}
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      {/* Fusion 360-style top toolbar */}
-      <div className="border-b border-indigo-200 bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between h-14 px-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-indigo-800">Design Studio</h1>
-            <LayoutGrid className="h-6 w-6 text-indigo-400" />
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="rounded-md px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-              View
-            </button>
-            <button className="rounded-md px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-              Zoom In
-              <ZoomIn className="h-3.5 w-3.5 ml-1" />
-            </button>
-            <button className="rounded-md px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-              Zoom Out
-              <ZoomOut className="h-3.5 w-3.5 ml-1" />
-            </button>
-          </div>
-        </div>
-      </div>
+export function DesignEditorPage(){
+ const {id=''}=useParams(); const me=useSession(),navigate=useNavigate(),qc=useQueryClient();
+ const detail=useQuery({queryKey:['design',me.workspace.id,id],queryFn:()=>get<DesignDetail>(`/designs/${id}`),enabled:!me.demo});
+ if(me.demo)return <div className="p-6">Design Studio is not available in the temporary demo.</div>;
+ if(detail.isLoading)return <Spinner label="Loading design"/>;
+ if(detail.isError||!detail.data)return <p role="alert" className="p-6">{detail.error?.message??'Could not load design.'}</p>;
+ return <DiagramEditor key={`${me.workspace.id}:${id}`} initial={detail.data} onExit={()=>navigate('/designs')} onSaved={()=>{void qc.invalidateQueries({queryKey:['designs',me.workspace.id]});void qc.invalidateQueries({queryKey:['design-revisions',me.workspace.id,id]})}} workspaceId={me.workspace.id}/>;
+}
 
-      {/* Left tool panel (Fusion 360-style) */}
-      <div className="fixed left-0 top-20 h-screen w-20 bg-white border-r border-indigo-200 flex flex-col">
-        <button className="flex-1 rounded-md px-3 py-2 text-left text-sm text-zinc-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:bg-indigo-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-white" onClick={() => setTools('create')}>
-          <svg className="h-4 w-4 margin-right-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 4" /></svg>
-          Create
-        </button>
-        <button className="flex-1 rounded-md px-3 py-2 text-left text-sm text-zinc-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:bg-indigo-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-white" onClick={() => setTools('modify')}>
-          <svg className="h-4 w-4 margin-right-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M3 8h9l-1 4" /></svg>
-          Modify
-        </button>
-        <button className="flex-1 rounded-md px-3 py-2 text-left text-sm text-zinc-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:bg-indigo-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-white" onClick={() => setTools('inspect')}>
-          <svg className="h-4 w-4 margin-right-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v6h4v-6H9zm6-8v4h12V9h-12zm-9 8h6v4H3v-4z" /></svg>
-          Inspect
-        </button>
-        <button className="flex-1 rounded-md px-3 py-2 text-left text-sm text-zinc-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:bg-indigo-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-white" onClick={() => setTools('view')}>
-          <svg className="h-4 w-4 margin-right-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          View
-        </button>
-      </div>
+function DiagramEditor({initial,onExit,onSaved,workspaceId}:{initial:DesignDetail;onExit:()=>void;onSaved:()=>void;workspaceId:string}){
+ const [document,setDocument]=useState(initial.document); const [source,setSource]=useState<DiagramSource>(initial.source); const [dirty,setDirty]=useState(false); const [selected,setSelected]=useState('');
+ const [from,setFrom]=useState('');const [to,setTo]=useState('');const [edgeLabel,setEdgeLabel]=useState('');const [summary,setSummary]=useState('');
+ const [drag,setDrag]=useState<{id:string; dx:number;dy:number}|null>(null);
+ const dragRecorded=useRef(false);
+ const [undoStack,setUndoStack]=useState<DiagramSource[]>([]),[redoStack,setRedoStack]=useState<DiagramSource[]>([]);
+ const [zoom,setZoom]=useState(100),[snap,setSnap]=useState(false); const [exportError,setExportError]=useState('');
+ const discardApproved=useRef(false), saveInFlight=useRef(false), editVersion=useRef(0);
+ const history=useQuery({queryKey:['design-revisions',workspaceId,document.id],queryFn:()=>get<DesignRevision[]>(`/designs/${document.id}/revisions`)});
+ type SaveAttempt={source:DiagramSource; summary:string; expectedRevision:number; version:number};
+ const save=useMutation({mutationFn:(attempt:SaveAttempt)=>put<DesignDetail>(`/designs/${document.id}`,{expectedRevision:attempt.expectedRevision,summary:attempt.summary,source:attempt.source}),onSuccess:(d,attempt)=>{setDocument(d.document);if(editVersion.current===attempt.version){setSource(d.source);setDirty(false);setSummary('')}onSaved()},onSettled:()=>{saveInFlight.current=false}});
+ const restore=useMutation({mutationFn:(revision:number)=>post<DesignDetail>(`/designs/${document.id}/revisions/${revision}/restore`,{expectedRevision:document.headRevision}),onSuccess:d=>{setDocument(d.document);setSource(d.source);setSelected('');setDirty(false);setUndoStack([]);setRedoStack([]);save.reset();onSaved()}});
+ const locked=!document.canEdit||save.isPending||restore.isPending;
+ const problem=diagramDraftProblem(source);
+ const attemptSave=(automatic:boolean)=>{if(saveInFlight.current||locked||!dirty||problem||drag)return;saveInFlight.current=true;save.mutate({source,expectedRevision:document.headRevision,summary:summary.trim()||(automatic?'Autosaved':''),version:editVersion.current})};
+ useEffect(()=>{if(!dirty||locked||problem||drag||save.isError)return;const timer=window.setTimeout(()=>attemptSave(true),2000);return()=>window.clearTimeout(timer)},[source,summary,dirty,locked,problem,drag,save.isError,document.headRevision]);
+ useEffect(()=>{const before=(event:Event)=>{if(saveInFlight.current||restore.isPending){event.preventDefault();window.alert('A design save is in progress. Wait for it to finish before changing workspace or signing out.');return}if(dirty&&!window.confirm('Discard unsaved design changes before changing workspace or signing out?'))event.preventDefault();else discardApproved.current=true};const failed=()=>{discardApproved.current=false};window.addEventListener('sv:before-session-change',before);window.addEventListener('sv:session-change-failed',failed);return()=>{window.removeEventListener('sv:before-session-change',before);window.removeEventListener('sv:session-change-failed',failed)}},[dirty,restore.isPending]);
+ const blocker=useBlocker(({currentLocation,nextLocation})=>(dirty||saveInFlight.current||restore.isPending) && !discardApproved.current && currentLocation.pathname!==nextLocation.pathname);
+ useEffect(()=>{if(blocker.state==='blocked'){if(saveInFlight.current||restore.isPending){window.alert('A design save is in progress. Wait for it to finish before leaving.');blocker.reset()}else if(window.confirm('Discard unsaved design changes?'))blocker.proceed();else blocker.reset();}},[blocker,restore.isPending]);
+ useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(dirty||saveInFlight.current||restore.isPending){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn)},[dirty,restore.isPending]);
+ const change=(next:DiagramSource, record=true)=>{editVersion.current++;if(record){setUndoStack(stack=>[...stack.slice(-49),source]);setRedoStack([])}setSource(next);setDirty(true)};
+ const undo=()=>{if(locked||!undoStack.length)return;editVersion.current++;const previous=undoStack[undoStack.length-1];setUndoStack(undoStack.slice(0,-1));setRedoStack(stack=>[...stack.slice(-49),source]);setSource(previous);setSelected('');setDirty(true)};
+ const redo=()=>{if(locked||!redoStack.length)return;editVersion.current++;const next=redoStack[redoStack.length-1];setRedoStack(redoStack.slice(0,-1));setUndoStack(stack=>[...stack.slice(-49),source]);setSource(next);setSelected('');setDirty(true)};
+ const exportFile=async(format:'svg'|'png')=>{setExportError('');try{await exportDiagram(source,document.title,format)}catch(error){setExportError(error instanceof Error?error.message:'Export failed.')}};
+ useEffect(()=>{const shortcut=(event:KeyboardEvent)=>{const target=event.target as HTMLElement|null;if(target?.isContentEditable||target?.closest('input, textarea, select'))return;if(!(event.ctrlKey||event.metaKey)||event.altKey)return;if(event.key.toLowerCase()==='z'){event.preventDefault();if(event.shiftKey)redo();else undo()}else if(event.key.toLowerCase()==='y'){event.preventDefault();redo()}};window.addEventListener('keydown',shortcut);return()=>window.removeEventListener('keydown',shortcut)});
 
-      {/* Main canvas area */}
-      <div className="ml-20 flex flex-col flex-1 overflow-hidden">
-        {/* Top property panel */}
-        <div className="border-b border-indigo-200 bg-white py-4 px-6 flex items-center justify-between">
-          <span className="text-sm text-zinc-500">Grid</span>
-          <select
-            onChange={(e) => setGridSize(e.target.value as 'none' | '24' | '48' | '72')}
-            className="ml-2 rounded border border-zinc-300 px-2 py-1 text-sm shadow-sm"
-          >
-            <option value="none">None</option>
-            <option value="24">24px</option>
-            <option value="48">48px</option>
-            <option value="72">72px</option>
-          </select>
-        </div>
-
-        {/* Canvas area */}
-        <div className="flex-1 min-h-[600px] flex items-center justify-center bg-gray-100">
-          <div className="relative w-full max-w-2xl max-h-[600px] bg-white rounded-lg shadow-xl">
-            <div className="absolute inset-1 bg-indigo-100 opacity-30 rounded-lg" />
-            <div className="flex flex-col items-center justify-center h-full text-center text-zinc-500">
-              <h2 className="text-2xl font-medium text-indigo-600 mb-4">Design Canvas</h2>
-              <p className="text-zinc-400 mb-8">
-                Your Fusion 360-inspired design workspace. Use the left panel to switch between Create, Modify, and Inspect modes.
-              </p>
-              <p className="text-zinc-400">
-                Grid size: {gridSize === 'none' ? 'Off' : gridSize}px
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right info panel */}
-      <div className="fixed right-0 top-20 h-screen w-24 bg-white border-l border-indigo-200 flex flex-col">
-        <div className="flex-1 border-b border-indigo-200 px-3 py-2 text-left text-sm text-zinc-600">
-          Properties
-        </div>
-        <div className="flex-1 px-3 py-2 text-left text-xs text-zinc-500">
-          <div>Status: Ready</div>
-          <div>Components: 0</div>
-        </div>
-      </div>
-    </div>
-  );
+ const selectedNode=source.nodes.find(n=>n.id===selected);
+ const move=(e:PointerEvent<SVGSVGElement>)=>{if(!drag||locked)return;const r=e.currentTarget.getBoundingClientRect();const step=snap?20:1;const x=Math.max(0,Math.min(1760,Math.round(((e.clientX-r.left)*1920/r.width-drag.dx)/step)*step));const y=Math.max(0,Math.min(1120,Math.round(((e.clientY-r.top)*1200/r.height-drag.dy)/step)*step));if(source.nodes.some(n=>n.id===drag.id&&(n.x!==x||n.y!==y))){change({...source,nodes:source.nodes.map(n=>n.id===drag.id?{...n,x,y}:n)},!dragRecorded.current);dragRecorded.current=true}};
+ const start=(e:PointerEvent<SVGGElement>,n:DiagramSource['nodes'][number])=>{setSelected(n.id);if(locked)return;const svg=e.currentTarget.ownerSVGElement;if(!svg)return;const r=svg.getBoundingClientRect();dragRecorded.current=false;setDrag({id:n.id,dx:(e.clientX-r.left)*1920/r.width-n.x,dy:(e.clientY-r.top)*1200/r.height-n.y});svg.setPointerCapture(e.pointerId)};
+ const back=()=>onExit();
+ return <div className="space-y-4 p-4 md:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><button type="button" onClick={back} className="text-sm text-blue-700 underline dark:text-blue-300">← Design Studio</button><h1 className="mt-2 text-2xl font-semibold">{document.title}</h1><p className="mt-1 text-sm text-zinc-500">Conceptual diagram · revision {document.headRevision}{dirty?' · unsaved changes':''} · {document.canEdit?'editable':'read-only'}</p></div><div className="flex gap-2">{document.projectId&&<Link className="text-sm text-blue-700 underline" to={`/projects/${document.projectId}`}>Open project</Link>}{document.productId&&<Link className="text-sm text-blue-700 underline" to={`/products/${document.productId}`}>Open product</Link>}</div></div>
+ <p className="text-sm text-zinc-600 dark:text-zinc-400">Conceptual diagrams only, not verified engineering schematics. Changes autosave as revisions after a short pause; live collaboration is not available. Exports include the current canvas, even if it is unsaved.</p>
+ <div className="grid min-w-0 gap-4 xl:grid-cols-[200px_minmax(0,1fr)_320px]">
+ <aside className="min-w-0 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700" aria-label="Design navigation"><h2 className="font-semibold">Design navigation</h2><nav className="mt-3 space-y-2 text-sm"><Link className="block text-blue-700 underline dark:text-blue-300" to="/designs">All designs</Link>{document.projectId&&<Link className="block text-blue-700 underline dark:text-blue-300" to={`/projects/${document.projectId}`}>Project overview</Link>}</nav><h3 className="mt-5 text-sm font-semibold">Boxes ({source.nodes.length})</h3>{source.nodes.length===0?<p className="mt-2 text-xs text-zinc-500">Add a box to start your diagram.</p>:<ul className="mt-2 max-h-72 space-y-1 overflow-auto">{source.nodes.map(n=><li key={n.id}><button type="button" aria-pressed={selected===n.id} onClick={()=>setSelected(n.id)} className={`w-full truncate rounded px-2 py-1 text-left text-sm ${selected===n.id?'bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100':'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>{n.label||'Untitled box'}</button></li>)}</ul>}</aside>
+ <div className="min-w-0"><div className="mb-2 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Canvas tools"><Button size="sm" variant="secondary" disabled={locked||!undoStack.length} onClick={undo}>Undo</Button><Button size="sm" variant="secondary" disabled={locked||!redoStack.length} onClick={redo}>Redo</Button><Button size="sm" variant="secondary" disabled={zoom<=50} onClick={()=>setZoom(z=>Math.max(50,z-25))}>Zoom out</Button><span className="text-xs" aria-live="polite">{zoom}%</span><Button size="sm" variant="secondary" disabled={zoom>=200} onClick={()=>setZoom(z=>Math.min(200,z+25))}>Zoom in</Button><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap to grid</label><Button size="sm" variant="secondary" onClick={()=>void exportFile('svg')}>Export SVG</Button><Button size="sm" variant="secondary" onClick={()=>void exportFile('png')}>Export PNG</Button></div>{exportError&&<p role="alert" className="mb-2 text-sm text-rose-700">{exportError}</p>}<div className="overflow-auto rounded-lg border border-zinc-300 bg-white dark:border-zinc-700"><div className="min-w-[640px]"><svg aria-label="Conceptual diagram canvas" viewBox="0 0 1920 1200" style={{width:`${zoom}%`}} className="block touch-none" onPointerMove={move} onPointerUp={()=>setDrag(null)} onPointerCancel={()=>setDrag(null)}>
+  <defs><pattern id="diagram-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e8edf0" strokeWidth="1"/></pattern><marker id="diagram-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#36586e"/></marker></defs><rect width="1920" height="1200" fill="url(#diagram-grid)" aria-hidden="true"/>
+  {source.edges.map(e=>{const a=source.nodes.find(n=>n.id===e.from),b=source.nodes.find(n=>n.id===e.to);if(!a||!b)return null;const dx=b.x-a.x,dy=b.y-a.y;const k=Math.max(Math.abs(dx)/80,Math.abs(dy)/40,1);return <g key={e.id}><line x1={a.x+80+dx/k} y1={a.y+40+dy/k} x2={b.x+80-dx/k} y2={b.y+40-dy/k} stroke="#36586e" strokeWidth="3" markerEnd="url(#diagram-arrow)"/><text x={(a.x+b.x)/2+80} y={(a.y+b.y)/2+32} textAnchor="middle" fontSize="20" fill="#17384e">{e.label}</text></g>})}
+  {source.nodes.map(n=><g key={n.id} role="button" tabIndex={0} aria-label={`Select ${n.label}`} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSelected(n.id)}}} onPointerDown={e=>start(e,n)}><title>{n.label}</title><rect x={n.x} y={n.y} width="160" height="80" rx="8" fill="#eaf4f8" stroke={n.id===selected?'#145aac':'#6b91a4'} strokeWidth={n.id===selected?5:2}/><text x={n.x+80} y={n.y+46} textAnchor="middle" fontSize="18" fill="#17384e">{n.label.length>18?n.label.slice(0,18)+'…':n.label}</text></g>)}
+ </svg></div></div></div><div className="space-y-4"><Card className="space-y-3 p-4"><h2 className="font-semibold">Properties &amp; elements</h2><fieldset disabled={locked} className="space-y-3"><Button type="button" variant="secondary" disabled={source.nodes.length>=100} onClick={()=>{const n={id:crypto.randomUUID(),label:'New box',x:80+(source.nodes.length%8)*220,y:80+Math.floor(source.nodes.length/8)*85};change({...source,nodes:[...source.nodes,n]});setSelected(n.id)}}>Add box</Button>
+ {selectedNode&&<><label className="block text-sm">Box label<Input value={selectedNode.label} maxLength={120} onChange={e=>change({...source,nodes:source.nodes.map(n=>n.id===selected?{...n,label:e.target.value}:n)})}/></label><div className="grid grid-cols-2 gap-2"><label className="text-sm">X<Input type="number" min={0} max={1760} value={selectedNode.x} onChange={e=>change({...source,nodes:source.nodes.map(n=>n.id===selected?{...n,x:Number(e.target.value)}:n)})}/></label><label className="text-sm">Y<Input type="number" min={0} max={1120} value={selectedNode.y} onChange={e=>change({...source,nodes:source.nodes.map(n=>n.id===selected?{...n,y:Number(e.target.value)}:n)})}/></label></div><Button type="button" variant="secondary" disabled={source.nodes.length>=100} onClick={()=>{const n={...selectedNode,id:crypto.randomUUID(),x:Math.min(1760,selectedNode.x+20),y:Math.min(1120,selectedNode.y+20)};change({...source,nodes:[...source.nodes,n]});setSelected(n.id)}}>Duplicate box</Button><Button type="button" variant="secondary" onClick={()=>{change({...source,nodes:source.nodes.filter(n=>n.id!==selected),edges:source.edges.filter(e=>e.from!==selected&&e.to!==selected)});setSelected('')}}>Remove box and its connectors</Button></>}
+ <label htmlFor="connector-from" className="block text-sm">From</label><Select id="connector-from" value={from} onChange={e=>setFrom(e.target.value)}><option value="">Choose a box</option>{source.nodes.map(n=><option key={n.id} value={n.id}>{n.label}</option>)}</Select><label htmlFor="connector-to" className="block text-sm">To</label><Select id="connector-to" value={to} onChange={e=>setTo(e.target.value)}><option value="">Choose a box</option>{source.nodes.map(n=><option key={n.id} value={n.id}>{n.label}</option>)}</Select><label className="block text-sm">Connector label (optional)<Input maxLength={80} value={edgeLabel} onChange={e=>setEdgeLabel(e.target.value)}/></label><Button type="button" variant="secondary" disabled={!source.nodes.some(n=>n.id===from)||!source.nodes.some(n=>n.id===to)||from===to||source.edges.length>=200} onClick={()=>{change({...source,edges:[...source.edges,{id:crypto.randomUUID(),from,to,label:edgeLabel}]});setEdgeLabel('')}}>Add connector</Button>
+ {source.edges.map(e=><div key={e.id} className="flex items-center justify-between gap-2 text-xs"><span>{source.nodes.find(n=>n.id===e.from)?.label} → {source.nodes.find(n=>n.id===e.to)?.label}{e.label?` · ${e.label}`:''}</span><button type="button" className="text-rose-700 underline" onClick={()=>change({...source,edges:source.edges.filter(x=>x.id!==e.id)})}>Remove</button></div>)}
+ </fieldset></Card><Card className="space-y-3 p-4"><h2 className="font-semibold">Save revision</h2><p role="status" aria-live="polite" className="text-sm text-zinc-600 dark:text-zinc-400">{save.isPending?'Saving…':save.isError?'Autosave paused; changes remain in this tab.':dirty?problem??'Unsaved changes; waiting to autosave.':'Saved'}</p><fieldset disabled={locked}><label className="block text-sm">Change summary (optional)<Input maxLength={200} value={summary} onChange={e=>setSummary(e.target.value)}/></label><Button className="mt-3" type="button" disabled={!dirty||!!problem||!!drag} onClick={()=>attemptSave(false)}>Save revision</Button></fieldset>{dirty&&<div><Button size="sm" variant="secondary" onClick={()=>exportDraft(source,document.title)}>Download draft JSON</Button><p className="mt-1 text-xs text-zinc-500">Recovery copy only; import is not yet supported.</p></div>}{save.isError&&<div role="alert" className="text-sm text-rose-700"><p>{save.error.message}</p><p>Autosave is paused. The save may have reached the server even if its response was lost. Preserve your changes and check the latest revision before retrying or reloading.</p></div>}</Card>
+ <Card className="space-y-3 p-4"><h2 className="font-semibold">Revision history</h2>{history.isError&&<p role="alert">{history.error.message}</p>}{history.data?.map(r=><div key={r.revision} className="border-t pt-2 text-xs"><p>Revision {r.revision} · {r.authorName??'Former member'}</p><p>{r.summary||'No summary'} · {new Date(r.createdAt).toLocaleString()}</p>{document.canEdit&&r.revision!==document.headRevision&&<button type="button" disabled={locked} className="mt-1 text-blue-700 underline disabled:opacity-50" onClick={()=>{if(dirty&&!window.confirm('Restore will discard unsaved changes in this tab. Continue?'))return;if(window.confirm(`Restore revision ${r.revision} as a new revision?`))restore.mutate(r.revision)}}>Restore as new revision</button>}</div>)}{restore.isError&&<p role="alert" className="text-sm text-rose-700">{restore.error.message}</p>}</Card></div></div></div>;
 }

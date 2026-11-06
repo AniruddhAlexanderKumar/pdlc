@@ -1,0 +1,16 @@
+{
+  "name": "@sv/shared",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/dashboard.test.ts src/domain.test.ts src/projects.test.ts src/teamworkGraph.test.ts src/pricing.test.ts src/education-pricing.test.ts src/workspace-profile.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}

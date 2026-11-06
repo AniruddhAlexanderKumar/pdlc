@@ -1,0 +1,465 @@
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  FolderKanban,
+  Layers,
+  ListChecks,
+  Mic,
+  MicOff,
+  Package,
+  RotateCcw,
+  Sparkles,
+  Tag
+} from 'lucide-react';
+import { XP, type VoiceImportPayload } from '@sv/shared';
+import { useImportVoice, useProcessVoice, useSession } from '../api/hooks';
+import { Button, Card, cx, Modal, ProgressBar, StageBadge } from './ui';
+import { useMoney } from '../lib/money';
+
+export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+  const me = useSession();
+  const { symbol, fmt } = useMoney();
+  const processVoice = useProcessVoice();
+  const importVoice = useImportVoice();
+
+  const [step, setStep] = useState<'dictate' | 'preview'>('dictate');
+  const [transcript, setTranscript] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [recognitionSupported, setRecognitionSupported] = useState(true);
+  const [micError, setMicError] = useState<string | null>(null);
+  const [payloadDraft, setPayloadDraft] = useState<VoiceImportPayload | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const recoveryKey = `sv-voice-pending:${me.user.id}:${me.workspace.id}`;
+  const [providerUsed, setProviderUsed] = useState<string>('qwen');
+  const [expandedIssue, setExpandedIssue] = useState<number | null>(0);
+
+  const recognitionRef = useRef<any>(null);
+  const timerRef = useRef<any>(null);
+
+  // Keep only a submitted draft in this tab so an uncertain response can be retried
+  // with the same idempotency key after a reload. Never send storage as authority.
+  useEffect(() => {
+    setPayloadDraft(null); setRequestId(null); setPendingImport(false); setStep('dictate'); setRecoveryError(null);
+    try {
+      const saved = sessionStorage.getItem(recoveryKey);
+      if (!saved) return;
+      const item = JSON.parse(saved) as { requestId: string; draft: VoiceImportPayload; provider: string };
+      if (!item.requestId || !item.draft) return;
+      setRequestId(item.requestId); setPayloadDraft(item.draft); setProviderUsed(item.provider); setPendingImport(true); setStep('preview');
+    } catch { setRecoveryError('Could not restore a pending import. Check existing records before creating another.'); }
+  }, [recoveryKey]);
+
+  // Setup Web Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setRecognitionSupported(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        let full = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          full += event.results[i][0].transcript + ' ';
+        }
+        setTranscript(full.trim());
+      };
+
+      recognition.onerror = (event: any) => {
+        if (event.error !== 'no-speech') {
+          setMicError(`Microphone error: ${event.error}`);
+          setIsRecording(false);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+    } catch {
+      setRecognitionSupported(false);
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const toggleRecording = () => {
+    setMicError(null);
+    if (isRecording) {
+      if (recognitionRef.current) recognitionRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    } else {
+      if (!recognitionRef.current) {
+        setMicError('Speech recognition is not supported in this browser. You can type or paste your thoughts below.');
+        return;
+      }
+      try {
+        recognitionRef.current.start();
+        setIsRecording(true);
+        setRecordingSeconds(0);
+        timerRef.current = setInterval(() => {
+          setRecordingSeconds((s) => s + 1);
+        }, 1000);
+      } catch (err: any) {
+        setMicError(err?.message || 'Failed to start microphone');
+      }
+    }
+  };
+
+  const handleProcess = () => {
+    if (!transcript.trim()) return;
+    if (isRecording) toggleRecording();
+
+    processVoice.mutate(transcript.trim(), {
+      onSuccess: (res) => {
+        setPayloadDraft(res.data);
+        setRequestId(crypto.randomUUID());
+        setProviderUsed(res.provider);
+        setStep('preview');
+      }
+    });
+  };
+
+  const handleImport = () => {
+    if (!payloadDraft || !requestId) return;
+    try {
+      sessionStorage.setItem(recoveryKey, JSON.stringify({ requestId, draft: payloadDraft, provider: providerUsed }));
+      setPendingImport(true); setRecoveryError(null);
+    } catch {
+      setRecoveryError('Cannot save a retry key in this tab. Enable session storage before importing to prevent duplicate work.');
+      return;
+    }
+    importVoice.mutate({ requestId, draft: payloadDraft }, {
+      onSuccess: () => {
+        try { sessionStorage.removeItem(recoveryKey); } catch { /* A retry remains safe if removal fails. */ }
+        setPendingImport(false);
+        setTimeout(() => {
+          onClose();
+          navigate(`/projects`);
+        }, 900);
+      }
+    });
+  };
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  return (
+    <>
+      <Modal
+        title={step === 'dictate' ? 'Hands-Free Voice AI · Product Ideation' : 'Review & Import to Workspace'}
+        subtitle={
+          step === 'dictate'
+            ? 'Your transcript is sent to the configured voice model; avoid sensitive information. The draft needs review before import.'
+            : `Draft generated by ${providerUsed === 'llama-cpp' ? 'the configured model server' : 'the configured Ollama model'}. AI can make mistakes; review every detail before confirming.`
+        }
+        onClose={onClose}
+        size="lg"
+        footer={
+          step === 'dictate' ? (
+            <>
+              <Button variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleProcess}
+                disabled={!transcript.trim() || processVoice.isPending}
+                loading={processVoice.isPending}
+                icon={<Sparkles className="h-4 w-4" />}
+              >
+                Create draft
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={importVoice.isPending} icon={<RotateCcw className="h-4 w-4" />} onClick={() => { if (pendingImport && !window.confirm('This import may already have completed. Check existing records before starting over. Discard the saved retry key?')) return; try { sessionStorage.removeItem(recoveryKey); } catch { setRecoveryError('Could not clear the saved retry key.'); return; } setPendingImport(false); setStep('dictate'); }}>
+                Back to Dictation
+              </Button>
+              <Button
+                onClick={handleImport}
+                loading={importVoice.isPending}
+                disabled={me.workspace.role === 'member' || importVoice.isPending || importVoice.isSuccess}
+                icon={<CheckCircle2 className="h-4 w-4" />}
+              >
+                Confirm & Create Records · +{XP.productCreated} XP
+              </Button>
+            </>
+          )
+        }
+      >
+        {step === 'dictate' ? (
+          <div className="space-y-5">
+            {/* Mic Controls */}
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50/50 p-6 text-center dark:border-zinc-800 dark:bg-zinc-900/40">
+              <button
+                type="button"
+                onClick={toggleRecording}
+                className={cx(
+                  'relative flex h-20 w-20 items-center justify-center rounded-full transition-all duration-300 shadow-md',
+                  isRecording
+                    ? 'bg-rose-600 text-white shadow-rose-500/40 animate-pulse ring-4 ring-rose-500/20'
+                    : 'bg-blue-600 text-white hover:bg-blue-500 shadow-blue-500/30 hover:scale-105'
+                )}
+                aria-label={isRecording ? 'Stop recording' : 'Start speaking'}
+              >
+                {isRecording ? <MicOff className="h-8 w-8" /> : <Mic className="h-8 w-8" />}
+              </button>
+
+              <div className="mt-3">
+                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                  {isRecording ? `Listening… ${formatTime(recordingSeconds)}` : 'Click to start speaking hands-free'}
+                </p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {isRecording
+                    ? 'Talk about the problem, who it is for, key materials, target price, and next steps.'
+                    : recognitionSupported
+                    ? 'Microphone ready. Speaks directly into the transcript.'
+                    : 'Browser speech recognition unavailable. You can type or paste below.'}
+                </p>
+              </div>
+
+              {micError && (
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{micError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Live Transcript / Brain Dump Textarea */}
+            <div>
+              <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-zinc-500">
+                <label htmlFor="voice-transcript">Transcript</label>
+                {transcript && (
+                  <button type="button" onClick={() => setTranscript('')} className="hover:text-zinc-800 dark:hover:text-zinc-200">
+                    Clear text
+                  </button>
+                )}
+              </div>
+              <textarea
+                id="voice-transcript"
+                maxLength={12000}
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                rows={4}
+                placeholder="Speak or paste your own product idea here."
+                className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900"
+              />
+            </div>
+
+            {recoveryError && <p role="alert" className="text-sm text-rose-700">{recoveryError}</p>}
+            {processVoice.isError && <p role="alert" className="text-sm text-rose-700">{(processVoice.error as Error).message}</p>}
+          </div>
+        ) : (
+          payloadDraft && (
+            <div className="space-y-6">
+              <p className="text-sm text-amber-700 dark:text-amber-300">Each imported work item creates a linked project issue and product task. Their statuses stay synchronized; titles and descriptions can be edited independently. Deleting one removes the link, not the other record. Review the draft carefully. AI output may be inaccurate; zero costs can mean unspecified. Go back to revise the transcript or cancel if anything is wrong.</p>
+              {me.workspace.role === 'member' && <p role="alert" className="text-sm text-rose-700">Only workspace owners and admins can create the project required for this import.</p>}
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">On import, the draft and retry key are temporarily stored in this browser tab until confirmation, so you can retry after a connection error or reload. Starting over may create a separate import. Milestones cannot be imported and must be recorded separately.</p>
+              {recoveryError && <p role="alert" className="text-sm text-rose-700">{recoveryError}</p>}
+              {importVoice.isError && <p role="alert" className="text-sm text-rose-700">{(importVoice.error as Error).message}</p>}
+
+              {/* Product Header Card */}
+              <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 dark:border-blue-900/40 dark:bg-blue-950/20">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-zinc-900 dark:text-white">{payloadDraft.product.name}</h3>
+                      <StageBadge stage={payloadDraft.product.stage} />
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">{payloadDraft.product.description}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className="text-xs text-zinc-400 uppercase font-semibold">Target Price</span>
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                      {payloadDraft.product.target_price !== null ? fmt(payloadDraft.product.target_price) : 'Not specified'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-4 border-t border-blue-100/60 pt-2 text-xs text-zinc-500 dark:border-blue-900/40">
+                  <span>Category: <strong>{payloadDraft.product.category}</strong></span>
+                  <span>Est. Labour: <strong>{fmt(payloadDraft.product.labour)}</strong></span>
+                  <span>Est. Packaging: <strong>{fmt(payloadDraft.product.packaging)}</strong></span>
+                  <span>Est. Overhead: <strong>{fmt(payloadDraft.product.overhead)}</strong></span>
+                </div>
+              </div>
+
+              {/* Discovery Questionnaire Auto-Bypass */}
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                      Discovery Questions Auto-Answered ({payloadDraft.answers.length})
+                    </h4>
+                  </div>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    Bypassed Form · XP Ready
+                  </span>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {payloadDraft.answers.map((ans) => (
+                    <div key={ans.question_key} className="rounded-lg border border-zinc-200 bg-white p-2.5 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+                      <p className="font-semibold text-zinc-400">{ans.question_key}</p>
+                      <p className="mt-1 text-zinc-700 dark:text-zinc-200 line-clamp-2">{String(ans.value)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bill of Materials (BOM) */}
+              {payloadDraft.materials.length > 0 && (
+                <div>
+                  <div className="mb-2 flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-blue-500" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                      Extracted Bill of Materials ({payloadDraft.materials.length})
+                    </h4>
+                  </div>
+                  <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-zinc-50 text-zinc-500 dark:bg-zinc-800/60">
+                        <tr>
+                          <th className="px-3 py-2">Component</th>
+                          <th className="px-3 py-2">Category</th>
+                          <th className="px-3 py-2">Qty</th>
+                          <th className="px-3 py-2">Unit Price</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {payloadDraft.materials.map((m, idx) => (
+                          <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
+                            <td className="px-3 py-2 font-medium">{m.name}</td>
+                            <td className="px-3 py-2 text-zinc-500">{m.category}</td>
+                            <td className="px-3 py-2">{m.quantity} {m.unit}</td>
+                            <td className="px-3 py-2 font-semibold">{fmt(m.unit_price)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* "Jira for Beginners" Issue Board */}
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FolderKanban className="h-4 w-4 text-blue-500" />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                      Jira for Beginners Starter Board ({payloadDraft.issues.length} items)
+                    </h4>
+                  </div>
+                  <span className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-[11px] font-bold text-blue-600 dark:bg-zinc-800 dark:text-blue-400">
+                    KEY: {payloadDraft.project.project_key}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {payloadDraft.issues.map((issue, idx) => {
+                    const isExpanded = expandedIssue === idx;
+                    return (
+                      <div
+                        key={idx}
+                        className="rounded-lg border border-zinc-200 bg-white p-3 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900"
+                      >
+                        <div
+                          className="flex cursor-pointer items-start justify-between gap-2"
+                          onClick={() => setExpandedIssue(isExpanded ? null : idx)}
+                        >
+                          <div className="flex items-start gap-2">
+                            <span
+                              className={cx(
+                                'rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+                                issue.type === 'Story'
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                  : issue.type === 'Bug'
+                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                  : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                              )}
+                            >
+                              {issue.type}
+                            </span>
+                            <div>
+                              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{issue.summary}</p>
+                              {issue.milestone_tag && (
+                                <span className="mt-0.5 inline-block text-[11px] text-zinc-400">
+                                  Milestone: {issue.milestone_tag}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">Status: {issue.status}</span>
+                            <span
+                              className={cx(
+                                'rounded px-1.5 py-0.5 text-[10px] font-semibold',
+                                issue.priority === 'Critical'
+                                  ? 'bg-rose-500/10 text-rose-600'
+                                  : issue.priority === 'High'
+                                  ? 'bg-amber-500/10 text-amber-600'
+                                  : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                              )}
+                            >
+                              {issue.priority}
+                            </span>
+                            {isExpanded ? <ChevronUp className="h-4 w-4 text-zinc-400" /> : <ChevronDown className="h-4 w-4 text-zinc-400" />}
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="mt-3 border-t border-zinc-100 pt-2.5 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">
+                            <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
+                              {issue.description}
+                            </pre>
+                            {issue.labels.length > 0 && (
+                              <div className="mt-2.5 flex flex-wrap gap-1">
+                                {issue.labels.map((l) => (
+                                  <span key={l} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800">
+                                    #{l}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )
+        )}
+      </Modal>
+    </>
+  );
+}

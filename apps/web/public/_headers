@@ -1,0 +1,36 @@
+/login
+  X-Robots-Tag: noindex, nofollow
+/signup
+  X-Robots-Tag: noindex, nofollow
+/register
+  X-Robots-Tag: noindex, nofollow
+/try-demo
+  X-Robots-Tag: noindex, nofollow
+/admin*
+  X-Robots-Tag: noindex, nofollow
+/analytics*
+  X-Robots-Tag: noindex, nofollow
+/settings*
+  X-Robots-Tag: noindex, nofollow
+/products*
+  X-Robots-Tag: noindex, nofollow
+/projects*
+  X-Robots-Tag: noindex, nofollow
+/materials*
+  X-Robots-Tag: noindex, nofollow
+/suppliers*
+  X-Robots-Tag: noindex, nofollow
+/teamwork-graph*
+  X-Robots-Tag: noindex, nofollow
+/achievements*
+  X-Robots-Tag: noindex, nofollow
+/join/*
+  X-Robots-Tag: noindex, nofollow
+/reset*
+  X-Robots-Tag: noindex, nofollow
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store
+/review
+  X-Robots-Tag: noindex, nofollow
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store

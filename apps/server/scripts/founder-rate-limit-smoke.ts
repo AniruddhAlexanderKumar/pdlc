@@ -1,0 +1,57 @@
+// PostgreSQL multi-instance test; requires a disposable local database.
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { Kysely, PostgresDialect, sql } from 'kysely';
+import pg from 'pg';
+import type { Database } from '../src/db/schema.js';
+const url = new URL(process.env.DATABASE_URL ?? 'postgres://invalid/invalid');
+if (process.env.NODE_ENV !== 'test' || !['localhost', '127.0.0.1'].includes(url.hostname) || url.pathname !== '/founders_rate_test') throw Error('Requires NODE_ENV=test and disposable localhost founders_rate_test DB');
+const { db } = await import('../src/db/index.js');
+const { migrateToLatest } = await import('../src/db/migrate.js');
+const { consumeFounderBucket, founderRateKey, cleanupFounderRateBuckets } = await import('../src/auth/founder-rate-limit.js');
+const createInstance = () => new Kysely<Database>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 8 }) }) });
+const a = createInstance(); let b = createInstance();
+const key = randomBytes(32), identifier = 'synthetic@example.test|192.0.2.10';
+const bucket = founderRateKey(key, 'login', 'account_ip', identifier);
+const policy = { freeAttempts: 10, windowSeconds: 900, firstDelaySeconds: 5, maxDelaySeconds: 300 };
+try {
+  await migrateToLatest(() => {});
+  const responses = await Promise.all(Array.from({ length: 80 }, (_, i) => consumeFounderBucket(i % 2 ? a : b, bucket, policy)));
+  assert.equal(responses.filter((r) => r.allowed).length, 10);
+  assert.equal(responses.filter((r) => !r.allowed).length, 70);
+  const state = await db.selectFrom('founder_rate_limits').selectAll().where('bucket_key', '=', bucket).executeTakeFirstOrThrow();
+  assert.equal(state.attempts, 11); assert(state.blocked_until);
+  assert(!JSON.stringify(state).includes(identifier));
+  await b.destroy(); b = createInstance();
+  const afterRestart = await consumeFounderBucket(b, bucket, policy);
+  assert(!afterRestart.allowed && afterRestart.retryAfterSeconds > 0);
+  await db.updateTable('founder_rate_limits').set({ blocked_until: new Date(Date.now() - 1000) }).where('bucket_key', '=', bucket).execute();
+  const next = await consumeFounderBucket(a, bucket, policy);
+  assert(!next.allowed && next.retryAfterSeconds >= 9 && next.retryAfterSeconds <= 10);
+  const other = founderRateKey(key, 'login', 'account_ip', 'synthetic@example.test|192.0.2.11');
+  assert((await consumeFounderBucket(a, other, policy)).allowed);
+  const unrelatedAction = founderRateKey(key, 'mfa_verify', 'account_ip', identifier);
+  assert((await consumeFounderBucket(b, unrelatedAction, policy)).allowed);
+  const processBucket = founderRateKey(key, 'login', 'account_ip', 'separate-process-fixture');
+  const runWorker = () => new Promise<number>((resolve, reject) => {
+    const child = spawn(process.execPath, ['--import', 'tsx', 'apps/server/scripts/founder-rate-limit-worker.ts'], { env: { ...process.env, FOUNDER_TEST_BUCKET: processBucket }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = ''; child.stdout.on('data', (v) => { stdout += v.toString(); });
+    child.on('error', reject); child.on('exit', (code) => code === 0 ? resolve(Number(stdout.trim())) : reject(new Error('Rate-limit worker failed')));
+  });
+  const allowed = await Promise.all(Array.from({ length: 4 }, runWorker));
+  assert.equal(allowed.reduce((sum, n) => sum + n, 0), 10);
+  assert.equal(await runWorker(), 0, 'a new process must observe the existing cooldown');
+  const stale = founderRateKey(key, 'mfa_setup', 'ip', 'stale');
+  const futureBlock = founderRateKey(key, 'mfa_setup', 'ip', 'future-block');
+  await consumeFounderBucket(a, stale, policy); await consumeFounderBucket(a, futureBlock, policy);
+  await sql`UPDATE founder_rate_limits SET updated_at = now() - interval '3 days', window_started_at = now() - interval '3 days' WHERE bucket_key IN (${stale}, ${futureBlock})`.execute(db);
+  await sql`UPDATE founder_rate_limits SET blocked_until = now() + interval '1 hour' WHERE bucket_key = ${futureBlock}`.execute(db);
+  assert.equal(await cleanupFounderRateBuckets(db), 1);
+  assert.equal(await db.selectFrom('founder_rate_limits').select('bucket_key').where('bucket_key', '=', stale).executeTakeFirst(), undefined);
+  assert(await db.selectFrom('founder_rate_limits').select('bucket_key').where('bucket_key', '=', futureBlock).executeTakeFirst());
+  assert(await db.selectFrom('founder_rate_limits').select('bucket_key').where('bucket_key', '=', processBucket).executeTakeFirst());
+  await db.schema.dropTable('founder_rate_limits').execute();
+  await assert.rejects(consumeFounderBucket(a, bucket, policy), 'database failure must not allow access');
+  console.log('PASS shared PostgreSQL rate buckets: atomic concurrency across pools and processes, restart persistence, increasing cooldown, scoped isolation and fail-closed database error');
+} finally { await a.destroy(); await b.destroy(); await db.destroy(); }
