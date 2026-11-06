@@ -34,7 +34,7 @@ export function ProjectsPage() {
       setDescription('');
       setKeyEdited(false);
       toast.success('Project created');
-      navigate(`/projects/${project.id}/issues${params.get('guide') === 'first-project' ? '?guide=first-project' : ''}`);
+      navigate(params.get('guide') === 'first-project' ? `/projects/${project.id}/issues?guide=first-project` : `/projects/${project.id}`);
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Could not create project')
   });
@@ -50,8 +50,8 @@ export function ProjectsPage() {
   return (
     <>
       <PageHeader
-        title="Projects"
-        subtitle="Coordinate work in projects without changing your product lifecycle workspace."
+        title="Choose a project"
+        subtitle="Select a project to work on its issues and linked diagrams. Your existing workspace data stays where it is."
         actions={
           canCreate ? (
             <Button icon={<Plus className="h-4 w-4" />} onClick={() => setCreating((value) => !value)}>
@@ -103,7 +103,7 @@ export function ProjectsPage() {
         {projectsQuery.data?.length ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {projectsQuery.data.map((project) => (
-              <Link key={project.id} to={`/projects/${project.id}/issues`} className="rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
+              <Link key={project.id} to={`/projects/${project.id}`} className="rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
                 <Card className="h-full p-5 transition-colors hover:border-blue-300 dark:hover:border-blue-500/50">
                   <div className="flex items-start gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">

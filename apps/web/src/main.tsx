@@ -21,6 +21,7 @@ import { MaterialsPage } from './pages/Materials';
 import { ProductPage } from './pages/product/ProductPage';
 import { ProductsPage } from './pages/Products';
 import { ProjectsPage } from './pages/Projects';
+import { ProjectHomePage } from './pages/ProjectHome';
 import { ProjectIssuesPage } from './pages/ProjectIssues';
 const TeamworkGraphPage = lazy(() => import('./pages/TeamworkGraph').then(m => ({ default: m.TeamworkGraphPage })));
 import { RequestAccessPage } from './pages/RequestAccess';
@@ -30,6 +31,10 @@ import { ExternalReviewPage } from './pages/ExternalReview';
 import { ExternalReviewsPage } from './pages/ExternalReviews';
 import { TryDemoPage } from './pages/TryDemo';
 import { SettingsPage } from './pages/Settings';
+import { WorkspaceSetupPage } from './pages/WorkspaceSetup';
+import { DesignEditorPage, DesignStudioPage } from './pages/DesignStudio';
+import { CadDocumentsPage, CadDocumentPage } from './pages/CadDocuments';
+import { FoundersExperimental } from './pages/FoundersExperimental';
 import { SuppliersPage } from './pages/Suppliers';
 import { CookieBanner } from './components/CookieBanner';
 import { useAnalyticsPageView } from './lib/analytics';
@@ -104,13 +109,24 @@ function ReviewRoute() {
   return <ExternalReviewPage key={lastToken.current} />;
 }
 
+// This is deliberately not a login or a console. There is no founder access until
+// the separate server-side security boundary has been implemented and verified.
+function FoundersUnavailable() {
+  return (
+    <main className="mx-auto max-w-xl px-6 py-16">
+      <h1 className="text-2xl font-semibold">Founders Console unavailable</h1>
+      <p className="mt-4">Founder sign-in and administrative access have not been enabled.</p>
+    </main>
+  );
+}
+
 function GuestOnly() {
   const { data, isLoading } = useMe();
   const location = useLocation();
   if (isLoading) return <Spinner />;
   if (data) {
     const next = new URLSearchParams(location.search).get('next');
-    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : data.user.isAdmin ? '/admin' : '/'} replace />;
+    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : data.user.isAdmin ? '/admin' : '/projects'} replace />;
   }
   return <Outlet />;
 }
@@ -121,8 +137,8 @@ function RootApp() {
     const pathname = location.pathname.replace(/\/+$/, '') || '/';
     const publicPage = pathname === '/' || pathname === '/request-access';
     const pageName = ({ '/request-access': 'Request Early Access', '/login': 'Sign In', '/signup': 'Create Account', '/register': 'Create Account', '/try-demo': 'Sample Workspace', '/products': 'Products', '/projects': 'Projects', '/teamwork-graph': 'Teamwork Graph', '/materials': 'Materials', '/suppliers': 'Suppliers', '/settings': 'Settings', '/achievements': 'Achievements', '/admin': 'Administration' } as Record<string, string>)[pathname];
-    const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${pageName ?? 'Engineering Workspace'} | Solution Velocity`;
-    const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Bring product records, engineering project work and collaboration together with Solution Velocity, an intelligent product development lifecycle workspace.';
+    const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${/^\/founders(?:\/|$)/i.test(pathname) ? (import.meta.env.VITE_FOUNDER_AUTH_EXPERIMENTAL === 'true' ? 'Founder authentication (experimental)' : 'Founders Console unavailable') : pageName ?? 'Engineering Workspace'} | Solution Velocity`;
+    const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Bring product and project work together for engineering teams, students and educational organisations with Solution Velocity.';
     document.title = title;
     const set = (selector: string, value: string) => document.querySelector<HTMLMetaElement>(selector)?.setAttribute('content', value);
     set('meta[name="description"]', description);
@@ -139,7 +155,7 @@ function RootApp() {
   return (
     <>
       <Outlet />
-      {location.pathname !== '/review' && <CookieBanner />}
+      {location.pathname !== '/review' && !/^\/founders(?:\/|$)/i.test(location.pathname) && <CookieBanner />}
     </>
   );
 }
@@ -161,6 +177,7 @@ const router = createBrowserRouter([
       { path: '/reset/:token', element: <ResetPage /> },
       { path: '/request-access', element: <RequestAccessPage /> },
       { path: '/review', element: <ReviewRoute /> },
+      { path: '/founders/*', element: import.meta.env.VITE_FOUNDER_AUTH_EXPERIMENTAL === 'true' ? <FoundersExperimental /> : <FoundersUnavailable /> },
       { path: '/contact', element: <Navigate to="/request-access" replace /> },
       { path: '/demo', element: <Navigate to="/try-demo" replace /> },
       { path: '/try-demo', element: <TryDemoPage /> },
@@ -182,11 +199,16 @@ const router = createBrowserRouter([
               { path: '/', element: <DashboardPage /> },
               { path: '/products', element: <ProductsPage /> },
               { path: '/projects', element: <ProjectsPage /> },
+              { path: '/designs', element: <DesignStudioPage /> },
+              { path: '/designs/:id', element: <DesignEditorPage /> },
+              { path: '/designs/cad', element: <CadDocumentsPage /> },
+              { path: '/designs/cad/:id', element: <CadDocumentPage /> },
               { path: '/assistant', element: <Suspense fallback={<Spinner label="Loading AI Assistant" />}><AssistantPage /></Suspense> },
               { path: '/help', element: <HelpCentrePage /> },
               { path: '/help/:slug', element: <HelpCentrePage /> },
               { path: '/external-reviews', element: <ExternalReviewsPage /> },
               { path: '/teamwork-graph', element: <Suspense fallback={<Spinner label="Loading Teamwork Graph" />}><TeamworkGraphPage /></Suspense> },
+              { path: '/projects/:projectId', element: <ProjectHomePage /> },
               { path: '/projects/:projectId/issues', element: <ProjectIssuesPage /> },
               { path: '/products/:id', element: <ProductPage /> },
               { path: '/products/:id/:tab', element: <ProductPage /> },
@@ -194,6 +216,7 @@ const router = createBrowserRouter([
               { path: '/suppliers', element: <SuppliersPage /> },
               { path: '/achievements', element: <AchievementsPage /> },
               { path: '/settings', element: <SettingsPage /> },
+              { path: '/workspace-setup', element: <WorkspaceSetupPage /> },
               { path: '*', element: <Navigate to="/" replace /> }
             ]
           }
@@ -204,7 +227,7 @@ const router = createBrowserRouter([
 ]);
 
 // Remove the obsolete browser preference from earlier versions.
-try { localStorage.removeItem('sv-language'); } catch { /* Storage may be unavailable. */ }
+try { localStorage.removeItem('sv-language'); localStorage.removeItem('sv-public-language'); } catch { /* Storage may be unavailable. */ }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

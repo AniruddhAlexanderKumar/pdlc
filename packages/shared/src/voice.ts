@@ -1,6 +1,7 @@
 import type { StageId } from './stages.js';
 import type { IssuePriority, IssueStatus, IssueType } from './projects.js';
 import type { Product } from './types.js';
+import type { AnswerValue } from './questions.js';
 
 export interface VoiceProductDraft {
   name: string;
@@ -15,7 +16,7 @@ export interface VoiceProductDraft {
 
 export interface VoiceAnswerDraft {
   question_key: string;
-  value: string | number | boolean;
+  value: AnswerValue;
 }
 
 export interface VoiceMaterialDraft {

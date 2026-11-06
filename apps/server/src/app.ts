@@ -24,10 +24,15 @@ import { projectsRouter } from './routes/projects.js';
 import { teamworkGraphRouter } from './routes/teamwork-graph.js';
 import { graphIntelligenceRouter } from './routes/graph-intelligence.js';
 import { voiceRouter } from './routes/voice.js';
+import { designsRouter } from './routes/designs.js';
+import { cadDocumentsRouter } from './routes/cad-documents.js';
 import { reviewerRouter, reviewManagementRouter } from './routes/external-reviews.js';
 import { helpRouter, helpAdminRouter } from './routes/help.js';
 import { assistantRouter, assistantAdminRouter } from './routes/assistant.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
+import { createFoundersExperimentalRouter } from './routes/founders-experimental.js';
+import { founderTransportGuard } from './auth/founder-transport.js';
+import { databaseErrorCode, founderErrorHandler, founderRequestContext, founderRequestLogger } from './auth/founder-errors.js';
 
 export function createApp() {
   const app = express();
@@ -51,6 +56,24 @@ export function createApp() {
       strictTransportSecurity: config.secureCookies
     })
   );
+
+  // The incomplete founder lifecycle is opt-in and local/test only. Unknown
+  // paths still fall through to the deny-all boundary below. Only allowlisted
+  // request metadata and sanitized errors may be logged for this namespace.
+  if (config.FOUNDER_AUTH_EXPERIMENTAL && config.NODE_ENV !== 'production') {
+    app.use('/api/founders', founderRequestContext, founderRequestLogger(logger), founderTransportGuard(config.appOrigin), express.json({ limit: '8kb' }), cookieParser(), createFoundersExperimentalRouter());
+    app.use('/api/founders', founderErrorHandler(logger));
+  }
+
+  // The founder console is not implemented yet. Reserve its entire API namespace
+  // before ordinary session loading and request logging: no existing workspace or
+  // system-admin credential can accidentally authorize it. Replace this guard only
+  // when the dedicated authentication and authorization boundary is ready.
+  app.use('/api/founders', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    res.status(404).json({ error: 'Not found' });
+  });
 
   // Liveness/readiness probe for Docker, load balancers and uptime monitors.
   app.get('/api/health', async (_req, res) => {
@@ -121,6 +144,8 @@ export function createApp() {
   api.use('/projects', requireAuth, projectsRouter);
   api.use('/teamwork-graph', requireAuth, graphIntelligenceRouter, teamworkGraphRouter);
   api.use('/voice', requireAuth, voiceRouter);
+  api.use('/designs', requireAuth, designsRouter);
+  if(config.CAD_NATIVE_EXPERIMENTAL) api.use('/cad-documents', requireAuth, rateLimit({windowMs:60_000, limit:config.NODE_ENV==='test'?10000:60, standardHeaders:'draft-8', legacyHeaders:false}), cadDocumentsRouter);
   api.use('/materials', requireAuth, materialsRouter);
   api.use('/suppliers', requireAuth, suppliersRouter);
   api.use((_req, res) => res.status(404).json({ error: 'Not found' }));
@@ -143,7 +168,7 @@ export function createApp() {
       res.setHeader('Cache-Control', 'no-cache');
       const pagePath = req.path.replace(/\/+$/, '') || '/';
       if (pagePath !== '/' && pagePath !== '/request-access') res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-      if (pagePath === '/review' || /^\/reset(?:\/|$)/.test(pagePath)) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('Cache-Control', 'no-store'); }
+      if (pagePath === '/review' || /^\/reset(?:\/|$)/.test(pagePath) || /^\/founders(?:\/|$)/i.test(pagePath)) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('Cache-Control', 'no-store'); }
       const accessPage = path.join(webDist, 'request-access.html');
       res.sendFile(pagePath === '/request-access' && existsSync(accessPage) ? accessPage : path.join(webDist, 'index.html'));
     });
@@ -162,12 +187,18 @@ export function createApp() {
       res.status(413).json({ error: 'Request body is too large' });
       return;
     }
+    if (err?.code === '40P01' || err?.code === '40001') {
+      res.status(409).json({ error: 'A concurrent update conflicted. Reload and retry.', code: 'retryable_conflict' });
+      return;
+    }
     // Postgres unique violation, e.g. two sign-ups racing for the same email.
     if (err?.code === '23505') {
       res.status(409).json({ error: 'That already exists' });
       return;
     }
-    (req.log ?? logger).error({ err }, 'unhandled error');
+    const sqlState = databaseErrorCode(err);
+    if (sqlState) (req.log ?? logger).error({ category: 'database_error', sqlState }, 'unhandled error');
+    else (req.log ?? logger).error({ err }, 'unhandled error');
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
   };
   app.use(onError);

@@ -1,7 +1,7 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus } from 'lucide-react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useBlocker, useParams, useSearchParams } from 'react-router';
 import {
   ISSUE_PRIORITIES,
   ISSUE_STATUSES,
@@ -23,6 +23,11 @@ const PAGE_SIZE = 25;
 export function ProjectIssuesPage() {
   const { projectId = '' } = useParams();
   const session = useSession();
+  return <ProjectIssues key={`${session.user.id}:${session.workspace.id}:${projectId}`} projectId={projectId} />;
+}
+
+function ProjectIssues({ projectId }: { projectId: string }) {
+  const session = useSession();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -37,7 +42,7 @@ export function ProjectIssuesPage() {
   const [description, setDescription] = useState('');
   const [labels, setLabels] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
-  const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: () => get<Project[]>('/projects') });
+  const projectsQuery = useQuery({ queryKey: ['projects', session.workspace.id], queryFn: () => get<Project[]>('/projects') });
   const project = projectsQuery.data?.find((item) => item.id === projectId);
   const issuesQuery = useQuery({
     queryKey: ['project-issues', projectId, search, offset, useIssueId ? issueId : ''],
@@ -52,7 +57,8 @@ export function ProjectIssuesPage() {
   const refreshIssues = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['project-issues', projectId] }),
-      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      queryClient.invalidateQueries({ queryKey: ['projects'] }),
+      queryClient.invalidateQueries({ queryKey: ['workspace-data'] })
     ]);
   };
   const createIssue = useMutation({
@@ -66,16 +72,18 @@ export function ProjectIssuesPage() {
         assigneeId: assigneeId || null
       }),
     onSuccess: async () => {
-      await refreshIssues();
       setCreating(false);
       setSummary('');
       setDescription('');
       setLabels('');
       setAssigneeId('');
+      setType('Task');
+      setPriority('Medium');
       setOffset(0);
       toast.success('Issue created');
+      await refreshIssues();
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : 'Could not create issue')
+    onError: () => toast.error('Could not confirm issue creation. Refresh and check the project before retrying; the issue may have been created.')
   });
   const updateIssue = useMutation({
     mutationFn: ({ id, ...changes }: { id: string; status?: IssueStatus; assigneeId?: string | null }) =>
@@ -83,6 +91,25 @@ export function ProjectIssuesPage() {
     onSuccess: async () => refreshIssues(),
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Could not update issue')
   });
+
+  const unsavedIssue = Boolean(summary.trim() || description.trim() || labels.trim() || assigneeId || type !== 'Task' || priority !== 'Medium');
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => (unsavedIssue || createIssue.isPending) && currentLocation.pathname !== nextLocation.pathname);
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      if (createIssue.isPending) { blocker.reset(); return; }
+      if (window.confirm('Discard the unsaved issue before leaving this project?')) blocker.proceed();
+      else blocker.reset();
+    }
+  }, [blocker, createIssue.isPending]);
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => { if (unsavedIssue || createIssue.isPending) { event.preventDefault(); event.returnValue = ''; } };
+    const beforeSessionChange = (event: Event) => {
+      if (createIssue.isPending || (unsavedIssue && !window.confirm('Discard the unsaved issue before changing workspace or signing out?'))) event.preventDefault();
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    window.addEventListener('sv:before-session-change', beforeSessionChange);
+    return () => { window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('sv:before-session-change', beforeSessionChange); };
+  }, [unsavedIssue, createIssue.isPending]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -110,9 +137,10 @@ export function ProjectIssuesPage() {
         actions={<Button className={searchParams.get('guide') === 'first-project' ? 'ring-2 ring-blue-400 ring-offset-2' : undefined} icon={<Plus className="h-4 w-4" />} onClick={() => setCreating((value) => !value)}>{creating ? 'Cancel' : 'Create issue'}</Button>}
       />
       <div className="space-y-4 px-4 py-5 md:px-6">
-        <Link to="/projects" className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-blue-600">
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All projects
+        <Link to={`/projects/${projectId}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-blue-600">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Project overview
         </Link>
+        <Link to="/projects" className="ml-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-blue-600">Switch project</Link>
 
         {session.workspace.role !== 'member' && !session.demo && <Link to={`/external-reviews?project=${encodeURIComponent(projectId)}`} className="ml-4 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:underline">External Review Access</Link>}
 
@@ -188,6 +216,7 @@ function IssueCard({ issue, members, onStatusChange, onAssigneeChange }: { issue
           <p className="text-xs font-semibold tracking-wide text-blue-600 dark:text-blue-400">{issue.key} · {issue.type}</p>
           <h2 className="mt-1 font-semibold">{issue.summary}</h2>
           {issue.description && <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-500">{issue.description}</p>}
+          {issue.linkedTask && <p className="mt-2 text-xs"><Link className="text-blue-700 underline dark:text-blue-300" to={`/products/${issue.linkedTask.productId}/tasks`}>Linked product task · {issue.linkedTask.productName}</Link> · status synced</p>}
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
             <span className="rounded-full bg-zinc-100 px-2 py-1 dark:bg-zinc-800">{issue.priority}</span>
             {issue.labels.map((label) => <span key={label} className="rounded-full bg-blue-500/10 px-2 py-1 text-blue-700 dark:text-blue-300">{label}</span>)}

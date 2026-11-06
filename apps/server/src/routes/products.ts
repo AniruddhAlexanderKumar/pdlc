@@ -3,8 +3,6 @@ import { sql } from 'kysely';
 import { z } from 'zod';
 import {
   QUESTIONS_BY_KEY,
-  STAGE_IDS,
-  TASK_STATUSES,
   XP,
   isAnswered,
   nextStage,
@@ -15,25 +13,16 @@ import {
 } from '@sv/shared';
 import { auth } from '../auth/session.js';
 import { db, type Db } from '../db/index.js';
-import { badRequest, conflict, money, notFound, parse, route, shortText, url, uuid } from '../lib/http.js';
+import { badRequest, conflict, notFound, parse, route, uuid } from '../lib/http.js';
 import { insightsFor, rulesFor } from '../services/insights.js';
 import { assertMaterial, assertProduct, loadMaterials, loadProduct, loadSuppliers, touchProduct } from '../services/repo.js';
 import type { XpLedger } from '../services/xp.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
+import { validateSyncedQuestionValue } from '../services/question-validation.js';
+import { productFields, taskFields } from '../lib/record-validation.js';
 import { mutate, param } from './util.js';
 
 export const productsRouter = Router();
-
-const productFields = z.object({
-  name: shortText(120).min(1, 'Give the product a name'),
-  category: shortText(60),
-  description: shortText(2000),
-  imageUrl: url,
-  notes: shortText(10000),
-  targetSellingPrice: money.nullable(),
-  costs: z.object({ labour: money, packaging: money, overhead: money }).partial(),
-  stage: z.enum(STAGE_IDS)
-});
 
 async function changeStage(trx: Db, ledger: XpLedger, productId: string, name: string, from: StageId, to: StageId) {
   if (from === to) return;
@@ -80,7 +69,7 @@ productsRouter.post(
         userId: ctx.userId,
         workspaceId: ctx.workspaceId,
         metadata: { productId: row.id, name: body.name, category: body.category || 'General' }
-      });
+      }, trx);
       return (await ledger.evaluateProduct(row.id)).product;
     });
     res.status(201).json(result);
@@ -131,7 +120,7 @@ productsRouter.patch(
           fromStage: current.stage,
           toStage: body.stage ?? current.stage
         }
-      });
+      }, trx);
       return (await ledger.evaluateProduct(id)).product;
     });
     res.json(result);
@@ -160,6 +149,7 @@ productsRouter.put(
     const normalised = normaliseAnswer(question, (req.body as { value?: unknown })?.value);
     if ('error' in normalised) throw badRequest(normalised.error);
     const { value } = normalised;
+    validateSyncedQuestionValue(question, value);
 
     const result = await mutate(req, async (trx, ledger, ctx) => {
       const product = await assertProduct(trx, ctx.workspaceId, id);
@@ -236,14 +226,6 @@ productsRouter.delete(
 
 // ── Tasks ──────────────────────────────────────────────────────────────────
 
-const taskFields = z.object({
-  title: shortText(200).min(1, 'Give the task a title'),
-  description: shortText(4000),
-  status: z.enum(TASK_STATUSES),
-  dueDate: z.iso.date().nullable(),
-  position: z.number().finite()
-});
-
 productsRouter.post(
   '/:id/tasks',
   route(async (req, res) => {
@@ -284,7 +266,7 @@ productsRouter.post(
         userId: ctx.userId,
         workspaceId: ctx.workspaceId,
         metadata: { productId: id, taskId: task.id, title: body.title, status }
-      });
+      }, trx);
       await touchProduct(trx, id);
       return (await ledger.evaluateProduct(id)).product;
     });
@@ -319,7 +301,7 @@ productsRouter.patch(
           userId: ctx.userId,
           workspaceId: ctx.workspaceId,
           metadata: { productId: id, taskId, title: task.title, status: body.status }
-        });
+        }, trx);
       }
       await trx.updateTable('tasks').set(set).where('id', '=', taskId).execute();
       await touchProduct(trx, id);

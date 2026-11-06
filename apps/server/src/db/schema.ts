@@ -14,7 +14,6 @@ export interface UsersTable {
   id: Generated<string>;
   email: string;
   name: string;
-  language: Generated<'en' | 'hi' | 'zh' | 'fr' | 'es' | null>;
   password_hash: string;
   is_admin: Generated<boolean>;
   is_disabled: Generated<boolean>;
@@ -28,6 +27,86 @@ export interface UsersTable {
   created_at: CreatedAt;
 }
 
+export type FounderRole = 'owner' | 'admin' | 'operations';
+export type FounderStatus = 'pending' | 'active' | 'suspended' | 'disabled';
+
+export interface FounderAccountsTable {
+  id: Generated<string>;
+  name: string;
+  email: string;
+  password_hash: string;
+  role: FounderRole;
+  status: Generated<FounderStatus>;
+  password_rotation_required: Generated<boolean>;
+  mfa_enrolled_at: Date | null;
+  totp_ciphertext: ColumnType<string | null, string | null | undefined, string | null>;
+  totp_last_step: ColumnType<number | null, number | null | undefined, number | null>;
+  created_at: CreatedAt;
+  last_login_at: Date | null;
+  last_failed_login_at: Date | null;
+  password_changed_at: Date | null;
+  failed_logins: Generated<number>;
+  locked_until: Date | null;
+  session_version: Generated<number>;
+}
+
+export interface FounderAuthFlowsTable {
+  token_hash: string;
+  founder_id: string;
+  session_version: number;
+  stage: 'enroll' | 'verify' | 'rotate';
+  expires_at: Date;
+  created_at: CreatedAt;
+}
+export interface FounderSessionsTable {
+  token_hash: string;
+  founder_id: string;
+  session_version: number;
+  created_at: CreatedAt;
+  idle_expires_at: Date;
+  absolute_expires_at: Date;
+  last_seen_at: Timestamp;
+}
+export interface FounderRecoveryCodesTable {
+  founder_id: string;
+  code_hash: string;
+  used_at: Date | null;
+}
+export interface FounderPasswordRecoveriesTable {
+  token_hash: string;
+  founder_id: string;
+  expires_at: Date;
+  used_at: Date | null;
+  created_at: CreatedAt;
+}
+
+export interface FounderRateLimitsTable {
+  bucket_key: string;
+  window_started_at: Date;
+  attempts: number;
+  blocked_until: Date | null;
+  updated_at: Date;
+}
+
+export interface FounderBootstrapStateTable {
+  singleton: Generated<boolean>;
+  consumed_at: Date | null;
+  founder_id: string | null;
+}
+
+export type FounderSecurityEvent = 'bootstrap' | 'bootstrap_rate_limited' | 'login_password' | 'mfa_enrollment_started' | 'mfa_enrolled' | 'mfa_verification' | 'session_created' | 'session_revoked' | 'logout' | 'password_changed' | 'password_recovery_requested' | 'password_recovery_issued' | 'password_recovery_denied' | 'password_recovery_completed' | 'mfa_reset' | 'role_changed' | 'account_suspended' | 'account_disabled' | 'customer_created' | 'customer_suspended' | 'customer_reactivated';
+
+export interface FounderSecurityAuditTable {
+  id: Generated<string>;
+  event_type: FounderSecurityEvent;
+  actor_id: string | null;
+  actor_role: FounderRole | 'system';
+  target_id: string | null;
+  outcome: 'success' | 'denied' | 'failure';
+  request_id: string;
+  created_at: CreatedAt;
+}
+
 export interface WorkspacesTable {
   mode: Generated<'solo' | 'team'>;
   allow_unrestricted_reviews: Generated<boolean>;
@@ -35,6 +114,15 @@ export interface WorkspacesTable {
   name: string;
   currency: Generated<string>;
   created_at: CreatedAt;
+}
+
+export interface WorkspaceProfilesTable {
+  workspace_id: string;
+  schema_version: Generated<number>;
+  revision: Generated<number>;
+  profile: ColumnType<unknown, string, string>;
+  updated_by: string | null;
+  updated_at: Timestamp;
 }
 
 export interface ProjectsTable {
@@ -280,9 +368,23 @@ export interface ExternalReviewEventsTable { id: Generated<string>; review_id: s
 export interface ExternalReviewChallengesTable { review_id: string; code_hash: string; expires_at: Date; sent_at: Date; attempts: Generated<number> }
 export interface ExternalReviewSessionsTable { id: string; review_id: string; expires_at: Date }
 
+export interface VoiceImportReceiptsTable { workspace_id: string; user_id: string; request_id: string; payload_hash: string; product_id: string | null; project_id: string | null; created_at: CreatedAt }
+export interface VoiceImportWorkItemsTable { task_id: string; issue_id: string; workspace_id: string; created_at: CreatedAt }
+
 export interface Database {
+  founder_accounts: FounderAccountsTable;
+  founder_auth_flows: FounderAuthFlowsTable;
+  founder_sessions: FounderSessionsTable;
+  founder_recovery_codes: FounderRecoveryCodesTable;
+  founder_password_recoveries: FounderPasswordRecoveriesTable;
+  founder_rate_limits: FounderRateLimitsTable;
+  founder_bootstrap_state: FounderBootstrapStateTable;
+  founder_security_audit: FounderSecurityAuditTable;
   users: UsersTable;
   workspaces: WorkspacesTable;
+  workspace_profiles: WorkspaceProfilesTable;
+  voice_import_receipts: VoiceImportReceiptsTable;
+  voice_import_work_items: VoiceImportWorkItemsTable;
   projects: ProjectsTable;
   issues: IssuesTable;
   issue_relationships: IssueRelationshipsTable;

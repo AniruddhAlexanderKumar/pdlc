@@ -1,6 +1,6 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   ACCESS_REQUEST_INDUSTRIES,
   ACCESS_REQUEST_ROLES,
@@ -19,6 +19,7 @@ import { Button, Field, Input, Select, Textarea } from "../components/ui";
 import { PublicBrand } from "../components/marketing/PublicBrand";
 import { EducationAccessForm } from "./EducationAccessForm";
 import { openCookiePreferences } from "../lib/cookieConsent";
+import { educationCategoryFromQuery } from "../lib/marketing/education";
 
 type Form = {
   name: string;
@@ -64,7 +65,10 @@ const defaults: Record<PricingPlan, number> = {
   enterprise: 200,
 };
 export function RequestAccessPage() {
-  const [category, setCategory] = useState<"commercial" | "education">("commercial");
+  const [searchParams] = useSearchParams();
+  const requestedCategory = searchParams.get("category");
+  const [category, setCategory] = useState<"commercial" | "education">(() => educationCategoryFromQuery(requestedCategory));
+  useEffect(() => { setCategory(educationCategoryFromQuery(requestedCategory)); }, [requestedCategory]);
   const [form, setForm] = useState(initial);
   const [plan, setPlan] = useState<PricingPlan>("individual");
   const [editorsText, setEditorsText] = useState("1");

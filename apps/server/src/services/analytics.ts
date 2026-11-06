@@ -53,6 +53,10 @@ export function parseBrowser(ua: string | null): string {
 }
 
 export async function recordAnalyticsEvent(params: TrackParams, trx?: Db): Promise<void> {
+  // A failed statement aborts a PostgreSQL transaction even when JS catches it.
+  // Isolate best-effort analytics in a savepoint, so a telemetry failure cannot
+  // silently poison the business transaction. The event commits or rolls back with it.
+  if (trx) await sql`SAVEPOINT analytics_event`.execute(trx);
   try {
     const executor = trx ?? db;
     await executor
@@ -73,7 +77,10 @@ export async function recordAnalyticsEvent(params: TrackParams, trx?: Db): Promi
       })
       .execute();
   } catch (err) {
-    logger.warn({ err, eventName: params.eventName }, 'failed to record analytics event');
+    if (trx) await sql`ROLLBACK TO SAVEPOINT analytics_event`.execute(trx);
+    logger.warn({ eventName: params.eventName }, 'failed to record analytics event');
+  } finally {
+    if (trx) await sql`RELEASE SAVEPOINT analytics_event`.execute(trx);
   }
 }
 

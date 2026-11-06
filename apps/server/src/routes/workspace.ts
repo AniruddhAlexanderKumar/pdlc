@@ -3,7 +3,7 @@ import { rateLimit } from 'express-rate-limit';
 import nodemailer from 'nodemailer';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import { CURRENCIES, type Invite, type Member } from '@sv/shared';
+import { CURRENCIES, WORK_DOMAINS, WORK_REQUIREMENTS, NAV_FOCUS, type Invite, type Member } from '@sv/shared';
 import { newToken } from '../auth/crypto.js';
 import { auth, requireRole } from '../auth/session.js';
 import { config } from '../config.js';
@@ -39,6 +39,37 @@ workspaceRouter.patch(
     res.json(await loadMe(db, a.userId, a.workspaceId));
   })
 );
+
+/** Workspace setup affects navigation emphasis, not permissions or feature availability. */
+const unique = <T>(values: T[]) => new Set(values).size === values.length;
+const profileInput = z.object({
+  domains: z.array(z.enum(WORK_DOMAINS)).min(1).max(WORK_DOMAINS.length).refine(unique, 'Duplicate domains'),
+  objective: shortText(300),
+  requirements: z.array(z.enum(WORK_REQUIREMENTS)).max(WORK_REQUIREMENTS.length).refine(unique, 'Duplicate requirements'),
+  navigation: z.array(z.enum(NAV_FOCUS)).max(NAV_FOCUS.length).refine(unique, 'Duplicate navigation items')
+}).strict();
+workspaceRouter.get('/profile', route(async (req, res) => {
+  const { workspaceId } = parse(z.object({ workspaceId: uuid }).strict(), req.query);
+  if (workspaceId !== auth(req).workspaceId) throw notFound('Workspace');
+  const row = await db.selectFrom('workspace_profiles').select(['revision', 'profile']).where('workspace_id', '=', auth(req).workspaceId).executeTakeFirst();
+  res.set('Cache-Control', 'no-store').json(row ?? { revision: 0, profile: null });
+}));
+workspaceRouter.put('/profile', admin, route(async (req, res) => {
+  const a = auth(req);
+  const input = parse(z.object({ workspaceId: uuid, revision: z.number().int().min(0), profile: profileInput }).strict(), req.body);
+  if (input.workspaceId !== a.workspaceId) throw notFound('Workspace');
+  const result = await db.transaction().execute(async trx => {
+    // A workspace-row lock serializes both the first insert and subsequent updates.
+    await trx.selectFrom('workspaces').select('id').where('id', '=', a.workspaceId).forUpdate().executeTakeFirstOrThrow();
+    const existing = await trx.selectFrom('workspace_profiles').select('revision').where('workspace_id', '=', a.workspaceId).executeTakeFirst();
+    if ((existing?.revision ?? 0) !== input.revision) throw conflict('Workspace setup changed. Reload before saving.');
+    const next = input.revision + 1;
+    if (existing) await trx.updateTable('workspace_profiles').set({ profile: JSON.stringify(input.profile), revision: next, updated_by: a.userId, updated_at: new Date() }).where('workspace_id', '=', a.workspaceId).execute();
+    else await trx.insertInto('workspace_profiles').values({ workspace_id: a.workspaceId, profile: JSON.stringify(input.profile), revision: next, updated_by: a.userId }).execute();
+    return { revision: next, profile: input.profile };
+  });
+  res.set('Cache-Control', 'no-store').json(result);
+}));
 
 /** Create a separate workspace and switch only this session into it. */
 workspaceRouter.post(

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 await build({
-  entryPoints: ['src/index.ts', 'src/scripts/migrate.ts', 'src/scripts/create-admin.ts'],
+  entryPoints: ['src/index.ts', 'src/scripts/migrate.ts', 'src/scripts/create-admin.ts', 'src/scripts/founder-bootstrap.ts'],
   outdir: 'dist',
   outbase: 'src',
   bundle: true,
@@ -18,6 +18,7 @@ await build({
       name: 'bundle-shared',
       setup(b) {
         b.onResolve({ filter: /^@sv\/shared$/ }, () => ({ path: fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)) }));
+        b.onResolve({ filter: /^@sv\/cad-core$/ }, () => ({ path: fileURLToPath(new URL('../../packages/cad-core/src/index.ts', import.meta.url)) }));
       }
     }
   ],

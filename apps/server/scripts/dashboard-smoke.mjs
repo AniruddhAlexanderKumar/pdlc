@@ -37,7 +37,7 @@ assert.equal(r.status, 201, JSON.stringify(r.data));
 const member = await register('member', new URL(r.data.url).pathname.split('/').pop());
 r = await call(owner.cookie, 'GET', '/auth/me');
 assert.equal('language' in r.data.user, false);
-r = await call(owner.cookie, 'PUT', '/auth/language', { language: 'fr' });
+r = await call(owner.cookie, 'PATCH', '/auth/language', { language: 'fr' });
 assert.equal(r.status, 404);
 r = await call(owner.cookie, 'GET', '/dashboard/app-layout');
 assert.deepEqual(r.data, { navigation: 'expanded', contentWidth: 'full' });
