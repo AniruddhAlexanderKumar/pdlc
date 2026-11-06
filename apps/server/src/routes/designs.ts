@@ -29,9 +29,14 @@ const createInput=z.object({title:shortText(120).min(1),projectId:uuid.nullable(
 const saveInput=z.object({expectedRevision:z.number().int().positive(),summary:shortText(200).default(''),source:diagramSourceSchema}).strict();
 
 designsRouter.get('/', route(async(req,res)=>{
- const a=auth(req);
+ const a=auth(req), { projectId }=parse(z.object({projectId:uuid.optional()}),req.query);
+ if(projectId){
+  const project=await db.selectFrom('projects').select('id').where('id','=',projectId).where('workspace_id','=',a.workspaceId).executeTakeFirst();
+  if(!project) throw notFound('Project');
+ }
+ const projectFilter=projectId ? sql`AND d.project_id=${projectId}::uuid` : sql``;
  const rows=await sql<Row>`SELECT d.id,d.title,d.owner_id,u.name AS owner_name,d.project_id,d.product_id,d.head_revision,d.created_at,d.updated_at
- FROM design_documents d LEFT JOIN users u ON u.id=d.owner_id WHERE d.workspace_id=${a.workspaceId}::uuid ORDER BY d.updated_at DESC LIMIT 200`.execute(db);
+ FROM design_documents d LEFT JOIN users u ON u.id=d.owner_id WHERE d.workspace_id=${a.workspaceId}::uuid ${projectFilter} ORDER BY d.updated_at DESC LIMIT 200`.execute(db);
  res.set('Cache-Control','no-store').json(rows.rows.map(r=>toDocument(r,a)));
 }));
 designsRouter.post('/',route(async(req,res)=>{

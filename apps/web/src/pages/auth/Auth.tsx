@@ -235,7 +235,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
       }
       signedIn(result.me);
       const next = params.get('next');
-      navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : result.me.user.isAdmin ? '/admin' : '/');
+      navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : result.me.user.isAdmin ? '/admin' : '/projects');
     }
   });
 
@@ -382,6 +382,9 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
   if (mode === 'login') {
     return (
       <>
+        <Link to="/" className="mb-6 inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600 dark:text-blue-400">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to landing page
+        </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
         <p className="mt-1.5 text-sm text-zinc-500">Sign in to keep your products moving.</p>
 

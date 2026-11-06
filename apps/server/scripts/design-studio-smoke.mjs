@@ -15,6 +15,13 @@ r=await call(owner,'POST','/products',{name:'Design product'});expect(r,201);con
 r=await call(other,'POST','/projects',{key:'OTHER',name:'Other project'});expect(r,201);const foreignProject=r.data.id;
 r=await call(owner,'POST','/designs',{title:'Bad association',projectId:foreignProject,productId:null});expect(r,400);
 r=await call(owner,'POST','/designs',{title:'System diagram',projectId:project,productId:product});expect(r,201);const id=r.data.document.id;assert.equal(r.data.document.headRevision,1);
+r=await call(owner,'POST','/projects',{key:'SECOND',name:'Second project'});expect(r,201);const secondProject=r.data.id;
+r=await call(owner,'POST','/designs',{title:'Second project diagram',projectId:secondProject,productId:null});expect(r,201);const secondDesign=r.data.document.id;
+r=await call(owner,'POST','/designs',{title:'Unassigned diagram',projectId:null,productId:null});expect(r,201);const unassigned=r.data.document.id;
+r=await call(owner,'GET',`/designs?projectId=${project}`);expect(r,200);assert(r.data.some(d=>d.id===id));assert(!r.data.some(d=>d.id===secondDesign||d.id===unassigned));
+r=await call(member,'GET',`/designs?projectId=${project}`);expect(r,200);assert(r.data.some(d=>d.id===id));
+expect(await call(owner,'GET',`/designs?projectId=${foreignProject}`),404);expect(await call(other,'GET',`/designs?projectId=${project}`),404);expect(await call(owner,'GET','/designs?projectId=not-a-uuid'),400);
+r=await call(owner,'GET','/designs');expect(r,200);assert([id,secondDesign,unassigned].every(d=>r.data.some(x=>x.id===d)));
 expect(await call(other,'GET',`/designs/${id}`),404);expect(await call(other,'GET',`/designs/${id}/revisions`),404);
 r=await call(member,'GET',`/designs/${id}`);expect(r,200);assert.equal(r.data.document.canEdit,false);
 const a=randomUUID(),b=randomUUID(),edge=randomUUID();const source={schemaVersion:1,nodes:[{id:a,label:'Sensor',x:80,y:80},{id:b,label:'Controller',x:400,y:80}],edges:[{id:edge,from:a,to:b,label:'signal'}]};

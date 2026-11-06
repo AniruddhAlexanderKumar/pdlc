@@ -22,7 +22,7 @@ try {
  const page=await browser.newPage(); let founderRequests=0;
  page.on('request', (request: { url(): string }) => { if (request.url().endsWith('/api/founders/login')) founderRequests++; });
  await page.goto('http://127.0.0.1:4223/login'); await page.getByLabel('Work email').fill(INITIAL_FOUNDER_EMAIL); await page.getByLabel('Password',{exact:true}).fill(password); await page.getByRole('button',{name:'Sign in'}).click();
- await page.waitForURL('http://127.0.0.1:4223/');
+ await page.waitForURL('http://127.0.0.1:4223/projects');
  assert.equal(founderRequests, process.env.FOUNDER_WEB_BUILD === 'opted-in' ? 1 : 0);
  assert.notEqual(await page.evaluate(async()=> (await fetch('/api/founders/me')).status),200);
  console.log(`PASS ${process.env.FOUNDER_WEB_BUILD} web build with founder API disabled: ordinary collision account signs in without founder access`);

@@ -21,6 +21,7 @@ import { MaterialsPage } from './pages/Materials';
 import { ProductPage } from './pages/product/ProductPage';
 import { ProductsPage } from './pages/Products';
 import { ProjectsPage } from './pages/Projects';
+import { ProjectHomePage } from './pages/ProjectHome';
 import { ProjectIssuesPage } from './pages/ProjectIssues';
 const TeamworkGraphPage = lazy(() => import('./pages/TeamworkGraph').then(m => ({ default: m.TeamworkGraphPage })));
 import { RequestAccessPage } from './pages/RequestAccess';
@@ -125,7 +126,7 @@ function GuestOnly() {
   if (isLoading) return <Spinner />;
   if (data) {
     const next = new URLSearchParams(location.search).get('next');
-    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : data.user.isAdmin ? '/admin' : '/'} replace />;
+    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : data.user.isAdmin ? '/admin' : '/projects'} replace />;
   }
   return <Outlet />;
 }
@@ -207,6 +208,7 @@ const router = createBrowserRouter([
               { path: '/help/:slug', element: <HelpCentrePage /> },
               { path: '/external-reviews', element: <ExternalReviewsPage /> },
               { path: '/teamwork-graph', element: <Suspense fallback={<Spinner label="Loading Teamwork Graph" />}><TeamworkGraphPage /></Suspense> },
+              { path: '/projects/:projectId', element: <ProjectHomePage /> },
               { path: '/projects/:projectId/issues', element: <ProjectIssuesPage /> },
               { path: '/products/:id', element: <ProductPage /> },
               { path: '/products/:id/:tab', element: <ProductPage /> },

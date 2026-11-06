@@ -30,7 +30,7 @@ try {
  browser=await pw.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter((x: string)=>x!=='--disable-web-security'),headless:true}); const page=await browser.newPage();
  // Test ordinary sessions before any founder cookie exists (single-process
  // Chromium in this test environment can share cookies across contexts).
- for (const [email, destination] of [['browser-user@example.test','/'], ['browser-admin@example.test','/admin'], ['f5manmission@sv.com','/']]) {
+ for (const [email, destination] of [['browser-user@example.test','/projects'], ['browser-admin@example.test','/admin'], ['f5manmission@sv.com','/projects']]) {
   await page.goto('http://127.0.0.1:4222/login');
   await page.getByLabel('Work email').fill(email); await page.getByLabel('Password',{exact:true}).fill(adminPassword); await page.getByRole('button',{name:'Sign in'}).click();
   await page.waitForURL(`http://127.0.0.1:4222${destination}`); assert.notEqual(await page.evaluate(async()=> (await fetch('/api/founders/me')).status),200);
