@@ -54,6 +54,16 @@ export function createApp() {
     })
   );
 
+  // The founder console is not implemented yet. Reserve its entire API namespace
+  // before ordinary session loading and request logging: no existing workspace or
+  // system-admin credential can accidentally authorize it. Replace this guard only
+  // when the dedicated authentication and authorization boundary is ready.
+  app.use('/api/founders', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    res.status(404).json({ error: 'Not found' });
+  });
+
   // Liveness/readiness probe for Docker, load balancers and uptime monitors.
   app.get('/api/health', async (_req, res) => {
     try {
@@ -147,7 +157,7 @@ export function createApp() {
       res.setHeader('Cache-Control', 'no-cache');
       const pagePath = req.path.replace(/\/+$/, '') || '/';
       if (pagePath !== '/' && pagePath !== '/request-access') res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-      if (pagePath === '/review' || /^\/reset(?:\/|$)/.test(pagePath)) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('Cache-Control', 'no-store'); }
+      if (pagePath === '/review' || /^\/reset(?:\/|$)/.test(pagePath) || /^\/founders(?:\/|$)/i.test(pagePath)) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('Cache-Control', 'no-store'); }
       const accessPage = path.join(webDist, 'request-access.html');
       res.sendFile(pagePath === '/request-access' && existsSync(accessPage) ? accessPage : path.join(webDist, 'index.html'));
     });

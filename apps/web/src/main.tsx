@@ -107,6 +107,17 @@ function ReviewRoute() {
   return <ExternalReviewPage key={lastToken.current} />;
 }
 
+// This is deliberately not a login or a console. There is no founder access until
+// the separate server-side security boundary has been implemented and verified.
+function FoundersUnavailable() {
+  return (
+    <main className="mx-auto max-w-xl px-6 py-16">
+      <h1 className="text-2xl font-semibold">Founders Console unavailable</h1>
+      <p className="mt-4">Founder sign-in and administrative access have not been enabled.</p>
+    </main>
+  );
+}
+
 function GuestOnly() {
   const { data, isLoading } = useMe();
   const location = useLocation();
@@ -124,7 +135,7 @@ function RootApp() {
     const pathname = location.pathname.replace(/\/+$/, '') || '/';
     const publicPage = pathname === '/' || pathname === '/request-access';
     const pageName = ({ '/request-access': 'Request Early Access', '/login': 'Sign In', '/signup': 'Create Account', '/register': 'Create Account', '/try-demo': 'Sample Workspace', '/products': 'Products', '/projects': 'Projects', '/teamwork-graph': 'Teamwork Graph', '/materials': 'Materials', '/suppliers': 'Suppliers', '/settings': 'Settings', '/achievements': 'Achievements', '/admin': 'Administration' } as Record<string, string>)[pathname];
-    const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${pageName ?? 'Engineering Workspace'} | Solution Velocity`;
+    const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${/^\/founders(?:\/|$)/i.test(pathname) ? 'Founders Console unavailable' : pageName ?? 'Engineering Workspace'} | Solution Velocity`;
     const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Bring product and project work together for engineering teams, students and educational organisations with Solution Velocity.';
     document.title = title;
     const set = (selector: string, value: string) => document.querySelector<HTMLMetaElement>(selector)?.setAttribute('content', value);
@@ -142,7 +153,7 @@ function RootApp() {
   return (
     <>
       <Outlet />
-      {location.pathname !== '/review' && <CookieBanner />}
+      {location.pathname !== '/review' && !/^\/founders(?:\/|$)/i.test(location.pathname) && <CookieBanner />}
     </>
   );
 }
@@ -164,6 +175,7 @@ const router = createBrowserRouter([
       { path: '/reset/:token', element: <ResetPage /> },
       { path: '/request-access', element: <RequestAccessPage /> },
       { path: '/review', element: <ReviewRoute /> },
+      { path: '/founders/*', element: <FoundersUnavailable /> },
       { path: '/contact', element: <Navigate to="/request-access" replace /> },
       { path: '/demo', element: <Navigate to="/try-demo" replace /> },
       { path: '/try-demo', element: <TryDemoPage /> },
