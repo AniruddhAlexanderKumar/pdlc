@@ -38,6 +38,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    rolldownOptions: { input: { main: resolve(import.meta.dirname, 'index.html'), productDesigner: resolve(import.meta.dirname, 'product-designer.html') } }
   }
 });

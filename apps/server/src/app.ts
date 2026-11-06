@@ -161,6 +161,14 @@ export function createApp() {
         index: false,
         setHeaders: (res, file) => {
           res.setHeader('Cache-Control', file.includes(`${path.sep}assets${path.sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache');
+          // Only the standalone, unauthenticated designer document is frameable.
+          // The rest of the application retains Helmet's frame denial.
+          if (file === path.join(webDist, 'product-designer.html')) {
+            res.removeHeader('X-Frame-Options');
+            const policy = res.getHeader('Content-Security-Policy');
+            if (typeof policy === 'string') res.setHeader('Content-Security-Policy', policy.replace(/frame-ancestors\s+[^;]+/i, 'frame-ancestors *'));
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+          }
         }
       })
     );
