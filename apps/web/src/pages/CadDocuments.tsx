@@ -5,6 +5,7 @@ import type { CadDetail, CadDocument } from '@sv/cad-core';
 import { ApiError, get, post } from '../api/client';
 import { useSession } from '../api/hooks';
 import { Button, Card, Input, PageHeader, Spinner } from '../components/ui';
+import { SketchEditor } from '../cad/SketchEditor';
 
 /** The server's default-off API is the feature gate; this never grants permissions. */
 export function useCadDocuments() {
@@ -27,7 +28,7 @@ export function CadDocumentsPage() {
   const filtered=active?.filter(d=>(view!=='mine'||d.ownerId===me.user.id)&&d.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   return <><PageHeader title="Experimental CAD documents" subtitle="Manage stored XY sketches in this workspace."/><div className="space-y-5 p-4 md:p-6">
     <Link to="/designs" className="text-sm text-blue-700 underline dark:text-blue-300">Back to Design Studio</Link>
-    <p className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">Development only: this stores sketch source. Interactive editing, autosave, feature history and 3D modelling are not available here. Do not use it for production or engineering decisions.</p>
+    <p className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">Development only: experimental XY sketch editing and autosave are available within solver limits. Feature history and 3D modelling are not available. Do not use it for production or engineering decisions.</p>
     <Card className="p-5"><h2 className="font-semibold">Create an empty XY sketch</h2><form className="mt-3 flex max-w-xl flex-wrap items-end gap-3" onSubmit={(e:FormEvent)=>{e.preventDefault();if(name.trim()&&!create.isPending)create.mutate();}}><label className="min-w-48 flex-1 text-sm">Sketch name<Input required maxLength={120} value={name} onChange={e=>setName(e.target.value)} /></label><Button type="submit" loading={create.isPending} disabled={!name.trim()}>Create sketch</Button></form>{create.isError&&<p role="alert" className="mt-2 text-sm text-rose-700">{create.error.message} If the response was interrupted, refresh the list before retrying; the server may have created the sketch.</p>}</Card>
     <div className="flex flex-wrap items-end gap-3"><label className="block max-w-md flex-1 text-sm">Search sketches<Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search loaded sketches by name"/></label><div role="group" aria-label="Sketch list" className="flex flex-wrap gap-2">{([['workspace','Workspace'],['mine','My sketches'],['archived','Archived']] as const).map(([key,label])=><Button key={key} type="button" variant={view===key?'primary':'secondary'} aria-pressed={view===key} onClick={()=>setView(key)}>{label}</Button>)}</div><Button type="button" variant="secondary" onClick={()=>{void documents.refetch();if(view==='archived')void archived.refetch();}}>Refresh</Button></div>
     <p className="text-xs text-zinc-500">The API returns at most 200 most recently updated sketches per list; search filters only the loaded results. Workspace members can read; creators and workspace owners or admins can archive and restore.</p>
@@ -38,13 +39,10 @@ export function CadDocumentsPage() {
 
 export function CadDocumentPage() {
   const me=useSession(),{id=''}=useParams();
-  const detail=useQuery({queryKey:['cad-detail',me.workspace.id,id],queryFn:()=>get<CadDetail>(`/cad-documents/${encodeURIComponent(id)}`),enabled:!me.demo&&!!id,retry:false});
+  const detail=useQuery({queryKey:['cad-detail',me.workspace.id,id],queryFn:()=>get<CadDetail>(`/cad-documents/${encodeURIComponent(id)}`),enabled:!me.demo&&!!id,retry:false,gcTime:0,refetchOnWindowFocus:false});
   if(me.demo)return <div className="p-6">Experimental CAD documents are unavailable in the temporary demo.</div>;
   if(detail.isLoading)return <Spinner label="Loading sketch"/>;
   if(detail.isError||!detail.data)return <div className="space-y-3 p-6"><Link to="/designs/cad" className="text-sm text-blue-700 underline dark:text-blue-300">CAD documents</Link><p role="alert">{detail.error?.message??'Could not load sketch.'}</p><Button variant="secondary" onClick={()=>void detail.refetch()}>Try again</Button></div>;
-  const {document,source}=detail.data;
-  return <div className="space-y-5 p-4 md:p-6"><Link to="/designs/cad" className="text-sm text-blue-700 underline dark:text-blue-300">CAD documents</Link><div><h1 className="text-2xl font-semibold">{document.name}</h1><p className="mt-1 text-sm text-zinc-500">XY sketch · revision {document.headRevision} · {document.canEdit?'owned or administrable by you':'read-only access'}</p></div>
-    <p className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">Read-only source inspection. A sketch editor, modelling features, solver status display and autosave are not available in this interface.</p>
-    <div className="grid gap-4 lg:grid-cols-2"><Card className="p-4"><h2 className="font-semibold">Entities ({source.entities.length})</h2>{source.entities.length===0?<p className="mt-2 text-sm text-zinc-500">This sketch is empty.</p>:<ul className="mt-3 space-y-3">{source.entities.map(e=><li key={e.id} className="border-t pt-2"><p className="text-sm font-medium">{e.type} · {e.construction?'construction':'geometry'} · {e.visible?'visible':'hidden'}</p><pre className="mt-1 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(e,null,2)}</pre></li>)}</ul>}</Card><Card className="p-4"><h2 className="font-semibold">Constraints ({source.constraints.length})</h2>{source.constraints.length===0?<p className="mt-2 text-sm text-zinc-500">No constraints in this sketch.</p>:<ul className="mt-3 space-y-3">{source.constraints.map(c=><li key={c.id} className="border-t pt-2"><p className="text-sm font-medium">{c.type} · {c.enabled?'enabled':'disabled'}</p><pre className="mt-1 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(c,null,2)}</pre></li>)}</ul>}</Card></div>
-  </div>;
+  const {document}=detail.data;
+  return <SketchEditor key={`${me.workspace.id}:${me.user.id}:${document.id}`} initial={detail.data} workspaceId={me.workspace.id} userId={me.user.id}/>;
 }

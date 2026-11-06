@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/lib/marketing/scenario.test.ts src/lib/help/search.test.ts src/lib/marketing/education.test.ts src/pages/Landing.test.tsx"
+    "test": "node --import tsx --test src/lib/marketing/scenario.test.ts src/lib/help/search.test.ts src/lib/marketing/education.test.ts src/pages/Landing.test.tsx src/cad/sketch-model.test.ts"
   },
   "dependencies": {
     "@sv/cad-core": "^0.0.0",
