@@ -28,6 +28,8 @@ import { designsRouter } from './routes/designs.js';
 import { cadDocumentsRouter } from './routes/cad-documents.js';
 import { reviewerRouter, reviewManagementRouter } from './routes/external-reviews.js';
 import { helpRouter, helpAdminRouter } from './routes/help.js';
+import { nvidiaVisionRouter } from './routes/nvidia-vision.js';
+import { foundersConsoleRouter } from './routes/founders-console.js';
 import { assistantRouter, assistantAdminRouter } from './routes/assistant.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
 import { createFoundersExperimentalRouter } from './routes/founders-experimental.js';
@@ -128,10 +130,12 @@ export function createApp() {
 
   api.use('/auth', authRouter);
   api.use('/ai', requireAuth, requireAdmin, aiRouter);
+  api.use('/nvidia-vision', requireAuth, requireAdmin, nvidiaVisionRouter);
   api.use('/access-requests', accessRequestsRouter);
   api.use('/reviewer', reviewerRouter);
   api.use('/external-reviews', requireAuth, reviewManagementRouter);
   api.use('/assistant', requireAuth, assistantRouter);
+  api.use('/founders-console', requireAuth, foundersConsoleRouter);
   api.use('/assistant-admin', requireAuth, assistantAdminRouter);
   api.use('/help', requireAuth, helpRouter);
   api.use('/help-admin', requireAuth, helpAdminRouter);

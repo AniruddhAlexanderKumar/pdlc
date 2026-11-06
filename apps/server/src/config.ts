@@ -43,6 +43,9 @@ const schema = z.object({
   AI_BASE_URL: z.string().default('http://127.0.0.1:8091/v1'),
   AI_MODEL: z.string().default('qwen2.5-14b-instruct'),
   AI_API_KEY: z.string().optional().default(''),
+  AI_NVIDIA_API_KEY: z.string().optional().default(''),
+  AI_NVIDIA_BASE_URL: z.string().default('https://integrate.api.nvidia.com/v1'),
+  AI_NVIDIA_MODEL: z.string().default('nvidia/nemotron-3.5-super-vl-120b-a12b'),
   AI_HEALTH_URL: z.string().default('http://127.0.0.1:8091/health'),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   /** Host endpoint for llama.cpp server, e.g. http://127.0.0.1:8091 */
@@ -65,5 +68,7 @@ export const config = {
   isProd: parsed.data.NODE_ENV === 'production',
   appOrigin: new URL(parsed.data.APP_URL).origin,
   secureCookies: new URL(parsed.data.APP_URL).protocol === 'https:',
-  aiBaseUrl: (parsed.data.AI_BASE_URL || 'http://127.0.0.1:8091/v1').replace(/\/+$/, '')
+  aiBaseUrl: (parsed.data.AI_BASE_URL || 'http://127.0.0.1:8091/v1').replace(/\/+$/, ''),
+  nvidiaBaseUrl: (parsed.data.AI_NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/+$/, ''),
+  nvidiaModel: parsed.data.AI_NVIDIA_MODEL || 'nvidia/nemotron-3.5-super-vl-120b-a12b'
 };
