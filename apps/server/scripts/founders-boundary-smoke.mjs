@@ -25,7 +25,7 @@ async function register(label) {
   return result;
 }
 async function denied(cookie) {
-  for (const path of ['/founders', '/founders/overview', '/founders/accounts', '/founders/audit']) {
+  for (const path of ['/founders', '/founders/overview', '/founders/accounts', '/founders/audit', '/founders-console', '/founders-console/organizations', '/founders-console/users/123', '/founders-console/settings']) {
     for (const method of ['GET', 'POST', 'PATCH', 'DELETE']) {
       const result = await request(path, { method, cookie });
       assert.equal(result.response.status, 404, `${method} ${path}`);
