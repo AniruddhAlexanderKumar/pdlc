@@ -72,8 +72,14 @@ try {
     await page.getByRole("button", { name: "Request STL export" }).isDisabled(),
     true,
   );
+  assert.equal(await iframe.getAttribute("aria-hidden"), "true");
+  assert.equal(await iframe.getAttribute("tabindex"), "-1");
   // A loaded iframe is not proof of readiness: show a failure if no ready message arrives.
   await page.getByText(/CADit did not respond/).waitFor({ timeout: 25000 });
+  await page
+    .getByRole("heading", { name: "CADit editor unavailable" })
+    .waitFor();
+  assert.equal(await iframe.getAttribute("aria-hidden"), "true");
   // Wrong origin with expected source and correct origin with wrong source are both ignored.
   await page.evaluate(() => {
     const frame = document.querySelector(
@@ -104,7 +110,15 @@ try {
       "http://localhost:5173",
     ),
   );
-  await page.getByText("CADit editor ready.").waitFor();
+  await page.getByText("CADit ready signal received.").waitFor();
+  assert.equal(await iframe.getAttribute("aria-hidden"), "false");
+  assert.equal(await iframe.getAttribute("tabindex"), "0");
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "CADit editor unavailable" })
+      .count(),
+    0,
+  );
   await cadit.waitForFunction(() =>
     window.received.some((m) => m.data.type === "init"),
   );

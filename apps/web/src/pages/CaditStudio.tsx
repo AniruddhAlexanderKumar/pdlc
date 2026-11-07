@@ -193,7 +193,7 @@ function CaditStudio() {
               {connection === "loading" ? (
                 <Spinner label="Waiting for CADit editor" />
               ) : connection === "ready" ? (
-                "CADit editor ready."
+                "CADit ready signal received."
               ) : (
                 "CADit did not respond. The service may be blocked, unavailable, or require this domain to be registered."
               )}
@@ -202,16 +202,45 @@ function CaditStudio() {
               Reload editor
             </Button>
           </div>
-          <iframe
-            key={attempt}
-            ref={frame}
-            title="CADit 3D design editor"
-            src={CADIT_URL}
-            allow="clipboard-read; clipboard-write"
-            referrerPolicy="no-referrer"
-            className="block h-[70vh] min-h-[500px] w-full border-0"
-            onError={() => setConnection("unavailable")}
-          />
+          <div className="relative h-[70vh] min-h-[500px]">
+            <iframe
+              key={attempt}
+              ref={frame}
+              title="CADit 3D design editor"
+              src={CADIT_URL}
+              allow="clipboard-read; clipboard-write"
+              referrerPolicy="no-referrer"
+              aria-hidden={connection !== "ready"}
+              tabIndex={connection === "ready" ? 0 : -1}
+              className="block h-full w-full border-0"
+              onError={() => setConnection("unavailable")}
+            />
+            {connection !== "ready" && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white p-6 text-center dark:bg-zinc-900">
+                {connection === "loading" ? (
+                  <p className="max-w-md text-sm text-zinc-600 dark:text-zinc-400">
+                    Waiting for CADit to confirm the editor is ready…
+                  </p>
+                ) : (
+                  <div className="max-w-md space-y-3">
+                    <h2 className="text-lg font-semibold">
+                      CADit editor unavailable
+                    </h2>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      The editor did not confirm it was ready. Your connection,
+                      browser or hosting security settings, CADit availability,
+                      or domain registration could be responsible. The cause
+                      cannot be determined from this page.
+                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      Try reloading the editor, or use the existing sketch and
+                      diagram links above while the issue is investigated.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </section>
         <section
           aria-label="STL export"
