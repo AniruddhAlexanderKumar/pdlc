@@ -1,0 +1,11 @@
+-- Sentinel's relationship-change detection (loadRelationshipChangeCandidates
+-- in decision-sentinel.service.ts) filters audit_logs by organizationId and
+-- entityId IN (...), ordered by createdAt. Neither existing index serves
+-- that shape: (organizationId, createdAt) has no entityId column, and
+-- (entityType, entityId) has no organizationId column and this query does
+-- not filter by entityType. Without a matching index, a busy organization's
+-- audit history is scanned by (organizationId, createdAt) far past the rows
+-- that actually match before 500 matching rows accumulate.
+--
+-- CreateIndex
+CREATE INDEX "audit_logs_organizationId_entityId_idx" ON "audit_logs"("organizationId", "entityId");

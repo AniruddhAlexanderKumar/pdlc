@@ -1,0 +1,3362 @@
+// PDLC Platform — Prisma schema
+//
+// Persistence model for the aerospace engineering record. The system is a
+// connected engineering graph: artifacts are nodes, and traceability is
+// carried by explicit relationship tables (never by convention or by
+// free-text references). PostgreSQL holds both — see ARCHITECTURE.md for
+// why a graph database is not warranted yet.
+//
+// Conventions:
+//   - ids            cuid, non-sequential
+//   - table names    snake_case via @@map; columns stay camelCase
+//   - identifiers    human-facing artifact keys (e.g. "REQ-001"), unique per project
+//   - link tables    (source, target) unique + reverse index for graph traversal
+//   - onDelete       Cascade from project/artifact down to links; SetNull for
+//                    optional ownership; Restrict where audit history must survive
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy & audit
+// ---------------------------------------------------------------------------
+
+/// A tenant. Every user and audit record belongs to exactly one organization.
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Nullable, and deliberately so: an existing or newly-created organization
+  /// has no industry until an owner explicitly sets one. There is no default
+  /// — silently inventing "AEROSPACE_DEFENSE" for every org just because
+  /// this product's own domain vocabulary skews that way would be exactly
+  /// the kind of fabrication this codebase does not do. This field is a
+  /// selection only: it identifies which real-world engineering discipline
+  /// the organization works in. It does not, on its own, change any
+  /// engineering computation, readiness verdict, or Sentinel/impact
+  /// finding — those stay identical regardless of industry.
+  industry EngineeringIndustry?
+
+  /// Free-text detail, meaningful only when `industry` is `OTHER_ENGINEERING`
+  /// — enforced by the request schema, not a DB constraint (Postgres CHECK
+  /// constraints referencing a sibling column plus an enum comparison are
+  /// exactly the kind of business rule this codebase keeps in the service
+  /// layer; see the other DB-enforced CHECKs in this file for the pattern
+  /// this deliberately does not extend to this case).
+  industryOtherDetail String?
+  industrySetAt        DateTime?
+
+  industrySetById String?
+  industrySetBy   User? @relation("OrganizationIndustrySetter", fields: [industrySetById], references: [id], onDelete: SetNull)
+
+  /// Org-wide display-label overrides — e.g. renaming "Risk" to "Hazard".
+  /// A sparse map, `TerminologyLabelKey -> custom label`; a key absent from
+  /// the map renders this product's own default label. Free-text and
+  /// entirely organization-chosen: there is no built-in per-industry preset
+  /// silently applied here. This codebase does not assert which word a
+  /// given regulatory framework actually uses (see `industry` above for the
+  /// same restraint applied to industry selection itself) — an org that
+  /// wants "Hazard" instead of "Risk" says so itself, in its own words.
+  /// Same reasoning as `industry`: a label change is cosmetic only, read
+  /// by navigation and page headers, never by an engineering computation.
+  labelOverrides Json?
+
+  labelOverridesSetAt DateTime?
+
+  labelOverridesSetById String?
+  labelOverridesSetBy   User? @relation("OrganizationTerminologySetter", fields: [labelOverridesSetById], references: [id], onDelete: SetNull)
+
+  users     User[]      @relation("OrganizationUsers")
+  auditLogs AuditLog[]
+  projects  Project[]
+
+  @@map("organizations")
+}
+
+/// The engineering disciplines this product recognizes as a concrete,
+/// selectable identity for an organization — not an open-ended taxonomy.
+/// `OTHER_ENGINEERING` (with `industryOtherDetail`) is the honest escape
+/// hatch for anything outside this list, rather than forcing a bad fit or
+/// inventing a 16th value nobody asked for. Deliberately engineering-only:
+/// this is a product-development control system, not a general CRM, so
+/// "which engineering discipline" is the only classification that matters
+/// here.
+enum EngineeringIndustry {
+  AEROSPACE_DEFENSE
+  AUTOMOTIVE
+  MEDICAL_DEVICES
+  INDUSTRIAL_EQUIPMENT
+  ENERGY_POWER
+  RAIL_TRANSIT
+  MARITIME_SHIPBUILDING
+  CONSTRUCTION_INFRASTRUCTURE
+  ELECTRONICS_SEMICONDUCTOR
+  TELECOMMUNICATIONS
+  ROBOTICS_AUTOMATION
+  CONSUMER_PRODUCTS
+  CHEMICAL_PROCESS
+  AGRICULTURAL_EQUIPMENT
+  OTHER_ENGINEERING
+}
+
+/// Role a user holds within their organization. Deliberately coarse —
+/// fine-grained, resource-level permissions are a future domain concern.
+///
+/// Pre-dates real authorization: carried on every session but never checked
+/// anywhere in application code. Left exactly as it was — not the mechanism
+/// `organizationRole` below introduces, and not removed, because nothing in
+/// this system depends on removing it and a user's stated engineering
+/// discipline is still a real, if currently unenforced, fact worth keeping.
+enum UserRole {
+  ADMIN
+  ENGINEER
+  VIEWER
+}
+
+/// The organization-level access role real authorization is built on.
+/// Deliberately two values, not a hierarchy of admin tiers: an organization
+/// either administers itself (OWNER) or does not (MEMBER). Project-level
+/// authority is a separate axis — see `ProjectRole` — because an
+/// organization owner and a project's day-to-day engineers are not the same
+/// question.
+enum OrganizationRole {
+  OWNER
+  /// Reads every project in the organization without a membership row, and
+  /// the portfolio view — and changes nothing, anywhere. Not a tier between
+  /// OWNER and MEMBER: it administers nothing at all. See
+  /// `implicitProjectRole` in src/domain/access-control.ts, which is the
+  /// only place the "executive means VIEWER everywhere" mapping is written.
+  EXECUTIVE
+  MEMBER
+}
+
+model User {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  name             String
+  role             UserRole         @default(ENGINEER)
+  /// Defaults to MEMBER; the user who registers a new organization is set to
+  /// OWNER in the same transaction. See `OrganizationRole` for what each
+  /// value actually grants.
+  organizationRole OrganizationRole @default(MEMBER)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  organizationId String
+  organization   Organization @relation("OrganizationUsers", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// The organization(s) whose industry this user set — realistically zero
+  /// or one, since a user belongs to exactly one organization, but Prisma
+  /// still models the FK's owning side as a list here. Named to disambiguate
+  /// from the `organization` membership relation above, which is a
+  /// different relationship between the same two models.
+  industriesSet Organization[] @relation("OrganizationIndustrySetter")
+
+  /// Same shape as `industriesSet` above, for whichever organization's
+  /// terminology (custom display labels) this user last set.
+  terminologySet Organization[] @relation("OrganizationTerminologySetter")
+
+  auditLogs AuditLog[]
+
+  // Authentication. Credentials are a separate record so a password hash is
+  // never loaded alongside ordinary user reads.
+  credential UserCredential?
+  sessions   Session[]
+
+  projectMemberships ProjectMembership[]
+
+  // Artifact ownership (optional on the artifact; cleared if the user is removed).
+  ownedRequirements           Requirement[]          @relation("RequirementOwner")
+  ownedDecisions              EngineeringDecision[]  @relation("DecisionOwner")
+  ownedDesignItems            DesignItem[]           @relation("DesignItemOwner")
+  ownedVerificationActivities VerificationActivity[] @relation("VerificationOwner")
+  ownedRisks                  Risk[]                 @relation("RiskOwner")
+  ownedIssues                 Issue[]                @relation("IssueOwner")
+
+  // Actions that must survive for audit (deletion is restricted, not nulled).
+  requestedChangeRequests ChangeRequest[]              @relation("ChangeRequestRequester")
+  approvals               Approval[]                   @relation("ApprovalApprover")
+  requestedAnalyses       ImpactAnalysis[]             @relation("ImpactAnalysisRequester")
+  assumptionMonitoring    AssumptionMonitoringRecord[] @relation("AssumptionMonitoringActor")
+
+  // Readiness evaluations. SetNull, not Restrict: losing the person must not
+  // erase the assessment they ran.
+  evaluatedVerificationReadiness VerificationReadinessAssessment[] @relation("VerificationReadinessEvaluator")
+  evaluatedTechnicalReadiness    TechnicalReadinessAssessment[]    @relation("TechnicalReadinessEvaluator")
+
+  // Provenance of trace links: who asserted this relationship.
+  createdNeedRequirementLinks     NeedRequirementLink[]         @relation("NeedRequirementLinkCreator")
+  createdRequirementLinks         RequirementLink[]             @relation("RequirementLinkCreator")
+  createdRequirementDesignLinks   RequirementDesignLink[]       @relation("RequirementDesignLinkCreator")
+  createdRequirementVerifications RequirementVerificationLink[] @relation("RequirementVerificationLinkCreator")
+  createdRequirementDecisionLinks RequirementDecisionLink[]     @relation("RequirementDecisionLinkCreator")
+  createdDecisionDesignLinks      DecisionDesignLink[]          @relation("DecisionDesignLinkCreator")
+  createdDecisionRiskLinks        DecisionRiskLink[]            @relation("DecisionRiskLinkCreator")
+  createdDecisionIssueLinks       DecisionIssueLink[]           @relation("DecisionIssueLinkCreator")
+  createdDesignItemLinks          DesignItemLink[]              @relation("DesignItemLinkCreator")
+  createdDesignInterfaceLinks     DesignInterfaceLink[]         @relation("DesignInterfaceLinkCreator")
+  createdRiskRequirementLinks     RiskRequirementLink[]         @relation("RiskRequirementLinkCreator")
+  createdRiskDesignLinks          RiskDesignLink[]              @relation("RiskDesignLinkCreator")
+  createdIssueRequirementLinks    IssueRequirementLink[]        @relation("IssueRequirementLinkCreator")
+  createdIssueDesignLinks         IssueDesignLink[]             @relation("IssueDesignLinkCreator")
+  createdChangeRequestImpacts     ChangeRequestImpact[]         @relation("ChangeRequestImpactCreator")
+  createdEvidenceLinks            EvidenceLink[]                @relation("EvidenceLinkCreator")
+  recordedEvidence                Evidence[]                    @relation("EvidenceRecorder")
+  validatedEvidence               Evidence[]                    @relation("EvidenceValidator")
+
+  createdSuppliedItemDesignLinks      SuppliedItemDesignLink[]       @relation("SuppliedItemDesignLinkCreator")
+  createdSuppliedItemRequirementLinks SuppliedItemRequirementLink[]  @relation("SuppliedItemRequirementLinkCreator")
+  createdSuppliedItemVerifications    SuppliedItemVerificationLink[] @relation("SuppliedItemVerificationLinkCreator")
+  createdSuppliedItemDecisionLinks    SuppliedItemDecisionLink[]     @relation("SuppliedItemDecisionLinkCreator")
+  createdSuppliedItemRiskLinks        SuppliedItemRiskLink[]         @relation("SuppliedItemRiskLinkCreator")
+
+  // Drift. SetNull throughout: losing the person must not erase what was
+  // baselined, observed or evaluated.
+  createdBaselines     EngineeringBaseline[]    @relation("BaselineCreator")
+  activatedBaselines   EngineeringBaseline[]    @relation("BaselineActivator")
+  recordedObservations OperationalObservation[] @relation("ObservationRecorder")
+  reviewedObservations OperationalObservation[] @relation("ObservationReviewer")
+  evaluatedDrift       DriftAssessment[]        @relation("DriftEvaluator")
+
+  // Certification workspace. SetNull throughout: losing the person must not
+  // erase the programme, basis, review or link they created or evaluated.
+  ownedCertificationPrograms                  CertificationProgram[]                    @relation("CertificationProgramOwner")
+  createdCertificationBases                   CertificationBasis[]                      @relation("CertificationBasisCreator")
+  activatedCertificationBases                 CertificationBasis[]                      @relation("CertificationBasisActivator")
+  reviewedComplianceApplicability             ComplianceItem[]                          @relation("ComplianceItemApplicabilityReviewer")
+  resolvedCertificationFindings               CertificationFinding[]                    @relation("CertificationFindingResolver")
+  evaluatedCertificationReviews               CertificationReview[]                     @relation("CertificationReviewEvaluator")
+  createdComplianceRequirementLinks           ComplianceItemRequirementLink[]           @relation("ComplianceItemRequirementLinkCreator")
+  createdComplianceVerificationLinks          ComplianceItemVerificationLink[]          @relation("ComplianceItemVerificationLinkCreator")
+  createdComplianceDecisionLinks              ComplianceItemDecisionLink[]              @relation("ComplianceItemDecisionLinkCreator")
+  createdComplianceDesignLinks                ComplianceItemDesignLink[]                @relation("ComplianceItemDesignLinkCreator")
+  createdComplianceRiskLinks                  ComplianceItemRiskLink[]                  @relation("ComplianceItemRiskLinkCreator")
+  createdComplianceIssueLinks                 ComplianceItemIssueLink[]                 @relation("ComplianceItemIssueLinkCreator")
+  createdComplianceSupplierQualificationLinks ComplianceItemSupplierQualificationLink[] @relation("ComplianceItemSupplierQualificationLinkCreator")
+
+  // Decision Sentinel. SetNull throughout: losing the person must not erase a
+  // detection, an acknowledgement, or a resolution.
+  triggeredSentinelEvents  SentinelEvent[]      @relation("SentinelEventActor")
+  acknowledgedSurveillance SurveillanceTarget[] @relation("SurveillanceTargetAcknowledger")
+  resolvedSurveillance     SurveillanceTarget[] @relation("SurveillanceTargetResolver")
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+/// Immutable record of a mutating action, for traceability/compliance.
+/// `actorId` is nullable to allow logging system-initiated actions.
+/// The opaque entityType/entityId pair is appropriate here — this is an
+/// append-only event stream, not a queryable traceability relationship.
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  actorId String?
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+  @@index([organizationId, entityId])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Authentication
+//
+// First-party and database-backed: no third-party identity provider holds our
+// users, credentials or sessions. Credentials live apart from the User record
+// so a password hash is never fetched by an ordinary user query.
+// ---------------------------------------------------------------------------
+
+/// Argon2id password hash for a user. One per user; deleted with the user.
+model UserCredential {
+  id           String   @id @default(cuid())
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_credentials")
+}
+
+/// A browser session.
+///
+/// Only the SHA-256 hash of the opaque session token is stored: a leaked
+/// database dump cannot be replayed as a valid cookie. `tokenHash` is unique
+/// so session lookup is a single indexed read.
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Program
+// ---------------------------------------------------------------------------
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+/// A development program or product. Every engineering artifact is scoped to
+/// exactly one project, and artifact identifiers are unique within it.
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  stakeholderNeeds       StakeholderNeed[]
+  requirements           Requirement[]
+  engineeringDecisions   EngineeringDecision[]
+  designItems            DesignItem[]
+  interfaces             InterfaceDefinition[]
+  verificationActivities VerificationActivity[]
+  risks                  Risk[]
+  issues                 Issue[]
+  changeRequests         ChangeRequest[]
+  impactAnalyses         ImpactAnalysis[]
+  evidence               Evidence[]
+  approvals              Approval[]
+
+  suppliers              Supplier[]
+  suppliedItems          SuppliedItem[]
+  supplierQualifications SupplierQualification[]
+
+  engineeringBaselines    EngineeringBaseline[]
+  operationalObservations OperationalObservation[]
+  driftAssessments        DriftAssessment[]
+
+  verificationReadinessAssessments VerificationReadinessAssessment[]
+  technicalReadinessAssessments    TechnicalReadinessAssessment[]
+
+  certificationPrograms CertificationProgram[]
+
+  sentinelEvents      SentinelEvent[]
+  surveillanceTargets SurveillanceTarget[]
+
+  memberships ProjectMembership[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status])
+  @@map("projects")
+}
+
+/// The project-level authority a member holds. Not a hierarchy: MANAGER is
+/// the only role that combines every capability (write, approve, and
+/// administer membership); ENGINEER and REVIEWER instead each grant a
+/// distinct authority — write access without approval authority, and
+/// approval authority without ordinary write access — because in this
+/// system's own domain "who may edit engineering content" and "who may
+/// approve it" are genuinely different questions, not two points on the
+/// same scale. See `ProjectRole` in `src/domain/access-control.ts` for the
+/// exact capability each grants and why.
+enum ProjectRole {
+  MANAGER
+  ENGINEER
+  REVIEWER
+  VIEWER
+}
+
+/// Explicit project-scoped access. A user gains no access to a project by
+/// organization membership alone — only by holding a real row here, or by
+/// being their organization's OWNER (who administers every project in it
+/// without needing one). One row per (project, user): re-adding a member
+/// changes their existing role rather than creating a second grant.
+model ProjectMembership {
+  id        String      @id @default(cuid())
+  role      ProjectRole
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_memberships")
+}
+
+// ---------------------------------------------------------------------------
+// Engineering artifacts
+// ---------------------------------------------------------------------------
+
+enum StakeholderNeedStatus {
+  DRAFT
+  ACCEPTED
+  REJECTED
+  OBSOLETE
+}
+
+/// An originating need or problem statement. Requirements derive from these.
+model StakeholderNeed {
+  id          String                @id @default(cuid())
+  identifier  String
+  title       String
+  description String
+  stakeholder String
+  status      StakeholderNeedStatus @default(DRAFT)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  requirementLinks NeedRequirementLink[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "stakeholder_needs_identifier_trgm_idx")
+  @@map("stakeholder_needs")
+}
+
+enum RequirementStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  BASELINED
+  OBSOLETE
+}
+
+enum RequirementPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Requirement {
+  id         String              @id @default(cuid())
+  identifier String
+  title      String
+  statement  String
+  rationale  String?
+  status     RequirementStatus   @default(DRAFT)
+  priority   RequirementPriority @default(MEDIUM)
+  source     String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  ownerId String?
+  owner   User?   @relation("RequirementOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  needLinks         NeedRequirementLink[]
+  outgoingLinks     RequirementLink[]             @relation("RequirementLinkSource")
+  incomingLinks     RequirementLink[]             @relation("RequirementLinkTarget")
+  designLinks       RequirementDesignLink[]
+  verificationLinks RequirementVerificationLink[]
+  decisionLinks     RequirementDecisionLink[]
+  riskLinks         RiskRequirementLink[]
+  issueLinks        IssueRequirementLink[]
+  changeImpacts     ChangeRequestImpact[]
+  evidenceLinks     EvidenceLink[]
+  approvals         Approval[]
+  suppliedItemLinks SuppliedItemRequirementLink[]
+
+  complianceLinks ComplianceItemRequirementLink[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "requirements_identifier_trgm_idx")
+  @@map("requirements")
+}
+
+enum DecisionStatus {
+  PROPOSED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  SUPERSEDED
+}
+
+/// An explicit, recorded engineering decision. Central to change-impact
+/// analysis: decisions are what make requirements and design items depend
+/// on each other for reasons a reader can reconstruct later.
+model EngineeringDecision {
+  id                     String         @id @default(cuid())
+  identifier             String
+  title                  String
+  statement              String
+  rationale              String
+  alternativesConsidered String?
+  assumptions            String?
+  status                 DecisionStatus @default(PROPOSED)
+  decidedAt              DateTime?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  ownerId String?
+  owner   User?   @relation("DecisionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  requirementLinks RequirementDecisionLink[]
+  designLinks      DecisionDesignLink[]
+  riskLinks        DecisionRiskLink[]
+  issueLinks       DecisionIssueLink[]
+  changeImpacts    ChangeRequestImpact[]
+  evidenceLinks    EvidenceLink[]
+  approvals        Approval[]
+
+  suppliedItemLinks SuppliedItemDecisionLink[]
+
+  complianceLinks ComplianceItemDecisionLink[]
+
+  // Decision memory: the structured record of what else was on the table,
+  // what had to be true, and what was expected to happen.
+  alternatives DecisionAlternative[]
+  assumptions_ DecisionAssumption[]
+  expectation  DecisionExpectation?
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "engineering_decisions_identifier_trgm_idx")
+  @@map("engineering_decisions")
+}
+
+/// A credible option that was considered and not chosen.
+///
+/// First-class rather than a text blob because "what else did you look at,
+/// and why did you rule it out" is the question a future engineer actually
+/// asks — and a paragraph cannot be counted, linked, or revisited.
+model DecisionAlternative {
+  id             String   @id @default(cuid())
+  title          String
+  description    String?
+  reasonRejected String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  engineeringDecisionId String
+  engineeringDecision   EngineeringDecision @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  @@index([engineeringDecisionId])
+  @@map("decision_alternatives")
+}
+
+/// What an assumption is currently believed to be.
+///
+/// UNKNOWN is the honest default: recording an assumption is not the same as
+/// having checked it. VALIDATED and INVALIDATED are only ever set by a person
+/// saying so — nothing in this build infers them.
+enum AssumptionStatus {
+  ACTIVE
+  VALIDATED
+  INVALIDATED
+  UNKNOWN
+}
+
+/// Something that had to be true for the decision to remain sound.
+///
+/// Addressable in its own right so a future surveillance layer can watch
+/// assumptions rather than re-parsing prose. Nothing watches them yet.
+model DecisionAssumption {
+  id        String           @id @default(cuid())
+  statement String
+  status    AssumptionStatus @default(UNKNOWN)
+  rationale String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  engineeringDecisionId String
+  engineeringDecision   EngineeringDecision @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  monitoringRecords AssumptionMonitoringRecord[]
+
+  @@index([engineeringDecisionId])
+  // Monitoring sweeps by status across a project.
+  @@index([status])
+  @@map("decision_assumptions")
+}
+
+/// Whether what was expected has been seen to happen.
+enum ExpectationStatus {
+  NOT_OBSERVED
+  HELD
+  BREACHED
+  UNKNOWN
+}
+
+/// What the team expected the decision to produce, and what was later observed.
+///
+/// One per decision. Values are stored as text because an expectation may be
+/// numeric ("< 4.2 kg") or qualitative ("no measurable thermal soak-back");
+/// this records the claim, and deliberately does not evaluate it — that
+/// judgement belongs to a person, or to a later surveillance layer.
+model DecisionExpectation {
+  id            String  @id @default(cuid())
+  statement     String
+  measure       String?
+  expectedValue String?
+  unit          String?
+
+  /// How `expectedValue` should be compared, when it can be compared at all.
+  /// Always explicit: nothing parses an operator out of the expected-value
+  /// text. Null means the expectation is a perfectly good engineering record
+  /// that the drift engine will report as not comparable rather than guess at.
+  comparisonOperator ComparisonOperator?
+
+  dueAt       DateTime?
+  status      ExpectationStatus @default(NOT_OBSERVED)
+  actualValue String?
+  observedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  engineeringDecisionId String              @unique
+  engineeringDecision   EngineeringDecision @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  observations OperationalObservation[]
+
+  @@map("decision_expectations")
+}
+
+enum DesignItemType {
+  SYSTEM
+  SUBSYSTEM
+  ASSEMBLY
+  COMPONENT
+  SOFTWARE
+  OTHER
+}
+
+enum DesignItemStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  BASELINED
+  OBSOLETE
+}
+
+/// A system, subsystem, assembly, component, or software element.
+model DesignItem {
+  id          String           @id @default(cuid())
+  identifier  String
+  name        String
+  description String?
+  itemType    DesignItemType
+  status      DesignItemStatus @default(DRAFT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  ownerId String?
+  owner   User?   @relation("DesignItemOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  requirementLinks RequirementDesignLink[]
+  decisionLinks    DecisionDesignLink[]
+  outgoingLinks    DesignItemLink[]        @relation("DesignItemLinkSource")
+  incomingLinks    DesignItemLink[]        @relation("DesignItemLinkTarget")
+  interfaceLinks   DesignInterfaceLink[]
+  riskLinks        RiskDesignLink[]
+  issueLinks       IssueDesignLink[]
+  changeImpacts    ChangeRequestImpact[]
+
+  suppliedItemLinks SuppliedItemDesignLink[]
+  observations      OperationalObservation[]
+
+  complianceLinks ComplianceItemDesignLink[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([projectId, itemType])
+  @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "design_items_identifier_trgm_idx")
+  @@map("design_items")
+}
+
+enum InterfaceType {
+  MECHANICAL
+  ELECTRICAL
+  THERMAL
+  FLUID
+  DATA
+  SOFTWARE
+  OTHER
+}
+
+enum InterfaceStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  BASELINED
+  OBSOLETE
+}
+
+/// An engineering interface between system elements. Participating design
+/// items are attached through DesignInterfaceLink.
+model InterfaceDefinition {
+  id            String          @id @default(cuid())
+  identifier    String
+  name          String
+  description   String?
+  interfaceType InterfaceType
+  status        InterfaceStatus @default(DRAFT)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  designLinks DesignInterfaceLink[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "interface_definitions_identifier_trgm_idx")
+  @@map("interface_definitions")
+}
+
+enum VerificationMethod {
+  ANALYSIS
+  INSPECTION
+  TEST
+  DEMONSTRATION
+}
+
+enum VerificationStatus {
+  PLANNED
+  IN_PROGRESS
+  PASSED
+  FAILED
+  WAIVED
+}
+
+/// A planned or executed verification activity. Execution infrastructure is
+/// deliberately absent — this records intent, method, outcome, and evidence.
+model VerificationActivity {
+  id            String             @id @default(cuid())
+  identifier    String
+  title         String
+  description   String?
+  method        VerificationMethod
+  status        VerificationStatus @default(PLANNED)
+  plannedDate   DateTime?
+  completedDate DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  ownerId String?
+  owner   User?   @relation("VerificationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  requirementLinks RequirementVerificationLink[]
+  evidenceLinks    EvidenceLink[]
+  changeImpacts    ChangeRequestImpact[]
+
+  suppliedItemLinks SuppliedItemVerificationLink[]
+
+  /// Readiness assessments. Distinct from `status`: this records whether the
+  /// activity can be run or closed responsibly, never what it produced.
+  readinessAssessments VerificationReadinessAssessment[]
+
+  complianceLinks ComplianceItemVerificationLink[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "verification_activities_identifier_trgm_idx")
+  @@map("verification_activities")
+}
+
+enum RiskStatus {
+  OPEN
+  MITIGATED
+  ACCEPTED
+  CLOSED
+}
+
+/// An engineering risk. Quantitative scoring is intentionally not modelled yet.
+model Risk {
+  id          String     @id @default(cuid())
+  identifier  String
+  title       String
+  description String
+  cause       String?
+  consequence String?
+  status      RiskStatus @default(OPEN)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  ownerId String?
+  owner   User?   @relation("RiskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  requirementLinks RiskRequirementLink[]
+  designLinks      RiskDesignLink[]
+  decisionLinks    DecisionRiskLink[]
+  changeImpacts    ChangeRequestImpact[]
+
+  suppliedItemLinks SuppliedItemRiskLink[]
+
+  complianceLinks ComplianceItemRiskLink[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "risks_identifier_trgm_idx")
+  @@map("risks")
+}
+
+enum IssueSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+/// An observed problem or unresolved engineering question.
+model Issue {
+  id          String        @id @default(cuid())
+  identifier  String
+  title       String
+  description String
+  severity    IssueSeverity @default(MEDIUM)
+  status      IssueStatus   @default(OPEN)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  ownerId String?
+  owner   User?   @relation("IssueOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  requirementLinks IssueRequirementLink[]
+  designLinks      IssueDesignLink[]
+  decisionLinks    DecisionIssueLink[]
+  changeImpacts    ChangeRequestImpact[]
+
+  complianceLinks ComplianceItemIssueLink[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([ownerId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "issues_identifier_trgm_idx")
+  @@map("issues")
+}
+
+enum ChangeRequestStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  IMPLEMENTED
+  CANCELLED
+}
+
+/// A proposed engineering change. Affected artifacts are recorded explicitly
+/// through ChangeRequestImpact; impact is asserted here, not computed yet.
+model ChangeRequest {
+  id          String              @id @default(cuid())
+  identifier  String
+  title       String
+  description String
+  reason      String
+  status      ChangeRequestStatus @default(DRAFT)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Restrict: a change request must retain an attributable requester.
+  requestedById String
+  requestedBy   User   @relation("ChangeRequestRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+
+  impacts        ChangeRequestImpact[]
+  approvals      Approval[]
+  impactAnalyses ImpactAnalysis[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([requestedById])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "change_requests_identifier_trgm_idx")
+  @@map("change_requests")
+}
+
+enum EvidenceType {
+  DOCUMENT
+  TEST_RESULT
+  ANALYSIS
+  INSPECTION
+  MEASUREMENT
+  EXTERNAL_REFERENCE
+  OTHER
+}
+
+/// DRAFT -> VALIDATED -> SUPERSEDED. No REJECTED/INVALID state: nothing in
+/// the domain distinguishes wrong evidence from evidence nobody validated,
+/// and mistaken evidence is superseded by a corrected record rather than
+/// un-asserted, the same way a mistaken risk or issue is closed rather than
+/// reopened into nonexistence.
+enum EvidenceStatus {
+  DRAFT
+  VALIDATED
+  SUPERSEDED
+}
+
+/// Supporting engineering evidence. File storage is out of scope —
+/// `sourceReference` is an external locator (document number, URL, test report id).
+/// This record establishes *record* integrity (who recorded/validated it,
+/// when, and its own audit trail) and, at most, *source/reference* integrity
+/// (an external locator). It never establishes binary/file integrity: there
+/// is no file content here to hash or verify.
+model Evidence {
+  id              String         @id @default(cuid())
+  identifier      String
+  title           String
+  description     String?
+  evidenceType    EvidenceType
+  sourceReference String
+  status          EvidenceStatus @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// Who recorded this evidence. Set once, at creation, and never reassigned
+  /// — this is provenance, not an accountable owner to hand off.
+  recordedById String?
+  recordedBy   User?   @relation("EvidenceRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  /// Set on the DRAFT -> VALIDATED transition. Null until then.
+  validatedById String?
+  validatedBy   User?     @relation("EvidenceValidator", fields: [validatedById], references: [id], onDelete: SetNull)
+  validatedAt   DateTime?
+
+  supersededAt DateTime?
+
+  /// The evidence record that replaced this one. Self-relation, so the
+  /// succession is traversable — the same pattern EngineeringBaseline and
+  /// CertificationBasis already use for their own supersession.
+  supersededById String?
+  supersededBy   Evidence?  @relation("EvidenceSupersession", fields: [supersededById], references: [id], onDelete: SetNull)
+  superseded     Evidence[] @relation("EvidenceSupersession")
+
+  links EvidenceLink[]
+
+  /// A certification finding's supporting evidence, where one was named on
+  /// resolution or acceptance. A plain foreign key, not a link table: a
+  /// finding names at most one piece of primary supporting evidence.
+  certificationFindings CertificationFinding[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([projectId, evidenceType])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "evidence_identifier_trgm_idx")
+  @@map("evidence")
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+/// A recorded approval action.
+///
+/// Approvals attach to exactly one subject. Rather than an opaque
+/// entityType/entityId pair, each approvable type gets its own nullable
+/// foreign key, so referential integrity is enforced by the database. A
+/// CHECK constraint (added in the migration) guarantees exactly one is set.
+model Approval {
+  id        String           @id @default(cuid())
+  decision  ApprovalDecision
+  comment   String?
+  decidedAt DateTime         @default(now())
+  createdAt DateTime         @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Restrict: an approval must retain an attributable approver.
+  approverId String
+  approver   User   @relation("ApprovalApprover", fields: [approverId], references: [id], onDelete: Restrict)
+
+  requirementId String?
+  requirement   Requirement? @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  engineeringDecisionId String?
+  engineeringDecision   EngineeringDecision? @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  changeRequestId String?
+  changeRequest   ChangeRequest? @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, decidedAt])
+  @@index([approverId])
+  @@index([requirementId])
+  @@index([engineeringDecisionId])
+  @@index([changeRequestId])
+  @@map("approvals")
+}
+
+// ---------------------------------------------------------------------------
+// Traceability links
+//
+// Every relationship that matters to traceability is a row, not a convention.
+// Each link carries who asserted it and when; links whose existence encodes an
+// engineering judgement also carry a note.
+// ---------------------------------------------------------------------------
+
+/// StakeholderNeed → Requirement: the requirement addresses the need.
+model NeedRequirementLink {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  stakeholderNeedId String
+  stakeholderNeed   StakeholderNeed @relation(fields: [stakeholderNeedId], references: [id], onDelete: Cascade)
+
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("NeedRequirementLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([stakeholderNeedId, requirementId])
+  @@index([requirementId])
+  @@map("need_requirement_links")
+}
+
+enum RequirementLinkType {
+  DECOMPOSES_TO
+  DEPENDS_ON
+  REFINES
+  CONFLICTS_WITH
+}
+
+/// Requirement → Requirement: decomposition and dependency.
+model RequirementLink {
+  id        String              @id @default(cuid())
+  linkType  RequirementLinkType
+  note      String?
+  createdAt DateTime            @default(now())
+
+  sourceRequirementId String
+  sourceRequirement   Requirement @relation("RequirementLinkSource", fields: [sourceRequirementId], references: [id], onDelete: Cascade)
+
+  targetRequirementId String
+  targetRequirement   Requirement @relation("RequirementLinkTarget", fields: [targetRequirementId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("RequirementLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([sourceRequirementId, targetRequirementId, linkType])
+  @@index([targetRequirementId])
+  @@map("requirement_links")
+}
+
+enum RequirementDesignLinkType {
+  ALLOCATED_TO
+  SATISFIED_BY
+}
+
+/// Requirement → DesignItem: allocation and satisfaction.
+model RequirementDesignLink {
+  id        String                    @id @default(cuid())
+  linkType  RequirementDesignLinkType @default(ALLOCATED_TO)
+  note      String?
+  createdAt DateTime                  @default(now())
+
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  designItemId String
+  designItem   DesignItem @relation(fields: [designItemId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("RequirementDesignLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([requirementId, designItemId, linkType])
+  @@index([designItemId])
+  @@map("requirement_design_links")
+}
+
+/// Requirement → VerificationActivity: how the requirement is verified.
+model RequirementVerificationLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  verificationActivityId String
+  verificationActivity   VerificationActivity @relation(fields: [verificationActivityId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("RequirementVerificationLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([requirementId, verificationActivityId])
+  @@index([verificationActivityId])
+  @@map("requirement_verification_links")
+}
+
+/// Requirement ↔ EngineeringDecision.
+///
+/// One table, not two: the two directions the domain needs
+/// (a decision that addresses a requirement, and a requirement derived from a
+/// decision) are the same edge read from opposite ends, distinguished by
+/// `linkType` rather than duplicated into mirrored tables.
+enum RequirementDecisionLinkType {
+  DECISION_ADDRESSES_REQUIREMENT
+  REQUIREMENT_DERIVED_FROM_DECISION
+}
+
+model RequirementDecisionLink {
+  id        String                      @id @default(cuid())
+  linkType  RequirementDecisionLinkType
+  note      String?
+  createdAt DateTime                    @default(now())
+
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  engineeringDecisionId String
+  engineeringDecision   EngineeringDecision @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("RequirementDecisionLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([requirementId, engineeringDecisionId, linkType])
+  @@index([engineeringDecisionId])
+  @@map("requirement_decision_links")
+}
+
+/// EngineeringDecision → DesignItem: the design element the decision shapes.
+model DecisionDesignLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  engineeringDecisionId String
+  engineeringDecision   EngineeringDecision @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  designItemId String
+  designItem   DesignItem @relation(fields: [designItemId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("DecisionDesignLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([engineeringDecisionId, designItemId])
+  @@index([designItemId])
+  @@map("decision_design_links")
+}
+
+/// EngineeringDecision → Risk: risk accepted, introduced, or mitigated by a decision.
+model DecisionRiskLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  engineeringDecisionId String
+  engineeringDecision   EngineeringDecision @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  riskId String
+  risk   Risk   @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("DecisionRiskLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([engineeringDecisionId, riskId])
+  @@index([riskId])
+  @@map("decision_risk_links")
+}
+
+/// EngineeringDecision → Issue: issue driving or resulting from a decision.
+model DecisionIssueLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  engineeringDecisionId String
+  engineeringDecision   EngineeringDecision @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  issueId String
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("DecisionIssueLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([engineeringDecisionId, issueId])
+  @@index([issueId])
+  @@map("decision_issue_links")
+}
+
+enum DesignItemLinkType {
+  CONTAINS
+  DEPENDS_ON
+}
+
+/// DesignItem → DesignItem: product hierarchy and dependency.
+///
+/// A link table rather than a `parentId` column: dependency is many-to-many,
+/// and keeping every graph edge in the same shape keeps future traversal
+/// uniform.
+model DesignItemLink {
+  id        String             @id @default(cuid())
+  linkType  DesignItemLinkType
+  createdAt DateTime           @default(now())
+
+  sourceDesignItemId String
+  sourceDesignItem   DesignItem @relation("DesignItemLinkSource", fields: [sourceDesignItemId], references: [id], onDelete: Cascade)
+
+  targetDesignItemId String
+  targetDesignItem   DesignItem @relation("DesignItemLinkTarget", fields: [targetDesignItemId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("DesignItemLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([sourceDesignItemId, targetDesignItemId, linkType])
+  @@index([targetDesignItemId])
+  @@map("design_item_links")
+}
+
+enum DesignInterfaceLinkType {
+  PROVIDES
+  CONSUMES
+  PARTICIPATES
+}
+
+/// DesignItem → InterfaceDefinition: which elements meet at an interface.
+model DesignInterfaceLink {
+  id        String                  @id @default(cuid())
+  linkType  DesignInterfaceLinkType @default(PARTICIPATES)
+  createdAt DateTime                @default(now())
+
+  designItemId String
+  designItem   DesignItem @relation(fields: [designItemId], references: [id], onDelete: Cascade)
+
+  interfaceDefinitionId String
+  interfaceDefinition   InterfaceDefinition @relation(fields: [interfaceDefinitionId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("DesignInterfaceLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([designItemId, interfaceDefinitionId, linkType])
+  @@index([interfaceDefinitionId])
+  @@map("design_interface_links")
+}
+
+/// Risk → Requirement: the requirement the risk threatens.
+model RiskRequirementLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  riskId String
+  risk   Risk   @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("RiskRequirementLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([riskId, requirementId])
+  @@index([requirementId])
+  @@map("risk_requirement_links")
+}
+
+/// Risk → DesignItem: the design element the risk threatens.
+model RiskDesignLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  riskId String
+  risk   Risk   @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  designItemId String
+  designItem   DesignItem @relation(fields: [designItemId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("RiskDesignLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([riskId, designItemId])
+  @@index([designItemId])
+  @@map("risk_design_links")
+}
+
+/// Issue → Requirement: the requirement the issue affects.
+model IssueRequirementLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  issueId String
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("IssueRequirementLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([issueId, requirementId])
+  @@index([requirementId])
+  @@map("issue_requirement_links")
+}
+
+/// Issue → DesignItem: the design element the issue affects.
+model IssueDesignLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  issueId String
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  designItemId String
+  designItem   DesignItem @relation(fields: [designItemId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("IssueDesignLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([issueId, designItemId])
+  @@index([designItemId])
+  @@map("issue_design_links")
+}
+
+/// ChangeRequest → affected artifact.
+///
+/// Same strategy as Approval: one nullable, real foreign key per affected
+/// type instead of an opaque entityType/entityId pair, with a CHECK
+/// constraint (in the migration) enforcing exactly one target per row.
+model ChangeRequestImpact {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+
+  requirementId String?
+  requirement   Requirement? @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  designItemId String?
+  designItem   DesignItem? @relation(fields: [designItemId], references: [id], onDelete: Cascade)
+
+  engineeringDecisionId String?
+  engineeringDecision   EngineeringDecision? @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  verificationActivityId String?
+  verificationActivity   VerificationActivity? @relation(fields: [verificationActivityId], references: [id], onDelete: Cascade)
+
+  riskId String?
+  risk   Risk?   @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  issueId String?
+  issue   Issue?  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  /// Supplier-side targets. A supplier change is declared on the *same* change
+  /// request as any other, so the one impact engine walks it — there is no
+  /// SupplierChangeRequest and no second impact engine.
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  suppliedItemId String?
+  suppliedItem   SuppliedItem? @relation(fields: [suppliedItemId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("ChangeRequestImpactCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  analysisRoots ImpactAnalysisRoot[]
+
+  @@unique([changeRequestId, requirementId])
+  @@unique([changeRequestId, designItemId])
+  @@unique([changeRequestId, engineeringDecisionId])
+  @@unique([changeRequestId, verificationActivityId])
+  @@unique([changeRequestId, riskId])
+  @@unique([changeRequestId, issueId])
+  @@unique([changeRequestId, supplierId])
+  @@unique([changeRequestId, suppliedItemId])
+  @@index([requirementId])
+  @@index([designItemId])
+  @@index([engineeringDecisionId])
+  @@index([verificationActivityId])
+  @@index([riskId])
+  @@index([issueId])
+  @@index([supplierId])
+  @@index([suppliedItemId])
+  @@map("change_request_impacts")
+}
+
+/// Evidence → supported artifact.
+///
+/// Covers VerificationActivity → Evidence, EngineeringDecision → Evidence,
+/// and Requirement → Evidence in one table with real foreign keys; a CHECK
+/// constraint enforces exactly one subject per row.
+model EvidenceLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  evidenceId String
+  evidence   Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  requirementId String?
+  requirement   Requirement? @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  engineeringDecisionId String?
+  engineeringDecision   EngineeringDecision? @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  verificationActivityId String?
+  verificationActivity   VerificationActivity? @relation(fields: [verificationActivityId], references: [id], onDelete: Cascade)
+
+  /// Supplier-side subjects. The existing Evidence model is reused rather than a
+  /// second document store being introduced.
+  suppliedItemId String?
+  suppliedItem   SuppliedItem? @relation(fields: [suppliedItemId], references: [id], onDelete: Cascade)
+
+  supplierQualificationId String?
+  supplierQualification   SupplierQualification? @relation(fields: [supplierQualificationId], references: [id], onDelete: Cascade)
+
+  /// Certification workspace. The existing Evidence model is reused rather than
+  /// a second, certification-specific evidence store.
+  complianceItemId String?
+  complianceItem   ComplianceItem? @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("EvidenceLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([evidenceId, requirementId])
+  @@unique([evidenceId, engineeringDecisionId])
+  @@unique([evidenceId, verificationActivityId])
+  @@unique([evidenceId, suppliedItemId])
+  @@unique([evidenceId, supplierQualificationId])
+  @@unique([evidenceId, complianceItemId])
+  @@index([requirementId])
+  @@index([engineeringDecisionId])
+  @@index([verificationActivityId])
+  @@index([suppliedItemId])
+  @@index([supplierQualificationId])
+  @@index([complianceItemId])
+  @@map("evidence_links")
+}
+
+// ---------------------------------------------------------------------------
+// Change-impact analysis
+//
+// Computed impact, kept strictly separate from the declared impact an engineer
+// entered on the change request. Nothing here duplicates the engineering graph:
+// findings reference the artifacts they concern by (type, id) and cite the
+// relationship rows they were reached through, but the artifacts and their
+// relationships remain the single source of truth.
+//
+// An analysis is immutable once written. A new run creates a new row, so the
+// history of what the engine concluded — and from what — survives.
+// ---------------------------------------------------------------------------
+
+enum ImpactAnalysisStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ImpactClassification {
+  DIRECT
+  DOWNSTREAM
+  CROSS_DOMAIN
+  UPSTREAM_CONTEXT
+  UNKNOWN
+}
+
+enum ImpactFindingStatus {
+  POTENTIALLY_AFFECTED
+  NOT_EVALUATED
+  UNKNOWN
+}
+
+model ImpactAnalysis {
+  id     String               @id @default(cuid())
+  status ImpactAnalysisStatus @default(RUNNING)
+
+  /// Which rule set produced this. Results are only comparable within a version.
+  engineVersion String
+
+  /// Deterministic digest of the project's source state when the analysis ran.
+  /// Freshness is derived by recomputing and comparing — never stored as a
+  /// mutable flag, because the analysis record itself must not change.
+  sourceFingerprint String
+
+  /// Populated only when status is FAILED. Never carries database detail.
+  failureReason String?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  // Counts derived from the persisted findings, written in the same
+  // transaction. Nothing here is a heuristic or a score.
+  rootCount            Int @default(0)
+  findingCount         Int @default(0)
+  directCount          Int @default(0)
+  downstreamCount      Int @default(0)
+  crossDomainCount     Int @default(0)
+  upstreamContextCount Int @default(0)
+  unknownCount         Int @default(0)
+  notEvaluatedCount    Int @default(0)
+
+  // The caps actually applied, and whether any of them stopped the walk.
+  maxDepth    Int
+  maxNodes    Int
+  maxEdges    Int
+  truncated   Boolean @default(false)
+  truncatedBy String?
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+
+  requestedById String?
+  requestedBy   User?   @relation("ImpactAnalysisRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  roots    ImpactAnalysisRoot[]
+  findings ImpactFinding[]
+
+  @@index([changeRequestId, startedAt])
+  @@index([projectId, startedAt])
+  @@map("impact_analyses")
+}
+
+/// One object the analysis started from — the declared impact's target, not the
+/// change request itself. Snapshotted, because the change's declared scope may
+/// legitimately move on while this analysis must still explain itself.
+model ImpactAnalysisRoot {
+  id       String @id @default(cuid())
+  nodeType String
+  nodeId   String
+
+  /// Identity as it read at analysis time.
+  identifier String?
+  label      String
+
+  /// False when the declared target could not be resolved inside the project.
+  resolved Boolean @default(true)
+
+  /// The declaration this root came from. SetNull rather than Cascade: removing
+  /// a declaration must not rewrite what an earlier analysis was run against.
+  declaredImpactId String?
+  declaredImpact   ChangeRequestImpact? @relation(fields: [declaredImpactId], references: [id], onDelete: SetNull)
+
+  analysisId String
+  analysis   ImpactAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  findings ImpactFinding[]
+
+  @@unique([analysisId, nodeType, nodeId])
+  @@index([analysisId])
+  @@map("impact_analysis_roots")
+}
+
+/// One computed result: an object the engine says is reachable, and why.
+model ImpactFinding {
+  id       String @id @default(cuid())
+  nodeType String
+  nodeId   String
+
+  identifier String?
+  label      String
+
+  classification ImpactClassification
+  status         ImpactFindingStatus
+
+  /// Hops from the root. Zero for the root itself.
+  depth Int
+
+  /// Deterministic markers explaining what the finding rests on, e.g.
+  /// DECLARED_IMPACT, GRAPH_PROPAGATION, ASSUMPTION_PRESENT. Sorted.
+  basis String[]
+
+  /// The canonical shortest path from the root, as ordered traversal steps
+  /// citing the relationship row behind each hop. JSON because it is an ordered
+  /// heterogeneous list whose only meaningful query is "show it to me" — the
+  /// finding itself is fully relational.
+  path Json
+
+  /// How many additional distinct paths reached this node, if any. The count is
+  /// kept; the paths themselves are not, to bound storage.
+  alternatePathCount Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  analysisId String
+  analysis   ImpactAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  rootId String
+  root   ImpactAnalysisRoot @relation(fields: [rootId], references: [id], onDelete: Cascade)
+
+  @@unique([analysisId, nodeType, nodeId])
+  @@index([analysisId, classification])
+  @@index([rootId])
+  @@map("impact_findings")
+}
+
+// ---------------------------------------------------------------------------
+// Assumption monitoring
+//
+// Surveillance over the *recorded basis* of a decision assumption — never over
+// its truth. The engine can say "what this assumption stands on has changed";
+// it can never say "this assumption is false". Only an engineer, through an
+// explicit review, changes the assumption's status.
+//
+// The history is append-only. An evaluation and a review are both rows here,
+// distinguished by `kind`, so one chronological timeline shows what was
+// detected and what a person then decided about it. Nothing is ever rewritten.
+// ---------------------------------------------------------------------------
+
+enum AssumptionMonitoringStatus {
+  CURRENT
+  BASIS_CHANGED
+  REVIEW_REQUIRED
+}
+
+enum AssumptionMonitoringFinding {
+  NO_CHANGE
+  EVIDENCE_CHANGED
+  LINKED_OBJECT_CHANGED
+  DECISION_BASIS_CHANGED
+  UNKNOWN
+}
+
+enum AssumptionMonitoringKind {
+  EVALUATION
+  REVIEW
+}
+
+model AssumptionMonitoringRecord {
+  id   String                   @id @default(cuid())
+  kind AssumptionMonitoringKind
+
+  status  AssumptionMonitoringStatus
+  finding AssumptionMonitoringFinding
+
+  /// Digest of the whole recorded basis at this moment. The next evaluation
+  /// compares against the most recent record's value, so a review re-baselines
+  /// simply by recording the fingerprint it acknowledged.
+  basisFingerprint String
+
+  /// Component digests, so a difference can be attributed to a part of the
+  /// basis rather than only detected in aggregate.
+  decisionFingerprint String
+  evidenceFingerprint String
+  linkedFingerprint   String
+
+  /// Every basis object this run saw, with its revision stamp. Diffing this
+  /// against the previous record is what lets the finding name the actual
+  /// records that moved instead of asserting an unexplained conclusion.
+  basisSnapshot Json
+
+  /// The objects that differed from the previous record. Empty on a first
+  /// evaluation, where there is nothing to compare against.
+  changedObjects Json
+
+  /// The assumption's explicit status when this record was written. Monitoring
+  /// observes it; monitoring never sets it.
+  assumptionStatus AssumptionStatus
+
+  monitoredAt DateTime @default(now())
+
+  // Review-only. An evaluation leaves these null.
+  reviewNote   String?
+  reviewedAt   DateTime?
+  statusBefore AssumptionStatus?
+  statusAfter  AssumptionStatus?
+
+  createdAt DateTime @default(now())
+
+  assumptionId String
+  assumption   DecisionAssumption @relation(fields: [assumptionId], references: [id], onDelete: Cascade)
+
+  /// Who ran the evaluation or performed the review. SetNull: losing the person
+  /// must not erase the finding or the judgement.
+  actorId String?
+  actor   User?   @relation("AssumptionMonitoringActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([assumptionId, monitoredAt])
+  @@index([assumptionId, kind])
+  @@map("assumption_monitoring_records")
+}
+
+// ---------------------------------------------------------------------------
+// Verification readiness
+//
+// Whether a verification activity can be executed — or concluded — responsibly
+// given the engineering state that is actually recorded. Deliberately separate
+// from the activity's own `status`, which records what happened when it was
+// performed. A READY activity has not passed; a NOT_READY one has not failed.
+//
+// An assessment is immutable once written. Re-evaluating creates a new row, so
+// the history of what the engine concluded, and from what, survives.
+//
+// Deliberately NOT modelled here: any score, percentage, confidence or
+// probability. The answer is READY, NOT_READY or UNKNOWN, with findings that
+// name the condition, the record it was read from, and the object it concerns.
+//
+// This is verification readiness only. Technical readiness has different
+// semantics and will be modelled separately rather than by widening this table.
+// ---------------------------------------------------------------------------
+
+enum VerificationReadinessStatus {
+  READY
+  NOT_READY
+  UNKNOWN
+}
+
+/// Which readiness question the assessment answered. A planned activity is
+/// asked whether it can be executed; one already running, whether it can be
+/// concluded; a concluded one is asked nothing.
+enum VerificationReadinessScope {
+  EXECUTION
+  CLOSURE
+  NOT_APPLICABLE
+}
+
+/// Where a deterministic rule looked. Not a risk axis.
+enum VerificationReadinessCategory {
+  REQUIREMENT_STATE
+  VERIFICATION_DEFINITION
+  OWNER
+  DESIGN_STATE
+  DECISION_STATE
+  ASSUMPTION_STATE
+  EVIDENCE
+  CHANGE_IMPACT
+  TRACEABILITY
+  UNKNOWN
+}
+
+/// What a finding does to the assessment. WARNING and INFORMATIONAL never move
+/// the verdict; a rule that should block says so in the registry.
+enum VerificationReadinessFindingStatus {
+  BLOCKING
+  WARNING
+  INFORMATIONAL
+  UNKNOWN
+}
+
+/// A one-to-one restatement of the finding status in report wording. Derived,
+/// never judged — there is no subjective severity in this system.
+enum VerificationReadinessSeverity {
+  BLOCKER
+  ADVISORY
+  NOTE
+  INDETERMINATE
+}
+
+model VerificationReadinessAssessment {
+  id     String                      @id @default(cuid())
+  status VerificationReadinessStatus
+  scope  VerificationReadinessScope
+
+  /// Which rule set produced this. Assessments are only comparable within a
+  /// version, and freshness is UNKNOWN across versions rather than guessed.
+  readinessVersion String
+
+  /// Deterministic digest of the *activity-specific* basis this rested on:
+  /// the activity, its verified requirements, the design and decisions those
+  /// reach, assumption-monitoring state, and any impact analysis consumed.
+  /// Never project-wide, so an unrelated edit cannot stale it. Freshness is
+  /// derived by recomputing and comparing, never stored as a mutable flag.
+  fingerprint String
+
+  /// Every engineering object the evaluation read, with its revision stamp and
+  /// the relationship rows it was reached through. JSON because it is an
+  /// ordered, heterogeneous snapshot whose only meaningful query is "show me
+  /// what this rested on" — the findings themselves are fully relational.
+  basis Json
+
+  // Counts derived from the persisted findings, written in the same
+  // transaction. Nothing here is a score: they are tallies of rule outcomes.
+  findingCount       Int @default(0)
+  blockingCount      Int @default(0)
+  warningCount       Int @default(0)
+  informationalCount Int @default(0)
+  unknownCount       Int @default(0)
+
+  evaluatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  verificationActivityId String
+  verificationActivity   VerificationActivity @relation(fields: [verificationActivityId], references: [id], onDelete: Cascade)
+
+  /// Who ran it. SetNull: losing the person must not erase the assessment.
+  evaluatedById String?
+  evaluatedBy   User?   @relation("VerificationReadinessEvaluator", fields: [evaluatedById], references: [id], onDelete: SetNull)
+
+  findings VerificationReadinessFinding[]
+
+  @@index([verificationActivityId, evaluatedAt])
+  @@index([projectId, evaluatedAt])
+  @@map("verification_readiness_assessments")
+}
+
+/// One condition the engine evaluated, and what it concluded about it.
+///
+/// Findings reference the object they concern by (type, id) rather than by a
+/// foreign key: the subject may be any of several artifact types, and the
+/// artifact tables remain the source of truth. The identifier and label are
+/// snapshotted so a historical assessment can still name real records.
+model VerificationReadinessFinding {
+  id String @id @default(cuid())
+
+  /// The registry rule that fired, e.g. "VR-REQ-001".
+  ruleId String
+
+  category VerificationReadinessCategory
+  status   VerificationReadinessFindingStatus
+  severity VerificationReadinessSeverity
+
+  subjectType       String
+  subjectId         String
+  subjectIdentifier String?
+  subjectLabel      String
+
+  /// The explanation, naming the object and the recorded state that produced
+  /// it. Never a generic "readiness failed".
+  message String
+
+  /// Deterministic markers naming what the finding was read from, e.g.
+  /// REQUIREMENT_LIFECYCLE_STATE, ASSUMPTION_MONITORING_RECORD. Sorted.
+  basis String[]
+
+  /// Position in the deterministic ordering, written with the row so the
+  /// stored order matches the order the engine produced.
+  sequence Int
+
+  createdAt DateTime @default(now())
+
+  assessmentId String
+  assessment   VerificationReadinessAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId, sequence])
+  @@index([assessmentId, status])
+  @@map("verification_readiness_findings")
+}
+
+// ---------------------------------------------------------------------------
+// Technical readiness
+//
+// Whether a *project* is technically ready to enter a named internal
+// development gate, based on the engineering state already recorded elsewhere.
+// It aggregates: requirement and design lifecycles, engineering decisions,
+// assumption monitoring, verification readiness, verification outcomes,
+// change-impact analyses, risks, issues, evidence and the relationship rows
+// between them. It re-derives none of them and writes to none of them.
+//
+// Deliberately a separate table from VerificationReadinessAssessment. The
+// subject is different (a project at a gate, not one activity), the rule set is
+// different, and the two must be able to evolve without one silently changing
+// the meaning of the other's history.
+//
+// Deliberately NOT modelled: any score, percentage, confidence or probability,
+// and any notion of certification. These are internal engineering gates —
+// RELEASE_READY is not a claim of regulatory approval, and compliance evidence
+// has its own semantics in a capability that does not exist yet.
+//
+// An assessment is immutable once written. Re-evaluating creates a new row, so
+// the history of what a gate looked like, and from what, survives as gate
+// evidence.
+// ---------------------------------------------------------------------------
+
+/// Internal engineering readiness gates, in programme order. These deliberately
+/// do not claim equivalence to any external regulatory milestone.
+enum TechnicalReadinessGate {
+  SYSTEM_DEFINITION
+  DESIGN_REVIEW
+  DESIGN_FREEZE
+  VERIFICATION_READY
+  RELEASE_READY
+}
+
+enum TechnicalReadinessStatus {
+  READY
+  NOT_READY
+  UNKNOWN
+}
+
+/// Where a deterministic rule looked. Not a risk axis.
+enum TechnicalReadinessCategory {
+  REQUIREMENT
+  DESIGN
+  DECISION
+  ASSUMPTION
+  VERIFICATION
+  CHANGE
+  RISK
+  ISSUE
+  EVIDENCE
+  TRACEABILITY
+  UNKNOWN
+}
+
+/// What a finding does to the gate verdict. WARNING and INFORMATIONAL never
+/// move it; a rule that should block a gate says so in the registry.
+enum TechnicalReadinessFindingStatus {
+  BLOCKING
+  WARNING
+  INFORMATIONAL
+  UNKNOWN
+}
+
+/// A one-to-one restatement of the finding status in report wording. Derived,
+/// never judged — there is no subjective severity in this system.
+enum TechnicalReadinessSeverity {
+  BLOCKER
+  ADVISORY
+  NOTE
+  INDETERMINATE
+}
+
+model TechnicalReadinessAssessment {
+  id     String                   @id @default(cuid())
+  gate   TechnicalReadinessGate
+  status TechnicalReadinessStatus
+
+  /// Which rule set produced this. Assessments are only comparable within a
+  /// version, and freshness across versions is UNKNOWN rather than guessed.
+  readinessVersion String
+
+  /// Deterministic digest of the *gate-specific evaluated scope*: the objects
+  /// resolved, the state each rule read, their own revision stamps, the
+  /// relationship rows walked, and the verdicts consumed from the verification
+  /// readiness, change-impact and assumption-monitoring engines. Never a
+  /// project-wide timestamp, so an artifact outside the scope cannot move it.
+  /// Freshness is derived by recomputing and comparing, never stored.
+  fingerprint String
+
+  /// What the gate was evaluated against: identity, the state a rule read, the
+  /// relationships walked, and the consumed verdicts. JSON because it is a
+  /// heterogeneous snapshot whose only meaningful query is "show me what this
+  /// considered" — the findings themselves are fully relational. No artifact
+  /// record is copied here.
+  scope Json
+
+  // Counts derived from the persisted findings, written in the same
+  // transaction. Nothing here is a score: they are tallies of rule outcomes.
+  findingCount       Int @default(0)
+  blockingCount      Int @default(0)
+  warningCount       Int @default(0)
+  informationalCount Int @default(0)
+  unknownCount       Int @default(0)
+
+  evaluatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// Who ran it. SetNull: losing the person must not erase the assessment.
+  evaluatedById String?
+  evaluatedBy   User?   @relation("TechnicalReadinessEvaluator", fields: [evaluatedById], references: [id], onDelete: SetNull)
+
+  findings TechnicalReadinessFinding[]
+
+  // Gate-scoped history is the primary read: "the latest SYSTEM_DEFINITION
+  // assessment for this project", and the full series behind it.
+  @@index([projectId, gate, evaluatedAt])
+  @@index([projectId, evaluatedAt])
+  @@map("technical_readiness_assessments")
+}
+
+/// One condition the engine evaluated at a gate, and what it concluded.
+///
+/// Findings reference the object they concern by (type, id) rather than by a
+/// foreign key: the subject may be any of nine artifact types or the project
+/// itself, and the artifact tables remain the source of truth. The identifier
+/// and label are snapshotted so a historical assessment can still name real
+/// records.
+model TechnicalReadinessFinding {
+  id String @id @default(cuid())
+
+  /// The registry rule that fired, e.g. "TR-REQ-002".
+  ruleId String
+
+  category TechnicalReadinessCategory
+  status   TechnicalReadinessFindingStatus
+  severity TechnicalReadinessSeverity
+
+  subjectType       String
+  subjectId         String
+  subjectIdentifier String?
+  subjectLabel      String
+
+  /// The explanation, naming the object and the recorded state that produced
+  /// it. Never a generic "project not ready".
+  message String
+
+  /// Deterministic markers naming what the finding was read from, e.g.
+  /// REQUIREMENT_LIFECYCLE_STATE, VERIFICATION_READINESS_STALE. Sorted.
+  basis String[]
+
+  /// Position in the deterministic ordering, written with the row so the
+  /// stored order matches the order the engine produced.
+  sequence Int
+
+  createdAt DateTime @default(now())
+
+  assessmentId String
+  assessment   TechnicalReadinessAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId, sequence])
+  @@index([assessmentId, status])
+  @@map("technical_readiness_findings")
+}
+
+// ---------------------------------------------------------------------------
+// Supplier engineering
+//
+// Supplier-side engineering dependencies, and nothing else. There is
+// deliberately no purchase order, invoice, contract, delivery, price, inventory
+// level, vendor score or supplier health rating in this schema — those belong to
+// a procurement system, and putting them here would turn an engineering
+// capability into a CRM wearing aerospace vocabulary.
+//
+// The reason these tables exist is that a supplied item genuinely participates
+// in the product: it is allocated to design, supports requirements, is verified
+// by activities, is governed by decisions and carries risks. Modelling those as
+// real relationship tables makes a supplier change walkable by the SAME
+// change-impact engine as every other change. There is no supplier impact
+// engine and no SupplierChangeRequest.
+//
+// Everything is project-scoped, exactly like every other artifact, so the
+// tenancy boundary is identical and a supplier link can never cross a project.
+// ---------------------------------------------------------------------------
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  UNDER_REVIEW
+}
+
+enum SuppliedItemType {
+  PART
+  MATERIAL
+  PROCESS
+  SERVICE
+  SOFTWARE
+  OTHER
+}
+
+enum SuppliedItemStatus {
+  ACTIVE
+  OBSOLETE
+  UNDER_REVIEW
+}
+
+enum SupplierQualificationType {
+  PROCESS
+  MATERIAL
+  PART
+  SOURCE
+  OTHER
+}
+
+/// Recorded by a person, never derived. In particular EXPIRED is not inferred
+/// from expiryDate passing: a date in the past is a fact about the record, and
+/// treating it as a state change would be the system inventing a judgement
+/// nobody made.
+enum SupplierQualificationStatus {
+  PLANNED
+  ACTIVE
+  EXPIRED
+  WITHDRAWN
+}
+
+/// An external organization the project's engineering depends on.
+///
+/// Project-scoped. A supplier is conceptually reusable across programmes, but a
+/// record spanning projects would carry a status and a dependency graph that
+/// mean different things in each, and a change declared against it would reach
+/// objects in projects the declarer cannot see.
+model Supplier {
+  id          String         @id @default(cuid())
+  identifier  String
+  name        String
+  description String?
+  status      SupplierStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  suppliedItems  SuppliedItem[]
+  qualifications SupplierQualification[]
+  changeImpacts  ChangeRequestImpact[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "suppliers_identifier_trgm_idx")
+  @@map("suppliers")
+}
+
+/// Something a supplier provides that the product depends on.
+///
+/// This is the record that participates in the engineering graph. A supplier
+/// reaches engineering *through* its items, which is how a supplier-level
+/// declared impact still finds design consequences.
+model SuppliedItem {
+  id          String             @id @default(cuid())
+  identifier  String
+  name        String
+  description String?
+  itemType    SuppliedItemType
+  status      SuppliedItemStatus @default(ACTIVE)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// Restrict, not Cascade: deleting a supplier must not silently delete the
+  /// items the product depends on, along with every engineering link to them.
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  qualifications SupplierQualification[]
+
+  designLinks       SuppliedItemDesignLink[]
+  requirementLinks  SuppliedItemRequirementLink[]
+  verificationLinks SuppliedItemVerificationLink[]
+  decisionLinks     SuppliedItemDecisionLink[]
+  riskLinks         SuppliedItemRiskLink[]
+
+  evidenceLinks EvidenceLink[]
+  changeImpacts ChangeRequestImpact[]
+  observations  OperationalObservation[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([supplierId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "supplied_items_identifier_trgm_idx")
+  @@map("supplied_items")
+}
+
+/// A recorded basis for treating a supplier, or something they supply, as
+/// suitable for a defined engineering purpose.
+///
+/// suppliedItemId is nullable: a SOURCE qualification is about the supplier and
+/// is not scoped to any one item, while a MATERIAL, PART or PROCESS
+/// qualification usually is. Forcing an item onto the first case would invent a
+/// subject the record does not have.
+///
+/// evidenceReference stays a string because this system stores no files. Real
+/// Evidence records can be attached in addition, through evidence_links.
+model SupplierQualification {
+  id                String                      @id @default(cuid())
+  title             String
+  qualificationType SupplierQualificationType
+  status            SupplierQualificationStatus @default(PLANNED)
+
+  /// External locator for what establishes the qualification. Never a file.
+  evidenceReference String?
+
+  effectiveDate DateTime?
+  expiryDate    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  suppliedItemId String?
+  suppliedItem   SuppliedItem? @relation(fields: [suppliedItemId], references: [id], onDelete: Cascade)
+
+  evidenceLinks EvidenceLink[]
+
+  complianceLinks ComplianceItemSupplierQualificationLink[]
+
+  @@index([projectId, status])
+  @@index([supplierId])
+  @@index([suppliedItemId])
+  @@map("supplier_qualifications")
+}
+
+// --- Supplied item -> engineering relationships -----------------------------
+//
+// One typed join table per relationship, each with real foreign keys on both
+// ends. No polymorphic entityType/entityId pair anywhere: the database enforces
+// that both endpoints exist, and the graph resolvers read the same rows.
+
+/// SuppliedItem -> DesignItem. The design item incorporates the supplied item.
+model SuppliedItemDesignLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  suppliedItemId String
+  suppliedItem   SuppliedItem @relation(fields: [suppliedItemId], references: [id], onDelete: Cascade)
+
+  designItemId String
+  designItem   DesignItem @relation(fields: [designItemId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("SuppliedItemDesignLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([suppliedItemId, designItemId])
+  @@index([designItemId])
+  @@map("supplied_item_design_links")
+}
+
+/// SuppliedItem -> Requirement. Meeting the requirement depends on the item.
+model SuppliedItemRequirementLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  suppliedItemId String
+  suppliedItem   SuppliedItem @relation(fields: [suppliedItemId], references: [id], onDelete: Cascade)
+
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("SuppliedItemRequirementLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([suppliedItemId, requirementId])
+  @@index([requirementId])
+  @@map("supplied_item_requirement_links")
+}
+
+/// SuppliedItem -> VerificationActivity. The activity verifies the item.
+model SuppliedItemVerificationLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  suppliedItemId String
+  suppliedItem   SuppliedItem @relation(fields: [suppliedItemId], references: [id], onDelete: Cascade)
+
+  verificationActivityId String
+  verificationActivity   VerificationActivity @relation(fields: [verificationActivityId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("SuppliedItemVerificationLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([suppliedItemId, verificationActivityId])
+  @@index([verificationActivityId])
+  @@map("supplied_item_verification_links")
+}
+
+/// SuppliedItem -> EngineeringDecision. The decision selected or rests on it.
+model SuppliedItemDecisionLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  suppliedItemId String
+  suppliedItem   SuppliedItem @relation(fields: [suppliedItemId], references: [id], onDelete: Cascade)
+
+  engineeringDecisionId String
+  engineeringDecision   EngineeringDecision @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("SuppliedItemDecisionLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([suppliedItemId, engineeringDecisionId])
+  @@index([engineeringDecisionId])
+  @@map("supplied_item_decision_links")
+}
+
+/// SuppliedItem -> Risk. The risk concerns the supplied item.
+model SuppliedItemRiskLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  suppliedItemId String
+  suppliedItem   SuppliedItem @relation(fields: [suppliedItemId], references: [id], onDelete: Cascade)
+
+  riskId String
+  risk   Risk   @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("SuppliedItemRiskLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([suppliedItemId, riskId])
+  @@index([riskId])
+  @@map("supplied_item_risk_links")
+}
+
+// ---------------------------------------------------------------------------
+// Design / operations drift
+//
+// The engineering feedback loop: what was approved, what was later observed,
+// and where the two have come apart.
+//
+// What is deliberately NOT here: no telemetry ingestion, no time series, no
+// event stream, no sample table, no anomaly score, no confidence, no
+// probability, and no model of any kind. Observations are recorded by people,
+// and every finding is a comparison a reader could repeat by hand from the two
+// values printed beside it.
+//
+// The strongest thing this subsystem ever says is REVIEW_REQUIRED. There is no
+// status meaning "failed" — whether a divergence is a defect depends on margin,
+// tolerance and intent, none of which is recorded here.
+// ---------------------------------------------------------------------------
+
+/// An explicit comparison operator. Never inferred from text.
+enum ComparisonOperator {
+  EQUAL
+  NOT_EQUAL
+  LESS_THAN
+  LESS_THAN_OR_EQUAL
+  GREATER_THAN
+  GREATER_THAN_OR_EQUAL
+}
+
+enum BaselineStatus {
+  DRAFT
+  ACTIVE
+  SUPERSEDED
+}
+
+/// The engineering objects that may form part of an approved basis. A subset of
+/// the graph node registry: a change request or an approval is an event, not
+/// part of the basis, so neither is baselineable.
+enum BaselineMemberType {
+  REQUIREMENT
+  DESIGN_ITEM
+  ENGINEERING_DECISION
+  DECISION_EXPECTATION
+  VERIFICATION_ACTIVITY
+  SUPPLIED_ITEM
+  SUPPLIER_QUALIFICATION
+}
+
+enum ObservationType {
+  MEASUREMENT
+  INSPECTION
+  FIELD_REPORT
+  MAINTENANCE
+  OPERATIONS_EVENT
+  PERFORMANCE_RESULT
+  CONFIGURATION_OBSERVATION
+  OTHER
+}
+
+/// RECORDED means somebody wrote down what they saw — not that it is
+/// established engineering evidence. Only REVIEWED observations are compared.
+enum ObservationStatus {
+  RECORDED
+  REVIEWED
+  REJECTED
+}
+
+// Deliberately no `ObservationSubjectType` enum here. The valid subject types
+// are enforced by which foreign key columns exist on `operational_observations`
+// plus the CHECK constraint allowing at most one — a database enum with no
+// column using it would be dead SQL asserting a rule nothing checks. The domain
+// keeps the discriminator for its own request contracts.
+
+enum DriftStatus {
+  NO_DRIFT
+  DRIFT_DETECTED
+  UNKNOWN
+}
+
+enum DriftCategory {
+  VALUE_DEVIATION
+  CONFIGURATION_MISMATCH
+  EXPECTATION_BREACH
+  BASELINE_CHANGED
+  SUPPLIER_STATE_CHANGE
+  UNKNOWN
+}
+
+/// What a finding asks of a person. There is deliberately no FAILED or DEFECT:
+/// producing one would be this engine claiming an engineering conclusion it has
+/// no basis for.
+enum DriftFindingStatus {
+  REVIEW_REQUIRED
+  INFORMATIONAL
+  UNKNOWN
+}
+
+/// A one-to-one restatement of the finding status in report wording. Derived,
+/// never judged — this is not a risk rating and not an anomaly score.
+enum DriftSeverity {
+  ATTENTION
+  NOTE
+  INDETERMINATE
+}
+
+/// A formally approved engineering basis, as a reference point for comparison.
+///
+/// Not a configuration-management system: there is no branch, merge, variant or
+/// effectivity model. It answers one question — what did we approve, and when.
+model EngineeringBaseline {
+  id          String         @id @default(cuid())
+  identifier  String
+  name        String
+  description String?
+  status      BaselineStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Set at activation. Together with the member snapshots these answer
+  /// "what exactly was the basis, and as of when?".
+  baselinedAt  DateTime?
+  supersededAt DateTime?
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("BaselineCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  baselinedById String?
+  baselinedBy   User?   @relation("BaselineActivator", fields: [baselinedById], references: [id], onDelete: SetNull)
+
+  /// The baseline that replaced this one. Self-relation rather than a status
+  /// note, so the succession is traversable.
+  supersededById String?
+  supersededBy   EngineeringBaseline?  @relation("BaselineSuccession", fields: [supersededById], references: [id], onDelete: SetNull)
+  superseded     EngineeringBaseline[] @relation("BaselineSuccession")
+
+  members     EngineeringBaselineMember[]
+  assessments DriftAssessment[]
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "engineering_baselines_identifier_trgm_idx")
+  @@map("engineering_baselines")
+}
+
+/// One engineering object a baseline represents.
+///
+/// A reference plus a snapshot, never a copy: the artifact tables remain the
+/// source of truth. The fingerprint is the whole mechanism — comparing it
+/// against the object's fingerprint today is how "this changed since we
+/// baselined it" becomes a fact rather than an impression.
+///
+/// Immutable once its baseline is ACTIVE. Enforced in the service, because the
+/// rule is about the parent's status rather than about this row.
+model EngineeringBaselineMember {
+  id       String             @id @default(cuid())
+  nodeType BaselineMemberType
+  nodeId   String
+
+  /// Snapshotted so a historical baseline can still name real records even
+  /// after the underlying object is renamed or removed.
+  identifierSnapshot String?
+  labelSnapshot      String
+  stateSnapshot      String?
+
+  /// Deterministic digest of the object's engineering state at baseline time.
+  /// Deliberately excludes the object's `updatedAt`: a save that changes
+  /// nothing substantive must not register as drift.
+  fingerprint String
+
+  /// The object's own `updatedAt` at baseline time. Never "now".
+  revisionSnapshot DateTime
+
+  createdAt DateTime @default(now())
+
+  baselineId String
+  baseline   EngineeringBaseline @relation(fields: [baselineId], references: [id], onDelete: Cascade)
+
+  /// One row per object per baseline. Baselining the same thing twice is a
+  /// mistake, not two facts.
+  @@unique([baselineId, nodeType, nodeId])
+  @@index([baselineId])
+  @@index([nodeType, nodeId])
+  @@map("engineering_baseline_members")
+}
+
+/// Something actually observed in operation.
+///
+/// The value structure is bounded on purpose — a subject, a numeric value with
+/// a unit, or text. Enough to compare against an expectation; stopping well
+/// short of a measurement schema language.
+///
+/// Note what is absent: no expected value. The expectation lives on the
+/// engineering side, in DecisionExpectation. Copying it here would create two
+/// versions of the same claim that could disagree invisibly.
+model OperationalObservation {
+  id              String            @id @default(cuid())
+  identifier      String
+  title           String
+  description     String
+  observationType ObservationType
+  status          ObservationStatus @default(RECORDED)
+  source          String?
+  observedAt      DateTime
+
+  subjectLabel String?
+
+  /// The measured value as an exact decimal. NUMERIC, not a float: this system
+  /// exists to say whether two numbers differ, so binary floating point has no
+  /// place in it.
+  numericValue Decimal? @db.Decimal(38, 12)
+  unit         String?
+  textValue    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviewedAt DateTime?
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("ObservationRecorder", fields: [createdById], references: [id], onDelete: SetNull)
+
+  reviewedById String?
+  reviewedBy   User?   @relation("ObservationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  /// Typed subject columns, one real foreign key each — never an opaque
+  /// entityType/entityId pair. A CHECK constraint in the migration allows at
+  /// most one, because an observation is about one thing.
+  designItemId String?
+  designItem   DesignItem? @relation(fields: [designItemId], references: [id], onDelete: Cascade)
+
+  decisionExpectationId String?
+  decisionExpectation   DecisionExpectation? @relation(fields: [decisionExpectationId], references: [id], onDelete: Cascade)
+
+  suppliedItemId String?
+  suppliedItem   SuppliedItem? @relation(fields: [suppliedItemId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, identifier])
+  @@index([projectId, status])
+  @@index([projectId, observedAt])
+  @@index([designItemId])
+  @@index([decisionExpectationId])
+  @@index([suppliedItemId])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "operational_observations_identifier_trgm_idx")
+  @@map("operational_observations")
+}
+
+/// One immutable drift comparison, run explicitly against one baseline.
+///
+/// Freshness is deliberately NOT a column: it is derived at read time by
+/// recomputing the drift basis and comparing fingerprints, because a stored
+/// flag would mean mutating a record that must not change.
+model DriftAssessment {
+  id     String      @id @default(cuid())
+  status DriftStatus
+
+  /// Which rule set produced this. Assessments are only comparable within a
+  /// version, and freshness across versions is UNKNOWN rather than guessed.
+  driftVersion String
+
+  /// Deterministic digest of the drift-specific basis: the baseline, its
+  /// members with baselined and current fingerprints, and the observations
+  /// consumed. Never a project-wide timestamp, so unrelated project activity
+  /// cannot stale a drift assessment.
+  fingerprint String
+
+  /// What was compared: identity and state only, no artifact records.
+  basis Json
+
+  findingCount        Int @default(0)
+  reviewRequiredCount Int @default(0)
+  informationalCount  Int @default(0)
+  unknownCount        Int @default(0)
+
+  evaluatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// Restrict: a drift assessment is meaningless without the baseline it
+  /// compared against, so the baseline cannot be deleted out from under it.
+  baselineId String
+  baseline   EngineeringBaseline @relation(fields: [baselineId], references: [id], onDelete: Restrict)
+
+  evaluatedById String?
+  evaluatedBy   User?   @relation("DriftEvaluator", fields: [evaluatedById], references: [id], onDelete: SetNull)
+
+  findings DriftFinding[]
+
+  @@index([projectId, evaluatedAt])
+  @@index([projectId, baselineId, evaluatedAt])
+  @@map("drift_assessments")
+}
+
+/// One comparison the engine performed, and what it concluded.
+///
+/// Both subjects are stored by (type, id) with snapshotted display metadata
+/// rather than by foreign key: the subject may be any of eight artifact types
+/// or an observation, and the artifact tables remain the source of truth.
+model DriftFinding {
+  id String @id @default(cuid())
+
+  /// The registry rule that fired, e.g. "DR-BAS-002".
+  ruleId String
+
+  category DriftCategory
+  status   DriftFindingStatus
+  severity DriftSeverity
+
+  /// What the approved basis said. Null where the finding is not about a member.
+  baselineSubjectType       String?
+  baselineSubjectId         String?
+  baselineSubjectIdentifier String?
+  baselineSubjectLabel      String?
+
+  /// What was observed. Null where the finding is not about an observation.
+  observationSubjectType       String?
+  observationSubjectId         String?
+  observationSubjectIdentifier String?
+  observationSubjectLabel      String?
+
+  /// The two sides of the comparison, exactly as they were read. Text, so the
+  /// recorded value survives verbatim alongside its unit.
+  expectedValue String?
+  observedValue String?
+
+  /// Naming both sides and the comparison performed. Never a bare verdict.
+  explanation String
+
+  /// Deterministic markers naming what the finding was read from, e.g.
+  /// BASELINE_MEMBER_FINGERPRINT, UNIT_MISMATCH. Sorted.
+  basis String[]
+
+  /// Position in the deterministic ordering, written with the row so the stored
+  /// order matches the order the engine produced.
+  sequence Int
+
+  createdAt DateTime @default(now())
+
+  assessmentId String
+  assessment   DriftAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId, sequence])
+  @@index([assessmentId, status])
+  @@map("drift_findings")
+}
+
+// ---------------------------------------------------------------------------
+// Certification workspace
+//
+// A first-class internal certification/compliance capability, built ON TOP OF
+// the existing engineering system rather than beside it. A ComplianceItem
+// references requirements, verification activities, decisions, design items,
+// risks, issues and supplier qualifications through dedicated typed
+// relationship tables — the same one-table-per-relationship shape already
+// used for supplier and risk/issue links — and reuses the existing Evidence
+// model rather than introducing a second evidence store. Nothing here is a
+// second copy of an engineering record.
+//
+// Nothing here claims regulatory approval. CertificationProgram/Basis/Review
+// statuses are internal workspace states; a CertificationReview answers
+// "ready for internal review", never "certified" or "approved by an
+// authority". ComplianceItem.applicability and .disposition are always set by
+// a person — never inferred from a linked artifact's own state — and the
+// review engine only ever evaluates its own declared rule registry against
+// what is actually recorded.
+// ---------------------------------------------------------------------------
+
+enum CertificationProgramStatus {
+  DRAFT
+  ACTIVE
+  ON_HOLD
+  CLOSED
+}
+
+/// An internal certification effort for a project. Exactly one per project —
+/// the API surface is deliberately singular (`/certification/program`, no id)
+/// because a project runs one certification workspace, not a collection of
+/// competing ones.
+model CertificationProgram {
+  id          String                     @id @default(cuid())
+  identifier  String
+  name        String
+  description String?
+  status      CertificationProgramStatus @default(DRAFT)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  ownerId String?
+  owner   User?   @relation("CertificationProgramOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  bases   CertificationBasis[]
+  reviews CertificationReview[]
+
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "certification_programs_identifier_trgm_idx")
+  @@map("certification_programs")
+}
+
+enum CertificationBasisStatus {
+  DRAFT
+  ACTIVE
+  SUPERSEDED
+}
+
+/// A tracked certification standard/basis. DRAFT is editable; ACTIVE and
+/// SUPERSEDED are immutable, exactly like EngineeringBaseline, because a basis
+/// that could move after activation would make every compliance item tracked
+/// against it ambiguous about what it was actually tracked against.
+///
+/// `sourceReference` is a document/authority locator, never the text of a
+/// regulation — this system stores no regulation text and no files.
+model CertificationBasis {
+  id              String                   @id @default(cuid())
+  identifier      String
+  title           String
+  description     String?
+  revision        String
+  sourceReference String?
+  status          CertificationBasisStatus @default(DRAFT)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  activatedAt DateTime?
+
+  certificationProgramId String
+  certificationProgram   CertificationProgram @relation(fields: [certificationProgramId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("CertificationBasisCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  activatedById String?
+  activatedBy   User?   @relation("CertificationBasisActivator", fields: [activatedById], references: [id], onDelete: SetNull)
+
+  /// The basis that replaced this one. Self-relation, so the succession is
+  /// traversable — mirrors EngineeringBaseline's supersession exactly.
+  supersededById String?
+  supersededBy   CertificationBasis?  @relation("CertificationBasisSuccession", fields: [supersededById], references: [id], onDelete: SetNull)
+  superseded     CertificationBasis[] @relation("CertificationBasisSuccession")
+
+  complianceItems ComplianceItem[]
+
+  @@unique([certificationProgramId, identifier])
+  @@index([certificationProgramId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "certification_bases_identifier_trgm_idx")
+  @@map("certification_bases")
+}
+
+enum ComplianceApplicability {
+  APPLICABLE
+  NOT_APPLICABLE
+  UNDETERMINED
+}
+
+enum ComplianceItemStatus {
+  OPEN
+  IN_PROGRESS
+  SATISFIED
+  BLOCKED
+  WAIVED
+  CLOSED
+}
+
+/// The reviewer's explicit determination. Never derived from a linked
+/// artifact's own state — set by a person through the API only.
+enum ComplianceDisposition {
+  UNASSESSED
+  COMPLIANT
+  NON_COMPLIANT
+  NOT_APPLICABLE
+  OPEN_FINDING
+}
+
+/// How compliance is established for an item. Describes HOW; never asserts
+/// THAT compliance has been shown.
+enum ComplianceMethod {
+  ANALYSIS
+  TEST
+  INSPECTION
+  DEMONSTRATION
+  REVIEW_OF_DESIGN
+  DOCUMENTATION
+  OTHER
+}
+
+/// The central certification obligation. Applicability, method, status and
+/// disposition are all plain, explicitly human-set fields — no trigger, no
+/// generated column and no service path ever derives one of these from a
+/// linked artifact's own state.
+model ComplianceItem {
+  id                      String                  @id @default(cuid())
+  identifier              String
+  title                   String
+  description             String?
+  applicability           ComplianceApplicability @default(UNDETERMINED)
+  applicabilityRationale  String?
+  applicabilityReviewedAt DateTime?
+  method                  ComplianceMethod?
+  status                  ComplianceItemStatus    @default(OPEN)
+  disposition             ComplianceDisposition   @default(UNASSESSED)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  certificationBasisId String
+  certificationBasis   CertificationBasis @relation(fields: [certificationBasisId], references: [id], onDelete: Cascade)
+
+  applicabilityReviewerId String?
+  applicabilityReviewer   User?   @relation("ComplianceItemApplicabilityReviewer", fields: [applicabilityReviewerId], references: [id], onDelete: SetNull)
+
+  requirementLinks           ComplianceItemRequirementLink[]
+  verificationLinks          ComplianceItemVerificationLink[]
+  decisionLinks              ComplianceItemDecisionLink[]
+  designLinks                ComplianceItemDesignLink[]
+  riskLinks                  ComplianceItemRiskLink[]
+  issueLinks                 ComplianceItemIssueLink[]
+  supplierQualificationLinks ComplianceItemSupplierQualificationLink[]
+  evidenceLinks              EvidenceLink[]
+
+  findings CertificationFinding[]
+
+  @@unique([certificationBasisId, identifier])
+  @@index([certificationBasisId, status])
+  @@index([certificationBasisId, applicability])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "compliance_items_identifier_trgm_idx")
+  @@map("compliance_items")
+}
+
+// --- Compliance item -> engineering relationships ---------------------------
+//
+// One typed join table per relationship, each with real foreign keys on both
+// ends — the same shape as RiskRequirementLink, SuppliedItemDesignLink and
+// every other cross-domain relationship in this schema. No polymorphic
+// entityType/entityId pair anywhere.
+
+/// ComplianceItem -> Requirement. The requirement is the engineering statement this obligation is tracked against.
+model ComplianceItemRequirementLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  complianceItemId String
+  complianceItem   ComplianceItem @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("ComplianceItemRequirementLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([complianceItemId, requirementId])
+  @@index([requirementId])
+  @@map("compliance_item_requirement_links")
+}
+
+/// ComplianceItem -> VerificationActivity. What proves compliance.
+model ComplianceItemVerificationLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  complianceItemId String
+  complianceItem   ComplianceItem @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+
+  verificationActivityId String
+  verificationActivity   VerificationActivity @relation(fields: [verificationActivityId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("ComplianceItemVerificationLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([complianceItemId, verificationActivityId])
+  @@index([verificationActivityId])
+  @@map("compliance_item_verification_links")
+}
+
+/// ComplianceItem -> EngineeringDecision. The decision that governs this obligation.
+model ComplianceItemDecisionLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  complianceItemId String
+  complianceItem   ComplianceItem @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+
+  engineeringDecisionId String
+  engineeringDecision   EngineeringDecision @relation(fields: [engineeringDecisionId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("ComplianceItemDecisionLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([complianceItemId, engineeringDecisionId])
+  @@index([engineeringDecisionId])
+  @@map("compliance_item_decision_links")
+}
+
+/// ComplianceItem -> DesignItem. The configuration this obligation is tracked against.
+model ComplianceItemDesignLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  complianceItemId String
+  complianceItem   ComplianceItem @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+
+  designItemId String
+  designItem   DesignItem @relation(fields: [designItemId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("ComplianceItemDesignLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([complianceItemId, designItemId])
+  @@index([designItemId])
+  @@map("compliance_item_design_links")
+}
+
+/// ComplianceItem -> Risk.
+model ComplianceItemRiskLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  complianceItemId String
+  complianceItem   ComplianceItem @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+
+  riskId String
+  risk   Risk   @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("ComplianceItemRiskLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([complianceItemId, riskId])
+  @@index([riskId])
+  @@map("compliance_item_risk_links")
+}
+
+/// ComplianceItem -> Issue.
+model ComplianceItemIssueLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  complianceItemId String
+  complianceItem   ComplianceItem @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+
+  issueId String
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("ComplianceItemIssueLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([complianceItemId, issueId])
+  @@index([issueId])
+  @@map("compliance_item_issue_links")
+}
+
+/// ComplianceItem -> SupplierQualification.
+model ComplianceItemSupplierQualificationLink {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  complianceItemId String
+  complianceItem   ComplianceItem @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+
+  supplierQualificationId String
+  supplierQualification   SupplierQualification @relation(fields: [supplierQualificationId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("ComplianceItemSupplierQualificationLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([complianceItemId, supplierQualificationId])
+  @@index([supplierQualificationId])
+  @@map("compliance_item_supplier_qualification_links")
+}
+
+enum CertificationFindingSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CertificationFindingStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  ACCEPTED
+}
+
+/// An unresolved certification/compliance concern against one ComplianceItem.
+/// Never deleted — resolution and acceptance both append who, when, and a
+/// note, so a finding never silently disappears.
+model CertificationFinding {
+  id             String                       @id @default(cuid())
+  identifier     String
+  title          String
+  description    String?
+  severity       CertificationFindingSeverity
+  status         CertificationFindingStatus   @default(OPEN)
+  resolutionNote String?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  resolvedAt     DateTime?
+
+  complianceItemId String
+  complianceItem   ComplianceItem @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+
+  /// Supporting evidence named on resolution/acceptance, where appropriate.
+  /// The existing Evidence model is reused; nothing certification-specific is
+  /// stored here.
+  evidenceId String?
+  evidence   Evidence? @relation(fields: [evidenceId], references: [id], onDelete: SetNull)
+
+  resolvedById String?
+  resolvedBy   User?   @relation("CertificationFindingResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@unique([complianceItemId, identifier])
+  @@index([complianceItemId, status])
+  /// Partial identifier search (pg_trgm) - created by the add_full_text_search migration.
+  @@index([identifier(ops: raw("gin_trgm_ops"))], type: Gin, map: "certification_findings_identifier_trgm_idx")
+  @@map("certification_findings")
+}
+
+enum CertificationReviewStatus {
+  READY
+  NOT_READY
+  UNKNOWN
+}
+
+enum CertificationReviewCategory {
+  APPLICABILITY
+  COMPLIANCE_ITEM
+  REQUIREMENT
+  VERIFICATION
+  EVIDENCE
+  DECISION
+  DESIGN
+  SUPPLIER
+  FINDING
+  CHANGE_IMPACT
+  DRIFT
+  UNKNOWN
+}
+
+enum CertificationReviewFindingStatus {
+  BLOCKING
+  WARNING
+  INFORMATIONAL
+  UNKNOWN
+}
+
+/// One internal certification readiness review. Never regulatory approval —
+/// READY means "ready for internal review". Immutable once written; a new
+/// evaluation creates a new row, so the history of what the workspace looked
+/// like, and from what, survives.
+model CertificationReview {
+  id     String                    @id @default(cuid())
+  status CertificationReviewStatus
+
+  /// Which rule set produced this. Reviews are only comparable within a
+  /// version; freshness across versions is UNKNOWN rather than guessed.
+  reviewVersion String
+
+  /// Deterministic digest of the review-specific basis: compliance items,
+  /// applicability decisions, linked engineering artifact states, evidence,
+  /// verification readiness, current change-impact status, supplier
+  /// qualification state, drift state and certification findings. Never a
+  /// generic project-wide fingerprint. Freshness is derived by recomputing
+  /// and comparing, never stored as a mutable flag.
+  fingerprint String
+
+  /// Everything the evaluation read: identity, state, revision stamps and the
+  /// consumed verdicts from other engines. JSON because it is a
+  /// heterogeneous, ordered snapshot whose only meaningful query is "show me
+  /// what this rested on" — the findings themselves are fully relational. No
+  /// artifact record is copied here.
+  basis Json
+
+  /// Short human-readable synopsis. Never a percentage, never a score.
+  summary String?
+
+  // Counts derived from the persisted findings, written in the same
+  // transaction. Nothing here is a score: they are tallies of rule outcomes.
+  findingCount       Int @default(0)
+  blockingCount      Int @default(0)
+  warningCount       Int @default(0)
+  informationalCount Int @default(0)
+  unknownCount       Int @default(0)
+
+  evaluatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  certificationProgramId String
+  certificationProgram   CertificationProgram @relation(fields: [certificationProgramId], references: [id], onDelete: Cascade)
+
+  evaluatedById String?
+  evaluatedBy   User?   @relation("CertificationReviewEvaluator", fields: [evaluatedById], references: [id], onDelete: SetNull)
+
+  findings CertificationReviewFinding[]
+
+  @@index([certificationProgramId, evaluatedAt])
+  @@map("certification_reviews")
+}
+
+/// One condition the review evaluated, and what it concluded. Subject
+/// referenced by (type, id) rather than a foreign key: the subject may be any
+/// of several artifact types, and the artifact tables remain the source of
+/// truth. Identifier and label are snapshotted so a historical review can
+/// still name real records.
+model CertificationReviewFinding {
+  id String @id @default(cuid())
+
+  /// The registry rule that fired, e.g. "CR-MTH-001".
+  ruleId String
+
+  category CertificationReviewCategory
+  status   CertificationReviewFindingStatus
+
+  subjectType       String
+  subjectId         String
+  subjectIdentifier String?
+  subjectLabel      String
+
+  /// The explanation, naming the object and the recorded state that produced
+  /// it. Never a generic "not compliant".
+  message String
+
+  /// Deterministic markers naming what the finding was read from, e.g.
+  /// APPLICABILITY_UNDETERMINED, EVIDENCE_ABSENT. Sorted.
+  basis String[]
+
+  /// Position in the deterministic ordering, written with the row so the
+  /// stored order matches the order the engine produced.
+  sequence Int
+
+  createdAt DateTime @default(now())
+
+  reviewId String
+  review   CertificationReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, sequence])
+  @@index([reviewId, status])
+  @@map("certification_review_findings")
+}
+
+// ---------------------------------------------------------------------------
+// Decision Sentinel — continuous surveillance
+//
+// Two tables, deliberately. A SentinelEvent is an immutable record of "this
+// engineering object changed" — never edited, never deleted, the Sentinel's
+// own provenance. A SurveillanceTarget is the mutable (but only through
+// explicit, controlled transitions) signal that a specific analysis/review
+// domain may need reevaluation because of one.
+//
+// Neither table stores engineering content. Neither table is written to by
+// anything outside this module. Nothing here ever changes a Requirement, a
+// Decision, an Assumption, a Baseline, a readiness verdict or a
+// certification disposition — the Sentinel only ever points at them.
+//
+// `sourceType`/`targetType` are closed enums, not open strings, and
+// `sourceId`/`targetId` are always re-resolved against the real table for
+// that type before anything is created — the same "id a caller supplies is
+// never trusted" discipline the rest of this schema already follows. This is
+// the one deliberately-scoped exception to "no generic polymorphism": a
+// surveillance target must be able to point at six different assessment/
+// review domains, and expressing that as six nullable foreign key columns
+// (the `evidence_links` shape) would let a target reference a source AND a
+// target simultaneously with no natural place to also track the domain
+// object's own identifier/label for display — so a validated (type, id) pair
+// is used instead, exactly as `BaselineMember`/`DriftFinding` already do for
+// the same reason.
+// ---------------------------------------------------------------------------
+
+enum SurveillanceSourceType {
+  REQUIREMENT
+  DESIGN_ITEM
+  ENGINEERING_DECISION
+  DECISION_ASSUMPTION
+  VERIFICATION_ACTIVITY
+  SUPPLIER
+  SUPPLIED_ITEM
+  SUPPLIER_QUALIFICATION
+  OPERATIONAL_OBSERVATION
+  CHANGE_REQUEST
+  CERTIFICATION_BASIS
+  RISK
+  ISSUE
+  EVIDENCE
+}
+
+enum SurveillanceEventType {
+  ENGINEERING_OBJECT_CHANGED
+  RELATIONSHIP_CHANGED
+  SUPPLIER_STATE_CHANGED
+  OBSERVATION_RECORDED
+  DECISION_BASIS_CHANGED
+  CHANGE_REQUEST_CHANGED
+  CERTIFICATION_BASIS_CHANGED
+}
+
+enum SurveillanceTargetType {
+  IMPACT_ANALYSIS
+  ASSUMPTION_MONITORING
+  VERIFICATION_READINESS
+  TECHNICAL_READINESS
+  DRIFT_ASSESSMENT
+  CERTIFICATION_REVIEW
+}
+
+enum SurveillanceTargetStatus {
+  OPEN
+  ACKNOWLEDGED
+  SUPERSEDED
+  RESOLVED
+}
+
+/// An immutable record that one engineering object changed. `sourceRevision`
+/// is the source's own `updatedAt` (content change) or `"audit:<id>"` (a
+/// relationship change read from the audit log) — either way a stable key
+/// that makes detection idempotent, enforced by the unique constraint below.
+model SentinelEvent {
+  id               String                 @id @default(cuid())
+  eventType        SurveillanceEventType
+  sourceType       SurveillanceSourceType
+  sourceId         String
+  sourceIdentifier String?
+  sourceLabel      String
+  sourceRevision   String
+  detectedAt       DateTime               @default(now())
+  createdAt        DateTime               @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  actorId String?
+  actor   User?   @relation("SentinelEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  targets SurveillanceTarget[]
+
+  @@unique([projectId, sourceType, sourceId, sourceRevision])
+  @@index([projectId, detectedAt])
+  @@index([projectId, sourceType, sourceId])
+  @@map("sentinel_events")
+}
+
+/// One surveillance signal. At most one OPEN row may exist for a given
+/// (projectId, targetType, targetId) — enforced by a partial unique index in
+/// the migration (Prisma's schema DSL cannot express a filtered index), so
+/// concurrent detection calls cannot race into duplicates. Resolving or
+/// superseding always creates room for a new OPEN row on the same target;
+/// history is never overwritten, only appended.
+model SurveillanceTarget {
+  id                  String                   @id @default(cuid())
+  targetType          SurveillanceTargetType
+  targetId            String
+  targetIdentifier    String?
+  targetLabel         String
+  reason              String
+  status              SurveillanceTargetStatus @default(OPEN)
+  detectedAt          DateTime                 @default(now())
+  acknowledgedAt      DateTime?
+  acknowledgementNote String?
+  resolvedAt          DateTime?
+  resolutionNote      String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// The event that most recently justified this target. Restrict: an event
+  /// is never deleted on its own, only cascaded with its project, so this
+  /// reference always resolves.
+  sourceEventId String
+  sourceEvent   SentinelEvent @relation(fields: [sourceEventId], references: [id], onDelete: Restrict)
+
+  acknowledgedById String?
+  acknowledgedBy   User?   @relation("SurveillanceTargetAcknowledger", fields: [acknowledgedById], references: [id], onDelete: SetNull)
+
+  resolvedById String?
+  resolvedBy   User?   @relation("SurveillanceTargetResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  /// The newer target that superseded this one. Self-relation, mirroring
+  /// EngineeringBaseline's own supersession, so the succession is traversable.
+  supersededById String?
+  supersededBy   SurveillanceTarget?  @relation("SurveillanceTargetSuccession", fields: [supersededById], references: [id], onDelete: SetNull)
+  superseded     SurveillanceTarget[] @relation("SurveillanceTargetSuccession")
+
+  @@index([projectId, status])
+  @@index([projectId, targetType, targetId])
+  @@map("surveillance_targets")
+}

@@ -1,0 +1,292 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — raw values live as plain CSS custom properties on :root;
+ * @theme below maps them into Tailwind's `--color-*` / `--radius-*`
+ * namespaces so utilities like `bg-primary` or `rounded-md` are generated
+ * from them. Keeping the two layers separate is what makes a future dark
+ * theme (redefine the :root values under a `.dark` selector) a config-only
+ * change instead of a rewrite.
+ *
+ * Palette: a true-neutral graphite base (no slate's blue-lavender cast) with
+ * one deliberate accent — #0b3d91, the deep insignia blue used on real
+ * flight hardware and mission patches, not Tailwind's default blue-600 —
+ * plus the existing warning/success/info/destructive set, used throughout
+ * the workspace as status signal rather than decoration. Radius is tight
+ * (0.375rem) on purpose: this is an instrument surface, not a consumer app,
+ * and it reads better close to rectilinear than in the soft, heavily
+ * rounded-lg register most generated UIs default to.
+ */
+:root {
+  --background: #f6f7f8;
+  --foreground: #14181d;
+
+  --card: #ffffff;
+  --card-foreground: #14181d;
+
+  --popover: #ffffff;
+  --popover-foreground: #14181d;
+
+  --primary: #0b3d91;
+  --primary-foreground: #f6f7f8;
+
+  --secondary: #edeff2;
+  --secondary-foreground: #14181d;
+
+  --muted: #edeff2;
+  --muted-foreground: #5b6472;
+
+  --accent: #e7edfa;
+  --accent-foreground: #0b3d91;
+
+  --destructive: #b91c1c;
+  --destructive-foreground: #fef2f2;
+
+  --success: #15803d;
+  --success-foreground: #f0fdf4;
+
+  --warning: #b45309;
+  --warning-foreground: #fffbeb;
+
+  --info: #0e7490;
+  --info-foreground: #ecfeff;
+
+  --border: #dee1e6;
+  --input: #dee1e6;
+  --ring: #0b3d91;
+
+  --radius: 0.375rem;
+}
+
+/*
+ * Dark theme — was designed for from the start (see the comment above:
+ * keeping tokens on plain :root is what makes this a config-only change),
+ * but never actually written until a real screenshot of this exact page
+ * with `prefers-color-scheme: dark` came back byte-identical to light and
+ * proved it. Not a naive inversion: same true-neutral-graphite character
+ * as the light palette, same #0b3d91-family accent, brightened so it
+ * still reads at proper contrast against a dark ground rather than
+ * going muddy.
+ *
+ * Three states, per this app's own theming contract: system dark
+ * (`prefers-color-scheme`, unless explicitly overridden to light) and an
+ * explicit `data-theme="dark"` override that wins either way — the latter
+ * has no toggle UI yet to set it, but the tokens are ready the moment one
+ * exists rather than needing a second rewrite then.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #101317;
+    --foreground: #e7e9ec;
+
+    --card: #171b21;
+    --card-foreground: #e7e9ec;
+
+    --popover: #171b21;
+    --popover-foreground: #e7e9ec;
+
+    --primary: #3d6fd6;
+    --primary-foreground: #f6f7f8;
+
+    --secondary: #20252c;
+    --secondary-foreground: #e7e9ec;
+
+    --muted: #20252c;
+    --muted-foreground: #8b95a3;
+
+    --accent: #1b2740;
+    --accent-foreground: #85aaf2;
+
+    --destructive: #ef4444;
+    --destructive-foreground: #1a0d0d;
+
+    --success: #22c55e;
+    --success-foreground: #08150c;
+
+    --warning: #f0a020;
+    --warning-foreground: #1c1206;
+
+    --info: #22b8cf;
+    --info-foreground: #06181b;
+
+    --border: #2a2f38;
+    --input: #2a2f38;
+    --ring: #3d6fd6;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #101317;
+  --foreground: #e7e9ec;
+
+  --card: #171b21;
+  --card-foreground: #e7e9ec;
+
+  --popover: #171b21;
+  --popover-foreground: #e7e9ec;
+
+  --primary: #3d6fd6;
+  --primary-foreground: #f6f7f8;
+
+  --secondary: #20252c;
+  --secondary-foreground: #e7e9ec;
+
+  --muted: #20252c;
+  --muted-foreground: #8b95a3;
+
+  --accent: #1b2740;
+  --accent-foreground: #85aaf2;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #1a0d0d;
+
+  --success: #22c55e;
+  --success-foreground: #08150c;
+
+  --warning: #f0a020;
+  --warning-foreground: #1c1206;
+
+  --info: #22b8cf;
+  --info-foreground: #06181b;
+
+  --border: #2a2f38;
+  --input: #2a2f38;
+  --ring: #3d6fd6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /*
+   * System font stacks only — no remote font fetch, so `next build` never
+   * depends on network access to a font CDN. `--font-mono` is used
+   * throughout for identifiers, serials, hashes, and revision codes.
+   */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  /*
+   * `overflow-x: hidden` on `html` — confirmed to be the actual
+   * `document.scrollingElement` in this app (`body` alone does not
+   * suppress the real, user-visible scrollbar; tried that first, it
+   * didn't work, this does). The workspace sidebar (see Sidebar in
+   * (workspace)/_components/sidebar.tsx) reads its collapsed-on-mobile
+   * state from `useSyncExternalStore`, whose `getServerSnapshot`
+   * deliberately always returns "not narrow" — the only way to avoid the
+   * server and the first client render disagreeing, since the server has
+   * no viewport to read. That's the right tradeoff for correctness, but
+   * it means a mobile load briefly paints the full 240px expanded
+   * sidebar before React resyncs to the real value a couple hundred
+   * milliseconds later — measured as a real, reproducible ~100px
+   * overflow at 390px that resolves on its own by ~600ms, not assumed.
+   * This doesn't fix that gap (a CSS-only initial state would mean
+   * re-deriving the sidebar's per-item label visibility outside React, a
+   * much larger change for a sub-second flash) — it stops the flash from
+   * ever being visible or scrollable-to. `overflow: hidden` disables a
+   * scrollbar and user-driven scrolling (wheel/touch/keyboard) but does
+   * not change what `scrollWidth` reports or what `scrollTo` can still
+   * do programmatically — verified directly, not assumed — so this
+   * doesn't quietly break `document.documentElement.scrollWidth` as a
+   * real-overflow check elsewhere in the app.
+   */
+  html {
+    overflow-x: hidden;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  /*
+   * A visible keyboard-focus indicator on every link, by default. Every
+   * interactive primitive in src/components/ui already carries its own
+   * `focus-visible:ring-*` utility classes (which win here — utility
+   * classes sit in a later cascade layer than this `base` rule) — this is
+   * the backstop for the many bare `<Link>` usages throughout the app
+   * (table rows, traceability panels, breadcrumbs) that render a real
+   * anchor tag without going through a styled primitive. Never applies on
+   * mouse/touch interaction, only real keyboard focus.
+   */
+  a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+.marketing-theme {
+  --background: #f5f3ec;
+  --foreground: #334139;
+  --card: #fbfaf6;
+  --card-foreground: #334139;
+  --popover: #fbfaf6;
+  --popover-foreground: #334139;
+  --primary: #536b58;
+  --primary-foreground: #fffdf8;
+  --secondary: #e9e9df;
+  --secondary-foreground: #334139;
+  --muted: #eeede6;
+  --muted-foreground: #747d72;
+  --accent: #e5e9dd;
+  --accent-foreground: #425a47;
+  --destructive: #a44f43;
+  --destructive-foreground: #fff8f4;
+  --success: #55705c;
+  --success-foreground: #f6f8f2;
+  --warning: #986a3f;
+  --warning-foreground: #fff9f0;
+  --info: #5d7880;
+  --info-foreground: #f5faf9;
+  --border: #ddd9cd;
+  --input: #d7d4ca;
+  --ring: #71816d;
+  color-scheme: light;
+}
