@@ -11,6 +11,10 @@ Gamification is what keeps it simple: XP, levels, per-stage quests, a product he
 
 ---
 
+## CI scope and release status
+
+GitHub CI runs the root `apps/*` / `packages/*` Solution Velocity workspace: typechecks, unit tests, production build, Kysely migrations against disposable PostgreSQL 17, Docker image health, and the named API/browser regression smokes. There is currently no root `lint` script. The separate Next/Prisma source tree present on `main` is not built or tested by this workflow; its dependencies and npm scripts are not defined by the current root manifest and require an independent ownership/CI decision. CI success is not live CADit, founder-security, backup, or production rollout approval; see `docs/cadit-design-studio.md`.
+
 ## Stack
 
 | Layer    | Choice                                                                                |

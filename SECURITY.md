@@ -1,5 +1,11 @@
 # Security Notes
 
+## Founder prototype and CADit release gates
+
+The upstream `/api/founders-console` prototype returns sample records and simulated outcomes and lacks a founder-specific authorization boundary. It is unmounted and its namespace is denied for all methods before ordinary session loading; the prototype UI is unavailable. The separate experimental founder flows remain local/test-only and their production security review remains blocked. No founder-management rollout is implied by CI.
+
+The CADit iframe validates both the exact origin and the iframe window before accepting messages; it sends no partner credentials. Its live permissions, hosting headers and export remain unverified; see `docs/cadit-design-studio.md`. The separate upstream NVIDIA vision service accepts image URLs, falls back from the NVIDIA key to the generic AI key, and logs/returns upstream error text. Its credential routing, data disclosure and error handling require review before production use; the TypeScript fix alone is not security approval.
+
 ## Authentication and authorization
 
 - Passwords use the hashing implementation in `apps/server/src/auth/crypto.ts`; credentials are never stored in plaintext.
