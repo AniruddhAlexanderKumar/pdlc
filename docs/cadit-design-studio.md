@@ -1,0 +1,15 @@
+# CADit Design Studio integration
+
+The existing authenticated `/designs` navigation opens the external CADit editor, using the [official embedding example](https://github.com/cookiecad/cadit-embed-example). The existing experimental sketches and conceptual diagrams remain available at `/designs/sketches` and `/designs/diagrams`. The temporary demo does not expose the editor. No CAD engine, partner authentication, database changes or project-file storage are added here.
+
+The iframe receives an `init` message only after `ready`; incoming messages must match both the exact CADit origin and the current iframe window. STL export can be initiated either inside CADit or with the host request button. A received nonempty Blob is offered as a browser download, not stored on the server. The status confirms receipt, not that the operating system saved a file. Files are not validated as engineering-ready STL models. The page warns before leaving once the editor is ready, but cannot detect the editor's actual unsaved state.
+
+The iframe is a third-party service: CADit receives the browser request, including network metadata, and any information a user enters into CADit is governed by CADit's practices. Solution Velocity does not send its session, project details, or partner token in this integration. A CADit account or other permissions may be required for CADit features; this integration does not authenticate the user to CADit. Work is not linked to any Solution Velocity project or persisted by Solution Velocity. Export an STL and use CADit's own saving options where available before leaving.
+
+## Deployment and external requirements
+
+CADit's README states that **all hosting origins must be registered in CADit's allowlist**: production, staging, preview, local development and custom domains. Contact CADit through its website or the example repository to arrange this. Registration has not been verified for any Solution Velocity domain or the Arena preview. The example also documents public key and issuer requirements for optional partner authentication, which is deliberately not implemented here. The Express CSP permits framing `https://app.cadit.app` while retaining the app's existing `frame-ancestors 'none'`; any separate CDN or hosting CSP must also permit that exact `frame-src`. CADit's own framing policy and availability remain outside our control. A loaded iframe alone is not evidence of a working integration; the UI waits for CADit's `ready`, and displays a timeout if it never arrives. A late valid `ready` can recover the session.
+
+## Verification
+
+Run `npm run typecheck`, `npm test`, `npm run build`, and the synthetic browser smoke in `apps/web/scripts/cadit-browser-smoke.mjs`. The smoke intercepts the CADit URL with a controlled fixture and tests real cross-origin `postMessage`, origin/source rejection, init, export/download, bad payload handling, timeout, navigation warning and responsive layout. It does **not** establish real CADit connectivity or prove domain registration. Test real connectivity only after CADit approves the hosting origin; do not include production credentials in testing.

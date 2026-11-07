@@ -26,17 +26,17 @@ try{
   else {status=404;body={error:'Unavailable in fixture'};}
   await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
  });
- await page.goto('http://localhost:5173/designs');const consent=page.getByRole('button',{name:'Essential only'});if(await consent.isVisible())await consent.click();await page.getByRole('heading',{name:'Design Studio'}).waitFor();await page.getByText('The experimental sketch workspace is disabled on this deployment.').waitFor();assert.equal(await page.getByRole('button',{name:'Create XY sketch'}).count(),0);
- await page.getByRole('link',{name:'Previous diagrams'}).first().click();await page.getByRole('link',{name:'Preserved fixture diagram'}).waitFor();assert.equal(await page.getByRole('button',{name:'Create diagram'}).count(),0);await page.getByRole('link',{name:'← Design Studio'}).click();
+ await page.goto('http://localhost:5173/designs/sketches');const consent=page.getByRole('button',{name:'Essential only'});if(await consent.isVisible())await consent.click();await page.getByRole('heading',{name:'Design Studio'}).waitFor();await page.getByText('The experimental sketch workspace is disabled on this deployment.').waitFor();assert.equal(await page.getByRole('button',{name:'Create XY sketch'}).count(),0);
+ await page.getByRole('link',{name:'Previous diagrams'}).first().click();await page.getByRole('link',{name:'Preserved fixture diagram'}).waitFor();assert.equal(await page.getByRole('button',{name:'Create diagram'}).count(),0);await page.getByRole('link',{name:'← Design Studio'}).click();await page.getByRole('link',{name:'Experimental sketches'}).click();
  enabled=true;await page.reload();await page.getByLabel('New sketch name').fill('A draft name');await page.getByRole('button',{name:'Create XY sketch'}).waitFor();await page.waitForTimeout(250);
- await Promise.all([page.waitForEvent('dialog').then(dialog=>dialog.dismiss()),page.getByRole('link',{name:'Open projects'}).click()]);assert.equal(new URL(page.url()).pathname,'/designs');
+ await Promise.all([page.waitForEvent('dialog').then(dialog=>dialog.dismiss()),page.getByRole('link',{name:'Open projects'}).click()]);assert.equal(new URL(page.url()).pathname,'/designs/sketches');
  failCreate=true;await page.getByRole('button',{name:'Create XY sketch'}).click();await page.getByRole('alert').getByText(/Could not confirm sketch creation/).waitFor();assert.equal(await page.getByLabel('New sketch name').inputValue(),'A draft name');
  failCreate=false;holdCreate=true;await page.getByRole('button',{name:'Create XY sketch'}).click();await page.getByRole('button',{name:'Create XY sketch'}).waitFor();
  assert.equal(await page.evaluate(()=>window.dispatchEvent(new Event('sv:before-session-change',{cancelable:true}))),false);
- await page.getByRole('link',{name:'Open projects'}).click();assert.equal(new URL(page.url()).pathname,'/designs');holdCreate=false;releaseCreate();
+ await page.getByRole('link',{name:'Open projects'}).click();assert.equal(new URL(page.url()).pathname,'/designs/sketches');holdCreate=false;releaseCreate();
  await page.waitForURL(`http://localhost:5173/designs/cad/${id}`,{timeout:5000}).catch(async e=>{console.error('Navigation failure:',page.url(),(await page.locator('body').innerText()).slice(0,2500),errors);throw e});await page.getByLabel('XY sketch canvas').waitFor();await page.getByRole('button',{name:'Rectangle',exact:true}).waitFor();
  await page.getByRole('link',{name:'Back to documents'}).click();await page.getByRole('heading',{name:'New fixture sketch'}).waitFor();
- await page.goto('http://localhost:5173/designs');await page.getByRole('link',{name:/New fixture sketch/}).waitFor();await page.getByLabel('Search loaded sketches').fill('not in list');await page.getByText('No loaded sketches match this search.').waitFor();
+ await page.goto('http://localhost:5173/designs/sketches');await page.getByRole('link',{name:/New fixture sketch/}).waitFor();await page.getByLabel('Search loaded sketches').fill('not in list');await page.getByText('No loaded sketches match this search.').waitFor();
  for(const width of [390,768,1440]){await page.setViewportSize({width,height:900});const size=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));assert(size.scroll<=size.width,JSON.stringify(size));}
  assert.deepEqual(errors,[]);console.log('PASS studio gate, preserved diagrams, create guards, enabled sketch entry, search and responsive layout');
 }finally{await browser.close();}

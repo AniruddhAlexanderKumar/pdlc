@@ -48,6 +48,7 @@ export function createApp() {
           styleSrc: ["'self'", "'unsafe-inline'"],
           fontSrc: ["'self'"],
           connectSrc: ["'self'"],
+          frameSrc: ["'self'", 'https://app.cadit.app'],
           frameAncestors: ["'none'"],
           upgradeInsecureRequests: config.secureCookies ? [] : null
         }
