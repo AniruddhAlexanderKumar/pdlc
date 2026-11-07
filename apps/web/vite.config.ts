@@ -27,6 +27,9 @@ function accessPageMetadata(): Plugin {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), accessPageMetadata()],
+  // Keep this Vite/Tailwind application independent of the separate root
+  // PostCSS config used by the legacy application in the repository.
+  css: { postcss: { plugins: [] } },
   server: {
     port: 5173,
     host: '0.0.0.0',
