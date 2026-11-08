@@ -72,22 +72,33 @@ async function run() {
   assert.equal(fetchedCad.data.revisions[0].revision, 1);
 
   // 6. Save a revision 2
+  const testStlTextRev2 = 'solid test2\n  facet normal 0 0 0\n    outer loop\n      vertex 0 0 0\n      vertex 2 0 0\n      vertex 2 2 0\n    endloop\n  endfacet\nendsolid test2\n';
+  const testBase64Rev2 = Buffer.from(testStlTextRev2).toString('base64');
+
   const saveRev2 = await call(cookie, 'POST', `/products/${productId}/cad-model`, {
     filename: 'drone_casing_v2.stl',
-    stlBase64: testBase64,
+    stlBase64: testBase64Rev2,
     summary: 'Added mounting screw holes'
   });
   assert.equal(saveRev2.status, 201);
   assert.equal(saveRev2.data.model.headRevision, 2);
 
-  // 7. GET /products/:id/cad-model/download streams STL binary
+  // 7. GET /products/:id/cad-model/download streams STL binary (default head revision)
   const dl = await fetch(`${base}/api/products/${productId}/cad-model/download`, {
     headers: { origin: 'http://localhost:5173', cookie }
   });
   assert.equal(dl.status, 200);
   assert.equal(dl.headers.get('content-type'), 'model/stl');
   const downloadedText = await dl.text();
-  assert.equal(downloadedText, testStlText);
+  assert.equal(downloadedText, testStlTextRev2);
+
+  // 8. GET /products/:id/cad-model/download?revision=1 streams revision 1 binary
+  const dlRev1 = await fetch(`${base}/api/products/${productId}/cad-model/download?revision=1`, {
+    headers: { origin: 'http://localhost:5173', cookie }
+  });
+  assert.equal(dlRev1.status, 200);
+  const downloadedTextRev1 = await dlRev1.text();
+  assert.equal(downloadedTextRev1, testStlText);
 
   console.log('PASS: Product CAD model API (create, revisions, download, and tenant isolation)');
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -7,22 +7,26 @@ import {
   CheckCircle,
   Clock,
   Coins,
-  Cpu,
   Download,
+  Eye,
   FileCode,
+  FileUp,
   History,
   Layers,
   Maximize2,
+  Plus,
   Printer,
   Scale,
   Sparkles,
+  UploadCloud,
   Wrench
 } from 'lucide-react';
 import type { Product, ProductCadModel } from '@sv/shared';
 import { CaditEditor } from '../../cad/CaditEditor';
+import { StlViewer } from '../../cad/StlViewer';
 import { Button, Card, CardHeader, cx } from '../../components/ui';
 import { useToast } from '../../components/Toast';
-import { get, post } from '../../api/client';
+import { get, post, put } from '../../api/client';
 import { useMoney } from '../../lib/money';
 
 interface CadTabProps {
@@ -58,6 +62,7 @@ export function CadTab({ product }: CadTabProps) {
   const queryClient = useQueryClient();
   const { fmt } = useMoney();
   const [searchParams, setSearchParams] = useSearchParams();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mode check: ?mode=studio launches the edge-to-edge dedicated 3D CAD studio
   const isStudio = searchParams.get('mode') === 'studio';
@@ -65,6 +70,7 @@ export function CadTab({ product }: CadTabProps) {
   // 3D Printing material estimator states
   const [materialType, setMaterialType] = useState<'pla' | 'petg' | 'abs' | 'resin'>('pla');
   const [infillDensity, setInfillDensity] = useState<number>(20);
+  const [activePreviewRevision, setActivePreviewRevision] = useState<number | null>(null);
 
   // 1. Fetch persistent 3D model metadata from database
   const cadQuery = useQuery<CadApiResponse>({
@@ -75,17 +81,18 @@ export function CadTab({ product }: CadTabProps) {
 
   // 2. Mutation to persist exported STL to database
   const saveMutation = useMutation({
-    mutationFn: async ({ filename, blob }: { filename: string; blob: Blob }) => {
+    mutationFn: async ({ filename, blob, summary }: { filename: string; blob: Blob; summary?: string }) => {
       const stlBase64 = await blobToBase64(blob);
       return post<{ model: ProductCadModel }>(`/products/${product.id}/cad-model`, {
         filename,
         stlBase64,
-        summary: `Exported from CADit Studio (${(blob.size / 1024).toFixed(0)} KB)`
+        summary: summary || `Exported from CADit Studio (${(blob.size / 1024).toFixed(0)} KB)`
       });
     },
     onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: ['product-cad', product.id] });
       void queryClient.invalidateQueries({ queryKey: ['products'] });
+      setActivePreviewRevision(null);
       toast.success(`Saved revision ${data.model.headRevision} of “${data.model.filename}” to ${product.name}`);
     },
     onError: (err: any) => {
@@ -93,8 +100,51 @@ export function CadTab({ product }: CadTabProps) {
     }
   });
 
+  // 3. Mutation to add estimated filament to product Bill of Materials (BOM)
+  const addBomMutation = useMutation({
+    mutationFn: async ({ name, costPerKg, grams }: { name: string; costPerKg: number; grams: number }) => {
+      const catalog = await get<Array<{ id: string; name: string }>>('/materials');
+      let matId = catalog.find((m) => m.name.toLowerCase() === name.toLowerCase())?.id;
+      if (!matId) {
+        const created = await post<{ id: string }>('/materials', {
+          name,
+          category: '3D Printing',
+          unit: 'kg',
+          unitPrice: costPerKg,
+          description: 'Automated entry generated from 3D CAD physical model estimator.'
+        });
+        matId = created.id;
+      }
+      const qtyKg = Math.max(0.01, Number((grams / 1000).toFixed(3)));
+      await put(`/products/${product.id}/materials/${matId}`, { quantity: qtyKg });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['products'] });
+      void queryClient.invalidateQueries({ queryKey: ['product', product.id] });
+      toast.success(`Added 3D Print Filament to ${product.name} Bill of Materials`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to add filament to BOM');
+    }
+  });
+
   const handleExportStl = async (blob: Blob, filename: string) => {
     await saveMutation.mutateAsync({ filename, blob });
+  };
+
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.stl')) {
+      toast.error('Currently only .stl files are supported for direct 3D mesh import.');
+      return;
+    }
+    await saveMutation.mutateAsync({
+      filename: file.name,
+      blob: file,
+      summary: `Direct upload: ${file.name} (${(file.size / 1024).toFixed(0)} KB)`
+    });
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const model = cadQuery.data?.model;
@@ -127,21 +177,34 @@ export function CadTab({ product }: CadTabProps) {
     );
   }
 
-  // Otherwise, render the Product 3D CAD Hub
+  const currentPreviewRev = activePreviewRevision ?? model?.headRevision;
+  const previewDownloadUrl = model
+    ? `/api/products/${product.id}/cad-model/download?revision=${currentPreviewRev}`
+    : null;
+
   return (
     <div className="space-y-6">
+      {/* Hidden file input for direct STL upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".stl"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+
       {/* 3D CAD Hero Banner & Studio Launch Callout */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-blue-50/60 via-white to-slate-50/80 p-6 shadow-sm dark:border-zinc-800 dark:from-zinc-900/80 dark:via-zinc-900 dark:to-zinc-900/50">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-400">
               <Box className="h-3 w-3" />
-              Dedicated 3D CAD Studio
+              CAD &amp; Physical Modeling
             </span>
             {model && (
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                 <CheckCircle className="h-3 w-3" />
-                Revision {model.headRevision} Saved
+                Revision {model.headRevision} Active
               </span>
             )}
           </div>
@@ -150,7 +213,7 @@ export function CadTab({ product }: CadTabProps) {
             3D Physical Modeling &amp; Enclosures
           </h2>
           <p className="mt-1.5 text-sm text-slate-600 dark:text-zinc-400">
-            For distraction-free 3D modeling, launch the full-screen CAD studio. You get 100% of your monitor real estate for sketching, revolving, extruding, and orbiting parts without page scrolling interference.
+            Design parts with the integrated full-screen CAD studio, or upload existing 3D models (.STL). Track versioned binary revisions and calculate prototyping costs linked to your Bill of Materials.
           </p>
         </div>
 
@@ -167,167 +230,289 @@ export function CadTab({ product }: CadTabProps) {
 
           <Button
             size="md"
+            variant="secondary"
+            onClick={() => fileInputRef.current?.click()}
+            icon={<FileUp className="h-4 w-4" />}
+            className="text-xs font-medium"
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending ? 'Uploading…' : 'Upload STL'}
+          </Button>
+
+          <Button
+            size="md"
             variant="primary"
             onClick={() => setSearchParams({ mode: 'studio' })}
             icon={<Maximize2 className="h-4 w-4" />}
             className="shadow-md font-semibold text-sm px-5 py-2.5"
           >
-            Launch Full-Screen 3D Studio <ArrowRight className="h-4 w-4 ml-1" />
+            Launch 3D Studio <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
       </div>
 
-      {/* Interactive Quick Launch Card */}
-      <div
-        onClick={() => setSearchParams({ mode: 'studio' })}
-        className="group relative flex h-72 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-900 text-center transition-all hover:border-blue-500 hover:shadow-lg dark:border-zinc-700"
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:24px_24px] opacity-25 group-hover:opacity-40 transition-opacity" />
-        <div className="relative z-10 flex flex-col items-center gap-3 p-6 text-white">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-500/40 transition-transform group-hover:scale-110">
-            <Box className="h-7 w-7 text-white" />
+      {/* 3D Viewport / Interactive Preview */}
+      {model && previewDownloadUrl ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+                {model.filename}
+              </h3>
+              {currentPreviewRev !== model.headRevision && (
+                <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                  Viewing Revision {currentPreviewRev}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {currentPreviewRev !== model.headRevision && (
+                <button
+                  type="button"
+                  onClick={() => setActivePreviewRevision(null)}
+                  className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  Back to Latest (Rev {model.headRevision})
+                </button>
+              )}
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setSearchParams({ mode: 'studio' })}
+                icon={<Maximize2 className="h-3.5 w-3.5" />}
+              >
+                Expand Studio
+              </Button>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-bold">
-              {model ? `Open ${model.filename} in Full-Screen Studio` : `Open 3D CAD Studio for ${product.name}`}
-            </h3>
-            <p className="mt-1 text-xs text-slate-300">
-              Click anywhere to expand the CADit 3D viewport into 100% full-screen mode.
-            </p>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1 text-xs font-medium text-white backdrop-blur-sm transition-colors group-hover:bg-blue-600">
-            <Maximize2 className="h-3.5 w-3.5" />
-            Launch Studio (Full Viewport)
-          </span>
+
+          <StlViewer url={previewDownloadUrl} height={380} autoRotate={true} />
         </div>
-      </div>
+      ) : (
+        /* Empty State Callout when no 3D model is saved yet */
+        <div className="group relative flex h-72 w-full flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-900 text-center transition-all hover:border-blue-500 hover:shadow-lg dark:border-zinc-700">
+          <div className="absolute inset-0 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:24px_24px] opacity-25 group-hover:opacity-40 transition-opacity" />
+          <div className="relative z-10 flex flex-col items-center gap-3 p-6 text-white">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-500/40 transition-transform group-hover:scale-110">
+              <Box className="h-7 w-7 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold">
+                No 3D Model Attached to {product.name}
+              </h3>
+              <p className="mt-1 text-xs text-slate-300 max-w-md">
+                Launch the dedicated 3D CAD studio to model parts, or upload an existing STL artifact from your computer.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 mt-2">
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setSearchParams({ mode: 'studio' })}
+                icon={<Maximize2 className="h-3.5 w-3.5" />}
+                className="font-medium"
+              >
+                Launch 3D CAD Studio
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                icon={<FileUp className="h-3.5 w-3.5" />}
+                className="font-medium bg-white/10 hover:bg-white/20 text-white border-white/20"
+              >
+                Upload STL File
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Estimator and Revision History */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Rapid Prototyping / 3D Printing Cost Estimator */}
-        <Card className="p-5">
-          <CardHeader
-            title="3D Print Cost Estimator"
-            subtitle="Calculates material consumption and prototyping costs"
-            icon={<Printer className="h-4 w-4 text-blue-600" />}
-          />
-          <div className="mt-4 space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <label className="font-medium text-slate-700 dark:text-zinc-300">Material Type</label>
-                <select
-                  value={materialType}
-                  onChange={(e) => setMaterialType(e.target.value as any)}
-                  className="mt-1.5 w-full rounded-md border border-slate-300 bg-white p-2 text-slate-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
-                >
-                  {Object.entries(materialsConfig).map(([key, item]) => (
-                    <option key={key} value={key}>
-                      {item.label} (${item.costPerKg}/kg)
-                    </option>
-                  ))}
-                </select>
+        <Card className="p-5 flex flex-col justify-between">
+          <div>
+            <CardHeader
+              title="3D Print Cost Estimator"
+              subtitle="Calculates material consumption and prototyping costs"
+              icon={<Printer className="h-4 w-4 text-blue-600" />}
+            />
+            <div className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="font-medium text-slate-700 dark:text-zinc-300">Material Type</label>
+                  <select
+                    value={materialType}
+                    onChange={(e) => setMaterialType(e.target.value as any)}
+                    className="mt-1.5 w-full rounded-md border border-slate-300 bg-white p-2 text-slate-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                  >
+                    {Object.entries(materialsConfig).map(([key, item]) => (
+                      <option key={key} value={key}>
+                        {item.label} (${item.costPerKg}/kg)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-medium text-slate-700 dark:text-zinc-300">
+                    Infill Density: {infillDensity}%
+                  </label>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    step="5"
+                    value={infillDensity}
+                    onChange={(e) => setInfillDensity(Number(e.target.value))}
+                    className="mt-3 w-full"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="font-medium text-slate-700 dark:text-zinc-300">
-                  Infill Density: {infillDensity}%
-                </label>
-                <input
-                  type="range"
-                  min="10"
-                  max="100"
-                  step="5"
-                  value={infillDensity}
-                  onChange={(e) => setInfillDensity(Number(e.target.value))}
-                  className="mt-3 w-full"
-                />
+              <div className="grid grid-cols-3 gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3 text-center dark:border-zinc-800 dark:bg-zinc-800/50">
+                <div>
+                  <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-zinc-400">
+                    <Scale className="h-3 w-3" /> Mass
+                  </div>
+                  <div className="mt-1 text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                    ~{estimatedGrams}g
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-zinc-400">
+                    <Coins className="h-3 w-3" /> Filament Cost
+                  </div>
+                  <div className="mt-1 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    ~${estimatedCost.toFixed(2)}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-zinc-400">
+                    <Clock className="h-3 w-3" /> Print Time
+                  </div>
+                  <div className="mt-1 text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                    ~{estimatedHours}h
+                  </div>
+                </div>
               </div>
+
+              <p className="text-[11px] text-slate-500 dark:text-zinc-500">
+                *Estimates are calculated using standard FDM deposition parameters (0.2mm layer height, 2 walls) and mesh density.
+              </p>
             </div>
+          </div>
 
-            <div className="grid grid-cols-3 gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3 text-center dark:border-zinc-800 dark:bg-zinc-800/50">
-              <div>
-                <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-zinc-400">
-                  <Scale className="h-3 w-3" /> Mass
-                </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
-                  ~{estimatedGrams}g
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-zinc-400">
-                  <Coins className="h-3 w-3" /> Filament Cost
-                </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                  ~${estimatedCost.toFixed(2)}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-zinc-400">
-                  <Clock className="h-3 w-3" /> Print Time
-                </div>
-                <div className="mt-1 text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
-                  ~{estimatedHours}h
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500 dark:text-zinc-500">
-              *Estimates are calculated using standard FDM deposition parameters (0.2mm layer height, 2 walls) and mesh density.
-            </p>
+          <div className="mt-5 border-t border-slate-100 pt-4 dark:border-zinc-800">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() =>
+                addBomMutation.mutate({
+                  name: `3D Print Filament (${materialsConfig[materialType].label})`,
+                  costPerKg: materialsConfig[materialType].costPerKg,
+                  grams: estimatedGrams
+                })
+              }
+              loading={addBomMutation.isPending}
+              icon={<Plus className="h-3.5 w-3.5" />}
+              className="w-full font-medium"
+            >
+              Add Filament to Product BOM (~{estimatedGrams}g · ${estimatedCost.toFixed(2)})
+            </Button>
           </div>
         </Card>
 
         {/* Database Revision History Card */}
-        <Card className="p-5">
-          <CardHeader
-            title="CAD Revisions &amp; Artifacts"
-            subtitle="Database-persisted versions accessible by the team"
-            icon={<History className="h-4 w-4 text-purple-600" />}
-          />
-          <div className="mt-4">
-            {cadQuery.isLoading ? (
-              <p className="text-xs text-slate-400">Loading CAD revisions…</p>
-            ) : revisions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <FileCode className="h-8 w-8 text-slate-300 dark:text-zinc-700" />
-                <p className="mt-2 text-xs font-medium text-slate-600 dark:text-zinc-400">
-                  No 3D models saved yet.
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  Launch the 3D Studio and click <strong>“Export &amp; Save STL”</strong> to save revision 1.
-                </p>
-              </div>
-            ) : (
-              <ul className="divide-y divide-slate-100 text-xs dark:divide-zinc-800">
-                {revisions.map((rev) => (
-                  <li key={rev.revision} className="flex items-center justify-between py-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 font-mono text-[10px] font-bold text-slate-700 dark:bg-zinc-800 dark:text-zinc-300">
-                        {rev.revision}
-                      </span>
-                      <div>
-                        <p className="font-medium text-slate-800 dark:text-zinc-200">
-                          {rev.summary || `Revision ${rev.revision}`}
-                        </p>
-                        <p className="text-[10px] text-slate-400">
-                          {(rev.byteSize / 1024).toFixed(1)} KB · {new Date(rev.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
+        <Card className="p-5 flex flex-col justify-between">
+          <div>
+            <CardHeader
+              title="CAD Revisions &amp; Artifacts"
+              subtitle="Database-persisted versions accessible by the team"
+              icon={<History className="h-4 w-4 text-purple-600" />}
+            />
+            <div className="mt-4">
+              {cadQuery.isLoading ? (
+                <p className="text-xs text-slate-400">Loading CAD revisions…</p>
+              ) : revisions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <FileCode className="h-8 w-8 text-slate-300 dark:text-zinc-700" />
+                  <p className="mt-2 text-xs font-medium text-slate-600 dark:text-zinc-400">
+                    No 3D models saved yet.
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    Launch the 3D Studio and click <strong>“Export &amp; Save STL”</strong> or upload a file.
+                  </p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-slate-100 text-xs dark:divide-zinc-800">
+                  {revisions.map((rev) => {
+                    const isSelected = (activePreviewRevision ?? model?.headRevision) === rev.revision;
+                    return (
+                      <li key={rev.revision} className="flex items-center justify-between py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cx(
+                              'flex h-5 w-5 items-center justify-center rounded-full font-mono text-[10px] font-bold',
+                              isSelected
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300'
+                            )}
+                          >
+                            {rev.revision}
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-slate-800 dark:text-zinc-200">
+                                {rev.summary || `Revision ${rev.revision}`}
+                              </p>
+                              {rev.revision === model?.headRevision && (
+                                <span className="rounded bg-emerald-100 px-1.5 py-0.2 text-[9px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                  HEAD
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400">
+                              {(rev.byteSize / 1024).toFixed(1)} KB · {new Date(rev.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
 
-                    <a
-                      href={`/api/products/${product.id}/cad-model/download`}
-                      className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                    >
-                      <Download className="h-3 w-3" />
-                      STL
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActivePreviewRevision(rev.revision)}
+                            className={cx(
+                              'inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium transition-colors',
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                                : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                            )}
+                            title="Preview this 3D revision in the viewport"
+                          >
+                            <Eye className="h-3 w-3" />
+                            Preview
+                          </button>
+
+                          <a
+                            href={`/api/products/${product.id}/cad-model/download?revision=${rev.revision}`}
+                            className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            title={`Download revision ${rev.revision} STL binary`}
+                          >
+                            <Download className="h-3 w-3" />
+                            STL
+                          </a>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
         </Card>
       </div>

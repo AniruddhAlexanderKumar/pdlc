@@ -558,14 +558,17 @@ productsRouter.get(
 
     if (!model) throw notFound('3D CAD model');
 
+    const rawRev = req.query.revision ? parseInt(String(req.query.revision), 10) : model.head_revision;
+    const targetRev = Number.isFinite(rawRev) && rawRev > 0 ? rawRev : model.head_revision;
+
     const rev = await db
       .selectFrom('product_cad_revisions')
       .selectAll()
       .where('model_id', '=', model.id)
-      .where('revision', '=', model.head_revision)
+      .where('revision', '=', targetRev)
       .executeTakeFirst();
 
-    if (!rev) throw notFound('3D CAD model revision');
+    if (!rev) throw notFound(`3D CAD model revision ${targetRev}`);
 
     res.set({
       'Content-Type': 'model/stl',

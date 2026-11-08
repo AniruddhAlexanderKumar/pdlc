@@ -83,7 +83,7 @@ Artifacts are generally workspace-scoped. Project keys are unique per workspace;
 4. **Manage team/catalog:** Settings or catalog pages → workspace-scoped API routes → Kysely transactions where linked data must remain consistent.
 5. **Request access:** Public page → rate-limited validated POST → PostgreSQL → admin-only list/status/note endpoints → manual provisioning/contact (approval does not create an account).
 6. **Create project issues:** Authenticated workspace member opens Projects → workspace owner/admin creates a project → workspace member creates, searches, paginates, assigns, and updates issue fields/status. This is separate from PDLC products and their checklist tasks.
-7. **Design 3D CAD models:** Authenticated workspace member opens Product → 3D CAD tab → launches full-viewport CADit 3D Studio → designs part / enclosure → exports STL binary snapshot saved with revision history to `product_cad_models` / `product_cad_revisions` → downloads STL artifact.
+7. **Design 3D CAD models:** Authenticated workspace member opens Product → 3D CAD tab → launches full-viewport CADit 3D Studio or uploads an existing STL artifact → inspects 3D mesh in interactive WebGL viewer → estimates prototyping costs and adds filament to Bill of Materials → downloads versioned STL snapshots.
 
 ## Jira expansion constraint
 
