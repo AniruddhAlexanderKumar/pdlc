@@ -32,6 +32,7 @@ import * as m028 from './migrations/028_founder_auth_foundation.js';
 import * as m029 from './migrations/029_founder_rate_limits.js';
 import * as m030 from './migrations/030_founder_audit_validation.js';
 import * as m031 from './migrations/031_founder_customer_audit.js';
+import * as m032 from './migrations/032_product_cad_models.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -69,7 +70,8 @@ const migrations: Record<string, Migration> = {
   '028_founder_auth_foundation': m028,
   '029_founder_rate_limits': m029,
   '030_founder_audit_validation': m030,
-  '031_founder_customer_audit': m031
+  '031_founder_customer_audit': m031,
+  '032_product_cad_models': m032
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

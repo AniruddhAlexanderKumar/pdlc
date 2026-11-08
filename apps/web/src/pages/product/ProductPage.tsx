@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Check, ClipboardList, Edit3, Lightbulb, MessageCircleQuestion, Package, Receipt, Trash2, Wrench } from 'lucide-react';
+import { ArrowLeft, Box, Check, ClipboardList, Edit3, Lightbulb, MessageCircleQuestion, Package, Receipt, Trash2, Wrench } from 'lucide-react';
 import { isAnswered, questionsForStage, stageIndex, STAGES, type Product, type StageId } from '@sv/shared';
 import { useDeleteProduct, useUpdateProduct, useWorkspaceData } from '../../api/hooks';
 import { productMetrics, ProductThumb, useMaterialsMap } from '../../components/ProductBits';
@@ -13,6 +13,7 @@ import { ImproveTab } from './ImproveTab';
 import { MaterialsTab } from './MaterialsTab';
 import { OverviewTab } from './OverviewTab';
 import { TasksTab } from './TasksTab';
+import { CadTab } from './CadTab';
 
 export const TABS = [
   { id: 'overview', label: 'Overview', icon: Package },
@@ -20,7 +21,8 @@ export const TABS = [
   { id: 'materials', label: 'Materials', icon: Wrench },
   { id: 'costs', label: 'Track it', icon: Receipt },
   { id: 'tasks', label: 'Tasks', icon: ClipboardList },
-  { id: 'improve', label: 'Improve it', icon: Lightbulb }
+  { id: 'improve', label: 'Improve it', icon: Lightbulb },
+  { id: 'cad', label: '3D CAD', icon: Box }
 ] as const;
 export type TabId = (typeof TABS)[number]['id'];
 
@@ -198,6 +200,7 @@ export function ProductPage() {
         {activeTab === 'costs' && <CostsTab product={product} materials={materials} />}
         {activeTab === 'tasks' && <TasksTab product={product} />}
         {activeTab === 'improve' && <ImproveTab product={product} goTab={goTab} />}
+        {activeTab === 'cad' && <CadTab product={product} />}
       </div>
 
       {editing && <EditProductModal product={product} onClose={() => setEditing(false)} />}

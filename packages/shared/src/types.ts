@@ -67,6 +67,19 @@ export interface Product {
   updatedAt: string;
 }
 
+export interface ProductCadModel {
+  id: string;
+  workspaceId: string;
+  productId: string;
+  ownerId: string | null;
+  filename: string;
+  format: 'stl' | 'obj' | 'step';
+  fileSize: number;
+  headRevision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SupplierQuote {
   supplierId: string;
   quotedPrice: number;

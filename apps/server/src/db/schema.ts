@@ -371,6 +371,29 @@ export interface ExternalReviewSessionsTable { id: string; review_id: string; ex
 export interface VoiceImportReceiptsTable { workspace_id: string; user_id: string; request_id: string; payload_hash: string; product_id: string | null; project_id: string | null; created_at: CreatedAt }
 export interface VoiceImportWorkItemsTable { task_id: string; issue_id: string; workspace_id: string; created_at: CreatedAt }
 
+export interface ProductCadModelsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  product_id: string;
+  owner_id: string | null;
+  filename: string;
+  format: Generated<'stl' | 'obj' | 'step'>;
+  file_size: number;
+  head_revision: Generated<number>;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
+export interface ProductCadRevisionsTable {
+  model_id: string;
+  revision: number;
+  stl_data: Buffer;
+  byte_size: number;
+  author_id: string | null;
+  summary: Generated<string>;
+  created_at: CreatedAt;
+}
+
 export interface Database {
   founder_accounts: FounderAccountsTable;
   founder_auth_flows: FounderAuthFlowsTable;
@@ -415,6 +438,8 @@ export interface Database {
   external_review_events: ExternalReviewEventsTable;
   external_review_challenges: ExternalReviewChallengesTable;
   external_review_sessions: ExternalReviewSessionsTable;
+  product_cad_models: ProductCadModelsTable;
+  product_cad_revisions: ProductCadRevisionsTable;
 }
 
 export type UserRow = Selectable<UsersTable>;

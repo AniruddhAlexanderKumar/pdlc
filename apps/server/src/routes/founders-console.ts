@@ -147,5 +147,3 @@ foundersConsoleRouter.get(
     }
   })
 );
-
-export { foundersConsoleRouter };
