@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Box, Maximize2, RefreshCw, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
-import { Button, Spinner } from '../components/ui';
+import { useEffect, useRef, useState } from 'react';
+import { Box, RotateCcw } from 'lucide-react';
+import { Spinner } from '../components/ui';
 
 interface StlViewerProps {
   url: string;
@@ -28,7 +28,8 @@ export function parseStl(buffer: ArrayBuffer): ParsedMesh {
   if (isBinaryLikely) {
     const view = new DataView(buffer);
     const expectedTriangles = view.getUint32(80, true);
-    if (84 + expectedTriangles * 50 === buffer.byteLength) {
+    // Flexible check: expected size fits inside buffer and has at least 1 triangle
+    if (expectedTriangles > 0 && 84 + expectedTriangles * 50 <= buffer.byteLength) {
       isBinary = true;
     }
   }
@@ -47,17 +48,49 @@ export function parseStl(buffer: ArrayBuffer): ParsedMesh {
     let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
 
     for (let i = 0; i < triangleCount; i++) {
-      const nx = view.getFloat32(offset, true);
-      const ny = view.getFloat32(offset + 4, true);
-      const nz = view.getFloat32(offset + 8, true);
+      let nx = view.getFloat32(offset, true);
+      let ny = view.getFloat32(offset + 4, true);
+      let nz = view.getFloat32(offset + 8, true);
       offset += 12;
 
-      for (let v = 0; v < 3; v++) {
-        const vx = view.getFloat32(offset, true);
-        const vy = view.getFloat32(offset + 4, true);
-        const vz = view.getFloat32(offset + 8, true);
-        offset += 12;
+      const v1x = view.getFloat32(offset, true);
+      const v1y = view.getFloat32(offset + 4, true);
+      const v1z = view.getFloat32(offset + 8, true);
+      offset += 12;
 
+      const v2x = view.getFloat32(offset, true);
+      const v2y = view.getFloat32(offset + 4, true);
+      const v2z = view.getFloat32(offset + 8, true);
+      offset += 12;
+
+      const v3x = view.getFloat32(offset, true);
+      const v3y = view.getFloat32(offset + 4, true);
+      const v3z = view.getFloat32(offset + 8, true);
+      offset += 12;
+
+      // Compute normal via cross product if file normal is (0,0,0)
+      if (nx === 0 && ny === 0 && nz === 0) {
+        const ax = v2x - v1x, ay = v2y - v1y, az = v2z - v1z;
+        const bx = v3x - v1x, by = v3y - v1y, bz = v3z - v1z;
+        let cnx = ay * bz - az * by;
+        let cny = az * bx - ax * bz;
+        let cnz = ax * by - ay * bx;
+        const len = Math.hypot(cnx, cny, cnz);
+        if (len > 1e-8) {
+          nx = cnx / len;
+          ny = cny / len;
+          nz = cnz / len;
+        }
+      }
+
+      const triVertices = [
+        [v1x, v1y, v1z],
+        [v2x, v2y, v2z],
+        [v3x, v3y, v3z]
+      ];
+
+      for (let v = 0; v < 3; v++) {
+        const [vx, vy, vz] = triVertices[v];
         positions[posIdx++] = vx;
         positions[posIdx++] = vy;
         positions[posIdx++] = vz;
@@ -99,12 +132,13 @@ export function parseStl(buffer: ArrayBuffer): ParsedMesh {
 
     for (let line of lines) {
       line = line.trim();
-      if (line.startsWith('facet normal')) {
+      const lower = line.toLowerCase();
+      if (lower.startsWith('facet normal')) {
         const parts = line.split(/\s+/).slice(2).map(Number);
         if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
           currentNormal = parts;
         }
-      } else if (line.startsWith('vertex')) {
+      } else if (lower.startsWith('vertex')) {
         const parts = line.split(/\s+/).slice(1).map(Number);
         if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
           positionsList.push(parts[0], parts[1], parts[2]);
@@ -227,7 +261,7 @@ export function StlViewer({
     setLoading(true);
     setError(null);
 
-    fetch(url)
+    fetch(url, { credentials: 'same-origin' })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status} fetching CAD artifact`);
         return res.arrayBuffer();
@@ -256,7 +290,7 @@ export function StlViewer({
   useEffect(() => {
     if (!mesh || !canvasRef.current) return;
     const canvas = canvasRef.current;
-    const gl = canvas.getContext('webgl');
+    const gl = (canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
     if (!gl) {
       setError('WebGL is not supported in this browser.');
       return;

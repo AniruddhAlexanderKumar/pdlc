@@ -12,14 +12,10 @@ import {
   FileCode,
   FileUp,
   History,
-  Layers,
   Maximize2,
   Plus,
   Printer,
-  Scale,
-  Sparkles,
-  UploadCloud,
-  Wrench
+  Scale
 } from 'lucide-react';
 import type { Product, ProductCadModel } from '@sv/shared';
 import { CaditEditor } from '../../cad/CaditEditor';
@@ -387,7 +383,7 @@ export function CadTab({ product }: CadTabProps) {
                     <Coins className="h-3 w-3" /> Filament Cost
                   </div>
                   <div className="mt-1 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                    ~${estimatedCost.toFixed(2)}
+                    ~{fmt(estimatedCost)}
                   </div>
                 </div>
 
@@ -422,7 +418,7 @@ export function CadTab({ product }: CadTabProps) {
               icon={<Plus className="h-3.5 w-3.5" />}
               className="w-full font-medium"
             >
-              Add Filament to Product BOM (~{estimatedGrams}g · ${estimatedCost.toFixed(2)})
+              Add Filament to Product BOM (~{estimatedGrams}g · {fmt(estimatedCost)})
             </Button>
           </div>
         </Card>
