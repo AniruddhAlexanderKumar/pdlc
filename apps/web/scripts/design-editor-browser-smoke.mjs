@@ -52,7 +52,7 @@ try {
  await page.getByRole('complementary',{name:'Design navigation'}).getByRole('button',{name:'Control unit'}).first().click();
  let count=saveCount;await page.getByLabel('Box label').fill('');await page.getByText('Give every box a label before saving.').waitFor();await page.waitForTimeout(2500);assert.equal(saveCount,count);
  holdSave=true;await page.getByLabel('Box label').fill('Updated automatically');await page.getByText('Saving…').waitFor({timeout:6000});
- const dialog=page.waitForEvent('dialog').then(d=>d.accept());await page.getByRole('button',{name:'← Design Studio'}).click();await dialog;assert.equal(new URL(page.url()).pathname,'/designs/fixture-design');
+ const dialog=page.waitForEvent('dialog').then(d=>d.accept());await page.getByRole('button',{name:'← Previous diagrams'}).click();await dialog;assert.equal(new URL(page.url()).pathname,'/designs/fixture-design');
  assert.equal(await page.evaluate(()=>window.dispatchEvent(new Event('sv:before-session-change',{cancelable:true}))),false); // Alert is dismissed by Playwright.
  holdSave=false;releaseSave();await page.getByText('Saved',{exact:true}).waitFor();assert.equal(detail.source.nodes[0].label,'Updated automatically');assert.equal(saveCount,count+1);
  // A lost response may have committed: no automatic retries and local draft remains available.

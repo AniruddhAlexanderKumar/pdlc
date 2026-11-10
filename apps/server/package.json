@@ -12,7 +12,7 @@
     "create-admin": "tsx --env-file-if-exists=../../.env src/scripts/create-admin.ts",
     "founder-bootstrap": "tsx src/scripts/founder-bootstrap.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/services/graph-intent.test.ts src/services/assistant-providers.test.ts src/services/voice-validation.test.ts src/services/design-validation.test.ts src/services/cad-validation.test.ts src/services/founders-boundary.test.ts src/auth/founder-permissions.test.ts src/auth/founder-mfa.test.ts src/auth/founder-transport.test.ts src/auth/crypto.test.ts",
+    "test": "node --import tsx --test src/services/graph-intent.test.ts src/services/assistant-providers.test.ts src/services/voice-validation.test.ts src/services/design-validation.test.ts src/services/cad-validation.test.ts src/services/founders-boundary.test.ts src/auth/founder-permissions.test.ts src/auth/founder-mfa.test.ts src/auth/founder-transport.test.ts src/auth/crypto.test.ts src/services/cadit-csp.test.ts",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {

@@ -1,209 +1,128 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
-
-# Least privilege: the default GITHUB_TOKEN this workflow gets is otherwise
-# whatever the repository/organization default is, which can be broader than
-# anything these jobs actually do. Neither job writes to the repository,
-# comments on a PR, or touches releases — checkout and the Playwright report
-# upload (a dedicated permission, not contents access) are all either job
-# needs, so read-only is what both get, explicitly, rather than by chance.
 permissions:
   contents: read
-
-# Cancel superseded runs on the same branch rather than queueing them.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# This repository's deployed app is the apps/* Kysely/Vite workspace. The
+# previously checked-in workflow targeted a different Prisma/Next application:
+# npx downloaded an unpinned Prisma CLI and the referenced npm scripts did not
+# exist. The legacy source files remain untouched; checks below exercise the
+# application in the root workspace, including its actual migration runner.
 jobs:
-  # Everything that needs no database. Kept separate so a broken type or lint
-  # error fails in under a minute instead of after a container boots.
   static:
-    name: Typecheck, lint, unit tests
+    name: Typecheck, unit tests and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
-
-      # The Prisma client is generated code and not committed, so every job
-      # that compiles or imports it must generate first.
-      - name: Generate Prisma client
-        run: npx prisma generate
-
       - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run test
+      - run: npm test
+      - run: npm run build
 
-  # Everything that needs a real database. PostgreSQL runs as a service
-  # container — the same engine and major version as production, not SQLite
-  # and not an emulation.
   database:
-    name: Integration and E2E against PostgreSQL
+    name: PostgreSQL integration, browser and production image
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:17-alpine
         env:
           POSTGRES_USER: postgres
-          # CI-only, ephemeral, and never a production credential: this
-          # database exists for the length of one job on an isolated runner
-          # and is destroyed with it. Real deployments read DATABASE_URL from
-          # their own secret store.
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: pdlc_test
+          POSTGRES_DB: founders_boundary_test
         ports:
           - 5432:5432
-        # Without this the first migration can race the server's startup.
         options: >-
-          --health-cmd "pg_isready -U postgres -d pdlc_test"
+          --health-cmd "pg_isready -U postgres -d founders_boundary_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pdlc_test?schema=public
-      NEXT_PUBLIC_APP_NAME: PDLC Platform
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/founders_boundary_test
+      NODE_ENV: test
+      APP_URL: http://localhost:5173
       LOG_LEVEL: error
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      # `migrate deploy` applies the committed migrations exactly as a
-      # deployment would. It never resets or drops anything, so a migration
-      # that only works via `db push` fails here.
-      - name: Apply migrations
-        run: npm run db:migrate:deploy
-
-      # Prisma replays the migrations into a shadow database to compare them
-      # against the schema, and RESETS whatever it is pointed at. It must
-      # therefore be a throwaway database, never the one holding the test data.
-      - name: Create throwaway shadow database
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d postgres -c 'CREATE DATABASE pdlc_shadow;'
-
-      - name: Verify migrations match the schema
-        # Exit code 2 means the committed migrations would not reproduce the
-        # current schema.prisma — someone edited the schema without adding a
-        # migration. Exit 0 means they agree.
-        #
-        # Prisma 7 removed `--shadow-database-url`; the shadow database is
-        # read from `datasource.shadowDatabaseUrl` in prisma7.config.ts,
-        # which takes it from this variable. Passing the old flag made this
-        # step exit 1 ("unknown or unexpected option") on every run — an
-        # error, not a drift report, so the check had stopped verifying
-        # anything it claims to verify.
-        env:
-          SHADOW_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/pdlc_shadow?schema=public"
-        run: |
-          npx prisma migrate diff \
-            --from-migrations ./prisma/migrations \
-            --to-schema ./prisma/schema.prisma \
-            --exit-code
-
-      # Builds the actual production image from the actual Dockerfile and
-      # proves it starts against this job's already-migrated database —
-      # the one part of "does the production container work" that a plain
-      # `npm run build` (below) does not touch at all, since that runs the
-      # app directly on the runner, never through the image a real
-      # deployment would pull. `--network host` puts the container on the
-      # runner's own network namespace so it can reach the Postgres service
-      # container at `localhost:5432` exactly like every other step here
-      # does, and so this step can curl it back on `localhost` too.
+      - name: Build application
+        run: npm run build
+      - name: Apply Kysely migrations to disposable PostgreSQL
+        run: npm run migrate
       - name: Build production Docker image
-        run: docker build -t pdlc-platform:ci .
-
-      - name: Start production container and verify health
+        run: docker build -t solution-velocity:ci .
+      - name: Verify production image health against migrated test database
         run: |
-          docker run -d --name pdlc-smoke --network host \
-            -e DATABASE_URL="$DATABASE_URL" \
-            -e NODE_ENV=production \
-            -e LOG_LEVEL=error \
-            -e PORT=3050 \
-            pdlc-platform:ci
-
-          # The container's own process starting is not the same claim as
-          # "ready to serve" — poll rather than assume the first request lands
-          # after some arbitrary sleep.
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:3050/api/health/live > /dev/null; then
-              echo "Liveness OK after ${i}s"
-              break
-            fi
-            if [ "$i" -eq 30 ]; then
-              echo "Container never became live; logs:"
-              docker logs pdlc-smoke
-              exit 1
-            fi
+          set -euo pipefail
+          trap 'docker rm -f sv-ci >/dev/null 2>&1 || true' EXIT
+          docker run -d --name sv-ci --network host \
+            -e DATABASE_URL -e APP_URL -e LOG_LEVEL -e NODE_ENV=production \
+            -e MIGRATIONS_ON_STARTUP=false -e PORT=3050 solution-velocity:ci
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3050/api/health | grep -q '"status":"ok"'; then exit 0; fi
+            if [ "$i" -eq 40 ]; then docker logs sv-ci; exit 1; fi
             sleep 1
           done
-
-          # Readiness against the real, migrated schema this job just applied.
-          readiness=$(curl -fsS http://localhost:3050/api/health)
-          echo "$readiness"
-          echo "$readiness" | grep -q '"status":"ok"' || {
-            echo "Readiness check did not report ok"
-            docker logs pdlc-smoke
-            exit 1
-          }
+      - name: Install Chromium
+        run: npx playwright-core install --with-deps chromium
+      - name: API and browser integration tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pdlc_test?schema=public
-
-      - name: Stop production container
-        if: always()
-        run: docker rm -f pdlc-smoke || true
-
-      # Runs the repository layer against real PostgreSQL: composite keys,
-      # include/select shapes, unique constraints, cascades and scoping.
-      - name: Integration tests (real PostgreSQL)
-        run: npm run test:integration
-
-      - name: Seed a development account for the E2E run
-        env:
-          SEED_ORGANIZATION_NAME: CI Aerospace
-          SEED_ADMIN_NAME: CI Engineer
-          SEED_ADMIN_EMAIL: ci@example.test
-          # Generated per run and never committed. Not a shared secret: the
-          # database is destroyed when the job ends.
-          SEED_ADMIN_PASSWORD: ${{ format('ci-{0}-{1}', github.run_id, github.run_attempt) }}
-        run: npm run db:seed
-
-      - name: Build
-        run: npm run build
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      # With PostgreSQL reachable, the database-dependent specs that skip
-      # locally actually execute here.
-      - name: End-to-end tests (real PostgreSQL)
-        run: npm run test:e2e
-
-      - name: Upload Playwright report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
+          CAD_NATIVE_EXPERIMENTAL: 'true'
+          HOST: 127.0.0.1
+          MIGRATIONS_ON_STARTUP: 'false'
+          DESIGN_SMOKE_URL: http://localhost:4000
+          FOUNDERS_SMOKE_URL: http://localhost:4000
+          FOUNDERS_SMOKE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/founders_boundary_test
+          STUDIO_TEST_URL: http://localhost:5173
+          CADIT_TEST_URL: http://localhost:5173
+        run: |
+          set -euo pipefail
+          export STUDIO_PLAYWRIGHT_MODULE="$GITHUB_WORKSPACE/node_modules/playwright-core/index.mjs"
+          export CADIT_PLAYWRIGHT_MODULE="$STUDIO_PLAYWRIGHT_MODULE"
+          export STUDIO_CHROMIUM_MODULE="$GITHUB_WORKSPACE/apps/web/scripts/ci-chromium.mjs"
+          export CADIT_CHROMIUM_MODULE="$STUDIO_CHROMIUM_MODULE"
+          node apps/server/dist/index.js > "$RUNNER_TEMP/sv-api.log" 2>&1 & api=$!
+          npm run dev --workspace @sv/web -- --host 127.0.0.1 > "$RUNNER_TEMP/sv-web.log" 2>&1 & web=$!
+          trap 'kill "$api" "$web" ${designer:-} ${embed:-} 2>/dev/null || true' EXIT
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:4000/api/health >/dev/null && curl -fsS http://localhost:5173/ >/dev/null; then break; fi
+            if [ "$i" -eq 40 ]; then cat "$RUNNER_TEMP/sv-api.log" "$RUNNER_TEMP/sv-web.log"; exit 1; fi
+            sleep 1
+          done
+          node apps/server/scripts/design-studio-smoke.mjs
+          node apps/server/scripts/founders-boundary-smoke.mjs
+          node apps/web/scripts/studio-home-integration-smoke.mjs
+          node apps/web/scripts/studio-home-browser-smoke.mjs
+          node apps/web/scripts/cadit-browser-smoke.mjs
+          # The product designer is a separate HTML entry with its own frame policy.
+          node --import tsx --input-type=module -e 'import {createApp} from "./apps/server/src/app.ts"; createApp().listen(4173,"127.0.0.1");' > "$RUNNER_TEMP/sv-designer.log" 2>&1 & designer=$!
+          node -e 'require("http").createServer((q,r)=>{r.writeHead(200,{"Content-Type":"text/html"});r.end("<iframe src=\"http://localhost:4173/product-designer.html\" style=\"width:100%;height:900px\"></iframe>")}).listen(4174,"127.0.0.1")' > "$RUNNER_TEMP/sv-embed.log" 2>&1 & embed=$!
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:4173/product-designer.html >/dev/null && curl -fsS http://127.0.0.1:4174/ >/dev/null; then break; fi
+            if [ "$i" -eq 20 ]; then cat "$RUNNER_TEMP/sv-designer.log" "$RUNNER_TEMP/sv-embed.log"; exit 1; fi
+            sleep 1
+          done
+          DESIGNER_TEST_URL=http://localhost:4173 node apps/web/scripts/product-designer-smoke.mjs
+          # Verify the default-off gate in a separate server process.
+          kill "$api"; wait "$api" || true
+          CAD_NATIVE_EXPERIMENTAL=false node apps/server/dist/index.js > "$RUNNER_TEMP/sv-api-disabled.log" 2>&1 & api=$!
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:4000/api/health >/dev/null; then break; fi
+            if [ "$i" -eq 40 ]; then cat "$RUNNER_TEMP/sv-api-disabled.log"; exit 1; fi
+            sleep 1
+          done
+          export BROWSER_EXECUTABLE="$(node -e 'console.log(require("playwright-core").chromium.executablePath())')"
+          CAD_BROWSER_URL=http://localhost:5173 PLAYWRIGHT_MODULE="$STUDIO_PLAYWRIGHT_MODULE" node apps/web/scripts/cad-disabled-smoke.mjs

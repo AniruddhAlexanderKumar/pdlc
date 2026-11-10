@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { analyzeTrafficSign, analyzeWithNvidiaVision, type NvidiaVisionMessage } from '../services/nvidia-vision.js';
 import { route } from '../lib/http.js';
+import { logger } from '../lib/logger.js';
 
 export const nvidiaVisionRouter = express.Router();
 
