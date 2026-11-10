@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ import { badRequest, conflict, HttpError, parse, route, uuid } from '../lib/http
 import { loadProduct } from '../services/repo.js';
 import { validateVoiceDraft } from '../services/voice-validation.js';
 import { processVoiceTranscript } from '../services/qwen.js';
+import { transcribeAudioOnServer } from '../services/stt.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
 import { mutate } from './util.js';
 
@@ -22,6 +23,49 @@ const processInput = z.object({
   transcript: z.string().trim().min(5, 'Spoken transcript must have at least 5 characters').max(12000)
 });
 
+
+const rawAudioParser = express.raw({
+  type: ['audio/*', 'application/octet-stream'],
+  limit: '25mb'
+});
+
+/**
+ * Transcribes audio on the server via Whisper STT.
+ */
+voiceRouter.post(
+  '/transcribe',
+  rawAudioParser,
+  route(async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      throw badRequest('No audio data received. Please record or upload an audio file.');
+    }
+    const mimeType = req.headers['content-type'] || 'audio/webm';
+    const stt = await transcribeAudioOnServer(req.body, mimeType);
+    res.json(stt);
+  })
+);
+
+/**
+ * Full server pipeline:
+ * Audio buffer -> Server Whisper STT (text) -> Server Qwen LLM (Jira JSON)
+ */
+voiceRouter.post(
+  '/process-audio',
+  rawAudioParser,
+  route(async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      throw badRequest('No audio data received. Please record or upload an audio file.');
+    }
+    const mimeType = req.headers['content-type'] || 'audio/webm';
+    const stt = await transcribeAudioOnServer(req.body, mimeType);
+    const llm = await processVoiceTranscript(stt.text);
+    res.json({
+      transcript: stt.text,
+      data: llm.data,
+      provider: `${stt.provider} + ${llm.provider}`
+    });
+  })
+);
 
 voiceRouter.post(
   '/process',

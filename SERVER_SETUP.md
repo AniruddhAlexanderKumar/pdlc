@@ -339,3 +339,41 @@ LLAMA_CPP_URL=http://127.0.0.1:8080
 
 The Express API will automatically detect `llama-server` via its OpenAI-compatible endpoint (`/v1/chat/completions`) and route voice dictations through it. If `llama-server` is not running, it falls back to Ollama (`http://127.0.0.1:11434`) and then to the server fallback engine.
 
+---
+
+## J. Local Server-Side Speech-to-Text (Whisper STT)
+
+The client browser streams raw audio to Solution Velocity (`POST /api/voice/process-audio`); all transcription happens on the backend server with Whisper STT.
+
+### 1. Run Whisper Server on the Host (Port 8081)
+
+You can run either `whisper-server` (from whisper.cpp) or `faster-whisper-server` on CPU:
+
+**Option A: `whisper.cpp` Server**
+```bash
+./whisper-server \
+  -m /path/to/ggml-base.en.bin \
+  --port 8081 \
+  --threads $(nproc)
+```
+
+**Option B: `faster-whisper-server` (Docker)**
+```bash
+docker run -d \
+  --name whisper-stt \
+  --restart unless-stopped \
+  -p 8081:8000 \
+  -e WHISPER_MODEL=base.en \
+  -e WHISPER_COMPUTE_TYPE=int8 \
+  fedirz/faster-whisper-server:latest-cpu
+```
+
+### 2. Configure Solution Velocity
+Ensure `.env` or `.env.production` contains:
+```env
+WHISPER_URL=http://127.0.0.1:8081/v1/audio/transcriptions
+WHISPER_MODEL=whisper-1
+```
+
+Solution Velocity forwards audio recordings to `WHISPER_URL`, receives the transcribed text, and streams it to Qwen for Jira extraction in a single server-side pass.
+
