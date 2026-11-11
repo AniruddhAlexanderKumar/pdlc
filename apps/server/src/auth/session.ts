@@ -146,6 +146,8 @@ export function verifyOrigin(req: Request, _res: Response, next: NextFunction) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   const origin = req.get('origin') ?? (req.get('referer') ? safeOrigin(req.get('referer')!) : null);
   if (origin && origin === config.appOrigin) return next();
+  // Allow whitelisted dev origins for CADit embed testing on localhost:3000 and 8080
+  if (config.NODE_ENV !== 'production' && origin && (origin === 'http://localhost:3000' || origin === 'http://localhost:8080')) return next();
   // Non-browser clients (curl, scripts) send neither header; they also cannot hold a victim's cookie.
   if (!origin && !req.get('sec-fetch-site')) return next();
   next(forbidden('Cross-origin request blocked'));

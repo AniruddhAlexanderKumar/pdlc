@@ -167,7 +167,11 @@ export function CadTab({ product }: CadTabProps) {
         documentName={`${product.name} CAD`}
         partnerName="SolutionVelocity"
         fullViewport={true}
-        onClose={() => setSearchParams({})}
+        onClose={() => {
+          const next = new URLSearchParams(searchParams);
+          next.delete('mode');
+          setSearchParams(next);
+        }}
         onExportStl={handleExportStl}
       />
     );

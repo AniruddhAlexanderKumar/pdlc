@@ -31,7 +31,7 @@ export default defineConfig({
   // PostCSS config used by the legacy application in the repository.
   css: { postcss: { plugins: [] } },
   server: {
-    port: 5173,
+    port: Number(process.env.PORT) || 5173,
     host: '0.0.0.0',
     allowedHosts: ['.e2b.app'],
     proxy: {
