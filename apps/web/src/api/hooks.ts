@@ -19,7 +19,7 @@ import type {
   WorkspaceData,
   WorkspaceProfile
 } from '@sv/shared';
-import { ApiError, del, get, patch, post, put } from './client';
+import { ApiError, del, get, patch, post, put, uploadAudio } from './client';
 import { useCelebrate } from '../components/Celebrate';
 import { useToast } from '../components/Toast';
 
@@ -335,6 +335,14 @@ export function useProcessVoice() {
   return useMutation({
     mutationFn: (transcript: string) => post<VoiceProcessResult>('/voice/process', { transcript }),
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to analyze transcript')
+  });
+}
+
+export function useProcessVoiceAudio() {
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (audioBlob: Blob) => uploadAudio<VoiceProcessResult>('/voice/process-audio', audioBlob),
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Server audio processing failed')
   });
 }
 

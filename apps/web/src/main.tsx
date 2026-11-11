@@ -33,6 +33,8 @@ import { TryDemoPage } from './pages/TryDemo';
 import { SettingsPage } from './pages/Settings';
 import { WorkspaceSetupPage } from './pages/WorkspaceSetup';
 import { DesignEditorPage, DesignStudioPage } from './pages/DesignStudio';
+import { StudioHomePage } from './pages/StudioHome';
+import { CaditStudioPage } from './pages/CaditStudio';
 import { CadDocumentsPage, CadDocumentPage } from './pages/CadDocuments';
 import { FoundersExperimental } from './pages/FoundersExperimental';
 import { SuppliersPage } from './pages/Suppliers';
@@ -199,7 +201,9 @@ const router = createBrowserRouter([
               { path: '/', element: <DashboardPage /> },
               { path: '/products', element: <ProductsPage /> },
               { path: '/projects', element: <ProjectsPage /> },
-              { path: '/designs', element: <DesignStudioPage /> },
+              { path: '/designs', element: <CaditStudioPage /> },
+              { path: '/designs/sketches', element: <StudioHomePage /> },
+              { path: '/designs/diagrams', element: <DesignStudioPage /> },
               { path: '/designs/:id', element: <DesignEditorPage /> },
               { path: '/designs/cad', element: <CadDocumentsPage /> },
               { path: '/designs/cad/:id', element: <CadDocumentPage /> },

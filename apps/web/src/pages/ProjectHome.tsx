@@ -73,7 +73,7 @@ function ProjectHome({ projectId }: { projectId: string }) {
             {created && <p role="status" className="mt-3 text-sm text-emerald-700 dark:text-emerald-400">Diagram created: <Link to={`/designs/${created.id}`} className="font-semibold underline">{created.title}</Link></p>}
             <div className="mt-5 border-t border-zinc-200 pt-4 dark:border-zinc-700"><h3 className="text-sm font-semibold">Diagrams in this project</h3>
               {designs.isLoading ? <Spinner label="Loading project diagrams" /> : designs.isError ? <p role="alert" className="mt-2 text-sm text-rose-700">Could not load project diagrams. <button type="button" className="underline" onClick={() => void designs.refetch()}>Try again</button></p> : designs.data?.length ? <ul className="mt-2 space-y-2">{designs.data.map(design => <li key={design.id}><Link to={`/designs/${design.id}`} className="text-sm font-medium text-blue-700 underline dark:text-blue-400">{design.title}</Link><span className="ml-2 text-xs text-zinc-500">Revision {design.headRevision}</span></li>)}</ul> : <p className="mt-2 text-sm text-zinc-500">No diagrams are associated with this project yet.</p>}
-              <p className="mt-3 text-xs leading-5 text-zinc-500">Shows up to the 200 most recently updated project diagrams. <Link to="/designs" className="underline">Open workspace Design Studio</Link> to see other diagrams.</p>
+              <p className="mt-3 text-xs leading-5 text-zinc-500">Shows up to the 200 most recently updated project diagrams. <Link to="/designs/diagrams" className="underline">Open workspace diagrams</Link> to see other diagrams.</p>
             </div>
           </>}
         </Card>

@@ -8,19 +8,14 @@ import {
   Building2,
   CheckCircle2,
   ClipboardList,
-  ExternalLink,
   KeyRound,
-  Layers,
-  LayoutGrid,
   LogOut,
   Moon,
-  Package,
   Plus,
   RefreshCw,
   Search,
   Settings,
   Shield,
-  ShieldAlert,
   Sun,
   Trash2,
   UserCheck,
@@ -53,16 +48,13 @@ import {
   Button,
   Card,
   CardHeader,
-  ConfirmProvider,
   EmptyState,
   Field,
   IconButton,
   Input,
   Modal,
-  ProgressBar,
   Select,
   Spinner,
-  StageBadge,
   cx,
   useConfirm
 } from '../../components/ui';
@@ -82,17 +74,13 @@ export function AdminDashboard() {
     location.pathname === '/analytics' || queryTab === 'analytics'
       ? 'analytics'
       : 'overview';
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'organizations' | 'products' | 'analytics' | 'access-requests'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'organizations' | 'analytics' | 'access-requests'>(initialTab);
 
   // Search & Filter state
   const [userSearch, setUserSearch] = useState('');
   const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'disabled'>('all');
 
   const [orgSearch, setOrgSearch] = useState('');
-
-  const [prodSearch, setProdSearch] = useState('');
-  const [prodOrgFilter, setProdOrgFilter] = useState<string>('all');
-  const [prodStageFilter, setProdStageFilter] = useState<string>('all');
 
   // Modals state
   const [addUserOpen, setAddUserOpen] = useState(false);
@@ -103,8 +91,6 @@ export function AdminDashboard() {
   const [addOrgOpen, setAddOrgOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<AdminWorkspace | null>(null);
   const [managingOrgMembers, setManagingOrgMembers] = useState<AdminWorkspace | null>(null);
-
-  const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
 
   // Queries
   const overviewQuery = useQuery({
@@ -122,11 +108,6 @@ export function AdminDashboard() {
     queryFn: () => get<AdminWorkspace[]>('/admin/workspaces')
   });
 
-  const productsQuery = useQuery({
-    queryKey: ['admin-products'],
-    queryFn: () => get<AdminProduct[]>('/admin/products')
-  });
-
   const accessRequestsQuery = useQuery({
     queryKey: ['admin-access-requests'],
     queryFn: () => get<AdminAccessRequest[]>('/admin/access-requests')
@@ -141,20 +122,10 @@ export function AdminDashboard() {
     }
   });
 
-  const switchWsMutation = useMutation({
-    mutationFn: (workspaceId: string) => post<Me>('/auth/switch-workspace', { workspaceId }),
-    onSuccess: (m) => {
-      resetSession(m);
-      navigate('/');
-      toast.success(`Switched to workspace ${m.workspace.name}`);
-    }
-  });
-
   const refreshAll = () => {
     qc.invalidateQueries({ queryKey: ['admin-overview'] });
     qc.invalidateQueries({ queryKey: ['admin-users'] });
     qc.invalidateQueries({ queryKey: ['admin-workspaces'] });
-    qc.invalidateQueries({ queryKey: ['admin-products'] });
     qc.invalidateQueries({ queryKey: ['admin-access-requests'] });
     toast.success('Admin data refreshed');
   };
@@ -178,22 +149,6 @@ export function AdminDashboard() {
     if (!orgsQuery.data) return [];
     return orgsQuery.data.filter((w) => w.name.toLowerCase().includes(orgSearch.toLowerCase()));
   }, [orgsQuery.data, orgSearch]);
-
-  const filteredProducts = useMemo(() => {
-    if (!productsQuery.data) return [];
-    return productsQuery.data.filter((p) => {
-      const matchText =
-        p.name.toLowerCase().includes(prodSearch.toLowerCase()) ||
-        p.category.toLowerCase().includes(prodSearch.toLowerCase()) ||
-        p.workspaceName.toLowerCase().includes(prodSearch.toLowerCase()) ||
-        (p.creatorName && p.creatorName.toLowerCase().includes(prodSearch.toLowerCase())) ||
-        (p.creatorEmail && p.creatorEmail.toLowerCase().includes(prodSearch.toLowerCase()));
-      if (!matchText) return false;
-      if (prodOrgFilter !== 'all' && p.workspaceId !== prodOrgFilter) return false;
-      if (prodStageFilter !== 'all' && p.stage !== prodStageFilter) return false;
-      return true;
-    });
-  }, [productsQuery.data, prodSearch, prodOrgFilter, prodStageFilter]);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col">
@@ -224,16 +179,6 @@ export function AdminDashboard() {
               title="Refresh admin records"
             >
               <span className="hidden sm:inline">Refresh</span>
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<LayoutGrid className="h-4 w-4 text-blue-500" />}
-              onClick={() => navigate('/')}
-              title="Switch to user workspace dashboard"
-            >
-              <span className="hidden sm:inline">Open PDLC View</span>
             </Button>
 
             <Button
@@ -277,7 +222,6 @@ export function AdminDashboard() {
               { id: 'analytics', label: 'Server Analytics', icon: BarChart3 },
               { id: 'users', label: 'Users Management', icon: Users, count: usersQuery.data?.length },
               { id: 'organizations', label: 'Organizations', icon: Building2, count: orgsQuery.data?.length },
-              { id: 'products', label: 'All Products', icon: Package, count: productsQuery.data?.length },
               {
                 id: 'access-requests',
                 label: 'Access Requests',
@@ -377,29 +321,6 @@ export function AdminDashboard() {
             onAddOrg={() => setAddOrgOpen(true)}
             onEditOrg={setEditingOrg}
             onManageMembers={setManagingOrgMembers}
-            onSwitchOrg={(id) => switchWsMutation.mutate(id)}
-          />
-        )}
-
-        {/* TAB 4: PRODUCTS */}
-        {activeTab === 'products' && (
-          <ProductsTab
-            products={filteredProducts}
-            totalCount={productsQuery.data?.length ?? 0}
-            loading={productsQuery.isLoading}
-            search={prodSearch}
-            setSearch={setProdSearch}
-            orgFilter={prodOrgFilter}
-            setOrgFilter={setProdOrgFilter}
-            stageFilter={prodStageFilter}
-            setStageFilter={setProdStageFilter}
-            workspaces={orgsQuery.data ?? []}
-            onEditProduct={setEditingProduct}
-            onOpenProduct={(wsId, prodId) => {
-              switchWsMutation.mutate(wsId, {
-                onSuccess: () => navigate(`/products/${prodId}`)
-              });
-            }}
           />
         )}
       </main>
@@ -459,14 +380,6 @@ export function AdminDashboard() {
           onClose={() => setManagingOrgMembers(null)}
         />
       )}
-
-      {editingProduct && (
-        <EditProductModal
-          product={editingProduct}
-          workspaces={orgsQuery.data ?? []}
-          onClose={() => setEditingProduct(null)}
-        />
-      )}
     </div>
   );
 }
@@ -482,7 +395,7 @@ function OverviewTab({
 }: {
   stats?: AdminOverviewStats;
   loading: boolean;
-  onSelectTab: (tab: 'overview' | 'users' | 'organizations' | 'products' | 'analytics' | 'access-requests') => void;
+  onSelectTab: (tab: 'overview' | 'users' | 'organizations' | 'analytics' | 'access-requests') => void;
 }) {
   if (loading || !stats) return <Spinner label="Loading administrative statistics" />;
 
@@ -516,17 +429,6 @@ function OverviewTab({
           </div>
           <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums">{stats.totalWorkspaces}</p>
           <p className="mt-2 text-xs text-zinc-500">Active workspaces hosted</p>
-        </Card>
-
-        <Card className="p-4 border-l-4 border-l-sky-600">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Total Products</p>
-            <div className="rounded-lg bg-sky-500/10 p-2 text-sky-600 dark:text-sky-400">
-              <Package className="h-5 w-5" />
-            </div>
-          </div>
-          <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums">{stats.totalProducts}</p>
-          <p className="mt-2 text-xs text-zinc-500">Across all stages of development</p>
         </Card>
 
         <Card className="p-4 border-l-4 border-l-amber-600">
@@ -571,113 +473,40 @@ function OverviewTab({
         </div>
       </Card>
 
-      {/* Stage Distribution Funnel */}
-      <Card className="p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold text-sm">Product Development Lifecycle Distribution</h3>
-            <p className="text-xs text-zinc-500">Live breakdown of all products across lifecycle stages</p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => onSelectTab('products')}>
-            View products <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {STAGES.map((s) => {
-            const count = stats.stageCounts[s.id] ?? 0;
-            const pct = stats.totalProducts > 0 ? Math.round((count / stats.totalProducts) * 100) : 0;
-            return (
-              <div key={s.id} className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{s.label}</span>
-                  <span className="text-sm font-bold tabular-nums">{count}</span>
+      {/* Recent Users */}
+      <Card>
+        <CardHeader
+          title="Recent User Registrations"
+          subtitle="Latest accounts registered in the system"
+          action={
+            <Button variant="ghost" size="sm" onClick={() => onSelectTab('users')}>
+              Manage users <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          }
+        />
+        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          {stats.recentUsers.length === 0 ? (
+            <p className="p-4 text-xs text-zinc-500">No users found.</p>
+          ) : (
+            stats.recentUsers.map((u) => (
+              <div key={u.id} className="flex items-center justify-between p-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500/10 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                    {u.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium">{u.name}</p>
+                    <p className="text-[11px] text-zinc-400">{u.email}</p>
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <ProgressBar value={pct} />
-                </div>
-                <span className="mt-1 block text-[10px] text-zinc-400 tabular-nums">{pct}% of total</span>
+                <span className="text-[11px] text-zinc-400">
+                  {new Date(u.createdAt).toLocaleDateString()}
+                </span>
               </div>
-            );
-          })}
+            ))
+          )}
         </div>
       </Card>
-
-      {/* Two Column: Recent Users & Recent Products */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recent Users */}
-        <Card>
-          <CardHeader
-            title="Recent User Registrations"
-            subtitle="Latest accounts registered in the system"
-            action={
-              <Button variant="ghost" size="sm" onClick={() => onSelectTab('users')}>
-                Manage users <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            }
-          />
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {stats.recentUsers.length === 0 ? (
-              <p className="p-4 text-xs text-zinc-500">No users found.</p>
-            ) : (
-              stats.recentUsers.map((u) => (
-                <div key={u.id} className="flex items-center justify-between p-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10 text-xs font-semibold text-blue-600 dark:text-blue-400">
-                      {u.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium">{u.name}</p>
-                      <p className="text-[11px] text-zinc-400">{u.email}</p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-zinc-400">
-                    {new Date(u.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-
-        {/* Recent Products */}
-        <Card>
-          <CardHeader
-            title="Recent Products"
-            subtitle="Latest products added across all organizations"
-            action={
-              <Button variant="ghost" size="sm" onClick={() => onSelectTab('products')}>
-                View all <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            }
-          />
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {stats.recentProducts.length === 0 ? (
-              <p className="p-4 text-xs text-zinc-500">No products found.</p>
-            ) : (
-              stats.recentProducts.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                      <Package className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium">{p.name}</p>
-                      <p className="text-[11px] text-zinc-400">in {p.workspaceName}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <StageBadge stage={p.stage} />
-                    <span className="text-[11px] text-zinc-400">
-                      {new Date(p.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-      </div>
     </div>
   );
 }
@@ -956,8 +785,7 @@ function OrganizationsTab({
   setSearch,
   onAddOrg,
   onEditOrg,
-  onManageMembers,
-  onSwitchOrg
+  onManageMembers
 }: {
   workspaces: AdminWorkspace[];
   totalCount: number;
@@ -967,7 +795,6 @@ function OrganizationsTab({
   onAddOrg: () => void;
   onEditOrg: (w: AdminWorkspace) => void;
   onManageMembers: (w: AdminWorkspace) => void;
-  onSwitchOrg: (id: string) => void;
 }) {
   const qc = useQueryClient();
   const toast = useToast();
@@ -1096,16 +923,6 @@ function OrganizationsTab({
                         <Button
                           variant="ghost"
                           size="sm"
-                          icon={<ExternalLink className="h-3.5 w-3.5" />}
-                          onClick={() => onSwitchOrg(w.id)}
-                          title="Switch to this workspace in PDLC"
-                        >
-                          View PDLC
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
                           onClick={() => onEditOrg(w)}
                           title="Edit organization"
                         >
@@ -1119,223 +936,6 @@ function OrganizationsTab({
                           icon={<Trash2 className="h-3.5 w-3.5" />}
                           onClick={() => handleDelete(w)}
                           title="Delete organization"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUB-TAB 4: Products Management
-// ─────────────────────────────────────────────────────────────────────────────
-
-function ProductsTab({
-  products,
-  totalCount,
-  loading,
-  search,
-  setSearch,
-  orgFilter,
-  setOrgFilter,
-  stageFilter,
-  setStageFilter,
-  workspaces,
-  onEditProduct,
-  onOpenProduct
-}: {
-  products: AdminProduct[];
-  totalCount: number;
-  loading: boolean;
-  search: string;
-  setSearch: (s: string) => void;
-  orgFilter: string;
-  setOrgFilter: (s: string) => void;
-  stageFilter: string;
-  setStageFilter: (s: string) => void;
-  workspaces: AdminWorkspace[];
-  onEditProduct: (p: AdminProduct) => void;
-  onOpenProduct: (workspaceId: string, productId: string) => void;
-}) {
-  const qc = useQueryClient();
-  const toast = useToast();
-  const confirm = useConfirm();
-
-  const deleteProductMutation = useMutation({
-    mutationFn: (prodId: string) => del(`/admin/products/${prodId}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-products'] });
-      qc.invalidateQueries({ queryKey: ['admin-overview'] });
-      toast.success('Product deleted successfully');
-    },
-    onError: (err) => toast.error((err as Error).message)
-  });
-
-  const handleDelete = async (p: AdminProduct) => {
-    const ok = await confirm({
-      title: `Delete product "${p.name}"?`,
-      body: `This permanently deletes the product, its BOM lines, and tasks in workspace "${p.workspaceName}".`,
-      confirmLabel: 'Delete product',
-      danger: true
-    });
-    if (ok) deleteProductMutation.mutate(p.id);
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Filters Toolbar */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-1 flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-            <Input
-              type="search"
-              placeholder="Search by product name, category, or owner…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          <Select
-            value={orgFilter}
-            onChange={(e) => setOrgFilter(e.target.value)}
-            className="w-44"
-          >
-            <option value="all">All Organizations</option>
-            {workspaces.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </Select>
-
-          <Select
-            value={stageFilter}
-            onChange={(e) => setStageFilter(e.target.value)}
-            className="w-36"
-          >
-            <option value="all">All Stages</option>
-            {STAGES.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        <span className="text-xs text-zinc-500">
-          Showing {products.length} of {totalCount} products
-        </span>
-      </div>
-
-      {/* Products Table */}
-      <Card className="overflow-hidden">
-        {loading ? (
-          <Spinner label="Loading products" />
-        ) : products.length === 0 ? (
-          <EmptyState
-            icon={<Package className="h-6 w-6" />}
-            title="No products found"
-            body={search ? 'No products match your filters.' : 'No products exist across any organization.'}
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="border-b border-zinc-200 bg-zinc-50 font-medium text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400">
-                <tr>
-                  <th className="px-4 py-3">Product</th>
-                  <th className="px-4 py-3">Organization</th>
-                  <th className="px-4 py-3">Stage</th>
-                  <th className="px-4 py-3">Target Price</th>
-                  <th className="px-4 py-3">BOM / Tasks</th>
-                  <th className="px-4 py-3">Created By</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                          <Package className="h-4.5 w-4.5" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{p.name}</p>
-                          <span className="rounded bg-zinc-100 px-1.5 py-0.2 text-[10px] text-zinc-500 dark:bg-zinc-800">
-                            {p.category}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                        {p.workspaceName}
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-3">
-                      <StageBadge stage={p.stage} />
-                    </td>
-
-                    <td className="px-4 py-3 tabular-nums font-medium text-zinc-700 dark:text-zinc-300">
-                      {p.targetSellingPrice !== null ? `$${p.targetSellingPrice.toFixed(2)}` : '—'}
-                    </td>
-
-                    <td className="px-4 py-3 text-xs text-zinc-500">
-                      <span>{p.materialsCount} materials</span>
-                      <span className="mx-1">·</span>
-                      <span>{p.tasksCount} tasks</span>
-                    </td>
-
-                    <td className="px-4 py-3 text-xs text-zinc-500">
-                      {p.creatorName ? (
-                        <div>
-                          <p className="font-medium text-zinc-700 dark:text-zinc-300">{p.creatorName}</p>
-                          <p className="text-[10px] text-zinc-400">{p.creatorEmail}</p>
-                        </div>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={<ExternalLink className="h-3.5 w-3.5" />}
-                          onClick={() => onOpenProduct(p.workspaceId, p.id)}
-                          title="Open product detail in PDLC"
-                        >
-                          View in PDLC
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEditProduct(p)}
-                          title="Edit product properties"
-                        >
-                          Edit
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-rose-600 hover:bg-rose-500/10"
-                          icon={<Trash2 className="h-3.5 w-3.5" />}
-                          onClick={() => handleDelete(p)}
-                          title="Delete product"
                         />
                       </div>
                     </td>

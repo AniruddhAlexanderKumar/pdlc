@@ -1,5 +1,7 @@
 # Deployment and Operations
 
+> **Scope warning:** The remainder of this file describes the separate Next/Prisma tree and must not be used as the deployment guide for the root `apps/*` Solution Velocity workspace or the current Dockerfile. That workspace uses Kysely migrations and an Express/Vite build; consult `README.md`, `SERVER_SETUP.md`, and `docs/cadit-design-studio.md`. CI tests only disposable PostgreSQL and does not establish deployed migration, backup or secret status. CADit, when enabled through the Design Studio iframe, is an external service.
+
 How to run PDLC Platform in production, on infrastructure you control. If
 you are looking for how the system is built, see [ARCHITECTURE.md](./ARCHITECTURE.md);
 for local development, see [README.md](./README.md). This document is the

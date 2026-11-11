@@ -9,7 +9,8 @@ import {
   normaliseAnswer,
   stageIndex,
   type CurrencyCode,
-  type StageId
+  type StageId,
+  type ProductCadModel
 } from '@sv/shared';
 import { auth } from '../auth/session.js';
 import { db, type Db } from '../db/index.js';
@@ -385,5 +386,196 @@ productsRouter.post(
       return (await ledger.evaluateProduct(id)).product;
     });
     res.json(result);
+  })
+);
+
+const saveCadInput = z
+  .object({
+    filename: z.string().min(1).max(255),
+    stlBase64: z.string().min(1),
+    summary: z.string().max(300).optional()
+  })
+  .strict();
+
+productsRouter.get(
+  '/:id/cad-model',
+  route(async (req, res) => {
+    const a = auth(req);
+    const productId = parse(uuid, param(req, 'id'));
+    await assertProduct(db, a.workspaceId, productId);
+
+    const model = await db
+      .selectFrom('product_cad_models')
+      .selectAll()
+      .where('workspace_id', '=', a.workspaceId)
+      .where('product_id', '=', productId)
+      .executeTakeFirst();
+
+    if (!model) {
+      res.json({ model: null, revisions: [] });
+      return;
+    }
+
+    const revisions = await db
+      .selectFrom('product_cad_revisions')
+      .select(['model_id', 'revision', 'byte_size', 'author_id', 'summary', 'created_at'])
+      .where('model_id', '=', model.id)
+      .orderBy('revision', 'desc')
+      .limit(20)
+      .execute();
+
+    const result: ProductCadModel = {
+      id: model.id,
+      workspaceId: model.workspace_id,
+      productId: model.product_id,
+      ownerId: model.owner_id,
+      filename: model.filename,
+      format: model.format as 'stl' | 'obj' | 'step',
+      fileSize: model.file_size,
+      headRevision: model.head_revision,
+      createdAt: model.created_at.toISOString(),
+      updatedAt: model.updated_at.toISOString()
+    };
+
+    res.json({
+      model: result,
+      revisions: revisions.map((r) => ({
+        revision: r.revision,
+        byteSize: r.byte_size,
+        authorId: r.author_id,
+        summary: r.summary,
+        createdAt: r.created_at.toISOString()
+      }))
+    });
+  })
+);
+
+productsRouter.post(
+  '/:id/cad-model',
+  route(async (req, res) => {
+    const productId = parse(uuid, param(req, 'id'));
+    const body = parse(saveCadInput, req.body);
+    const buffer = Buffer.from(body.stlBase64, 'base64');
+    if (buffer.length > 50 * 1024 * 1024) {
+      throw badRequest('STL file exceeds the 50MB limit');
+    }
+
+    const result = await mutate(req, async (trx, ledger, ctx) => {
+      const product = await loadProduct(trx, ctx.workspaceId, productId);
+      const existing = await trx
+        .selectFrom('product_cad_models')
+        .selectAll()
+        .where('workspace_id', '=', ctx.workspaceId)
+        .where('product_id', '=', productId)
+        .executeTakeFirst();
+
+      let modelId: string;
+      let nextRevision: number;
+
+      if (existing) {
+        modelId = existing.id;
+        nextRevision = existing.head_revision + 1;
+        await trx
+          .updateTable('product_cad_models')
+          .set({
+            filename: body.filename,
+            file_size: buffer.length,
+            head_revision: nextRevision,
+            updated_at: new Date()
+          })
+          .where('id', '=', modelId)
+          .execute();
+      } else {
+        const inserted = await trx
+          .insertInto('product_cad_models')
+          .values({
+            workspace_id: ctx.workspaceId,
+            product_id: productId,
+            owner_id: ctx.userId,
+            filename: body.filename,
+            format: 'stl',
+            file_size: buffer.length,
+            head_revision: 1
+          })
+          .returningAll()
+          .executeTakeFirstOrThrow();
+        modelId = inserted.id;
+        nextRevision = 1;
+      }
+
+      await trx
+        .insertInto('product_cad_revisions')
+        .values({
+          model_id: modelId,
+          revision: nextRevision,
+          stl_data: buffer,
+          byte_size: buffer.length,
+          author_id: ctx.userId,
+          summary: body.summary || 'Exported from CADit 3D Studio'
+        })
+        .execute();
+
+      await ledger.award('cad_model_saved', `${productId}:${nextRevision}`, 15, `Saved 3D model revision for ${product.name}`, productId);
+
+      const updated = await trx
+        .selectFrom('product_cad_models')
+        .selectAll()
+        .where('id', '=', modelId)
+        .executeTakeFirstOrThrow();
+
+      const out: ProductCadModel = {
+        id: updated.id,
+        workspaceId: updated.workspace_id,
+        productId: updated.product_id,
+        ownerId: updated.owner_id,
+        filename: updated.filename,
+        format: updated.format as 'stl' | 'obj' | 'step',
+        fileSize: updated.file_size,
+        headRevision: updated.head_revision,
+        createdAt: updated.created_at.toISOString(),
+        updatedAt: updated.updated_at.toISOString()
+      };
+      return out;
+    });
+
+    res.status(201).json({ model: result.data, xp: result.xp });
+  })
+);
+
+productsRouter.get(
+  '/:id/cad-model/download',
+  route(async (req, res) => {
+    const a = auth(req);
+    const productId = parse(uuid, param(req, 'id'));
+    await assertProduct(db, a.workspaceId, productId);
+
+    const model = await db
+      .selectFrom('product_cad_models')
+      .selectAll()
+      .where('workspace_id', '=', a.workspaceId)
+      .where('product_id', '=', productId)
+      .executeTakeFirst();
+
+    if (!model) throw notFound('3D CAD model');
+
+    const rawRev = req.query.revision ? parseInt(String(req.query.revision), 10) : model.head_revision;
+    const targetRev = Number.isFinite(rawRev) && rawRev > 0 ? rawRev : model.head_revision;
+
+    const rev = await db
+      .selectFrom('product_cad_revisions')
+      .selectAll()
+      .where('model_id', '=', model.id)
+      .where('revision', '=', targetRev)
+      .executeTakeFirst();
+
+    if (!rev) throw notFound(`3D CAD model revision ${targetRev}`);
+
+    res.set({
+      'Content-Type': 'model/stl',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(model.filename)}"`,
+      'Content-Length': String(rev.byte_size),
+      'Cache-Control': 'no-store'
+    });
+    res.end(rev.stl_data);
   })
 );

@@ -58,6 +58,7 @@ The current architecture has useful shared services but does not uniformly enfor
 | `projects` | Workspace-scoped work project with a unique key within its workspace and transactional next-issue counter |
 | `issues` | Project-scoped Task/Bug/Story with stable project-number key, status, priority, labels, reporter and workspace-member assignee |
 | `stage_history` | Product lifecycle stage changes |
+| `product_cad_models`, `product_cad_revisions` | Product-linked 3D CAD models and versioned STL binary artifacts with CADit embed integration |
 | `materials`, `suppliers`, `material_quotes`, `product_materials` | Workspace-scoped catalog, quotes, and product BOM |
 | `xp_events` | Workspace/user/product progress events |
 | `analytics_events` | Product telemetry and admin audit-style activity |
@@ -82,6 +83,7 @@ Artifacts are generally workspace-scoped. Project keys are unique per workspace;
 4. **Manage team/catalog:** Settings or catalog pages → workspace-scoped API routes → Kysely transactions where linked data must remain consistent.
 5. **Request access:** Public page → rate-limited validated POST → PostgreSQL → admin-only list/status/note endpoints → manual provisioning/contact (approval does not create an account).
 6. **Create project issues:** Authenticated workspace member opens Projects → workspace owner/admin creates a project → workspace member creates, searches, paginates, assigns, and updates issue fields/status. This is separate from PDLC products and their checklist tasks.
+7. **Design 3D CAD models:** Authenticated workspace member opens Product → 3D CAD tab → launches full-viewport CADit 3D Studio or uploads an existing STL artifact → inspects 3D mesh in interactive WebGL viewer → estimates prototyping costs and adds filament to Bill of Materials → downloads versioned STL snapshots.
 
 ## Jira expansion constraint
 

@@ -9,7 +9,7 @@ try{
  const page=await browser.newPage();await page.goto(base);
  const status=await page.evaluate(async()=>{const r=await fetch('/api/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Disabled CAD fixture',email:`cad-off-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'Disabled fixture'})});return r.status});assert.equal(status,201);
  assert.equal(await page.evaluate(async()=>(await fetch('/api/cad-documents')).status),404);
- const request=page.waitForResponse(r=>r.url().endsWith('/api/cad-documents'));await page.goto(`${base}/designs`);await page.getByRole('heading',{name:'Design Studio'}).waitFor();await request;assert.equal(await page.getByRole('link',{name:'Experimental CAD documents (sketch source only)'}).count(),0);
+ const request=page.waitForResponse(r=>r.url().endsWith('/api/cad-documents'));await page.goto(`${base}/designs/sketches`);await page.getByRole('heading',{name:'Design Studio'}).waitFor();await request;assert.equal(await page.getByRole('link',{name:'Manage sketches'}).count(),0);
  await page.goto(`${base}/designs/cad`);await page.getByRole('heading',{name:'Experimental CAD documents unavailable'}).waitFor();assert.equal(await page.getByText('The experimental CAD API is disabled.').count(),1);assert.equal(await page.getByRole('button',{name:'Create sketch'}).count(),0);
  console.log('PASS disabled CAD API and navigation remain unavailable');
 }finally{await browser.close()}

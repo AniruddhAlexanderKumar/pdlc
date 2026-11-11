@@ -29,7 +29,6 @@ import { cadDocumentsRouter } from './routes/cad-documents.js';
 import { reviewerRouter, reviewManagementRouter } from './routes/external-reviews.js';
 import { helpRouter, helpAdminRouter } from './routes/help.js';
 import { nvidiaVisionRouter } from './routes/nvidia-vision.js';
-import { foundersConsoleRouter } from './routes/founders-console.js';
 import { assistantRouter, assistantAdminRouter } from './routes/assistant.js';
 import { gameRouter, workspaceRouter } from './routes/workspace.js';
 import { createFoundersExperimentalRouter } from './routes/founders-experimental.js';
@@ -50,6 +49,7 @@ export function createApp() {
           styleSrc: ["'self'", "'unsafe-inline'"],
           fontSrc: ["'self'"],
           connectSrc: ["'self'"],
+          frameSrc: ["'self'", 'https://app.cadit.app'],
           frameAncestors: ["'none'"],
           upgradeInsecureRequests: config.secureCookies ? [] : null
         }
@@ -66,6 +66,14 @@ export function createApp() {
     app.use('/api/founders', founderRequestContext, founderRequestLogger(logger), founderTransportGuard(config.appOrigin), express.json({ limit: '8kb' }), cookieParser(), createFoundersExperimentalRouter());
     app.use('/api/founders', founderErrorHandler(logger));
   }
+
+  // The separate upstream founder-console prototype has no founder authorization and
+  // returns sample data and simulated writes. Keep every method closed before session loading.
+  app.use('/api/founders-console', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    res.status(404).json({ error: 'Not found' });
+  });
 
   // The founder console is not implemented yet. Reserve its entire API namespace
   // before ordinary session loading and request logging: no existing workspace or
@@ -135,7 +143,6 @@ export function createApp() {
   api.use('/reviewer', reviewerRouter);
   api.use('/external-reviews', requireAuth, reviewManagementRouter);
   api.use('/assistant', requireAuth, assistantRouter);
-  api.use('/founders-console', requireAuth, foundersConsoleRouter);
   api.use('/assistant-admin', requireAuth, assistantAdminRouter);
   api.use('/help', requireAuth, helpRouter);
   api.use('/help-admin', requireAuth, helpAdminRouter);
@@ -165,6 +172,14 @@ export function createApp() {
         index: false,
         setHeaders: (res, file) => {
           res.setHeader('Cache-Control', file.includes(`${path.sep}assets${path.sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache');
+          // Only the standalone, unauthenticated designer document is frameable.
+          // The rest of the application retains Helmet's frame denial.
+          if (file === path.join(webDist, 'product-designer.html')) {
+            res.removeHeader('X-Frame-Options');
+            const policy = res.getHeader('Content-Security-Policy');
+            if (typeof policy === 'string') res.setHeader('Content-Security-Policy', policy.replace(/frame-ancestors\s+[^;]+/i, 'frame-ancestors *'));
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+          }
         }
       })
     );
