@@ -143,12 +143,16 @@ function formatAnswer(q: Question, v: AnswerValue, fmt: (n: number) => string) {
   return String(v);
 }
 
-function Deck({ product, questions, stage, onDone }: { product: Product; questions: Question[]; stage: StageId; onDone: () => void }) {
+function Deck({ product, questions, stage, onDone, focusKey }: { product: Product; questions: Question[]; stage: StageId; onDone: () => void; focusKey?: string | null }) {
   const answer = useAnswer(product.id);
-  const firstOpen = Math.max(
-    0,
-    questions.findIndex((q) => !isAnswered(product.answers[q.key]))
-  );
+  // A deep link (?q=...) wins, so "next activity" opens the exact card.
+  const focusedIndex = focusKey ? questions.findIndex((q) => q.key === focusKey) : -1;
+  const firstOpen = focusedIndex >= 0
+    ? focusedIndex
+    : Math.max(
+        0,
+        questions.findIndex((q) => !isAnswered(product.answers[q.key]))
+      );
   const [i, setI] = useState(firstOpen);
   const q = questions[i];
   const [draft, setDraft] = useState<AnswerValue>(q ? (product.answers[q.key] ?? null) : null);
@@ -339,6 +343,7 @@ function AllQuestions({ product, questions }: { product: Product; questions: Que
 export function DiscoverTab({ product }: { product: Product }) {
   const [params, setParams] = useSearchParams();
   const fromUrl = params.get('stage') as StageId | null;
+  const focusKey = params.get('q');
   const stage: StageId = fromUrl && STAGES.some((s) => s.id === fromUrl) ? fromUrl : product.stage;
   const questions = useMemo(() => questionsForStage(stage), [stage]);
   const answered = questions.filter((q) => isAnswered(product.answers[q.key])).length;
@@ -411,7 +416,7 @@ export function DiscoverTab({ product }: { product: Product }) {
       </div>
 
       {mode === 'deck' ? (
-        <Deck key={stage} product={product} questions={questions} stage={stage} onDone={() => setMode('list')} />
+        <Deck key={`${stage}:${focusKey ?? ''}`} product={product} questions={questions} stage={stage} focusKey={focusKey} onDone={() => setMode('list')} />
       ) : (
         <AllQuestions product={product} questions={questions} />
       )}

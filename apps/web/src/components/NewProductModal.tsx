@@ -22,7 +22,7 @@ export function NewProductModal({ onClose }: { onClose: () => void }) {
       {
         onSuccess: (res) => {
           onClose();
-          navigate(`/products/${res.data.id}/discover`);
+          navigate(`/products/${res.data.id}/journey`);
         }
       }
     );

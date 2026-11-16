@@ -17,6 +17,7 @@ import { db, type Db } from '../db/index.js';
 import { badRequest, conflict, notFound, parse, route, uuid } from '../lib/http.js';
 import { insightsFor, rulesFor } from '../services/insights.js';
 import { assertMaterial, assertProduct, loadMaterials, loadProduct, loadSuppliers, touchProduct } from '../services/repo.js';
+import { canTransition } from '../services/stage-gating.js';
 import type { XpLedger } from '../services/xp.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
 import { validateSyncedQuestionValue } from '../services/question-validation.js';
@@ -27,6 +28,14 @@ export const productsRouter = Router();
 
 async function changeStage(trx: Db, ledger: XpLedger, productId: string, name: string, from: StageId, to: StageId) {
   if (from === to) return;
+  // Enforce the journey rules here so the PATCH route and the "apply suggestion"
+  // path can never diverge. Backwards moves, retiring and grandfathered stages
+  // are allowed; forward moves need a complete checklist.
+  const workspaceId = ledger.ctx.workspaceId;
+  const current = await loadProduct(trx, workspaceId, productId);
+  const materials = new Map((await loadMaterials(trx, workspaceId, current.materials.map((m) => m.materialId))).map((m) => [m.id, m]));
+  const verdict = canTransition(current, to, materials);
+  if (!verdict.allowed) throw conflict(verdict.reason);
   await trx.updateTable('products').set({ stage: to, updated_at: new Date() }).where('id', '=', productId).execute();
   await trx.insertInto('stage_history').values({ product_id: productId, from_stage: from, to_stage: to, user_id: ledger.ctx.userId }).execute();
   if (stageIndex(to) > stageIndex(from) && to !== 'Retired') {

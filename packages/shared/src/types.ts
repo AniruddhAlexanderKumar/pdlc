@@ -63,6 +63,12 @@ export interface Product {
   materials: BomLine[];
   tasks: Task[];
   answers: Record<string, AnswerValue>;
+  /**
+   * Lifecycle position when gating was introduced. Stages at or behind this one
+   * stay reachable even if the checklist is incomplete, so products that existed
+   * before gating keep their access. Null for products created after.
+   */
+  legacyStage?: StageId | null;
   createdAt: string;
   updatedAt: string;
 }
