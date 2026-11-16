@@ -431,6 +431,12 @@ export function SettingsPage() {
             aria-current={isLayout ? 'page' : undefined}
             className={cx('rounded-md px-4 py-2 text-sm font-semibold', isLayout ? 'bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')}
           >Layout</Link>
+          <Link
+            to="/settings/notifications"
+            className="rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+          >
+            Notifications
+          </Link>
         </nav>
         {isDashboard ? (
           <DashboardSettings onDirtyChange={setDashboardDirty} />

@@ -25,6 +25,7 @@ Updated after the approved initial Projects/Issues slice; source presence does n
 | `/suppliers` | Authenticated workspace | Suppliers and quotes |
 | `/achievements` | Authenticated workspace | User achievements/progress |
 | `/settings` | Authenticated workspace | Workspace, team, account, privacy settings |
+| `/settings/notifications` | Authenticated workspace | Personal notification preferences (assignments, reviews, blockers, stages) |
 | `*` under authenticated layout | Redirect to `/` | Fallback is within the authenticated route tree |
 
 ## API-wide behavior
@@ -74,6 +75,19 @@ Updated after the approved initial Projects/Issues slice; source presence does n
 | `GET /api/analytics/overview` | Admin | Analytics summary |
 | `GET /api/analytics/logins` | Admin | Login records |
 | `GET /api/analytics/activity` | Admin | Activity records |
+| `GET /api/products/:id/activities` | Authenticated | Journey with ownership, blockers and ranked next-action recommendations |
+| `GET /api/products/:id/team` | Authenticated | Per-member activity counts (descriptive, no scores) |
+| `GET /api/products/:id/activities/:key/comments` | Authenticated | Activity comment thread |
+| `POST /api/products/:id/activities/:key/comments` | Authenticated | Add a comment |
+| `PATCH /api/products/:id/activities/:key/assignee` | Authenticated (self-assign) / owner+admin (others) | Assign or release an activity |
+| `PATCH /api/products/:id/activities/:key/status` | Authenticated (own/unassigned work) | Set activity status; `completed` refused until approval and real completion |
+| `POST /api/products/:id/activities/:key/submit-review` | Authenticated (assignee) | Submit a sign-off activity for review |
+| `POST /api/products/:id/activities/:key/review` | Owner/admin | Approve or request changes |
+| `POST /api/products/:id/activities/:key/dependencies` | Authenticated | Add a prerequisite (cycles rejected) |
+| `DELETE /api/products/:id/activities/:key/dependencies/:dependsOnKey` | Authenticated | Remove a prerequisite |
+| `GET /api/notifications` | Authenticated | Own notification feed and unread count |
+| `POST /api/notifications/read` | Authenticated | Mark one or all notifications read |
+| `GET`, `PATCH /api/notifications/preferences` | Authenticated | Read or update own notification preferences |
 | `GET /api/analytics/users` | Admin | Analytics by user |
 | `GET /api/workspace/data` | Authenticated | Load current workspace products/materials/suppliers |
 | `PATCH /api/workspace` | Workspace owner/admin | Update workspace settings |

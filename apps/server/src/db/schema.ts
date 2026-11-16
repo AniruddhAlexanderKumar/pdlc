@@ -396,6 +396,62 @@ export interface ProductCadRevisionsTable {
   created_at: CreatedAt;
 }
 
+export interface ActivityRecordsTable {
+  product_id: string;
+  activity_key: string;
+  status: 'not_started' | 'in_progress' | 'needs_review' | 'completed' | 'blocked';
+  assignee_id: string | null;
+  review_state: 'none' | 'pending' | 'approved' | 'changes_requested';
+  review_requested_at: Date | null;
+  reviewed_by: string | null;
+  reviewed_at: Date | null;
+  review_note: string;
+  started_at: Date | null;
+  completed_at: Date | null;
+  completed_by: string | null;
+  updated_at: Date;
+}
+
+export interface ActivityCommentsTable {
+  id: Generated<string>;
+  product_id: string;
+  activity_key: string;
+  user_id: string | null;
+  body: string;
+  created_at: CreatedAt;
+}
+
+export interface ActivityDependenciesTable {
+  id: Generated<string>;
+  product_id: string;
+  activity_key: string;
+  depends_on_key: string;
+  created_by: string | null;
+  created_at: CreatedAt;
+}
+
+export interface NotificationsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  user_id: string;
+  kind: string;
+  product_id: string | null;
+  activity_key: string | null;
+  title: string;
+  body: string;
+  created_at: CreatedAt;
+  read_at: Date | null;
+}
+
+export interface NotificationPreferencesTable {
+  user_id: string;
+  assignments: boolean;
+  reviews: boolean;
+  blockers: boolean;
+  stages: boolean;
+  updated_at: Date;
+}
+
 export interface Database {
   founder_accounts: FounderAccountsTable;
   founder_auth_flows: FounderAuthFlowsTable;
@@ -442,6 +498,11 @@ export interface Database {
   external_review_sessions: ExternalReviewSessionsTable;
   product_cad_models: ProductCadModelsTable;
   product_cad_revisions: ProductCadRevisionsTable;
+  activity_records: ActivityRecordsTable;
+  activity_comments: ActivityCommentsTable;
+  activity_dependencies: ActivityDependenciesTable;
+  notifications: NotificationsTable;
+  notification_preferences: NotificationPreferencesTable;
 }
 
 export type UserRow = Selectable<UsersTable>;

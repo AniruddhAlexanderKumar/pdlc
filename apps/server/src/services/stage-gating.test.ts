@@ -120,4 +120,52 @@ describe('stage gating', () => {
       assert.equal(canTransition(legacy, 'Design', materials).allowed, true);
     });
   });
+
+  describe('approval gate', () => {
+    // Research requires approval on research.validated.
+    const completeResearch = () =>
+      product({
+        stage: 'Research',
+        description: 'A bottle',
+        tasks: [{ id: 't1', title: 'Bench test', description: '', status: 'todo', dueDate: null, position: 0, completedAt: null }],
+        answers: {
+          'idea.problem': 'Leaks',
+          'idea.customer': 'Commuters',
+          'idea.oneliner': 'A bottle',
+          'research.competitors': 'Generic bottles',
+          'research.market_price': 20,
+          'research.validated': true,
+          'research.differentiator': 'Does not leak'
+        }
+      });
+
+    it('blocks a forward move while a required sign-off is unapproved', () => {
+      const v = canTransition(completeResearch(), 'Planning', materials, {});
+      assert.equal(v.allowed, false);
+      if (v.allowed) return;
+      assert.match(v.reason, /Waiting for approval/);
+    });
+
+    it('blocks while the sign-off is merely pending', () => {
+      const v = canTransition(completeResearch(), 'Planning', materials, { 'research.validated': 'pending' });
+      assert.equal(v.allowed, false);
+    });
+
+    it('allows the move once the sign-off is approved', () => {
+      const v = canTransition(completeResearch(), 'Planning', materials, { 'research.validated': 'approved' });
+      assert.equal(v.allowed, true);
+    });
+
+    it('ignores approval state for stages with no sign-off activities', () => {
+      // Idea has no approval-gated activities, so empty approvals do not block it.
+      const v = canTransition(completeIdea(), 'Research', materials, {});
+      assert.equal(v.allowed, true);
+    });
+
+    it('still allows backward moves and retiring without approval', () => {
+      const p = product({ stage: 'Testing' });
+      assert.equal(canTransition(p, 'Design', materials, {}).allowed, true);
+      assert.equal(canTransition(p, 'Retired', materials, {}).allowed, true);
+    });
+  });
 });

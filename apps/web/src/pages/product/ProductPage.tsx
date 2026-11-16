@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ArrowLeft, Box, ClipboardList, Edit3, Lightbulb, Map as MapIcon, MessageCircleQuestion, Package, Receipt, Trash2, Wrench } from 'lucide-react';
-import { buildJourney, STAGE_IDS, type Product, type StageId } from '@sv/shared';
+import { activityHref, buildJourney, STAGE_IDS, type Product, type StageId } from '@sv/shared';
 import { JourneyMap } from '../../components/journey/JourneyMap';
 import { StageOverview } from '../../components/journey/StageOverview';
 import { StageComplete } from '../../components/journey/StageComplete';
-import { useDeleteProduct, useUpdateProduct, useWorkspaceData } from '../../api/hooks';
+import { NextActionCard } from '../../components/journey/NextActionCard';
+import { StageActivities, TeamContributionCard } from '../../components/journey/StageActivities';
+import {
+  useActivityStatus,
+  useAssignActivity,
+  useCollaboration,
+  useReviewActivity,
+  useSubmitReview
+} from '../../api/collaboration';
+import { useDeleteProduct, useSession, useUpdateProduct, useWorkspaceData } from '../../api/hooks';
 import { productMetrics, ProductThumb, useMaterialsMap } from '../../components/ProductBits';
 import { Button, Card, cx, EmptyState, GradeBadge, IconButton, Spinner, useConfirm } from '../../components/ui';
 import { useMoney } from '../../lib/money';
@@ -40,6 +49,16 @@ export function ProductPage() {
   const confirm = useConfirm();
   const { fmt } = useMoney();
   const [editing, setEditing] = useState(false);
+  const me = useSession();
+  const [params, setParams] = useSearchParams();
+  // Collaboration is fetched separately from the product so the journey still
+  // renders (from stageQuest()) if this request is slow or fails.
+  const collabQuery = useCollaboration(id);
+  const assign = useAssignActivity(id);
+  const setStatus = useActivityStatus(id);
+  const submitReview = useSubmitReview(id);
+  const review = useReviewActivity(id);
+  const collab = collabQuery.data;
 
   if (isLoading || !data) return <Spinner />;
   const product = data.products.find((p) => p.id === id);
@@ -67,13 +86,23 @@ export function ProductPage() {
   // One journey model drives every surface: the map, the stage overview, the
   // locks and the "continue" action. It reads completion from stageQuest(), the
   // same rule the server enforces, so the UI cannot overstate progress.
-  const journey = buildJourney(product, {
+  // Prefer the server's journey: it carries ownership, blockers and the
+  // approval gate. The locally built one is the fallback while it loads.
+  const localJourney = buildJourney(product, {
     materials,
     visitedStages: product.legacyStage ? STAGE_IDS.slice(0, STAGE_IDS.indexOf(product.legacyStage) + 1) : []
   });
+  const journey = collab?.journey ?? localJourney;
 
   // Stage the overview panel is focused on. Defaults to the product's real stage.
   const [focusStage, setFocusStage] = useState<StageId | null>(null);
+  // Activity expanded in the stage panel. Seeded from `?activity=` so a
+  // notification or the recommendation card can land on the exact item.
+  const [openActivityKey, setOpenActivityKey] = useState<string | null>(params.get('activity'));
+  useEffect(() => {
+    const fromUrl = params.get('activity');
+    if (fromUrl) setOpenActivityKey(fromUrl);
+  }, [params]);
   const focused = journey.stages.find((s) => s.id === (focusStage ?? product.stage)) ?? journey.current;
 
   // Completion celebration: fire once when the current stage flips to complete.
@@ -88,6 +117,32 @@ export function ProductPage() {
 
   const advance = (to: StageId) => update.mutate({ stage: to }, { onSuccess: () => setFocusStage(null) });
   const openHref = (href: string) => navigate(href);
+
+  // The first recommendation is the one shown; the server ranks them.
+  const topRecommendation = collab?.recommendations[0] ?? null;
+
+  /**
+   * Opens an activity: focuses its stage, marks it expanded, and deep links to
+   * the tab that actually completes it. Blockers are meant to be actionable, so
+   * "Go" on a prerequisite lands the user on the thing they must finish.
+   */
+  const openActivity = (key: string) => {
+    const stageOf = journey.stages.find((st) => st.activities.some((a) => a.id === key));
+    const activity = stageOf?.activities.find((a) => a.id === key);
+    if (!stageOf || !activity) return;
+    setFocusStage(stageOf.id);
+    setOpenActivityKey(key);
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('activity', key);
+      return next;
+    });
+    if (stageOf.id !== product.stage && stageOf.state === 'completed') {
+      // Do not navigate away for finished work: the panel already shows it.
+      return;
+    }
+    navigate(activityHref(product.id, stageOf.id, activity));
+  };
   const continueHref = journey.nextActivity
     ? journey.nextActivity.activity.kind === 'question'
       ? `/products/${product.id}/discover?stage=${journey.nextActivity.stage}&q=${encodeURIComponent(journey.nextActivity.activity.id)}`
@@ -197,19 +252,51 @@ export function ProductPage() {
       <div className="flex-1 px-4 py-5 md:px-6">
         {activeTab === 'journey' && (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-            <Card className="h-fit p-4">
-              <JourneyMap journey={journey} onSelect={(s) => setFocusStage(s)} />
-            </Card>
-            <StageOverview
-              product={product}
-              materials={materials}
-              stage={focused}
-              nextStageId={focused.id === product.stage ? journey.nextStageId : null}
-              isCurrent={focused.id === product.stage}
-              onGoTab={openHref}
-              onAdvance={advance}
-              advancing={update.isPending}
-            />
+            <div className="space-y-4">
+              <Card className="h-fit p-4">
+                <JourneyMap journey={journey} onSelect={(s) => setFocusStage(s)} />
+              </Card>
+              {collab && <TeamContributionCard team={collab.team} currentUserId={me.user.id} />}
+            </div>
+            <div className="min-w-0 space-y-4">
+              <NextActionCard
+                recommendation={topRecommendation}
+                isComplete={journey.isComplete}
+                onDo={() => topRecommendation && openActivity(topRecommendation.activityKey)}
+              />
+              <StageOverview
+                product={product}
+                materials={materials}
+                stage={focused}
+                nextStageId={focused.id === product.stage ? journey.nextStageId : null}
+                isCurrent={focused.id === product.stage}
+                onGoTab={openHref}
+                onAdvance={advance}
+                advancing={update.isPending}
+                renderActivities={
+                  collab
+                    ? () => (
+                        <StageActivities
+                          productId={product.id}
+                          stage={focused}
+                          team={collab.team}
+                          canManage={me.workspace.role !== 'member'}
+                          currentUserId={me.user.id}
+                          busy={assign.isPending || setStatus.isPending || submitReview.isPending || review.isPending}
+                          openKey={openActivityKey}
+                          onToggleKey={(key) => setOpenActivityKey((cur) => (cur === key ? null : key))}
+                          onOpenActivity={openActivity}
+                          onAssign={(key, assigneeId) => assign.mutate({ key, assigneeId })}
+                          onStatus={(key, status) => setStatus.mutate({ key, status })}
+                          onSubmitReview={(key) => submitReview.mutate({ key })}
+                          onReview={(key, decision, note) => review.mutate({ key, decision, note })}
+                          onJumpToBlocker={openActivity}
+                        />
+                      )
+                    : undefined
+                }
+              />
+            </div>
           </div>
         )}
         {activeTab === 'overview' && <OverviewTab product={product} materials={materials} goTab={goTab} openHref={openHref} />}

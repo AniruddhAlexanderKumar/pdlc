@@ -9,6 +9,7 @@ import { openCookiePreferences } from '../lib/cookieConsent';
 import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
 import { LevelUpWatcher } from './Celebrate';
+import { NotificationBell } from './NotificationBell';
 import { NewProductModal } from './NewProductModal';
 import { QuickActions } from './QuickActions';
 import { VoiceDictationModal } from './VoiceDictationModal';
@@ -204,6 +205,7 @@ function DesktopTopNavigation({ style, onNew, onVoice, navigation }: { style: 't
         <div className="ml-auto flex items-center gap-2">
           <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onNew}>{'New product'}</Button>
           {!me.demo && <IconButton label="Voice capture" onClick={onVoice}><Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" /></IconButton>}
+          <NotificationBell />
           <WorkspaceMenu compact placement="below" />
         </div>
       </div>
@@ -333,6 +335,7 @@ export function Layout() {
             {!me.demo && <IconButton label="Voice capture" onClick={() => setVoiceOpen(true)}>
               <Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </IconButton>}
+            <NotificationBell />
             <NavLink to="/settings" className="rounded-lg p-1.5 text-zinc-500" aria-label="Settings">
               <Settings className="h-4 w-4" />
             </NavLink>

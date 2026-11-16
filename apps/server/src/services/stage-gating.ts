@@ -1,4 +1,4 @@
-import { stageQuest, STAGE_IDS, stageIndex, type Material, type Product, type StageId } from '@sv/shared';
+import { questionsForStage, requiresApproval, stageQuest, STAGE_IDS, stageIndex, type Material, type Product, type ReviewState, type StageId } from '@sv/shared';
 
 /**
  * Stage transition gating.
@@ -43,7 +43,9 @@ export function isGrandfathered(product: Pick<Product, 'stage' | 'legacyStage'>,
 export function canTransition(
   product: Pick<Product, 'stage' | 'legacyStage' | 'answers' | 'description' | 'targetSellingPrice' | 'costs' | 'materials' | 'tasks'>,
   to: StageId,
-  materials: Map<string, Material>
+  materials: Map<string, Material>,
+  /** Review state of sign-off activities, keyed by activity key. */
+  approvals: Record<string, ReviewState> = {}
 ): TransitionVerdict {
   const from = product.stage;
   if (from === to) return { allowed: true };
@@ -54,11 +56,27 @@ export function canTransition(
   if (isGrandfathered(product, to)) return { allowed: true };
 
   const quest = stageQuest(product as Product, materials, from);
-  if (quest.complete) return { allowed: true };
+  if (!quest.complete) {
+    const missing = quest.items.filter((i) => !i.done).map((i) => i.label);
+    const reason = missing.length
+      ? `Finish ${from} before moving on. Still to do: ${missing.join('; ')}.`
+      : `Finish ${from} before moving on.`;
+    return { allowed: false, reason, missing };
+  }
 
-  const missing = quest.items.filter((i) => !i.done).map((i) => i.label);
-  const reason = missing.length
-    ? `Finish ${from} before moving on. Still to do: ${missing.join('; ')}.`
-    : `Finish ${from} before moving on.`;
-  return { allowed: false, reason, missing };
+  // The quest is satisfied, but an activity that needs sign-off is only complete
+  // once approved. Without this the API would let a stage advance on unapproved
+  // work, which would make the review workflow advisory.
+  const unapproved = questionsForStage(from)
+    .filter((q) => q.required && requiresApproval(q.key) && approvals[q.key] !== 'approved')
+    .map((q) => q.prompt);
+  if (unapproved.length > 0) {
+    return {
+      allowed: false,
+      reason: `Finish ${from} before moving on. Waiting for approval: ${unapproved.join('; ')}.`,
+      missing: unapproved
+    };
+  }
+  return { allowed: true };
+
 }
