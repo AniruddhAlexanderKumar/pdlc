@@ -72,6 +72,7 @@ export async function loadProducts(db: Db, workspaceId: string, productId?: stri
     materials: bom.filter((b) => b.product_id === r.id).map((b) => ({ materialId: b.material_id, quantity: b.quantity })),
     tasks: tasks.filter((t) => t.product_id === r.id).map(t => ({ ...toTask(t), ...(linked.has(t.id) ? { linkedIssue: linked.get(t.id)! } : {}) })),
     answers: Object.fromEntries(answers.filter((a) => a.product_id === r.id).map((a) => [a.question_key, a.value as AnswerValue])),
+    legacyStage: r.legacy_stage ?? null,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString()
   }));

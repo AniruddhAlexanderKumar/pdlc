@@ -131,8 +131,22 @@ export function stageQuest(product: Product, materials: Map<string, Material>, s
         done: summary.grossMargin !== null && summary.grossMargin >= 40,
         tab: 'costs'
       });
+      items.push({
+        id: 'next_batch',
+        label: 'Name the one biggest improvement for the next batch',
+        done: isAnswered(product.answers['improve.next']),
+        tab: 'discover'
+      });
       break;
     case 'Retired':
+      // Retired is off the happy path, but it still needs a stated reason so the
+      // journey never renders a stage with nothing to do.
+      items.push({
+        id: 'retire_reason',
+        label: 'Record why this product is being retired',
+        done: isAnswered(product.answers['retired.reason']),
+        tab: 'discover'
+      });
       break;
   }
 

@@ -237,6 +237,8 @@ export interface ProductsTable {
   name: string;
   category: string;
   stage: StageId;
+  /** Lifecycle position at the moment gating was introduced (033), for grandfathering. */
+  legacy_stage: StageId | null;
   image_url: Generated<string>;
   description: Generated<string>;
   notes: Generated<string>;

@@ -1,11 +1,11 @@
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, Flame, Gauge, Rocket, Search, Sparkles, Target, Trophy } from 'lucide-react';
-import { STAGES, type StageId, type WidgetId } from '@sv/shared';
-import { useGame, useMoveStage } from '../../api/hooks';
+import { STAGES, type WidgetId } from '@sv/shared';
+import { useGame } from '../../api/hooks';
 import { useMoney } from '../../lib/money';
 import { ProductCard, ProductThumb } from '../ProductBits';
-import { Card, CardHeader, cx, GradeBadge, Input, ProgressBar, Select, StageBadge, stageStyle } from '../ui';
+import { Card, CardHeader, cx, GradeBadge, Input, ProgressBar, StageBadge, stageStyle } from '../ui';
 import { useDashboardModel } from './model';
 import { AssignedIssues, Dependencies, IssueProgress, PriorityIssues, ProjectList, ProjectSummary, RecentIssues, TeamWorkload } from './ProjectWidgets';
 
@@ -201,17 +201,8 @@ function SearchBox() {
 
 function Board() {
   const { filtered, materials } = useDashboardModel();
-  const move = useMoveStage();
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overStage, setOverStage] = useState<StageId | null>(null);
-
-  const onDrop = (stage: StageId) => {
-    const p = filtered.find((x) => x.id === dragId);
-    if (p && p.stage !== stage) move.mutate({ id: p.id, stage });
-    setDragId(null);
-    setOverStage(null);
-  };
-
+  // Products move through their journey, not by dragging between columns.
+  // This board is a read-only overview; the journey owns all transitions.
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
@@ -226,16 +217,7 @@ function Board() {
               <section
                 key={s.id}
                 aria-label={`${s.label} column`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setOverStage(s.id);
-                }}
-                onDragLeave={() => setOverStage((o) => (o === s.id ? null : o))}
-                onDrop={() => onDrop(s.id)}
-                className={cx(
-                  'flex w-64 flex-col rounded-xl border bg-zinc-100/60 p-2 transition-colors dark:bg-zinc-900/40',
-                  overStage === s.id ? 'border-blue-400 bg-blue-500/5' : 'border-transparent'
-                )}
+                className="flex w-64 flex-col rounded-xl border border-transparent bg-zinc-100/60 p-2 dark:bg-zinc-900/40"
               >
                 <div className="mb-2 flex items-center justify-between px-1.5 pt-1">
                   <span className="flex items-center gap-2 text-xs font-semibold">
@@ -246,19 +228,9 @@ function Board() {
                 </div>
                 <div className="flex min-h-[80px] flex-col gap-2">
                   {items.map((p) => (
-                    <div key={p.id} className={cx(dragId === p.id && 'opacity-40')}>
-                      <ProductCard
-                        product={p}
-                        materials={materials}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.effectAllowed = 'move';
-                          setDragId(p.id);
-                        }}
-                      />
-                    </div>
+                    <ProductCard key={p.id} product={p} materials={materials} />
                   ))}
-                  {items.length === 0 && <p className="px-2 py-6 text-center text-[11px] text-zinc-400">Drop a product here</p>}
+                  {items.length === 0 && <p className="px-2 py-6 text-center text-[11px] text-zinc-400">No products yet</p>}
                 </div>
               </section>
             );
@@ -272,7 +244,6 @@ function Board() {
 function ProductTable() {
   const { filtered, metrics } = useDashboardModel();
   const { fmt } = useMoney();
-  const move = useMoveStage();
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
@@ -305,16 +276,7 @@ function ProductTable() {
                       </Link>
                     </td>
                     <td className="px-4 py-2.5">
-                      <Select
-                        aria-label={`Stage for ${p.name}`}
-                        className="w-36 py-1 text-xs"
-                        value={p.stage}
-                        onChange={(e) => move.mutate({ id: p.id, stage: e.target.value as StageId })}
-                      >
-                        {STAGES.map((s) => (
-                          <option key={s.id}>{s.id}</option>
-                        ))}
-                      </Select>
+                      <StageBadge stage={p.stage} />
                     </td>
                     <td className="px-4 py-2.5">
                       <GradeBadge grade={m.health.grade} score={m.health.score} />

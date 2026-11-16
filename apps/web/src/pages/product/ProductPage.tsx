@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Box, Check, ClipboardList, Edit3, Lightbulb, MessageCircleQuestion, Package, Receipt, Trash2, Wrench } from 'lucide-react';
-import { isAnswered, questionsForStage, stageIndex, STAGES, type Product, type StageId } from '@sv/shared';
+import { ArrowLeft, Box, ClipboardList, Edit3, Lightbulb, Map as MapIcon, MessageCircleQuestion, Package, Receipt, Trash2, Wrench } from 'lucide-react';
+import { buildJourney, STAGE_IDS, type Product, type StageId } from '@sv/shared';
+import { JourneyMap } from '../../components/journey/JourneyMap';
+import { StageOverview } from '../../components/journey/StageOverview';
+import { StageComplete } from '../../components/journey/StageComplete';
 import { useDeleteProduct, useUpdateProduct, useWorkspaceData } from '../../api/hooks';
 import { productMetrics, ProductThumb, useMaterialsMap } from '../../components/ProductBits';
-import { cx, EmptyState, GradeBadge, IconButton, Select, Spinner, stageStyle, useConfirm } from '../../components/ui';
+import { Button, Card, cx, EmptyState, GradeBadge, IconButton, Spinner, useConfirm } from '../../components/ui';
 import { useMoney } from '../../lib/money';
 import { CostsTab } from './CostsTab';
 import { DiscoverTab } from './DiscoverTab';
@@ -16,6 +19,7 @@ import { TasksTab } from './TasksTab';
 import { CadTab } from './CadTab';
 
 export const TABS = [
+  { id: 'journey', label: 'Journey', icon: MapIcon },
   { id: 'overview', label: 'Overview', icon: Package },
   { id: 'discover', label: 'Tell us', icon: MessageCircleQuestion },
   { id: 'materials', label: 'Materials', icon: Wrench },
@@ -25,40 +29,6 @@ export const TABS = [
   { id: 'cad', label: '3D CAD', icon: Box }
 ] as const;
 export type TabId = (typeof TABS)[number]['id'];
-
-function JourneyStepper({ product, onPick }: { product: Product; onPick: (s: StageId) => void }) {
-  const current = stageIndex(product.stage);
-  return (
-    <ol className="flex items-center gap-1 overflow-x-auto pb-1" aria-label="Lifecycle stages">
-      {STAGES.filter((s) => s.id !== 'Retired').map((s, i) => {
-        const done = i < current && product.stage !== 'Retired';
-        const isCurrent = s.id === product.stage;
-        const required = questionsForStage(s.id).filter((q) => q.required);
-        const answered = required.filter((q) => isAnswered(product.answers[q.key])).length;
-        return (
-          <li key={s.id} className="flex shrink-0 items-center gap-1">
-            <button
-              onClick={() => onPick(s.id)}
-              title={`${s.label}: ${answered}/${required.length} questions answered`}
-              className={cx(
-                'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
-                isCurrent
-                  ? 'border-blue-500 bg-blue-600 text-white shadow-sm shadow-blue-500/30'
-                  : done
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                    : 'border-zinc-200 text-zinc-500 hover:border-zinc-300 dark:border-zinc-800'
-              )}
-            >
-              {done ? <Check className="h-3 w-3" /> : <span className={cx('h-1.5 w-1.5 rounded-full', isCurrent ? 'bg-white' : stageStyle(s.id).dot)} />}
-              {s.label}
-            </button>
-            {i < STAGES.length - 2 && <span className={cx('h-px w-3', i < current ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-800')} />}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
 
 export function ProductPage() {
   const { id = '', tab = 'overview' } = useParams();
@@ -90,9 +60,39 @@ export function ProductPage() {
     );
   }
 
-  const activeTab = (TABS.some((t) => t.id === tab) ? tab : 'overview') as TabId;
+  const activeTab = (TABS.some((t) => t.id === tab) ? tab : 'journey') as TabId;
   const goTab = (t: TabId) => navigate(`/products/${product.id}/${t}`);
   const { summary, health, quest } = productMetrics(product, materials);
+
+  // One journey model drives every surface: the map, the stage overview, the
+  // locks and the "continue" action. It reads completion from stageQuest(), the
+  // same rule the server enforces, so the UI cannot overstate progress.
+  const journey = buildJourney(product, {
+    materials,
+    visitedStages: product.legacyStage ? STAGE_IDS.slice(0, STAGE_IDS.indexOf(product.legacyStage) + 1) : []
+  });
+
+  // Stage the overview panel is focused on. Defaults to the product's real stage.
+  const [focusStage, setFocusStage] = useState<StageId | null>(null);
+  const focused = journey.stages.find((s) => s.id === (focusStage ?? product.stage)) ?? journey.current;
+
+  // Completion celebration: fire once when the current stage flips to complete.
+  const [celebrated, setCelebrated] = useState<string | null>(null);
+  const [celebrating, setCelebrating] = useState<StageId | null>(null);
+  useEffect(() => {
+    if (journey.current.complete && celebrated !== journey.current.id) {
+      setCelebrated(journey.current.id);
+      setCelebrating(journey.current.id);
+    }
+  }, [journey.current.complete, journey.current.id, celebrated]);
+
+  const advance = (to: StageId) => update.mutate({ stage: to }, { onSuccess: () => setFocusStage(null) });
+  const openHref = (href: string) => navigate(href);
+  const continueHref = journey.nextActivity
+    ? journey.nextActivity.activity.kind === 'question'
+      ? `/products/${product.id}/discover?stage=${journey.nextActivity.stage}&q=${encodeURIComponent(journey.nextActivity.activity.id)}`
+      : `/products/${product.id}/${journey.nextActivity.activity.tab}`
+    : `/products/${product.id}/journey`;
 
   const onDelete = async () => {
     const ok = await confirm({
@@ -119,21 +119,13 @@ export function ProductPage() {
                 <GradeBadge grade={health.grade} score={health.score} />
               </div>
               <p className="mt-0.5 text-sm text-zinc-500">{product.category}</p>
-              <div className="mt-2 flex items-center gap-2">
-                <Select
-                  aria-label="Stage"
-                  className="w-40 py-1 text-xs"
-                  value={product.stage}
-                  onChange={(e) => update.mutate({ stage: e.target.value as StageId })}
-                >
-                  {STAGES.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label}
-                    </option>
-                  ))}
-                </Select>
-                <span className="text-xs text-zinc-500 tabular-nums">
-                  Checklist {quest.done}/{quest.total}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#16598d]/10 px-2.5 py-1 text-xs font-semibold text-[#16598d] dark:text-blue-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#16598d] dark:bg-blue-400" aria-hidden="true" />
+                  Stage {journey.currentIndex + 1} of {journey.totalCount} · {product.stage}
+                </span>
+                <span className="text-xs tabular-nums text-zinc-500">
+                  {journey.overallPercent}% of the journey · {quest.done}/{quest.total} this stage
                 </span>
               </div>
             </div>
@@ -170,8 +162,17 @@ export function ProductPage() {
             </div>
           </div>
         </div>
-        <div className="mt-4">
-          <JourneyStepper product={product} onPick={(s) => navigate(`/products/${product.id}/discover?stage=${s}`)} />
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => navigate(continueHref)}
+            icon={<MapIcon className="h-3.5 w-3.5" />}
+          >
+            {journey.isComplete ? 'Review your journey' : `Continue journey · ${journey.nextActivity?.activity.label ?? 'next step'}`}
+          </Button>
+          {journey.nextActivity && (
+            <span className="text-xs text-zinc-500">Next: {journey.nextActivity.stage}</span>
+          )}
         </div>
         <nav className="-mb-px mt-3 flex gap-1 overflow-x-auto" aria-label="Product sections">
           {TABS.map((t) => (
@@ -194,7 +195,24 @@ export function ProductPage() {
       </header>
 
       <div className="flex-1 px-4 py-5 md:px-6">
-        {activeTab === 'overview' && <OverviewTab product={product} materials={materials} goTab={goTab} />}
+        {activeTab === 'journey' && (
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+            <Card className="h-fit p-4">
+              <JourneyMap journey={journey} onSelect={(s) => setFocusStage(s)} />
+            </Card>
+            <StageOverview
+              product={product}
+              materials={materials}
+              stage={focused}
+              nextStageId={focused.id === product.stage ? journey.nextStageId : null}
+              isCurrent={focused.id === product.stage}
+              onGoTab={openHref}
+              onAdvance={advance}
+              advancing={update.isPending}
+            />
+          </div>
+        )}
+        {activeTab === 'overview' && <OverviewTab product={product} materials={materials} goTab={goTab} openHref={openHref} />}
         {activeTab === 'discover' && <DiscoverTab product={product} />}
         {activeTab === 'materials' && <MaterialsTab product={product} materials={materials} />}
         {activeTab === 'costs' && <CostsTab product={product} materials={materials} />}
@@ -204,6 +222,18 @@ export function ProductPage() {
       </div>
 
       {editing && <EditProductModal product={product} onClose={() => setEditing(false)} />}
+      {celebrating && (
+        <StageComplete
+          stage={celebrating}
+          nextStageId={celebrating === product.stage ? journey.nextStageId : null}
+          onContinue={() => {
+            const target = journey.nextStageId;
+            setCelebrating(null);
+            if (target) advance(target);
+          }}
+          onDismiss={() => setCelebrating(null)}
+        />
+      )}
     </div>
   );
 }
