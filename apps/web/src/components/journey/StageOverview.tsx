@@ -1,4 +1,5 @@
-import { ArrowRight, Check, Circle, Info, Lightbulb, Lock, Play, Sparkles } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { ArrowRight, Check, Circle, Info, Lightbulb, Lock, Play, ShieldCheck, Sparkles } from 'lucide-react';
 import { STAGE_GUIDES, activityHref, getStage, stageStateLabel, type JourneyStage, type Material, type Product, type StageId } from '@sv/shared';
 
 const nextStageGuidePurpose = (id: StageId) => STAGE_GUIDES[id].purpose;
@@ -20,7 +21,9 @@ export function StageOverview({
   isCurrent,
   onGoTab,
   onAdvance,
-  advancing
+  advancing,
+  renderActivities,
+  extra
 }: {
   product: Product;
   materials: Map<string, Material>;
@@ -30,6 +33,14 @@ export function StageOverview({
   onGoTab: (href: string) => void;
   onAdvance: (to: StageId) => void;
   advancing: boolean;
+  /**
+   * Optional collaborative renderer for the activity list. Left undefined, the
+   * overview keeps its original, purely-navigational checklist, so this
+   * component still works without any collaboration data.
+   */
+  renderActivities?: () => ReactNode;
+  /** Contextual detail shown under the activity list (e.g. comments). */
+  extra?: ReactNode;
 }) {
   const locked = stage.state === 'locked';
   const required = stage.activities.filter((a) => a.required);
@@ -81,6 +92,8 @@ export function StageOverview({
             <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             {stage.lockReason}
           </p>
+        ) : renderActivities ? (
+          renderActivities()
         ) : (
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {stage.activities.map((activity, index) => (
@@ -116,6 +129,19 @@ export function StageOverview({
             {stage.activities.length === 0 && <li className="px-4 py-4 text-sm text-zinc-500">Nothing to do here yet.</li>}
           </ul>
         )}
+
+        {/* Filled in but unsigned: say exactly why the step does not count yet. */}
+        {(stage.pendingApproval?.length ?? 0) > 0 && (
+          <p className="flex items-start gap-1.5 border-t border-amber-100 bg-amber-50/60 px-4 py-2.5 text-xs leading-5 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+            <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              {stage.pendingApproval!.length === 1 ? 'One step is' : `${stage.pendingApproval!.length} steps are`} waiting on
+              approval, so {stage.pendingApproval!.length === 1 ? 'it does' : 'they do'} not count towards this stage yet.
+            </span>
+          </p>
+        )}
+
+        {extra && <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">{extra}</div>}
       </div>
 
       {/* What happens next */}

@@ -8,8 +8,10 @@ import {
   nextStage,
   normaliseAnswer,
   stageIndex,
+  type AnswerValue,
   type CurrencyCode,
   type StageId,
+  type ReviewState,
   type ProductCadModel
 } from '@sv/shared';
 import { auth } from '../auth/session.js';
@@ -18,6 +20,7 @@ import { badRequest, conflict, notFound, parse, route, uuid } from '../lib/http.
 import { insightsFor, rulesFor } from '../services/insights.js';
 import { assertMaterial, assertProduct, loadMaterials, loadProduct, loadSuppliers, touchProduct } from '../services/repo.js';
 import { canTransition } from '../services/stage-gating.js';
+import { notifyStageCompleted, notifyUnblocked } from './collaboration.js';
 import type { XpLedger } from '../services/xp.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
 import { validateSyncedQuestionValue } from '../services/question-validation.js';
@@ -34,12 +37,27 @@ async function changeStage(trx: Db, ledger: XpLedger, productId: string, name: s
   const workspaceId = ledger.ctx.workspaceId;
   const current = await loadProduct(trx, workspaceId, productId);
   const materials = new Map((await loadMaterials(trx, workspaceId, current.materials.map((m) => m.materialId))).map((m) => [m.id, m]));
-  const verdict = canTransition(current, to, materials);
+  // Sign-off activities only count once approved, so the gate needs their state.
+  const approvalRows = await trx
+    .selectFrom('activity_records')
+    .select(['activity_key', 'review_state'])
+    .where('product_id', '=', productId)
+    .execute();
+  const approvals = Object.fromEntries(approvalRows.map((r) => [r.activity_key, r.review_state])) as Record<string, ReviewState>;
+  const verdict = canTransition(current, to, materials, approvals);
   if (!verdict.allowed) throw conflict(verdict.reason);
   await trx.updateTable('products').set({ stage: to, updated_at: new Date() }).where('id', '=', productId).execute();
   await trx.insertInto('stage_history').values({ product_id: productId, from_stage: from, to_stage: to, user_id: ledger.ctx.userId }).execute();
   if (stageIndex(to) > stageIndex(from) && to !== 'Retired') {
     await ledger.award('stage_advanced', `${productId}:${to}`, XP.stageAdvanced, `${name} moved to ${to}`, productId);
+    // One quiet notification, and only to teammates.
+    await notifyStageCompleted(trx, {
+      workspaceId,
+      actorId: ledger.ctx.userId,
+      productId,
+      productName: name,
+      stage: from
+    });
   }
 }
 
@@ -180,6 +198,23 @@ productsRouter.put(
         } else if (question.syncsTo === 'category' && typeof value === 'string') {
           await trx.updateTable('products').set({ category: value }).where('id', '=', id).execute();
         }
+
+        // Answering a prerequisite question can unblock dependent work. Only
+        // notify on a genuine first answer, checked against the stored row.
+        const previous = await trx
+          .selectFrom('answers')
+          .select(['value'])
+          .where('product_id', '=', id)
+          .where('question_key', '=', question.key)
+          .executeTakeFirst();
+        await notifyUnblocked(trx, {
+          workspaceId: ctx.workspaceId,
+          actorId: ctx.userId,
+          productId: id,
+          completedKey: question.key,
+          completedLabel: question.prompt,
+          wasAlreadyDone: Boolean(previous && isAnswered(JSON.parse(String(previous.value)) as AnswerValue))
+        });
       } else {
         await trx.deleteFrom('answers').where('product_id', '=', id).where('question_key', '=', question.key).execute();
       }
@@ -312,6 +347,18 @@ productsRouter.patch(
           workspaceId: ctx.workspaceId,
           metadata: { productId: id, taskId, title: task.title, status: body.status }
         }, trx);
+
+        // Finishing a task can clear a blocker someone else is waiting on.
+        if (body.status === 'done' && task.status !== 'done') {
+          await notifyUnblocked(trx, {
+            workspaceId: ctx.workspaceId,
+            actorId: ctx.userId,
+            productId: id,
+            completedKey: taskId,
+            completedLabel: task.title,
+            wasAlreadyDone: false
+          });
+        }
       }
       await trx.updateTable('tasks').set(set).where('id', '=', taskId).execute();
       await touchProduct(trx, id);

@@ -31,6 +31,7 @@ import { ExternalReviewPage } from './pages/ExternalReview';
 import { ExternalReviewsPage } from './pages/ExternalReviews';
 import { TryDemoPage } from './pages/TryDemo';
 import { SettingsPage } from './pages/Settings';
+import { NotificationSettings } from './pages/NotificationSettings';
 import { WorkspaceSetupPage } from './pages/WorkspaceSetup';
 import { DesignEditorPage, DesignStudioPage } from './pages/DesignStudio';
 import { StudioHomePage } from './pages/StudioHome';
@@ -220,6 +221,7 @@ const router = createBrowserRouter([
               { path: '/suppliers', element: <SuppliersPage /> },
               { path: '/achievements', element: <AchievementsPage /> },
               { path: '/settings', element: <SettingsPage /> },
+              { path: '/settings/notifications', element: <NotificationSettings /> },
               { path: '/workspace-setup', element: <WorkspaceSetupPage /> },
               { path: '*', element: <Navigate to="/" replace /> }
             ]

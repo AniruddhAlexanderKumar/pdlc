@@ -72,6 +72,39 @@ function iconClasses(state: JourneyStage['state'], phase: PhaseId): string {
   }
 }
 
+/**
+ * The collaboration line under a stage: what is waiting on review, what is
+ * blocked, who is involved. Only rendered when there is something to say, so a
+ * quiet stage stays visually clean.
+ */
+function StageCardSummary({ stage }: { stage: JourneyStage }) {
+  const activities = stage.activities;
+  const awaitingReview = activities.filter(
+    (a) => a.collaboration?.reviewState === 'pending' || a.collaboration?.reviewState === 'changes_requested'
+  ).length;
+  const blocked = activities.filter((a) => (a.collaboration?.blockers.length ?? 0) > 0).length;
+  const owners = new Set(activities.map((a) => a.collaboration?.assigneeName).filter((n): n is string => Boolean(n)));
+
+  if (awaitingReview === 0 && blocked === 0 && owners.size === 0) return null;
+
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] leading-4">
+      {awaitingReview > 0 && (
+        <span className="font-medium text-amber-700 dark:text-amber-400">
+          {awaitingReview} awaiting review
+        </span>
+      )}
+      {blocked > 0 && <span className="font-medium text-rose-700 dark:text-rose-400">{blocked} blocked</span>}
+      {owners.size > 0 && (
+        <span className="truncate text-zinc-500 dark:text-zinc-400">
+          {[...owners].slice(0, 2).join(', ')}
+          {owners.size > 2 && ` +${owners.size - 2}`}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function StageNode({
   stage,
   isLast,
@@ -139,17 +172,20 @@ function StageNode({
           <span className="mt-0.5 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">{stage.guide.purpose}</span>
 
           {stage.state !== 'locked' ? (
-            <span className="mt-2 flex items-center gap-2">
-              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200/80 dark:bg-zinc-800">
-                <span
-                  className={cx('block h-full rounded-full transition-all duration-500', stage.complete ? 'bg-emerald-500' : tone.ring)}
-                  style={{ width: `${stage.progress}%` }}
-                />
+            <>
+              <span className="mt-2 flex items-center gap-2">
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200/80 dark:bg-zinc-800">
+                  <span
+                    className={cx('block h-full rounded-full transition-all duration-500', stage.complete ? 'bg-emerald-500' : tone.ring)}
+                    style={{ width: `${stage.progress}%` }}
+                  />
+                </span>
+                <span className="shrink-0 text-[11px] font-medium tabular-nums text-zinc-500">
+                  {stage.done}/{stage.total}
+                </span>
               </span>
-              <span className="shrink-0 text-[11px] font-medium tabular-nums text-zinc-500">
-                {stage.done}/{stage.total}
-              </span>
-            </span>
+              <StageCardSummary stage={stage} />
+            </>
           ) : (
             <span className="mt-1.5 block text-[11px] text-zinc-400 dark:text-zinc-500">{stage.lockReason}</span>
           )}

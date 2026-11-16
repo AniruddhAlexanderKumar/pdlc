@@ -2,6 +2,7 @@ import { isAnswered, questionsForStage } from './questions.js';
 import { stageQuest } from './gamification.js';
 import { STAGES, STAGE_IDS, getStage, nextStage, stageIndex, type PhaseId, type StageId } from './stages.js';
 import type { Material, Product } from './types.js';
+import { requiresApproval, type ActivityRecord, type ActivityBlocker, type ActivityState } from './activity.js';
 
 /**
  * The product journey.
@@ -97,6 +98,12 @@ export interface StageJourneyActivity {
   tab: 'discover' | 'overview' | 'materials' | 'costs' | 'tasks';
   /** XP earned the first time this is completed, when known. */
   xp: number;
+  /**
+   * Collaboration metadata, when the caller supplied it. Absent means "no
+   * ownership recorded", which keeps `buildJourney(product)` working exactly as
+   * before for existing callers and tests.
+   */
+  collaboration?: ActivityState;
 }
 
 export interface JourneyStage {
@@ -115,8 +122,10 @@ export interface JourneyStage {
   total: number;
   /** 0–100, based on required activities. */
   progress: number;
-  /** Matches `stageQuest().complete` exactly. */
+  /** Matches `stageQuest().complete` exactly, plus the approval gate. */
   complete: boolean;
+  /** Activities that are filled in but await sign-off, so they do not count. */
+  pendingApproval?: string[];
 }
 
 export interface NextActivity {
@@ -179,6 +188,43 @@ function activitiesForStage(product: Product, stage: StageId, materials: Map<str
   return [...questionActivities, ...actionActivities];
 }
 
+/**
+ * Attaches ownership/status/blockers to activities, when the caller has them.
+ *
+ * `allActivities` is the flat list across every stage, which blockers need in
+ * order to resolve a prerequisite that lives in a different stage.
+ */
+function attachCollaboration(
+  activities: StageJourneyActivity[],
+  collab: BuildJourneyCollaboration | undefined,
+  allActivities: StageJourneyActivity[]
+): StageJourneyActivity[] {
+  if (!collab) return activities;
+  return activities.map((a) => {
+    const record = collab.records[a.id];
+    const blockers = collab.blockersFor ? collab.blockersFor(a.id, allActivities, collab.records) : [];
+    return {
+      ...a,
+      collaboration: {
+        activityKey: a.id,
+        status: record?.status ?? 'not_started',
+        statusLabel: record?.status === 'in_progress' ? 'In progress' : record?.status === 'needs_review' ? 'Needs review' : record?.status === 'completed' ? 'Completed' : record?.status === 'blocked' ? 'Blocked' : 'Not started',
+        assigneeId: record?.assigneeId ?? null,
+        assigneeName: record?.assigneeName ?? null,
+        reviewState: record?.reviewState ?? 'none',
+        reviewLabel: record?.reviewState === 'pending' ? 'Awaiting review' : record?.reviewState === 'approved' ? 'Approved' : record?.reviewState === 'changes_requested' ? 'Changes requested' : 'No review needed',
+        awaitingApproval: requiresApproval(a.id) && a.done && (record?.reviewState ?? 'none') !== 'approved',
+        completedBy: record?.completedBy ?? null,
+        completedByName: record?.completedByName ?? null,
+        completedAt: record?.completedAt ?? null,
+        reviewNote: record?.reviewNote ?? null,
+        blockers,
+        commentCount: collab.commentCounts?.[a.id] ?? 0
+      }
+    };
+  });
+}
+
 function stageStateFor(
   index: number,
   currentIndex: number,
@@ -199,6 +245,18 @@ function lockReasonFor(stage: StageId): string {
   return `Finish ${getStage(previous).label} to unlock ${getStage(stage).label}.`;
 }
 
+export interface BuildJourneyCollaboration {
+  records: Record<string, ActivityRecord>;
+  /** Resolves blockers for an activity. Injected to keep this module pure. */
+  blockersFor?: (activityKey: string, allActivities: StageJourneyActivity[], records: Record<string, ActivityRecord>) => ActivityBlocker[];
+  /**
+   * Optional pre-computed activity list. `buildJourney` now derives this itself,
+   * so callers do not need to supply it; it is kept for compatibility.
+   */
+  journeyActivities?: Record<string, StageJourneyActivity>;
+  commentCounts?: Record<string, number>;
+}
+
 export interface BuildJourneyOptions {
   /** Materials, used to price the bill of materials for margin-based steps. */
   materials?: Map<string, Material>;
@@ -208,6 +266,8 @@ export interface BuildJourneyOptions {
    * before gating existed keep their access and can still move around.
    */
   visitedStages?: StageId[];
+  /** Ownership, status, review and blocker data. Omitted by existing callers. */
+  collaboration?: BuildJourneyCollaboration;
 }
 
 /** Builds the full journey for one product. Pure: safe to call on every render. */
@@ -219,13 +279,28 @@ export function buildJourney(product: Product, options: BuildJourneyOptions = {}
   // Grandfathering: never lock a stage the product has already reached.
   const unlockedThrough = Math.max(currentIndex, visitedMax);
 
+  // Every activity across the lifecycle, built once. Dependencies may point at
+  // another stage (design depends on research), so blockers need the full list.
+  const rawByStage = new Map(STAGE_IDS.map((id) => [id, activitiesForStage(product, id, materials)]));
+  const allActivities = STAGE_IDS.flatMap((id) => rawByStage.get(id) ?? []);
+
   const stages = STAGE_IDS.map((id) => {
-    const activities = activitiesForStage(product, id, materials);
+    const activities = attachCollaboration(rawByStage.get(id) ?? [], options.collaboration, allActivities);
     const required = activities.filter((a) => a.required);
-    const done = required.filter((a) => a.done).length;
     const total = required.length;
     // Canonical completion, straight from the same rule the server enforces.
-    const complete = stageQuest(product, materials, id).complete;
+    const questComplete = stageQuest(product, materials, id).complete;
+
+    // Approval gate. An activity that needs sign-off does not count until it is
+    // approved, so it is excluded from the tally and from completion. With no
+    // collaboration data this is a no-op and `stageQuest()` decides, which keeps
+    // every prior behaviour intact.
+    const collab = options.collaboration;
+    const pendingApproval = collab
+      ? required.filter((a) => a.done && requiresApproval(a.id) && collab.records[a.id]?.reviewState !== 'approved')
+      : [];
+    const done = required.filter((a) => a.done).length - pendingApproval.length;
+    const complete = questComplete && pendingApproval.length === 0;
     const index = stageIndex(id);
     return {
       id,
@@ -236,7 +311,8 @@ export function buildJourney(product: Product, options: BuildJourneyOptions = {}
       state: 'locked' as StageState,
       lockReason: null as string | null,
       activities,
-      done: complete ? total : done,
+      pendingApproval: pendingApproval.map((a) => a.id),
+      done: complete ? total : Math.max(0, done),
       total,
       progress: total === 0 ? (complete ? 100 : 0) : Math.round((complete ? total : done) / total * 100),
       complete
