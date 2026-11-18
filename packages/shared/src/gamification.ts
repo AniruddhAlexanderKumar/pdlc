@@ -1,3 +1,4 @@
+import { requiresApproval } from './activity.js';
 import { costSummary } from './costing.js';
 import { isAnswered, questionsForStage } from './questions.js';
 import { STAGE_IDS, stageIndex, type StageId } from './stages.js';
@@ -73,82 +74,24 @@ export interface StageQuest {
 export function stageQuest(product: Product, materials: Map<string, Material>, stage: StageId = product.stage): StageQuest {
   const items: QuestItem[] = [];
 
-  const required = questionsForStage(stage).filter((q) => q.required);
-  const answered = required.filter((q) => isAnswered(product.answers[q.key])).length;
+  const required = questionsForStage(stage, product.productKind).filter((q) => q.required);
+  const answered = required.filter(q => isAnswered(product.answers[q.key]) && (!product.approvalStates || !requiresApproval(q.key) || product.approvalStates[q.key] === 'approved')).length;
   if (required.length > 0) {
     items.push({
       id: 'questions',
-      label: `Answer the ${stage} questions (${answered}/${required.length})`,
+      label: `Finish the ${stage} activities (${answered}/${required.length})`,
       done: answered === required.length,
       tab: 'discover'
     });
   }
 
-  const tasks = product.tasks;
-  const doneTasks = tasks.filter((t) => t.status === 'done').length;
-  const summary = costSummary(product, materials);
-  const costsFilled = product.costs.labour > 0 || product.costs.packaging > 0 || product.costs.overhead > 0;
-
-  switch (stage) {
-    case 'Idea':
-      items.push({ id: 'description', label: 'Describe the product', done: product.description.trim().length > 0, tab: 'overview' });
-      break;
-    case 'Research':
-      items.push({ id: 'task', label: 'Plan at least one research task', done: tasks.length > 0, tab: 'tasks' });
-      break;
-    case 'Planning':
-      items.push({ id: 'price', label: 'Set a target selling price', done: product.targetSellingPrice !== null, tab: 'costs' });
-      items.push({ id: 'tasks', label: 'Break the work into 3+ tasks', done: tasks.length >= 3, tab: 'tasks' });
-      break;
-    case 'Design':
-      items.push({ id: 'bom', label: 'Add 2+ materials to the bill of materials', done: product.materials.length >= 2, tab: 'materials' });
-      break;
-    case 'Prototype':
-      items.push({ id: 'costs', label: 'Fill in labour, packaging and overhead', done: costsFilled, tab: 'costs' });
-      items.push({ id: 'bom', label: 'Bill of materials has 3+ lines', done: product.materials.length >= 3, tab: 'materials' });
-      break;
-    case 'Testing':
-      items.push({
-        id: 'tasks',
-        label: 'Finish 80% of tasks',
-        done: tasks.length > 0 && doneTasks / tasks.length >= 0.8,
-        tab: 'tasks'
-      });
-      break;
-    case 'Launch':
-      items.push({
-        id: 'margin',
-        label: 'Reach a healthy margin (30%+)',
-        done: summary.grossMargin !== null && summary.grossMargin >= 30,
-        tab: 'costs'
-      });
-      items.push({ id: 'tasks', label: 'Close every launch task', done: tasks.length > 0 && doneTasks === tasks.length, tab: 'tasks' });
-      break;
-    case 'Improvement':
-      items.push({
-        id: 'margin',
-        label: 'Push margin to 40%+',
-        done: summary.grossMargin !== null && summary.grossMargin >= 40,
-        tab: 'costs'
-      });
-      items.push({
-        id: 'next_batch',
-        label: 'Name the one biggest improvement for the next batch',
-        done: isAnswered(product.answers['improve.next']),
-        tab: 'discover'
-      });
-      break;
-    case 'Retired':
-      // Retired is off the happy path, but it still needs a stated reason so the
-      // journey never renders a stage with nothing to do.
-      items.push({
-        id: 'retire_reason',
-        label: 'Record why this product is being retired',
-        done: isAnswered(product.answers['retired.reason']),
-        tab: 'discover'
-      });
-      break;
-  }
+  // Practical work is checked against its real record, never a minimum margin,
+  // arbitrary task quota or a physical-materials requirement for every product.
+  if (stage === 'Idea') items.push({ id: 'description', label: 'Describe the product', done: !!product.description.trim(), tab: 'overview' });
+  if (stage === 'Research') items.push({ id: 'task', label: 'Schedule your next research task', done: product.tasks.some(t => t.chapter === stage), tab: 'tasks' });
+  if (stage === 'Prototype') items.push({ id: 'tasks', label: 'Add your next build task', done: product.tasks.some(t => t.chapter === stage), tab: 'tasks' });
+  if (stage === 'Launch') items.push({ id: 'price', label: 'Set a selling price in the cost sheet', done: product.targetSellingPrice !== null, tab: 'costs' });
+  if (stage === 'Retired') items.push({ id: 'retire_reason', label: 'Record the reason for archiving', done: isAnswered(product.answers['retired.reason']), tab: 'discover' });
 
   const done = items.filter((i) => i.done).length;
   const total = items.length;
@@ -174,14 +117,15 @@ export interface ProductHealth {
 /** A single number that tells you how well-understood and how healthy a product is. */
 export function productHealth(product: Product, materials: Map<string, Material>): ProductHealth {
   const upto = STAGE_IDS.slice(0, Math.max(stageIndex(product.stage), 0) + 1);
-  const required = upto.flatMap((s) => questionsForStage(s).filter((q) => q.required));
+  const required = upto.flatMap((s) => questionsForStage(s, product.productKind).filter((q) => q.required));
   const discovery = required.length === 0 ? 1 : required.filter((q) => isAnswered(product.answers[q.key])).length / required.length;
 
   const summary = costSummary(product, materials);
-  const costParts = [product.materials.length > 0, product.costs.labour > 0 || product.costs.packaging > 0 || product.costs.overhead > 0, product.targetSellingPrice !== null];
+  const costParts = [product.costs.labour > 0 || product.costs.packaging > 0 || product.costs.overhead > 0 || isAnswered(product.answers['prototype.overhead']), product.targetSellingPrice !== null];
+  if (product.productKind === 'physical' || !product.productKind) costParts.push(product.materials.length > 0);
   const costs = costParts.filter(Boolean).length / costParts.length;
 
-  const margin = summary.grossMargin === null ? 0 : Math.max(0, Math.min(1, summary.grossMargin / 50));
+  const margin = summary.grossMargin === null || summary.totalUnitCost <= 0 ? 0 : Math.max(0, Math.min(1, summary.grossMargin / 50));
 
   const tasks = product.tasks.length === 0 ? 0.5 : product.tasks.filter((t) => t.status === 'done').length / product.tasks.length;
 

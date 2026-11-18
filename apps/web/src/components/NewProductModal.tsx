@@ -1,37 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Sparkles } from 'lucide-react';
-import { XP } from '@sv/shared';
-import { useCreateProduct } from '../api/hooks';
-import { useMoney } from '../lib/money';
-import { Button, Field, Input, Modal } from './ui';
+import { ArrowRight } from 'lucide-react';
+import { useCreateProduct, useSession } from '../api/hooks';
+import { Button, Modal } from './ui';
+import { ProductStartFields, startValues } from './journey/ProductStartFields';
 
-/** Step one of "Tell us": just a name. The question deck takes it from there. */
 export function NewProductModal({ onClose }: { onClose: () => void }) {
-  const navigate = useNavigate();
-  const create = useCreateProduct();
-  const { symbol } = useMoney();
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
-  const [price, setPrice] = useState('');
-
-  const submit = () => {
-    if (!name.trim()) return;
-    create.mutate(
-      { name: name.trim(), category: category.trim() || undefined, targetSellingPrice: price === '' ? undefined : Number(price) },
-      {
-        onSuccess: (res) => {
-          onClose();
-          navigate(`/products/${res.data.id}/journey`);
-        }
-      }
-    );
-  };
-
+  const me = useSession(),
+    navigate = useNavigate(),
+    create = useCreateProduct();
+  const [form, setForm] = useState(() => startValues(me.user.guideMode));
   return (
     <Modal
-      title="New product"
-      subtitle="Start with a name. We'll ask a few quick questions next."
+      title="Let’s build your product"
+      subtitle={`Start with what you know. This is a ${me.workspace.mode === 'team' ? 'team' : 'personal'} workspace.`}
       onClose={onClose}
       size="sm"
       footer={
@@ -39,34 +21,30 @@ export function NewProductModal({ onClose }: { onClose: () => void }) {
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit} loading={create.isPending} disabled={!name.trim()} icon={<Sparkles className="h-4 w-4" />}>
-            Create · +{XP.productCreated} XP
+          <Button type="submit" form="new-product" disabled={!form.name.trim()} loading={create.isPending}>
+            Start my journey <ArrowRight size={15} />
           </Button>
         </>
       }
     >
       <form
-        className="space-y-4"
+        id="new-product"
         onSubmit={(e) => {
           e.preventDefault();
-          submit();
+          create.mutate(form, {
+            onSuccess: (res) => {
+              onClose();
+              navigate(`/products/${res.data.id}/discover?stage=${res.data.stage}`);
+            }
+          });
         }}
       >
-        <Field label="What are you building?" htmlFor="np-name">
-          <Input id="np-name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Coral Steel Water Bottle" />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Category (optional)" htmlFor="np-cat">
-            <Input id="np-cat" maxLength={60} value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Drinkware" />
-          </Field>
-          <Field label="Selling price (optional)" htmlFor="np-price">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">{symbol}</span>
-              <Input id="np-price" type="number" min={0} step="any" className="pl-8" value={price} onChange={(e) => setPrice(e.target.value)} />
-            </div>
-          </Field>
-        </div>
-        <button type="submit" hidden />
+        <ProductStartFields value={form} onChange={setForm} />
+        {create.isError && (
+          <p role="alert" className="mt-2 text-sm text-rose-600">
+            {create.error.message}
+          </p>
+        )}
       </form>
     </Modal>
   );

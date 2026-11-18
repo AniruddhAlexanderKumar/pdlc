@@ -2,7 +2,7 @@
   "name": "solution-velocity",
   "private": true,
   "version": "1.0.0",
-  "description": "Solution Velocity — a gamified product development lifecycle workspace",
+  "description": "Solution Velocity — a guided product development workspace for founders and teams",
   "workspaces": [
     "packages/*",
     "apps/*"

@@ -124,16 +124,16 @@ function StageNode({
         type="button"
         onClick={() => onSelect(stage.id)}
         aria-current={stage.state === 'current' ? 'step' : undefined}
-        aria-label={`${stage.label} — ${stageStateLabel(stage.state)}`}
+        aria-label={`${stage.label} — ${stage.state === 'completed' && !stage.complete ? 'Earlier chapter; work remaining' : stageStateLabel(stage.state)}`}
         className={cx(
           'group flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-all',
           nodeClasses(stage.state),
-          locked ? 'cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-sm'
+          locked ? 'hover:shadow-sm' : 'hover:-translate-y-0.5 hover:shadow-sm'
         )}
       >
         <span className={cx('relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform', iconClasses(stage.state, stage.phase))}>
           <Icon className="h-5 w-5" aria-hidden="true" />
-          {stage.state === 'completed' && (
+          {stage.complete && (
             <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-emerald-500 dark:border-zinc-900">
               <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} aria-hidden="true" />
             </span>

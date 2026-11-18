@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, STAGE_IDS, TASK_STATUSES } from '@sv/shared';
+import { ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, PRODUCT_KINDS, STAGE_IDS, TASK_STATUSES } from '@sv/shared';
 import { money, shortText, url, uuid } from './http.js';
 
 // Shared by manual entry and voice import. Keep mapping-specific restrictions
@@ -7,6 +7,7 @@ import { money, shortText, url, uuid } from './http.js';
 export const productFields = z.object({
   name: shortText(120).min(1, 'Give the product a name'),
   category: shortText(60),
+  productKind: z.enum(PRODUCT_KINDS),
   description: shortText(2000),
   imageUrl: url,
   notes: shortText(10000),
@@ -16,6 +17,7 @@ export const productFields = z.object({
 });
 
 export const taskFields = z.object({
+  chapter: z.enum(STAGE_IDS).nullable().optional(),
   title: shortText(200).min(1, 'Give the task a title'),
   description: shortText(4000),
   status: z.enum(TASK_STATUSES),

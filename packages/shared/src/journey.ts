@@ -2,7 +2,7 @@ import { isAnswered, questionsForStage } from './questions.js';
 import { stageQuest } from './gamification.js';
 import { STAGES, STAGE_IDS, getStage, nextStage, stageIndex, type PhaseId, type StageId } from './stages.js';
 import type { Material, Product } from './types.js';
-import { requiresApproval, type ActivityRecord, type ActivityBlocker, type ActivityState } from './activity.js';
+import { activityState, requiresApproval, type ActivityRecord, type ActivityBlocker, type ActivityState } from './activity.js';
 
 /**
  * The product journey.
@@ -28,42 +28,20 @@ export interface StageGuide {
  * exists in the domain model, but it is presented off the main path.
  */
 export const STAGE_GUIDES: Record<StageId, StageGuide> = {
-  Idea: {
-    purpose: 'Capture the product idea and the problem it solves.',
-    why: 'A clear problem and audience is what every later stage builds on.'
-  },
-  Research: {
-    purpose: 'Understand the market, the competitors and the people who will buy it.',
-    why: 'You avoid building something nobody wants, and you learn what to charge.'
-  },
-  Planning: {
-    purpose: 'Decide the price, the margin, the batch size and the launch date.',
-    why: 'Numbers turn an idea into something you can actually budget for.'
-  },
-  Design: {
-    purpose: 'Work out the features, materials and specifications.',
-    why: 'The bill of materials here is what makes your cost per unit real.'
-  },
-  Prototype: {
-    purpose: 'Build a first version and see what it teaches you.',
-    why: 'A rough prototype finds problems while they are still cheap to fix.'
-  },
-  Testing: {
-    purpose: 'Check that the product works, holds up and is safe to sell.',
-    why: 'Testing catches the failures that would otherwise become returns.'
-  },
-  Launch: {
-    purpose: 'Get the product finished, priced and in front of customers.',
-    why: 'Launch turns all your preparation into revenue and real feedback.'
-  },
-  Improvement: {
-    purpose: 'Learn from sales and feedback and decide what to change next.',
-    why: 'Each batch is a chance to raise the margin or fix the top complaint.'
-  },
-  Retired: {
-    purpose: 'Record why the product is no longer being made.',
-    why: 'Keeping the reason keeps your history useful for future products.'
-  }
+  Idea: { purpose: 'Capture the product idea and the problem it solves.', why: 'A clear problem gives you something specific to investigate.' },
+  Research: { purpose: 'Learn how people solve the problem today.', why: 'Separating assumptions from observations helps you decide what to test before investing.' },
+  Planning: { purpose: 'Choose the smallest useful first version and plan the work.', why: 'A short feature list and a budget keep the first build achievable.' },
+  Design: { purpose: 'Describe the experience from the user’s point of view.', why: 'A shared design brief lets you spot confusing steps before building them.' },
+  Prototype: { purpose: 'Build a first version around one learning goal.', why: 'A small trial reveals blockers while changes are still affordable.' },
+  Testing: { purpose: 'Compare what you expected with what really happened.', why: 'Observed results help you fix the right problem, not just the loudest complaint.' },
+  Launch: { purpose: 'Decide who will get the product, when and at what price.', why: 'A release checklist and a measurable goal give you a useful first week.' },
+  Improvement: { purpose: 'Turn feedback into the next development cycle.', why: 'Returning to an earlier chapter lets you test a change without losing what you learned.' },
+  Retired: { purpose: 'Record why you stopped developing this product.', why: 'Your notes remain useful for future products.' }
+};
+
+export const CHAPTER_BRIEFS: Record<StageId, string> = {
+  Idea: 'Concept brief', Research: 'Research notebook', Planning: 'Build roadmap', Design: 'Design brief',
+  Prototype: 'Prototype log', Testing: 'Test report', Launch: 'Launch plan', Improvement: 'Iteration brief', Retired: 'Archive note'
 };
 
 /** Why a checklist step matters, in the user's words. */
@@ -72,7 +50,7 @@ const STEP_WHY: Record<string, string> = {
   description: 'A one-line description is the first thing anyone reads about this product.',
   task: 'A research task is how you turn “I think” into “I checked”.',
   price: 'Without a price you cannot work out profit or margin.',
-  tasks: 'Three or more tasks means the work is broken down enough to start.',
+  tasks: 'One concrete task gives you a place to record a due date, progress and blockers.',
   bom: 'Every material you add makes the unit cost more accurate.',
   costs: 'Labour, packaging and overhead are what your materials do not cover.',
   margin: 'A healthy margin is what makes the product worth continuing to build.',
@@ -155,7 +133,7 @@ export interface Journey {
 
 function activitiesForStage(product: Product, stage: StageId, materials: Map<string, Material>): StageJourneyActivity[] {
   const quest = stageQuest(product, materials, stage);
-  const questions = questionsForStage(stage);
+  const questions = questionsForStage(stage, product.productKind);
 
   const questionActivities: StageJourneyActivity[] = questions.map((q) => ({
     id: q.key,
@@ -197,30 +175,16 @@ function activitiesForStage(product: Product, stage: StageId, materials: Map<str
 function attachCollaboration(
   activities: StageJourneyActivity[],
   collab: BuildJourneyCollaboration | undefined,
-  allActivities: StageJourneyActivity[]
+  allActivities: StageJourneyActivity[],
+  stagesByKey: Map<string, StageId>
 ): StageJourneyActivity[] {
   if (!collab) return activities;
   return activities.map((a) => {
     const record = collab.records[a.id];
-    const blockers = collab.blockersFor ? collab.blockersFor(a.id, allActivities, collab.records) : [];
+    const blockers = collab.blockersFor ? collab.blockersFor(a.id, allActivities, collab.records, stagesByKey) : [];
     return {
       ...a,
-      collaboration: {
-        activityKey: a.id,
-        status: record?.status ?? 'not_started',
-        statusLabel: record?.status === 'in_progress' ? 'In progress' : record?.status === 'needs_review' ? 'Needs review' : record?.status === 'completed' ? 'Completed' : record?.status === 'blocked' ? 'Blocked' : 'Not started',
-        assigneeId: record?.assigneeId ?? null,
-        assigneeName: record?.assigneeName ?? null,
-        reviewState: record?.reviewState ?? 'none',
-        reviewLabel: record?.reviewState === 'pending' ? 'Awaiting review' : record?.reviewState === 'approved' ? 'Approved' : record?.reviewState === 'changes_requested' ? 'Changes requested' : 'No review needed',
-        awaitingApproval: requiresApproval(a.id) && a.done && (record?.reviewState ?? 'none') !== 'approved',
-        completedBy: record?.completedBy ?? null,
-        completedByName: record?.completedByName ?? null,
-        completedAt: record?.completedAt ?? null,
-        reviewNote: record?.reviewNote ?? null,
-        blockers,
-        commentCount: collab.commentCounts?.[a.id] ?? 0
-      }
+      collaboration: activityState(a, record, blockers, collab.commentCounts?.[a.id])
     };
   });
 }
@@ -248,7 +212,7 @@ function lockReasonFor(stage: StageId): string {
 export interface BuildJourneyCollaboration {
   records: Record<string, ActivityRecord>;
   /** Resolves blockers for an activity. Injected to keep this module pure. */
-  blockersFor?: (activityKey: string, allActivities: StageJourneyActivity[], records: Record<string, ActivityRecord>) => ActivityBlocker[];
+  blockersFor?: (activityKey: string, allActivities: StageJourneyActivity[], records: Record<string, ActivityRecord>, stages: Map<string, StageId>) => ActivityBlocker[];
   /**
    * Optional pre-computed activity list. `buildJourney` now derives this itself,
    * so callers do not need to supply it; it is kept for compatibility.
@@ -277,15 +241,16 @@ export function buildJourney(product: Product, options: BuildJourneyOptions = {}
   const visited = options.visitedStages ?? [];
   const visitedMax = visited.reduce((max, s) => Math.max(max, stageIndex(s)), currentIndex);
   // Grandfathering: never lock a stage the product has already reached.
-  const unlockedThrough = Math.max(currentIndex, visitedMax);
+  const unlockedThrough = Math.max(currentIndex, visitedMax, product.legacyStage ? stageIndex(product.legacyStage) : -1);
 
   // Every activity across the lifecycle, built once. Dependencies may point at
   // another stage (design depends on research), so blockers need the full list.
   const rawByStage = new Map(STAGE_IDS.map((id) => [id, activitiesForStage(product, id, materials)]));
   const allActivities = STAGE_IDS.flatMap((id) => rawByStage.get(id) ?? []);
 
+  const stagesByKey = new Map(STAGE_IDS.flatMap(id => (rawByStage.get(id) ?? []).map(a => [a.id,id] as const)));
   const stages = STAGE_IDS.map((id) => {
-    const activities = attachCollaboration(rawByStage.get(id) ?? [], options.collaboration, allActivities);
+    const activities = attachCollaboration(rawByStage.get(id) ?? [], options.collaboration, allActivities, stagesByKey);
     const required = activities.filter((a) => a.required);
     const total = required.length;
     // Canonical completion, straight from the same rule the server enforces.
@@ -296,8 +261,8 @@ export function buildJourney(product: Product, options: BuildJourneyOptions = {}
     // collaboration data this is a no-op and `stageQuest()` decides, which keeps
     // every prior behaviour intact.
     const collab = options.collaboration;
-    const pendingApproval = collab
-      ? required.filter((a) => a.done && requiresApproval(a.id) && collab.records[a.id]?.reviewState !== 'approved')
+    const pendingApproval = collab || product.approvalStates
+      ? required.filter(a => a.done && requiresApproval(a.id) && (collab ? collab.records[a.id]?.reviewState : product.approvalStates?.[a.id]) !== 'approved')
       : [];
     const done = required.filter((a) => a.done).length - pendingApproval.length;
     const complete = questComplete && pendingApproval.length === 0;
@@ -387,7 +352,7 @@ export function activityHref(productId: string, stage: StageId, activity: StageJ
   if (activity.kind === 'question' && activity.tab === 'discover') {
     return `/products/${productId}/discover?stage=${stage}&q=${encodeURIComponent(activity.id)}`;
   }
-  return `/products/${productId}/${activity.tab}`;
+  return `/products/${productId}/${activity.tab}${activity.tab === 'tasks' ? `?stage=${stage}` : ''}`;
 }
 
 /** Exposed for tests: the eight progressive stages in order. */

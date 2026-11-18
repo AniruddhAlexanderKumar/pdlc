@@ -114,6 +114,36 @@ export interface ActivityState {
   commentCount: number;
 }
 
+/** Builds the full collaboration state for one activity. */
+export function activityState(
+  activity: { id: string; done: boolean },
+  record: ActivityRecord | undefined,
+  blockers: ActivityBlocker[],
+  commentCount = 0
+): ActivityState {
+  // Completed tool actions and sample/older answers need not have a status
+  // row. Display their actual state without inventing a person or timestamp.
+  const signoff = requiresApproval(activity.id);
+  const status = record?.status ?? (activity.done ? (signoff ? 'in_progress' : 'completed') : 'not_started');
+  const reviewState = record?.reviewState ?? 'none';
+  return {
+    activityKey: activity.id,
+    status,
+    statusLabel: ACTIVITY_STATUS_LABELS[status],
+    assigneeId: record?.assigneeId ?? null,
+    assigneeName: record?.assigneeName ?? null,
+    reviewState,
+    reviewLabel: signoff && reviewState === 'none' ? 'Sign-off required' : REVIEW_STATE_LABELS[reviewState],
+    awaitingApproval: signoff && activity.done && reviewState !== 'approved',
+    completedBy: record?.completedBy ?? null,
+    completedByName: record?.completedByName ?? null,
+    completedAt: record?.completedAt ?? null,
+    reviewNote: record?.reviewNote ?? null,
+    blockers,
+    commentCount
+  };
+}
+
 // ── Notifications ─────────────────────────────────────────────────────────
 
 export const NOTIFICATION_KINDS = [

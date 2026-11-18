@@ -46,10 +46,11 @@ export async function loadProducts(db: Db, workspaceId: string, productId?: stri
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
 
-  const [bom, tasks, answers] = await Promise.all([
+  const [bom, tasks, answers, reviews] = await Promise.all([
     db.selectFrom('product_materials').selectAll().where('product_id', 'in', ids).orderBy('position').execute(),
     db.selectFrom('tasks').selectAll().where('product_id', 'in', ids).orderBy('position').orderBy('created_at').execute(),
-    db.selectFrom('answers').select(['product_id', 'question_key', 'value']).where('product_id', 'in', ids).execute()
+    db.selectFrom('answers').select(['product_id', 'question_key', 'value']).where('product_id', 'in', ids).execute(),
+    db.selectFrom('activity_records').select(['product_id', 'activity_key', 'review_state']).where('product_id', 'in', ids).where('review_state', '!=', 'none').execute()
   ]);
 
   const links = tasks.length ? await db.selectFrom('voice_import_work_items as l')
@@ -72,6 +73,8 @@ export async function loadProducts(db: Db, workspaceId: string, productId?: stri
     materials: bom.filter((b) => b.product_id === r.id).map((b) => ({ materialId: b.material_id, quantity: b.quantity })),
     tasks: tasks.filter((t) => t.product_id === r.id).map(t => ({ ...toTask(t), ...(linked.has(t.id) ? { linkedIssue: linked.get(t.id)! } : {}) })),
     answers: Object.fromEntries(answers.filter((a) => a.product_id === r.id).map((a) => [a.question_key, a.value as AnswerValue])),
+    productKind: r.product_kind,
+    approvalStates: Object.fromEntries(reviews.filter(a => a.product_id === r.id).map(a => [a.activity_key, a.review_state])),
     legacyStage: r.legacy_stage ?? null,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString()
@@ -85,6 +88,7 @@ export async function loadProduct(db: Db, workspaceId: string, productId: string
 }
 
 export function toTask(t: {
+  chapter: Task['chapter'];
   id: string;
   title: string;
   description: string;
@@ -95,6 +99,7 @@ export function toTask(t: {
 }): Task {
   return {
     id: t.id,
+    chapter: t.chapter,
     title: t.title,
     description: t.description,
     status: t.status,
@@ -114,8 +119,10 @@ export async function loadWorkspaceData(db: Db, workspaceId: string): Promise<Wo
 }
 
 /** Throws 404 unless the product belongs to the workspace. */
-export async function assertProduct(db: Db, workspaceId: string, productId: string) {
-  const row = await db.selectFrom('products').select(['id', 'stage']).where('id', '=', productId).where('workspace_id', '=', workspaceId).executeTakeFirst();
+export async function assertProduct(db: Db, workspaceId: string, productId: string, lock = false) {
+  let query = db.selectFrom('products').select(['id', 'stage', 'product_kind']).where('id', '=', productId).where('workspace_id', '=', workspaceId);
+  if (lock) query = query.forUpdate();
+  const row = await query.executeTakeFirst();
   if (!row) throw notFound('Product');
   return row;
 }

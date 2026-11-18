@@ -1,3 +1,5 @@
+import { buildJourney, blockersFor } from '@sv/shared';
+import { loadMaterials, loadProduct } from './repo.js';
 import type { ActivityRecord, ActivityStatus, ReviewState, TeamContribution } from '@sv/shared';
 import type { Db } from '../db/index.js';
 
@@ -99,30 +101,17 @@ export interface RecordPatch {
 
 /** Upserts a metadata row. The activity key is trusted only after route validation. */
 export async function upsertRecord(db: Db, productId: string, activityKey: string, patch: RecordPatch): Promise<void> {
-  const values = {
-    product_id: productId,
-    activity_key: activityKey,
-    ...patch,
-    updated_at: new Date()
+  // Kysely column names are snake_case. Undefined patch fields are omitted,
+  // so an answer edit can never erase an assignment or overwrite an owner.
+  const fields = {
+    status: patch.status, assignee_id: patch.assigneeId, review_state: patch.reviewState,
+    review_requested_at: patch.reviewRequestedAt, reviewed_by: patch.reviewedBy, reviewed_at: patch.reviewedAt,
+    review_note: patch.reviewNote, started_at: patch.startedAt, completed_at: patch.completedAt,
+    completed_by: patch.completedBy, updated_at: new Date()
   };
-  await db
-    .insertInto('activity_records')
-    .values({
-      product_id: productId,
-      activity_key: activityKey,
-      status: patch.status ?? 'not_started',
-      assignee_id: patch.assigneeId ?? null,
-      review_state: patch.reviewState ?? 'none',
-      review_requested_at: patch.reviewRequestedAt ?? null,
-      reviewed_by: patch.reviewedBy ?? null,
-      reviewed_at: patch.reviewedAt ?? null,
-      review_note: patch.reviewNote ?? '',
-      started_at: patch.startedAt ?? null,
-      completed_at: patch.completedAt ?? null,
-      completed_by: patch.completedBy ?? null,
-      updated_at: new Date()
-    })
-    .onConflict((oc) => oc.columns(['product_id', 'activity_key']).doUpdateSet(values))
+  await db.insertInto('activity_records')
+    .values({ ...fields, product_id: productId, activity_key: activityKey, status: patch.status ?? 'not_started', review_state: patch.reviewState ?? 'none', review_note: patch.reviewNote ?? '' })
+    .onConflict(oc => oc.columns(['product_id', 'activity_key']).doUpdateSet(fields))
     .execute();
 }
 
@@ -178,4 +167,23 @@ export async function isWorkspaceMember(db: Db, workspaceId: string, userId: str
     .where('user_id', '=', userId)
     .executeTakeFirst();
   return Boolean(row);
+}
+
+/** Rebuilds the journey with collaboration data so routes can validate keys. */
+export async function journeyFor(trx: Parameters<typeof loadCollaboration>[0], workspaceId: string, productId: string) {
+  const product = await loadProduct(trx, workspaceId, productId);
+  const [collab, catalog] = await Promise.all([loadCollaboration(trx, product.id), loadMaterials(trx, workspaceId, product.materials.map(m => m.materialId))]);
+  const materials = new Map(catalog.map(m => [m.id, m]));
+  // Blockers are resolved through the same pure helper the recommendations use,
+  // so a blocked activity is blocked everywhere or nowhere.
+  const journey = buildJourney(product, {
+    materials,
+    collaboration: {
+      records: collab.records,
+      commentCounts: collab.commentCounts,
+      blockersFor: (key, all, records, stagesByKey) =>
+        blockersFor(key, collab.dependencies, all, records, stagesByKey)
+    }
+  });
+  return { product, journey, collab, materials };
 }

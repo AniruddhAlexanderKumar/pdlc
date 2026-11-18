@@ -14,7 +14,7 @@ function configuredProviders(): Provider[] {
 export function assistantProviderNames() { return configuredProviders().map(provider => provider.name); }
 
 /** Reserve before each attempt. On ambiguous transport errors the reservation is charged, never silently released. */
-async function reserve(workspaceId:string,userId:string,conversationId:string,provider:Provider,amount:number) {
+async function reserve(workspaceId:string,userId:string,conversationId:string|null,provider:Provider,amount:number) {
  return db.transaction().execute(async trx=>{
   const balance=await sql<{remaining_tokens:number}>`SELECT remaining_tokens FROM assistant_allowances WHERE workspace_id=${workspaceId}::uuid FOR UPDATE`.execute(trx);
   if(!balance.rows[0] || Number(balance.rows[0].remaining_tokens)<amount) throw new HttpError(402,'Not enough assistant token credits for this request. Ask a system administrator about your allowance.','assistant_allowance_exhausted');
@@ -29,7 +29,7 @@ async function settle(id:string,workspaceId:string,reserved:number,charged:numbe
   if(row.rows.length) await sql`UPDATE assistant_allowances SET remaining_tokens=remaining_tokens+${reserved-charged},updated_at=now() WHERE workspace_id=${workspaceId}::uuid`.execute(trx);
  });
 }
-export async function generateAssistantReply(actor:{workspaceId:string;userId:string},conversationId:string,messages:AiChatMessage[]):Promise<string> {
+export async function generateAssistantReply(actor:{workspaceId:string;userId:string},conversationId:string|null,messages:AiChatMessage[]):Promise<string> {
  const providers=configuredProviders();
  if(!providers.length) throw new HttpError(503,'AI generation is not configured. Project summaries and Help Centre search remain available.','assistant_ai_unavailable');
  // Conservative UTF-8 byte budget; charge reported actual tokens and allow a negative balance if a provider exceeds its reservation.

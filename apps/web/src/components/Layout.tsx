@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, BookOpen, PenTool, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
+import { BookOpen, PenTool, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
 import { DEFAULT_APP_LAYOUT, NAV_FOCUS_PATHS, type Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData, useWorkspaceProfile } from '../api/hooks';
@@ -36,6 +36,7 @@ const NAV = [
 ];
 
 function PlayerCard() {
+  const showStreak = useSession().user.showStreak;
   const { data } = useGame();
   if (!data) return <div className="h-[74px] animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800/60" />;
   return (
@@ -47,13 +48,13 @@ function PlayerCard() {
         <span className="font-semibold">
           Lv {data.level} · <span className="text-blue-600 dark:text-blue-400">{data.levelTitle}</span>
         </span>
-        <span
+        {showStreak && <span
           className={cx('flex items-center gap-0.5 font-semibold tabular-nums', data.streakDays > 0 ? 'text-orange-500' : 'text-zinc-400')}
           title={`${data.streakDays}-day streak`}
         >
           <Flame className="h-3.5 w-3.5" />
           {data.streakDays}
-        </span>
+        </span>}
       </div>
       <ProgressBar className="mt-2" value={(data.xpIntoLevel / data.xpForNextLevel) * 100} />
       <p className="mt-1.5 text-[11px] text-zinc-500 tabular-nums">

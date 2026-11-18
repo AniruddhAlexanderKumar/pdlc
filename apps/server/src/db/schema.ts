@@ -1,5 +1,5 @@
 import type { ColumnType, Generated, Insertable, Selectable, Updateable } from 'kysely';
-import type { IssuePriority, IssueStatus, IssueType, Role, StageId, TaskStatus } from '@sv/shared';
+import type { GuideMode, ProductKind, AnswerValue, IssuePriority, IssueStatus, IssueType, Role, StageId, TaskStatus } from '@sv/shared';
 
 /** Kysely table types. Keep in sync with the SQL in ./migrations. */
 
@@ -11,6 +11,8 @@ type Numeric = ColumnType<number, number | string, number | string>;
 type NumericDefault = ColumnType<number, number | string | undefined, number | string>;
 
 export interface UsersTable {
+  guide_mode: Generated<GuideMode>;
+  show_streak: Generated<boolean>;
   id: Generated<string>;
   email: string;
   name: string;
@@ -108,6 +110,7 @@ export interface FounderSecurityAuditTable {
 }
 
 export interface WorkspacesTable {
+  show_leaderboard: Generated<boolean>;
   mode: Generated<'solo' | 'team'>;
   allow_unrestricted_reviews: Generated<boolean>;
   id: Generated<string>;
@@ -232,6 +235,7 @@ export interface MaterialQuotesTable {
 }
 
 export interface ProductsTable {
+  product_kind: Generated<ProductKind>;
   id: Generated<string>;
   workspace_id: string;
   name: string;
@@ -259,6 +263,7 @@ export interface ProductMaterialsTable {
 }
 
 export interface TasksTable {
+  chapter: StageId | null;
   id: Generated<string>;
   product_id: string;
   title: string;
@@ -482,6 +487,10 @@ export interface Database {
   product_materials: ProductMaterialsTable;
   tasks: TasksTable;
   answers: AnswersTable;
+  activity_drafts: {
+    product_id: string; user_id: string; question_key: string;
+    value: ColumnType<AnswerValue, string, string>; previous_value: ColumnType<AnswerValue, string, string>; updated_at: Timestamp;
+  };
   stage_history: StageHistoryTable;
   xp_events: XpEventsTable;
   analytics_events: AnalyticsEventsTable;

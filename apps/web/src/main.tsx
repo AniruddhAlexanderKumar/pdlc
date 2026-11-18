@@ -129,7 +129,7 @@ function GuestOnly() {
   if (isLoading) return <Spinner />;
   if (data) {
     const next = new URLSearchParams(location.search).get('next');
-    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : data.user.isAdmin ? '/admin' : '/projects'} replace />;
+    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : data.user.isAdmin ? '/admin' : '/'} replace />;
   }
   return <Outlet />;
 }
@@ -140,8 +140,8 @@ function RootApp() {
     const pathname = location.pathname.replace(/\/+$/, '') || '/';
     const publicPage = pathname === '/' || pathname === '/request-access';
     const pageName = ({ '/request-access': 'Request Early Access', '/login': 'Sign In', '/signup': 'Create Account', '/register': 'Create Account', '/try-demo': 'Sample Workspace', '/products': 'Products', '/projects': 'Projects', '/teamwork-graph': 'Teamwork Graph', '/materials': 'Materials', '/suppliers': 'Suppliers', '/settings': 'Settings', '/achievements': 'Achievements', '/admin': 'Administration' } as Record<string, string>)[pathname];
-    const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${/^\/founders(?:\/|$)/i.test(pathname) ? (import.meta.env.VITE_FOUNDER_AUTH_EXPERIMENTAL === 'true' ? 'Founder authentication (experimental)' : 'Founders Console unavailable') : pageName ?? 'Engineering Workspace'} | Solution Velocity`;
-    const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Bring product and project work together for engineering teams, students and educational organisations with Solution Velocity.';
+    const title = pathname === '/' ? 'Solution Velocity | A Founder’s Product Development Guide' : `${/^\/founders(?:\/|$)/i.test(pathname) ? (import.meta.env.VITE_FOUNDER_AUTH_EXPERIMENTAL === 'true' ? 'Founder authentication (experimental)' : 'Founders Console unavailable') : pageName ?? 'Engineering Workspace'} | Solution Velocity`;
+    const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Turn a product idea into a concept brief, prototype, test report and launch plan in eight guided chapters.';
     document.title = title;
     const set = (selector: string, value: string) => document.querySelector<HTMLMetaElement>(selector)?.setAttribute('content', value);
     set('meta[name="description"]', description);

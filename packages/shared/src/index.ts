@@ -19,3 +19,4 @@ export * from './workspace-profile.js';
 export * from './founder-identity.js';
 
 export * from './design.js';
+export * from './next-work.js';

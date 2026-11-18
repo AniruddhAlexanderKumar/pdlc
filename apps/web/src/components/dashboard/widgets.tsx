@@ -2,7 +2,7 @@ import { useState, type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, Flame, Gauge, Rocket, Search, Sparkles, Target, Trophy } from 'lucide-react';
 import { STAGES, type WidgetId } from '@sv/shared';
-import { useGame } from '../../api/hooks';
+import { useGame, useSession } from '../../api/hooks';
 import { useMoney } from '../../lib/money';
 import { ProductCard, ProductThumb } from '../ProductBits';
 import { Card, CardHeader, cx, GradeBadge, Input, ProgressBar, StageBadge, stageStyle } from '../ui';
@@ -45,13 +45,14 @@ function MarginStat() {
 }
 
 function WeekStat() {
+  const show = useSession().user.showStreak;
   const game = useGame();
   return (
     <StatCard
       icon={<Flame className="h-4 w-4 text-orange-500" />}
       label="Your week"
       value={game.data ? `${game.data.weeklyXp} XP` : '—'}
-      hint={game.data ? `${game.data.streakDays}-day streak · Level ${game.data.level}` : undefined}
+      hint={game.data ? `${show ? `${game.data.streakDays}-day streak · ` : ''}Level ${game.data.level}` : undefined}
     />
   );
 }
@@ -89,6 +90,7 @@ function NextMoves() {
 }
 
 function XpProgress() {
+  const show = useSession().user.showStreak;
   const game = useGame();
   const g = game.data;
   return (
@@ -102,7 +104,7 @@ function XpProgress() {
           </div>
           <ProgressBar value={g.xpForNextLevel > 0 ? (g.xpIntoLevel / g.xpForNextLevel) * 100 : 100} />
           <p className="text-xs text-zinc-500">
-            {g.xpIntoLevel}/{g.xpForNextLevel} XP to the next level · {g.streakDays}-day streak
+            {g.xpIntoLevel}/{g.xpForNextLevel} XP to the next level{show && ` · ${g.streakDays}-day streak`}
           </p>
         </div>
       ) : (

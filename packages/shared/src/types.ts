@@ -1,4 +1,4 @@
-import type { AnswerValue } from './questions.js';
+import type { AnswerValue, GuideMode, ProductKind } from './questions.js';
 import type { CurrencyCode, Role, StageId, TaskStatus } from './stages.js';
 
 /** Shapes exchanged between the API and the web app. */
@@ -9,12 +9,15 @@ export interface User {
   name: string;
   createdAt: string;
   isAdmin?: boolean;
+  guideMode?: GuideMode;
+  showStreak?: boolean;
 }
 
 export type WorkspaceMode = 'solo' | 'team';
 
 export interface Workspace {
   mode: WorkspaceMode;
+  showLeaderboard?: boolean;
   id: string;
   name: string;
   currency: CurrencyCode;
@@ -40,6 +43,8 @@ export interface BomLine {
 }
 
 export interface Task {
+  /** Null on historical work until explicitly linked to a chapter. */
+  chapter?: StageId | null;
   id: string;
   title: string;
   description: string;
@@ -63,13 +68,20 @@ export interface Product {
   materials: BomLine[];
   tasks: Task[];
   answers: Record<string, AnswerValue>;
-  /**
-   * Lifecycle position when gating was introduced. Stages at or behind this one
-   * stay reachable even if the checklist is incomplete, so products that existed
-   * before gating keep their access. Null for products created after.
-   */
+  /** Furthest grandfathered chapter: an earlier position remains reachable
+   * when the team iterates. Not a claim of completed work. */
   legacyStage?: StageId | null;
+  productKind?: ProductKind;
+  approvalStates?: Record<string, import('./activity.js').ReviewState>;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActivityDraft {
+  productId: string;
+  questionKey: string;
+  value: AnswerValue;
+  previousValue: AnswerValue;
   updatedAt: string;
 }
 

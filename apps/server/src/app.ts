@@ -19,6 +19,7 @@ import { analyticsRouter } from './routes/analytics.js';
 import { accessRequestsRouter } from './routes/access-requests.js';
 import { materialsRouter, suppliersRouter } from './routes/catalog.js';
 import { dashboardRouter } from './routes/dashboard.js';
+import { lessonsRouter } from './routes/lessons.js';
 import { productsRouter } from './routes/products.js';
 import { collaborationRouter, notificationsRouter } from './routes/collaboration.js';
 import { projectsRouter } from './routes/projects.js';
@@ -152,7 +153,7 @@ export function createApp() {
   api.use('/workspace', requireAuth, workspaceRouter);
   api.use('/game', requireAuth, gameRouter);
   api.use('/dashboard', requireAuth, dashboardRouter);
-  api.use('/products', requireAuth, productsRouter);
+  api.use('/products', requireAuth, lessonsRouter, productsRouter);
   api.use('/products', requireAuth, collaborationRouter);
   api.use('/notifications', requireAuth, notificationsRouter);
   api.use('/projects', requireAuth, projectsRouter);

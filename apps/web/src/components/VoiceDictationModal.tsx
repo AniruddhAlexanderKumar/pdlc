@@ -18,7 +18,7 @@ import {
   Tag,
   Wand2
 } from 'lucide-react';
-import { XP, type VoiceImportPayload } from '@sv/shared';
+import { QUESTIONS_BY_KEY, type VoiceImportPayload } from '@sv/shared';
 import { useImportVoice, useProcessVoice, useProcessVoiceAudio, useSession } from '../api/hooks';
 import { Button, Card, cx, Modal, ProgressBar, StageBadge } from './ui';
 import { useMoney } from '../lib/money';
@@ -229,10 +229,10 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
   return (
     <>
       <Modal
-        title={step === 'record' ? 'Hands-Free Voice AI (Server STT & LLM)' : 'Review & Import to Workspace'}
+        title={step === 'record' ? 'Capture an idea' : 'Review & Import to Workspace'}
         subtitle={
           step === 'record'
-            ? 'Record raw audio hands-free. Audio is streamed to the server where Whisper STT transcribes it and Qwen builds your beginner Jira board. Avoid sensitive information; the draft needs review before import.'
+            ? 'Record or type your idea to prepare a draft product and project. Your configured server processes the input. Avoid sensitive information. Nothing is added until you review the draft.'
             : `Synthesized entirely on server via ${providerUsed}. AI can make mistakes; review every detail before confirming.`
         }
         onClose={onClose}
@@ -259,7 +259,7 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
                   loading={processVoice.isPending}
                   icon={<Sparkles className="h-4 w-4" />}
                 >
-                  Synthesize Text on Server
+                  Create draft
                 </Button>
               )}
             </>
@@ -274,7 +274,7 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
                 disabled={me.workspace.role === 'member' || importVoice.isPending || importVoice.isSuccess}
                 icon={<CheckCircle2 className="h-4 w-4" />}
               >
-                Confirm & Launch Workspace · +{XP.productCreated} XP
+                Confirm & Create Records
               </Button>
             </>
           )
@@ -357,14 +357,14 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
             {/* Manual Notes / Fallback Text Input */}
             <div>
               <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-zinc-500">
-                <span>Or Type / Paste Notes Directly (Processed by Server Qwen)</span>
+                <label htmlFor="voice-transcript">Or type your notes</label>
                 {transcript && (
                   <button type="button" onClick={() => setTranscript('')} className="hover:text-zinc-800 dark:hover:text-zinc-200">
                     Clear text
                   </button>
                 )}
               </div>
-              <textarea
+              <textarea id="voice-transcript"
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
                 rows={3}
@@ -397,6 +397,7 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
         ) : (
           payloadDraft && (
             <div className="space-y-6">
+              {importVoice.isError && <p role="alert" className="text-sm text-rose-700">{importVoice.error.message} Retry to check the original import; it will not create a duplicate.</p>}
               {recoveryError && <p role="alert" className="text-sm text-rose-700">{recoveryError}</p>}
               {pendingImport && (
                 <p role="status" className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
@@ -435,7 +436,7 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
                   <div className="shrink-0 text-right">
                     <span className="text-xs text-zinc-400 uppercase font-semibold">Target Price</span>
                     <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-                      {payloadDraft.product.target_price ? fmt(payloadDraft.product.target_price) : 'Not specified'}
+                      {payloadDraft.product.target_price != null ? fmt(payloadDraft.product.target_price) : 'Not specified'}
                     </p>
                   </div>
                 </div>
@@ -454,18 +455,18 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-                      Discovery Questions Auto-Answered ({payloadDraft.answers.length})
+                      Proposed activity answers ({payloadDraft.answers.length})
                     </h4>
                   </div>
                   <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    Bypassed Form · XP Ready
+                    Review before import
                   </span>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {payloadDraft.answers.map((ans) => (
                     <div key={ans.question_key} className="rounded-lg border border-zinc-200 bg-white p-2.5 text-xs dark:border-zinc-800 dark:bg-zinc-900">
-                      <p className="font-semibold text-zinc-400">{ans.question_key}</p>
-                      <p className="mt-1 text-zinc-700 dark:text-zinc-200 line-clamp-2">{String(ans.value)}</p>
+                      <p className="font-semibold text-zinc-400">{QUESTIONS_BY_KEY.get(ans.question_key)?.output ?? ans.question_key}</p>
+                      <p className="mt-1 text-zinc-700 dark:text-zinc-200 whitespace-pre-wrap break-words">{Array.isArray(ans.value) ? ans.value.join('\n') : String(ans.value)}</p>
                     </div>
                   ))}
                 </div>
@@ -511,7 +512,7 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
                   <div className="flex items-center gap-2">
                     <FolderKanban className="h-4 w-4 text-indigo-500" />
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-                      Jira for Beginners Starter Board ({payloadDraft.issues.length} items)
+                      Project tasks ({payloadDraft.issues.length} items)
                     </h4>
                   </div>
                   <span className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-[11px] font-bold text-indigo-600 dark:bg-zinc-800 dark:text-indigo-400">
@@ -545,7 +546,7 @@ export function VoiceDictationModal({ onClose }: { onClose: () => void }) {
                               {issue.type}
                             </span>
                             <div>
-                              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{issue.summary}</p>
+                              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{issue.summary}</p><p className="mt-0.5 text-xs text-zinc-500">Status: {issue.status}</p>
                               {issue.milestone_tag && (
                                 <span className="mt-0.5 inline-block text-[11px] text-zinc-400">
                                   Milestone: {issue.milestone_tag}

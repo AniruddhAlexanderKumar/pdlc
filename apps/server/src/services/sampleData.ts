@@ -183,6 +183,7 @@ export async function loadSampleData(trx: Db, workspaceId: string, userId: strin
         name: p.name,
         category: p.category,
         stage: p.stage,
+        product_kind: 'physical',
         image_url: options.omitExternalImages ? '' : p.imageUrl,
         description: p.description,
         notes: p.notes,
@@ -209,6 +210,7 @@ export async function loadSampleData(trx: Db, workspaceId: string, userId: strin
           p.tasks.map(([title, status, due], position) => ({
             product_id: row.id,
             title,
+            chapter: p.stage,
             status,
             due_date: daysFromNow(due),
             position: position + 1,

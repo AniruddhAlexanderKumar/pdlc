@@ -1,5 +1,18 @@
 # Deployment and Operations
 
+## Root workspace: rolling out the founder journey
+
+Use the root [server setup guide](SERVER_SETUP.md) for the Express/Vite deployment. The new schema is Kysely migration **035_founder_journey**; do not use Prisma commands on this database.
+
+1. Build the matching web and server from the lockfile (`npm ci && npm run build`), and rehearse the upgrade on a restored copy of the actual database. Take and verify a restorable pre-upgrade backup. The migration backfills historical answer metadata and creates an index over the XP ledger; plan a maintenance window appropriate to your data volume.
+2. Quiesce old writers, apply `npm run migrate` with the migration identity, and run it a second time to check “Database is up to date.” Existing kinds default to **other**, previously unlinked tasks remain unlinked, and historical points and actual stage positions are retained. New required activities can appear as unfinished on an older product. No automatic sign-off is fabricated.
+3. Start the matching runtime with the **exact public origin** in `APP_URL`. For a separately migrated installation set `MIGRATIONS_ON_STARTUP=false` and grant the runtime the necessary DML on the new draft table/columns plus read-only migration-history access. Leave privileged founder authentication/management experiments disabled; they are unrelated to the ordinary founder journey. Check `/api/health` and sign in with an ordinary account to save, reload, revise and revisit a test product through the real reverse proxy.
+4. The guide needs no external model. Keep `ASSISTANT_AI_ENABLED` off unless the provider, workspace credits, data handling and cost controls have been approved. Test the no-credits/unavailable path as well as successful inference if enabling it. Monitor conflicts, HTTP errors and unresolved assistant reservations.
+
+**Recovery:** 035 refuses destructive downgrade. An older build may fail its exact migration-history preflight. Roll forward, or stop writes and restore the **matching** pre-upgrade database and build from a tested backup (account for work written since the backup). Disposable integration tests are not a production restore rehearsal. See [local verification and release limits](RELEASE_READINESS.md#founder-journey--local-verification).
+
+## Separate Next/Prisma deployment reference
+
 > **Scope warning:** The remainder of this file describes the separate Next/Prisma tree and must not be used as the deployment guide for the root `apps/*` Solution Velocity workspace or the current Dockerfile. That workspace uses Kysely migrations and an Express/Vite build; consult `README.md`, `SERVER_SETUP.md`, and `docs/cadit-design-studio.md`. CI tests only disposable PostgreSQL and does not establish deployed migration, backup or secret status. CADit, when enabled through the Design Studio iframe, is an external service.
 
 How to run PDLC Platform in production, on infrastructure you control. If

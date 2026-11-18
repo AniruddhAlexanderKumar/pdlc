@@ -3,15 +3,14 @@ import { sql } from 'kysely';
 import { z } from 'zod';
 import {
   QUESTIONS_BY_KEY,
+  STAGE_IDS,
   XP,
-  isAnswered,
   nextStage,
   normaliseAnswer,
   stageIndex,
-  type AnswerValue,
+  stageQuest,
   type CurrencyCode,
   type StageId,
-  type ReviewState,
   type ProductCadModel
 } from '@sv/shared';
 import { auth } from '../auth/session.js';
@@ -20,9 +19,10 @@ import { badRequest, conflict, notFound, parse, route, uuid } from '../lib/http.
 import { insightsFor, rulesFor } from '../services/insights.js';
 import { assertMaterial, assertProduct, loadMaterials, loadProduct, loadSuppliers, touchProduct } from '../services/repo.js';
 import { canTransition } from '../services/stage-gating.js';
-import { notifyStageCompleted, notifyUnblocked } from './collaboration.js';
+import { notifyStageCompleted, notifyUnblocked } from '../services/notifications.js';
 import type { XpLedger } from '../services/xp.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
+import { saveAnswer } from '../services/save-answer.js';
 import { validateSyncedQuestionValue } from '../services/question-validation.js';
 import { productFields, taskFields } from '../lib/record-validation.js';
 import { mutate, param } from './util.js';
@@ -37,21 +37,19 @@ async function changeStage(trx: Db, ledger: XpLedger, productId: string, name: s
   const workspaceId = ledger.ctx.workspaceId;
   const current = await loadProduct(trx, workspaceId, productId);
   const materials = new Map((await loadMaterials(trx, workspaceId, current.materials.map((m) => m.materialId))).map((m) => [m.id, m]));
-  // Sign-off activities only count once approved, so the gate needs their state.
-  const approvalRows = await trx
-    .selectFrom('activity_records')
-    .select(['activity_key', 'review_state'])
-    .where('product_id', '=', productId)
-    .execute();
-  const approvals = Object.fromEntries(approvalRows.map((r) => [r.activity_key, r.review_state])) as Record<string, ReviewState>;
-  const verdict = canTransition(current, to, materials, approvals);
+  const verdict = canTransition(current, to, materials, current.approvalStates);
   if (!verdict.allowed) throw conflict(verdict.reason);
-  await trx.updateTable('products').set({ stage: to, updated_at: new Date() }).where('id', '=', productId).execute();
+  // Keep the furthest *active* chapter when returning for another cycle. An
+  // archive is not evidence that all eight chapters were reached or finished.
+  const previousHigh = current.legacyStage ? stageIndex(current.legacyStage) : 0;
+  const reached = from === 'Retired' ? stageIndex(to) : stageIndex(from);
+  await trx.updateTable('products').set({ stage: to, legacy_stage: STAGE_IDS[Math.max(reached, previousHigh)], updated_at: new Date() })
+    .where('id', '=', productId).execute();
   await trx.insertInto('stage_history').values({ product_id: productId, from_stage: from, to_stage: to, user_id: ledger.ctx.userId }).execute();
-  if (stageIndex(to) > stageIndex(from) && to !== 'Retired') {
-    await ledger.award('stage_advanced', `${productId}:${to}`, XP.stageAdvanced, `${name} moved to ${to}`, productId);
+  if (to === nextStage(from) && stageQuest(current, materials, from).complete) {
+    const firstAdvance = await ledger.award('stage_advanced', `${productId}:${to}`, XP.stageAdvanced, `${name} moved to ${to}`, productId);
     // One quiet notification, and only to teammates.
-    await notifyStageCompleted(trx, {
+    if (firstAdvance) await notifyStageCompleted(trx, {
       workspaceId,
       actorId: ledger.ctx.userId,
       productId,
@@ -65,12 +63,11 @@ productsRouter.post(
   '/',
   route(async (req, res) => {
     const body = parse(
-      productFields.pick({ name: true, category: true, description: true, imageUrl: true, targetSellingPrice: true }).partial({
-        category: true,
-        description: true,
-        imageUrl: true,
-        targetSellingPrice: true
-      }),
+      productFields.pick({ name: true, category: true, description: true, imageUrl: true, targetSellingPrice: true, productKind: true })
+        .partial().required({ name: true }).extend({
+          startingStage: z.enum(STAGE_IDS).exclude(['Retired']).default('Idea'),
+          guideMode: z.enum(['beginner', 'advanced']).optional()
+        }),
       req.body
     );
     const result = await mutate(req, async (trx, ledger, ctx) => {
@@ -83,13 +80,15 @@ productsRouter.post(
           description: body.description ?? '',
           image_url: body.imageUrl ?? '',
           target_price: body.targetSellingPrice ?? null,
-          stage: 'Idea',
+          stage: body.startingStage,
+          product_kind: body.productKind ?? 'other',
           created_by: ctx.userId,
           updated_at: new Date()
         })
         .returning('id')
         .executeTakeFirstOrThrow();
-      await trx.insertInto('stage_history').values({ product_id: row.id, from_stage: null, to_stage: 'Idea', user_id: ctx.userId }).execute();
+      await trx.insertInto('stage_history').values({ product_id: row.id, from_stage: null, to_stage: body.startingStage, user_id: ctx.userId }).execute();
+      if (body.guideMode) await trx.updateTable('users').set({ guide_mode: body.guideMode }).where('id', '=', ctx.userId).execute();
       await ledger.award('product_created', row.id, XP.productCreated, `Created ${body.name}`, row.id);
       await recordAnalyticsEvent({
         eventType: 'action',
@@ -120,6 +119,7 @@ productsRouter.patch(
       if (!current) throw notFound('Product');
 
       const set: Record<string, unknown> = {};
+      if (body.productKind !== undefined) set.product_kind = body.productKind;
       if (body.name !== undefined) set.name = body.name;
       if (body.category !== undefined) set.category = body.category || 'General';
       if (body.description !== undefined) set.description = body.description;
@@ -174,52 +174,16 @@ productsRouter.put(
     const id = parse(uuid, param(req, 'id'));
     const question = QUESTIONS_BY_KEY.get(param(req, 'key'));
     if (!question || question.retired) throw notFound('Question');
-    const normalised = normaliseAnswer(question, (req.body as { value?: unknown })?.value);
+    const body = parse(z.object({ value: z.json(), previousValue: z.json().optional() }), req.body);
+    const normalised = normaliseAnswer(question, body.value);
     if ('error' in normalised) throw badRequest(normalised.error);
     const { value } = normalised;
     validateSyncedQuestionValue(question, value);
 
     const result = await mutate(req, async (trx, ledger, ctx) => {
-      const product = await assertProduct(trx, ctx.workspaceId, id);
-      if (isAnswered(value)) {
-        await trx
-          .insertInto('answers')
-          .values({ product_id: id, question_key: question.key, value: JSON.stringify(value), answered_by: ctx.userId, answered_at: new Date() })
-          .onConflict((oc) =>
-            oc.columns(['product_id', 'question_key']).doUpdateSet({ value: JSON.stringify(value), answered_by: ctx.userId, answered_at: new Date() })
-          )
-          .execute();
-        await ledger.award('answer', `${id}:${question.key}`, question.xp, `Answered “${question.prompt}”`, product.id);
-
-        if (question.syncsTo === 'targetSellingPrice' && typeof value === 'number') {
-          await trx.updateTable('products').set({ target_price: value }).where('id', '=', id).execute();
-        } else if (question.syncsTo === 'description' && typeof value === 'string') {
-          await trx.updateTable('products').set({ description: value }).where('id', '=', id).execute();
-        } else if (question.syncsTo === 'category' && typeof value === 'string') {
-          await trx.updateTable('products').set({ category: value }).where('id', '=', id).execute();
-        }
-
-        // Answering a prerequisite question can unblock dependent work. Only
-        // notify on a genuine first answer, checked against the stored row.
-        const previous = await trx
-          .selectFrom('answers')
-          .select(['value'])
-          .where('product_id', '=', id)
-          .where('question_key', '=', question.key)
-          .executeTakeFirst();
-        await notifyUnblocked(trx, {
-          workspaceId: ctx.workspaceId,
-          actorId: ctx.userId,
-          productId: id,
-          completedKey: question.key,
-          completedLabel: question.prompt,
-          wasAlreadyDone: Boolean(previous && isAnswered(JSON.parse(String(previous.value)) as AnswerValue))
-        });
-      } else {
-        await trx.deleteFrom('answers').where('product_id', '=', id).where('question_key', '=', question.key).execute();
-      }
-      await touchProduct(trx, id);
-      return (await ledger.evaluateProduct(id)).product;
+      await assertProduct(trx, ctx.workspaceId, id, true);
+      await saveAnswer(trx, ledger, id, question, value, body.previousValue);
+      return (await ledger.evaluateProduct(id, question.stage)).product;
     });
     res.json(result);
   })
@@ -277,7 +241,7 @@ productsRouter.post(
     const id = parse(uuid, param(req, 'id'));
     const body = parse(taskFields.partial({ description: true, status: true, dueDate: true, position: true }), req.body);
     const result = await mutate(req, async (trx, ledger, ctx) => {
-      const product = await assertProduct(trx, ctx.workspaceId, id);
+      const product = await assertProduct(trx, ctx.workspaceId, id, true);
       const { count } = await trx
         .selectFrom('tasks')
         .select(sql<number>`count(*)::int`.as('count'))
@@ -294,6 +258,7 @@ productsRouter.post(
         .insertInto('tasks')
         .values({
           product_id: id,
+          chapter: body.chapter === undefined ? product.stage : body.chapter,
           title: body.title,
           description: body.description ?? '',
           status,
@@ -313,7 +278,7 @@ productsRouter.post(
         metadata: { productId: id, taskId: task.id, title: body.title, status }
       }, trx);
       await touchProduct(trx, id);
-      return (await ledger.evaluateProduct(id)).product;
+      return (await ledger.evaluateProduct(id, body.chapter ?? product.stage)).product;
     });
     res.status(201).json(result);
   })
@@ -326,10 +291,11 @@ productsRouter.patch(
     const taskId = parse(uuid, param(req, 'taskId'));
     const body = parse(taskFields.partial(), req.body);
     const result = await mutate(req, async (trx, ledger, ctx) => {
-      await assertProduct(trx, ctx.workspaceId, id);
-      const task = await trx.selectFrom('tasks').select(['id', 'title', 'status']).where('id', '=', taskId).where('product_id', '=', id).executeTakeFirst();
+      await assertProduct(trx, ctx.workspaceId, id, true);
+      const task = await trx.selectFrom('tasks').select(['id', 'title', 'status', 'chapter']).where('id', '=', taskId).where('product_id', '=', id).executeTakeFirst();
       if (!task) throw notFound('Task');
       const set: Record<string, unknown> = { updated_at: new Date() };
+      if (body.chapter !== undefined) set.chapter = body.chapter;
       if (body.title !== undefined) set.title = body.title;
       if (body.description !== undefined) set.description = body.description;
       if (body.dueDate !== undefined) set.due_date = body.dueDate;
@@ -362,7 +328,7 @@ productsRouter.patch(
       }
       await trx.updateTable('tasks').set(set).where('id', '=', taskId).execute();
       await touchProduct(trx, id);
-      return (await ledger.evaluateProduct(id)).product;
+      return (await ledger.evaluateProduct(id, body.chapter ?? task.chapter ?? undefined)).product;
     });
     res.json(result);
   })
@@ -417,6 +383,7 @@ productsRouter.post(
     const id = parse(uuid, param(req, 'id'));
     const { insightId } = parse(z.object({ insightId: z.string().min(1).max(300) }), req.body);
     const result = await mutate(req, async (trx, ledger, ctx) => {
+      await assertProduct(trx, ctx.workspaceId, id, true);
       const input = await insightInput(trx, ctx.workspaceId, id);
       // Re-derive suggestions server-side; never trust an action sent by the client.
       const insight = rulesFor(input).find((i) => i.id === insightId);

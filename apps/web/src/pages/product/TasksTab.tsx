@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Calendar, CheckCircle2, Circle, Edit3, Plus, Trash2 } from 'lucide-react';
-import { XP, type Product, type Task, type TaskStatus } from '@sv/shared';
+import { STAGE_IDS, type StageId, XP, type Product, type Task, type TaskStatus } from '@sv/shared';
 import { useCreateTask, useDeleteTask, useUpdateTask } from '../../api/hooks';
 import { Button, cx, Field, IconButton, Input, Modal, ProgressBar, Select, Textarea } from '../../components/ui';
 
@@ -11,17 +11,18 @@ const COLUMNS: { id: TaskStatus; label: string }[] = [
   { id: 'done', label: 'Done' }
 ];
 
-function TaskModal({ product, task, status, onClose }: { product: Product; task: Task | null; status: TaskStatus; onClose: () => void }) {
+function TaskModal({ product, task, status, chapter, onClose }: { chapter: StageId; product: Product; task: Task | null; status: TaskStatus; onClose: () => void }) {
   const create = useCreateTask(product.id);
   const update = useUpdateTask(product.id);
   const [form, setForm] = useState({
+    chapter: task ? task.chapter ?? '' : chapter,
     title: task?.title ?? '',
     description: task?.description ?? '',
     status: task?.status ?? status,
     dueDate: task?.dueDate ?? ''
   });
   const submit = () => {
-    const body = { title: form.title, description: form.description, status: form.status, dueDate: form.dueDate || null };
+    const body = { chapter: (form.chapter || null) as StageId | null, title: form.title, description: form.description, status: form.status, dueDate: form.dueDate || null };
     if (task) update.mutate({ id: task.id, ...body }, { onSuccess: onClose });
     else create.mutate(body, { onSuccess: onClose });
   };
@@ -50,6 +51,7 @@ function TaskModal({ product, task, status, onClose }: { product: Product; task:
         <Field label="Title" htmlFor="t-title">
           <Input id="t-title" required maxLength={200} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
         </Field>
+        <Field label="Chapter" htmlFor="t-chapter"><Select id="t-chapter" value={form.chapter} onChange={e => setForm({ ...form, chapter: e.target.value })}><option value="">Not linked to a chapter</option>{STAGE_IDS.map(s => <option key={s}>{s}</option>)}</Select></Field>
         <Field label="Details" htmlFor="t-desc">
           <Textarea id="t-desc" rows={3} maxLength={4000} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </Field>
@@ -77,6 +79,8 @@ export function TasksTab({ product }: { product: Product }) {
   const create = useCreateTask(product.id);
   const update = useUpdateTask(product.id);
   const remove = useDeleteTask(product.id);
+  const [params] = useSearchParams();
+  const chapter = STAGE_IDS.find(s => s === params.get('stage')) ?? product.stage;
   const [quick, setQuick] = useState('');
   const [modal, setModal] = useState<{ task: Task | null; status: TaskStatus } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -101,13 +105,13 @@ export function TasksTab({ product }: { product: Product }) {
             {done} of {product.tasks.length} done
           </p>
           <ProgressBar value={pct} className="mt-2 w-56" tone={pct === 100 ? 'emerald' : 'indigo'} />
-          <p className="mt-1.5 text-xs text-zinc-500">Each completed task is worth +{XP.taskCompleted} XP.</p>
+          <p className="mt-1.5 text-xs text-zinc-500">New tasks link to {chapter}. First completion earns {XP.taskCompleted} XP once.</p>
         </div>
         <form
           className="flex gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (quick.trim()) create.mutate({ title: quick.trim() }, { onSuccess: () => setQuick('') });
+            if (quick.trim()) create.mutate({ title: quick.trim(), chapter }, { onSuccess: () => setQuick('') });
           }}
         >
           <Input aria-label="Quick add task" value={quick} onChange={(e) => setQuick(e.target.value)} placeholder="Add a task and press Enter" className="sm:w-72" maxLength={200} />
@@ -168,6 +172,7 @@ export function TasksTab({ product }: { product: Product }) {
                         </button>
                         <div className="min-w-0 flex-1">
                           <p className={cx('text-sm font-medium', t.status === 'done' && 'text-zinc-400 line-through')}>{t.title}</p>
+                          <p className="mt-1 text-[11px] text-zinc-500">{t.chapter ?? 'No chapter linked'}</p>
                           {t.description && <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{t.description}</p>}
                           {t.linkedIssue && <p className="mt-1 text-xs"><Link className="text-blue-700 underline dark:text-blue-300" to={`/projects/${t.linkedIssue.projectId}/issues?issueId=${t.linkedIssue.id}`}>Linked issue {t.linkedIssue.key}</Link> · status synced</p>}
                           {t.dueDate && (
@@ -207,7 +212,7 @@ export function TasksTab({ product }: { product: Product }) {
           );
         })}
       </div>
-      {modal && <TaskModal product={product} task={modal.task} status={modal.status} onClose={() => setModal(null)} />}
+      {modal && <TaskModal chapter={chapter} product={product} task={modal.task} status={modal.status} onClose={() => setModal(null)} />}
     </div>
   );
 }

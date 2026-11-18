@@ -22,7 +22,7 @@ assert.equal(old.status,201);assert.equal(elsewhere.status,201);assert.equal(una
 const browser=await pw.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(x=>x!=='--disable-web-security'),headless:true});
 try {
  const page=await browser.newPage({viewport:{width:390,height:850}}); const errors=[]; page.on('pageerror',e=>errors.push(e.message));
- await page.goto(`${base}/login`);await page.getByLabel('Work email').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign in'}).click();
+ await page.goto(`${base}/login?next=%2Fprojects`);await page.getByLabel('Work email').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign in'}).click();
  await page.waitForURL(`${base}/projects`);await page.getByRole('heading',{name:'Choose a project'}).waitFor({timeout:10000}).catch(async error=>{console.error('Project chooser failed:', page.url(), (await page.locator('body').innerText()).slice(0,600), errors); throw error;});
  await page.getByRole('link',{name:/Alpha fixture/}).click();await page.waitForURL(`${base}/projects/${first.data.id}`);
  await page.getByRole('link',{name:'Existing alpha diagram'}).waitFor();assert.equal(await page.getByText('Existing beta diagram').count(),0);assert.equal(await page.getByText('Existing workspace diagram').count(),0);

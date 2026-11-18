@@ -32,8 +32,8 @@ try {
   await new Promise<void>((resolve) => server!.once('listening', resolve));
   const addr = server.address();
   if (!addr || typeof addr === 'string') throw Error('No listener');
-  const me = async () => fetch(`http://127.0.0.1:${addr.port}/api/auth/me`, { headers: { cookie: `sv_session=${session.token}` } });
-  assert.equal((await me()).status, 200);
+  const sessionRead = async (path = '/workspace/members') => fetch(`http://127.0.0.1:${addr.port}/api${path}`, { headers: { cookie: `sv_session=${session.token}` } });
+  assert.equal((await sessionRead()).status, 200);
   const before = await db.selectFrom('users').selectAll().where('id', '=', user.id).executeTakeFirstOrThrow();
 
   // A conflicting pre-existing name forces 027 to fail; its transaction must not
@@ -43,16 +43,18 @@ try {
   assert(conflict.error);
   const partial = await sql<{ name: string | null }>`select to_regclass('founder_bootstrap_state')::text as name`.execute(db);
   assert.equal(partial.rows[0].name, null);
-  assert.equal((await me()).status, 200);
+  assert.equal((await sessionRead()).status, 200);
   await sql`DROP TABLE founder_accounts`.execute(db);
   const upgrade = await migrator.migrateToLatest();
   if (upgrade.error) throw upgrade.error;
-  assert.deepEqual(await db.selectFrom('users').selectAll().where('id', '=', user.id).executeTakeFirstOrThrow(), before);
-  assert.equal((await me()).status, 200);
+  const { guide_mode, show_streak, ...preserved } = await db.selectFrom('users').selectAll().where('id', '=', user.id).executeTakeFirstOrThrow();
+  assert.deepEqual(preserved, before); assert.equal(guide_mode, 'beginner'); assert.equal(show_streak, false);
+  assert.equal((await sessionRead('/auth/me')).status, 200);
+  assert.equal((await sessionRead()).status, 200);
   assert.equal((await migrator.migrateToLatest()).error, undefined);
   const rollback = await migrator.migrateDown();
   assert(rollback.error, 'automatic security-state rollback must fail');
-  assert.equal((await me()).status, 200);
+  assert.equal((await sessionRead()).status, 200);
   const migrationNames = (await db.selectFrom('kysely_migration' as never).selectAll().execute()) as unknown as { name: string }[];
   assert(migrationNames.some((row) => row.name === '027_founder_identity_foundation'));
   assert(migrationNames.some((row) => row.name === '028_founder_auth_foundation'));

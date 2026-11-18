@@ -127,11 +127,15 @@ describe('stage gating', () => {
       product({
         stage: 'Research',
         description: 'A bottle',
-        tasks: [{ id: 't1', title: 'Bench test', description: '', status: 'todo', dueDate: null, position: 0, completedAt: null }],
+        tasks: [{ id: 't1', title: 'Schedule interviews', chapter: 'Research', description: '', status: 'todo', dueDate: null, position: 0, completedAt: null }],
         answers: {
           'idea.problem': 'Leaks',
           'idea.customer': 'Commuters',
           'idea.oneliner': 'A bottle',
+          'research.comparison': ['Lid design', 'Bottle A: screw top', 'Bottle B: clip'],
+          'research.profile': 'Commuters who refill during travel',
+          'research.interview': 'Ask about the last spill during a commute',
+          'research.finding': ['Founder assumption', 'People may prefer a locking lid', 'Interview planned'],
           'research.competitors': 'Generic bottles',
           'research.market_price': 20,
           'research.validated': true,

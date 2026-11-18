@@ -16,12 +16,13 @@ import { badRequest, conflict, forbidden, notFound, parse, route, uuid } from '.
 import { recordAnalyticsEvent } from '../services/analytics.js';
 import {
   isWorkspaceMember,
+  journeyFor,
   loadCollaboration,
   teamContribution,
   upsertRecord
 } from '../services/collaboration.js';
-import { loadMaterials, loadProduct } from '../services/repo.js';
-import { notify, loadPreferences, savePreferences } from '../services/notifications.js';
+import { assertProduct, loadProduct } from '../services/repo.js';
+import { notify, notifyUnblocked, loadPreferences, savePreferences } from '../services/notifications.js';
 import { mutate, param } from './util.js';
 import { XpLedger } from '../services/xp.js';
 
@@ -36,29 +37,6 @@ import { XpLedger } from '../services/xp.js';
  *     whether a stage may advance.
  */
 export const collaborationRouter = Router();
-
-/** Rebuilds the journey with collaboration data so routes can validate keys. */
-async function journeyFor(trx: Parameters<typeof loadCollaboration>[0], workspaceId: string, productId: string) {
-  const [product, collab] = await Promise.all([
-    loadProduct(trx, workspaceId, productId),
-    loadCollaboration(trx, productId)
-  ]);
-  const materials = new Map(
-    (await loadMaterials(trx, workspaceId, product.materials.map((m) => m.materialId))).map((m) => [m.id, m])
-  );
-  // Blockers are resolved through the same pure helper the recommendations use,
-  // so a blocked activity is blocked everywhere or nowhere.
-  const journey = buildJourney(product, {
-    materials,
-    collaboration: {
-      records: collab.records,
-      commentCounts: collab.commentCounts,
-      blockersFor: (key, all, records) =>
-        blockersFor(key, collab.dependencies, all, records)
-    }
-  });
-  return { product, journey, collab, materials };
-}
 
 function assertActivity(journey: ReturnType<typeof buildJourney>, key: string) {
   const activity = journey.stages.flatMap((s) => s.activities).find((a) => a.id === key);
@@ -83,11 +61,8 @@ collaborationRouter.get(
   route(async (req, res) => {
     const ctx = auth(req);
     const id = parse(uuid, param(req, 'id'));
-    const [loaded, team] = await Promise.all([
-      journeyFor(db, ctx.workspaceId, id),
-      teamContribution(db, ctx.workspaceId, id)
-    ]);
-    const { product, journey, collab, materials } = loaded;
+    const { product, journey, collab, materials } = await journeyFor(db, ctx.workspaceId, id);
+    const team = await teamContribution(db, ctx.workspaceId, id);
     // Ranked on the server so every client sees the same "next action".
     const recommendations = recommendNextActions({
       product,
@@ -189,6 +164,7 @@ collaborationRouter.patch(
     const body = parse(assignSchema, req.body);
 
     const result = await mutate(req, async (trx) => {
+      await assertProduct(trx, ctx.workspaceId, id, true);
       const { journey, collab } = await journeyFor(trx, ctx.workspaceId, id);
       assertActivity(journey, key);
 
@@ -200,7 +176,7 @@ collaborationRouter.patch(
       const isSelf = body.assigneeId === ctx.userId;
       const existing = collab.records[key];
       const isReleasing = !body.assigneeId && existing?.assigneeId === ctx.userId;
-      if (ctx.role === 'member' && !isSelf && !isReleasing) {
+      if (ctx.role === 'member' && ((!isSelf && !isReleasing) || (existing?.assigneeId && existing.assigneeId !== ctx.userId))) {
         throw forbidden('Ask an owner or admin to assign work to someone else.');
       }
 
@@ -234,6 +210,7 @@ collaborationRouter.patch(
     const body = parse(statusSchema, req.body);
 
     const result = await mutate(req, async (trx, ledger) => {
+      await assertProduct(trx, ctx.workspaceId, id, true);
       const { journey, collab } = await journeyFor(trx, ctx.workspaceId, id);
       const activity = assertActivity(journey, key);
       const existing = collab.records[key];
@@ -273,7 +250,7 @@ collaborationRouter.patch(
       // If this activity was a prerequisite for someone else's work, tell them
       // it is now satisfied. The activity's real completion (answers/quest item)
       // is what matters here, not the reported status.
-      if (activity.done) {
+      if (activity.done && (!requiresApproval(key) || existing?.reviewState === 'approved')) {
         await notifyUnblocked(trx, {
           workspaceId: ctx.workspaceId,
           actorId: ctx.userId,
@@ -304,6 +281,7 @@ collaborationRouter.patch(
 
 const reviewSchema = z.object({
   decision: z.enum(['approve', 'request_changes']),
+  expectedAnswer: z.json().optional(),
   note: z.string().trim().max(2000).optional()
 });
 
@@ -315,6 +293,7 @@ collaborationRouter.post(
     const key = param(req, 'key');
 
     const result = await mutate(req, async (trx) => {
+      await assertProduct(trx, ctx.workspaceId, id, true);
       const { journey, collab } = await journeyFor(trx, ctx.workspaceId, id);
       const activity = assertActivity(journey, key);
       if (!requiresApproval(key)) throw badRequest('This activity does not need approval.');
@@ -325,6 +304,7 @@ collaborationRouter.post(
       }
       if (!activity.done) throw conflict('Fill in this activity before submitting it for review.');
       if (existing?.reviewState === 'pending') throw conflict('This activity is already awaiting review.');
+      if (existing?.reviewState === 'approved') throw conflict('This version has already been approved.');
 
       await upsertRecord(trx, id, key, {
         status: 'needs_review',
@@ -364,11 +344,14 @@ collaborationRouter.post(
     const body = parse(reviewSchema, req.body);
 
     const result = await mutate(req, async (trx, ledger) => {
-      const { journey, collab } = await journeyFor(trx, ctx.workspaceId, id);
+      await assertProduct(trx, ctx.workspaceId, id, true);
+      const { journey, collab, product } = await journeyFor(trx, ctx.workspaceId, id);
       const activity = assertActivity(journey, key);
       const existing = collab.records[key];
       if (existing?.reviewState !== 'pending') throw conflict('This activity is not awaiting review.');
 
+      if (!activity.done) throw conflict('Fill in this activity before approving it.');
+      if (body.expectedAnswer !== undefined && JSON.stringify(body.expectedAnswer) !== JSON.stringify(product.answers[key])) throw conflict('The submitted answer changed. Read the new version before reviewing.');
       const approve = body.decision === 'approve';
       await upsertRecord(trx, id, key, {
         status: approve ? 'completed' : 'in_progress',
@@ -392,9 +375,11 @@ collaborationRouter.post(
         activityKey: key
       });
 
+      if (approve) await notifyUnblocked(trx, { workspaceId: ctx.workspaceId, actorId: ctx.userId, productId: id,
+        completedKey: key, completedLabel: activity.label, wasAlreadyDone: false });
       // Approving a sign-off can be what unlocks the stage's completion, so XP
       // is evaluated through the normal ledger rather than awarded here.
-      return (await ledger.evaluateProduct(id)).product;
+      return (await ledger.evaluateProduct(id, journey.stages.find(s => s.activities.some(a => a.id === key))?.id)).product;
     });
     res.json(result);
   })
@@ -413,7 +398,9 @@ collaborationRouter.post(
     const body = parse(dependencySchema, req.body);
 
     const result = await mutate(req, async (trx) => {
-      const { journey } = await journeyFor(trx, ctx.workspaceId, id);
+      await assertProduct(trx, ctx.workspaceId, id, true);
+      const { journey, collab } = await journeyFor(trx, ctx.workspaceId, id);
+      if (ctx.role === 'member' && collab.records[key]?.assigneeId && collab.records[key]?.assigneeId !== ctx.userId) throw forbidden('This activity is assigned to someone else.');
       assertActivity(journey, key);
       const prerequisite = assertActivity(journey, body.dependsOnKey);
       if (body.dependsOnKey === key) throw badRequest('An activity cannot depend on itself.');
@@ -458,7 +445,9 @@ collaborationRouter.delete(
     const key = param(req, 'key');
     const dependsOn = param(req, 'dependsOnKey');
     const result = await mutate(req, async (trx) => {
-      await loadProduct(trx, ctx.workspaceId, id);
+      await assertProduct(trx, ctx.workspaceId, id, true);
+      const { collab } = await journeyFor(trx, ctx.workspaceId, id);
+      if (ctx.role === 'member' && collab.records[key]?.assigneeId && collab.records[key]?.assigneeId !== ctx.userId) throw forbidden('This activity is assigned to someone else.');
       const r = await trx
         .deleteFrom('activity_dependencies')
         .where('product_id', '=', id)
@@ -480,53 +469,6 @@ function reaches(edges: Map<string, string[]>, from: string, target: string, see
   return (edges.get(from) ?? []).some((next) => reaches(edges, next, target, seen));
 }
 
-
-/**
- * Tells whoever was waiting on a prerequisite that it is now satisfied.
- *
- * Derived entirely from the dependency rows: if activity B depends on A and A
- * has just become done, B's owner is notified once. Nothing is sent when A was
- * already done, so a repeated status change cannot spam the team.
- */
-export async function notifyUnblocked(
-  trx: Parameters<typeof loadPreferences>[0],
-  input: {
-    workspaceId: string;
-    actorId: string;
-    productId: string;
-    completedKey: string;
-    completedLabel: string;
-    /** True when the prerequisite was already complete, so nothing is sent. */
-    wasAlreadyDone: boolean;
-  }
-): Promise<void> {
-  if (input.wasAlreadyDone) return;
-  const dependents = await trx
-    .selectFrom('activity_dependencies as d')
-    .leftJoin('activity_records as r', (join) =>
-      join.onRef('r.activity_key', '=', 'd.activity_key').onRef('r.product_id', '=', 'd.product_id')
-    )
-    .select(['d.activity_key', 'r.assignee_id'])
-    .where('d.product_id', '=', input.productId)
-    .where('d.depends_on_key', '=', input.completedKey)
-    .execute();
-  const recipients = dependents.map((d) => d.assignee_id).filter((id): id is string => Boolean(id));
-  if (recipients.length === 0) return;
-  // One notification per dependent activity, so the body names what is unblocked.
-  for (const dependent of dependents) {
-    if (!dependent.assignee_id) continue;
-    await notify(trx, {
-      workspaceId: input.workspaceId,
-      recipientIds: [dependent.assignee_id],
-      actorId: input.actorId,
-      kind: 'blocker_resolved',
-      title: 'You are unblocked',
-      body: `“${input.completedLabel}” is done, so you can continue.`,
-      productId: input.productId,
-      activityKey: dependent.activity_key
-    });
-  }
-}
 
 // ── Notifications ─────────────────────────────────────────────────────────
 
@@ -611,27 +553,3 @@ notificationsRouter.patch(
     res.json(next);
   })
 );
-
-/**
- * Notifies the team when a stage completes. Exported for the product route so
- * the transition and the notification happen in the same transaction.
- */
-export async function notifyStageCompleted(
-  trx: Parameters<typeof loadPreferences>[0],
-  input: { workspaceId: string; actorId: string; productId: string; productName: string; stage: StageId }
-): Promise<void> {
-  const members = await trx
-    .selectFrom('memberships')
-    .select(['user_id'])
-    .where('workspace_id', '=', input.workspaceId)
-    .execute();
-  await notify(trx, {
-    workspaceId: input.workspaceId,
-    recipientIds: members.map((m) => m.user_id),
-    actorId: input.actorId,
-    kind: 'stage_completed',
-    title: `${input.stage} completed`,
-    body: `${input.productName} moved past ${input.stage}.`,
-    productId: input.productId
-  });
-}

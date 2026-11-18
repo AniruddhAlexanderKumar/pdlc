@@ -1,4 +1,5 @@
-import { requiresApproval, type ActivityBlocker, type ActivityRecord, type ActivityState } from './activity.js';
+import { questionsForStage, isAnswered } from './questions.js';
+import { requiresApproval, type ActivityBlocker, type ActivityRecord } from './activity.js';
 import { stageQuest } from './gamification.js';
 import type { Journey, StageJourneyActivity, JourneyStage } from './journey.js';
 import { getStage, stageIndex, type StageId } from './stages.js';
@@ -169,32 +170,8 @@ function stageOfActivity(key: string, index: Map<string, StageId>): StageId {
   return STAGE_BY_PREFIX[key.split('.')[0] ?? ''] ?? 'Idea';
 }
 
-/** Builds the full collaboration state for one activity. */
-export function activityState(
-  activity: StageJourneyActivity,
-  record: ActivityRecord | undefined,
-  blockers: ActivityBlocker[],
-  commentCount = 0
-): ActivityState {
-  const status = record?.status ?? 'not_started';
-  const reviewState = record?.reviewState ?? 'none';
-  return {
-    activityKey: activity.id,
-    status,
-    statusLabel: status === 'not_started' ? 'Not started' : status === 'in_progress' ? 'In progress' : status === 'needs_review' ? 'Needs review' : status === 'completed' ? 'Completed' : 'Blocked',
-    assigneeId: record?.assigneeId ?? null,
-    assigneeName: record?.assigneeName ?? null,
-    reviewState,
-    reviewLabel: reviewState === 'none' ? 'No review needed' : reviewState === 'pending' ? 'Awaiting review' : reviewState === 'approved' ? 'Approved' : 'Changes requested',
-    awaitingApproval: requiresApproval(activity.id) && activity.done && reviewState !== 'approved',
-    completedBy: record?.completedBy ?? null,
-    completedByName: record?.completedByName ?? null,
-    completedAt: record?.completedAt ?? null,
-    reviewNote: record?.reviewNote ?? null,
-    blockers,
-    commentCount
-  };
-}
+// Kept here as an export for existing callers.
+export { activityState } from './activity.js';
 
 function isPastDue(dueDate: string | null, now: Date): boolean {
   if (!dueDate) return false;
@@ -233,7 +210,7 @@ export function recommendNextActions(input: RecommendationInput): Recommendation
   };
 
   for (const stage of journey.stages) {
-    // Locked stages cannot be worked on, so they never produce a recommendation.
+    // Keep suggestions focused on reached chapters; later chapters remain inspectable.
     if (stage.state === 'locked') continue;
     // Retired is off the happy path: finishing the journey must never suggest
     // retiring the product the user just completed.
@@ -315,14 +292,9 @@ export function recommendNextActions(input: RecommendationInput): Recommendation
   const hasRealWork = out.some((r) => r.reason !== 'optional_incomplete');
   if (!hasRealWork) return [];
 
-  // Stable ordering: priority, then stage order, then label, so the result is
-  // deterministic and never reshuffles between renders.
-  out.sort(
-    (a, b) =>
-      a.priority - b.priority ||
-      stageIndex(a.stage) - stageIndex(b.stage) ||
-      a.label.localeCompare(b.label)
-  );
+  // Within a priority, prefer the actual current chapter, then curriculum order
+  // (not alphabetical prompt order, which could recommend an action too early).
+  out.sort((a, b) => a.priority - b.priority || Number(b.stage === current.id) - Number(a.stage === current.id) || stageIndex(a.stage) - stageIndex(b.stage));
 
   // Only one entry per activity key — the highest-priority reason wins.
   const seen = new Set<string>();
@@ -348,9 +320,8 @@ export function stageQuestWithApprovals(
   stage: StageId,
   records: Record<string, ActivityRecord>
 ): { questComplete: boolean; blockedByApproval: string[] } {
-  const quest = stageQuest(product, materials, stage);
-  const blockedByApproval = Object.keys(records)
-    .filter((key) => requiresApproval(key) && records[key]?.reviewState === 'pending')
-    .map((key) => key);
-  return { questComplete: quest.complete && blockedByApproval.length === 0, blockedByApproval };
+  const states = { ...product.approvalStates, ...Object.fromEntries(Object.entries(records).map(([key,r])=>[key,r.reviewState])) };
+  const quest = stageQuest({ ...product, approvalStates: states }, materials, stage);
+  const blockedByApproval = questionsForStage(stage, product.productKind).filter(q => q.required && requiresApproval(q.key) && isAnswered(product.answers[q.key]) && states[q.key] !== 'approved').map(q=>q.key);
+  return { questComplete: quest.complete, blockedByApproval };
 }

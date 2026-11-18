@@ -1,19 +1,27 @@
 # Solution Velocity
 
-A gamified product development lifecycle (PDLC) workspace. Teams move each product through
-**Tell us → Track it → Improve it**:
+A workspace for taking a product from a rough idea to a tested release and a next iteration. Start with the product you have today: a physical product, software, a service or an idea you are still exploring. Each short activity adds something you can read, share and revise in the product’s chapter brief.
 
-1. **Tell us**: answer short question decks for each lifecycle stage (Idea → Research → Planning → Design → Prototype → Testing → Launch → Improvement). Answers earn XP, fill the stage quest, and give the insight engine context.
-2. **Track it**: a bill of materials from a shared materials library, labour, packaging and overhead, a selling price, and live unit cost, profit and margin.
-3. **Improve it**: suggestions such as a cheaper supplier quote, a price that hits your target margin, the biggest cost driver, overdue tasks, or "ready for the next stage". Apply one with a click.
+**Try it:** open the field guide on the landing page, then choose **Explore demo** for a temporary sample workspace or **Start building** to create your own. On a closed-registration server, request access or use an invitation. See the [first-product walkthrough](BEGINNER_GUIDE.md).
 
-Gamification is what keeps it simple: XP, levels, per-stage quests, a product health grade (A–D), badges, daily streaks and a team leaderboard.
+| Chapter | What you leave with |
+| --- | --- |
+| Idea | A concept brief: the problem, customer and proposed product |
+| Research | A research notebook: customer profile, comparison, interview plan and evidence gaps |
+| Planning | A build roadmap: MVP scope, ranked features, responsibilities, budget and risks |
+| Design | A design brief: user journey, behaviour, decisions and constraints |
+| Prototype | A prototype log: learning goal, resources, build task and estimated costs |
+| Testing | A test report: scenario, criteria, actual results and feedback |
+| Launch | A launch plan: audience, channel, release checks, price and success measures |
+| Improvement | An iteration brief: feedback, ordered changes and a chapter to revisit |
+
+The building desk shows the active product, a resumable next step and what still needs attention. A founder can keep a draft private, record an answer for the workspace, or ask for guidance without changing either. A chapter milestone counts recorded work, not market validation. The existing project dashboards, tasks, cost sheet, materials, suppliers, Design Studio and workspace settings remain available.
 
 ---
 
 ## CI scope and release status
 
-GitHub CI runs the root `apps/*` / `packages/*` Solution Velocity workspace: typechecks, unit tests, production build, Kysely migrations against disposable PostgreSQL 17, Docker image health, and the named API/browser regression smokes. There is currently no root `lint` script. The separate Next/Prisma source tree present on `main` is not built or tested by this workflow; its dependencies and npm scripts are not defined by the current root manifest and require an independent ownership/CI decision. CI success is not live CADit, founder-security, backup, or production rollout approval; see `docs/cadit-design-studio.md`.
+GitHub CI runs the root `apps/*` / `packages/*` Solution Velocity workspace: typechecks, unit tests, production build, Kysely migrations against disposable PostgreSQL 17, Docker image health, and the named API/browser regression smokes. There is currently no root `lint` script. The separate Next/Prisma source tree present on `main` is not built or tested by this workflow; its dependencies and npm scripts are not defined by the current root manifest and require an independent ownership/CI decision. CI success is not live CADit, founder-security, backup, or production rollout approval; see the [verification record](RELEASE_READINESS.md#founder-journey--local-verification) and [CADit release gates](docs/cadit-design-studio.md).
 
 ## Stack
 
@@ -53,10 +61,10 @@ Public submissions are rate-limited.
 
 ## Run it locally
 
-Requirements: Node.js 20.19+ (tested on 26). No Docker or system Postgres needed for development.
+Requirements: Node.js 20.19+ (Node 22 in CI). No Docker or system Postgres needed for development.
 
 ```bash
-npm install
+npm ci
 cp .env.example .env
 ```
 
@@ -72,7 +80,7 @@ In a second terminal, start the API and the web app. Migrations apply automatica
 npm run dev
 ```
 
-Open http://localhost:5173 and create an account. The first account can always be created, even when sign-up is turned off. On the empty dashboard, **Explore with sample products** loads a demo workspace.
+Open http://localhost:5173 and create an account. The first account can always be created, even when sign-up is turned off. During setup, choose a workspace type and either start a product at its current chapter or skip to the dashboard. **Explore sample products** adds sample records to your workspace; **Explore demo** on the public page instead creates an isolated expiring workspace.
 
 ### Checks
 
@@ -159,7 +167,7 @@ npm run migrate
 | `SESSION_TTL_DAYS`    | `30`                    | Sessions slide forward while in use.                                        |
 | `DATABASE_POOL_MAX`   | `10`                    |                                                                             |
 | `LOG_LEVEL`           | `info`                  | JSON logs to stdout. Cookies and passwords are redacted.                    |
-| `INSIGHTS_PROVIDER`   | `rules`                 | `ai` once an AI provider is implemented (see below).                        |
+| `INSIGHTS_PROVIDER`   | `rules`                 | `ai` enables configured product insight generation; separate from lesson assistance.                        |
 
 ### Operations
 
@@ -191,29 +199,25 @@ npm run migrate
 | Answer a discovery question              | 5–15 (per question)    |
 | Complete a task                          | 15                     |
 | Add a material to a product              | 5                      |
-| Set a price / fill in all costs          | 10 / 20                |
-| Move a product forward a stage           | 50                     |
+| Set a price / complete a cost estimate          | 10 / 20                |
+| Move to the next chapter after completing the current one           | 50                     |
 | Complete a stage quest                   | 100                    |
 | Apply an improvement suggestion          | 25                     |
 | Add a supplier / library material        | 10 / 5                 |
 
-Each award has a unique reference (for example, the product plus question key), so editing an answer or toggling a task never pays out twice. Levels need `50 × L × (L − 1)` total XP (L2 = 100, L3 = 300, L4 = 600…). The rules live in [packages/shared/src/gamification.ts](packages/shared/src/gamification.ts).
+New credit is unique across the workspace for the work reference (for example, the product plus question key). Revising, clearing/refilling, changing assignee or repeating a cycle cannot earn that credit again. Drafts earn no credit. Historical credits are retained on upgrade. Levels need `50 × L × (L − 1)` total XP (L2 = 100, L3 = 300, L4 = 600…). The rules live in [packages/shared/src/gamification.ts](packages/shared/src/gamification.ts).
 
 ### Adding or changing questions
 
-Edit [packages/shared/src/questions.ts](packages/shared/src/questions.ts). Keys are stored with answers, so **never rename a key**. Add a new question instead, and mark old ones `retired: true`. Supported types are text, longtext, number, money, date, yes/no, 1–5 scale, single choice and multi choice. `syncsTo` writes an answer into a product field (price, description, category).
+Edit [packages/shared/src/questions.ts](packages/shared/src/questions.ts). Keys are stored with answers, so **never rename a key**. Add a new question instead, and mark old ones `retired: true`. Supported types are text, longtext, number, money, date, yes/no, 1–5 scale, single/multiple choice, ranked lists, an evidence note and a two-alternative comparison. A question also specifies the output heading, plain-language guidance, worked example, advanced prompt, applicability and first-answer XP. `syncsTo` can update a live product field (price, description, category or per-unit overhead) when the answer is recorded.
 
 ---
 
-## Adding AI later
+## Lesson copilot and product insights
 
-The seam is already in place:
+The lesson copilot works without a model or credits. It can explain a question with an example, reference the product’s recorded cost estimate, and link to the same next step as the building desk. When a user asks, an enabled, funded assistant may send a limited excerpt of the selected product and the submitted draft to the configured provider. A model reply is a suggestion: copying it into a text field does **not** save an answer. See [AI_ASSISTANT.md](AI_ASSISTANT.md) for backend-only provider configuration and token accounting.
 
-- [apps/server/src/services/insights.ts](apps/server/src/services/insights.ts) defines an `AiProvider` interface with `insights()` (market research, supplier discovery, pricing advice) and an optional `followUpQuestions()`. Implement it, return it from `aiProvider()`, and set `INSIGHTS_PROVIDER=ai` plus `AI_API_KEY`/`AI_MODEL`.
-- The provider receives the product, every discovery answer, the bill of materials, supplier quotes and the workspace currency. That context is what the question decks are designed to collect.
-- AI suggestions merge after the rule-based ones, are tagged with an **AI** badge in the UI, and time out after 15 s with a fallback to rules. The server only *applies* actions it can re-derive and verify itself, so AI output is advisory unless you add a verified action type.
-
-Good first AI features: researching market prices from the Research answers, suggesting suppliers for the most expensive materials, generating follow-up questions from vague answers, and drafting launch plans.
+The **Improve it** tab is separate. Its deterministic suggestions use recorded costs, quotes, tasks and answers. `INSIGHTS_PROVIDER=ai` can add suggestions, but the server only applies changes that its own rules can re-derive. A pricing estimate is not a quote, sale or promise of profitability.
 
 ---
 

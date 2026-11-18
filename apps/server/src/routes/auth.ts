@@ -42,15 +42,15 @@ const strictLimiter = rateLimit({
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 export async function loadMe(trx: Db, userId: string, workspaceId: string): Promise<Me> {
-  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at']).where('id', '=', userId).executeTakeFirstOrThrow();
+  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at', 'guide_mode', 'show_streak']).where('id', '=', userId).executeTakeFirstOrThrow();
   const rows = await trx
     .selectFrom('memberships as m')
     .innerJoin('workspaces as w', 'w.id', 'm.workspace_id')
-    .select(['w.id', 'w.name', 'w.currency', 'w.mode', 'm.role'])
+    .select(['w.id', 'w.name', 'w.currency', 'w.mode', 'w.show_leaderboard', 'm.role'])
     .where('m.user_id', '=', userId)
     .orderBy('w.created_at')
     .execute();
-  const workspaces: Workspace[] = rows.map((r) => ({ id: r.id, name: r.name, currency: r.currency as CurrencyCode, mode: r.mode, role: r.role }));
+  const workspaces: Workspace[] = rows.map((r) => ({ id: r.id, name: r.name, currency: r.currency as CurrencyCode, mode: r.mode, showLeaderboard: r.show_leaderboard, role: r.role }));
   const demo = await trx.selectFrom('demo_guests').select('expires_at').where('user_id', '=', userId).executeTakeFirst();
   const workspace = workspaces.find((w) => w.id === workspaceId) || workspaces[0];
   if (!workspace) throw unauthorized();
@@ -60,6 +60,8 @@ export async function loadMe(trx: Db, userId: string, workspaceId: string): Prom
       email: user.email,
       name: user.name,
       createdAt: user.created_at.toISOString(),
+      guideMode: user.guide_mode,
+      showStreak: user.show_streak,
       isAdmin: user.is_admin
     },
     workspace,

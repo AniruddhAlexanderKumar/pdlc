@@ -7,6 +7,7 @@ import {
   stageQuest,
   type LeaderboardEntry,
   type PlayerStats,
+  type StageId,
   type XpAward
 } from '@sv/shared';
 import type { AuthContext } from '../auth/session.js';
@@ -21,13 +22,13 @@ export class XpLedger {
     readonly ctx: AuthContext
   ) {}
 
-  /** Awards points once per (user, kind, ref). Returns true when newly awarded. */
+  /** Awards points once per (workspace, kind, ref). Returns true when newly awarded. */
   async award(kind: string, ref: string, points: number, label: string, productId: string | null = null): Promise<boolean> {
     if (points <= 0) return false;
     const inserted = await this.db
       .insertInto('xp_events')
       .values({ workspace_id: this.ctx.workspaceId, user_id: this.ctx.userId, product_id: productId, kind, ref, points, label })
-      .onConflict((oc) => oc.columns(['workspace_id', 'user_id', 'kind', 'ref']).doNothing())
+      .onConflict((oc) => oc.doNothing())
       .returning('id')
       .executeTakeFirst();
     if (inserted) this.awards.push({ points, label });
@@ -38,7 +39,7 @@ export class XpLedger {
    * Checks milestone awards that depend on the whole product: stage quest completion,
    * costs filled in, a price set. Called after any change to a product.
    */
-  async evaluateProduct(productId: string) {
+  async evaluateProduct(productId: string, touchedStage?: StageId | StageId[]) {
     const product = await loadProduct(this.db, this.ctx.workspaceId, productId);
     const materials = new Map((await loadMaterials(this.db, this.ctx.workspaceId, product.materials.map((m) => m.materialId))).map((m) => [m.id, m]));
 
@@ -46,12 +47,16 @@ export class XpLedger {
       await this.award('price_set', productId, XP.priceSet, `Set a price for ${product.name}`, productId);
     }
     const { labour, packaging, overhead } = product.costs;
-    if (labour > 0 && packaging > 0 && overhead > 0) {
+    // Keep the original itemised-cost award. A guided estimate may also have
+    // genuinely zero packaging or overhead; never require inventing a cost.
+    const guided = typeof product.answers['prototype.overhead'] === 'number' && product.targetSellingPrice !== null && (product.productKind !== 'physical' || product.materials.length > 0);
+    if (guided || (labour > 0 && packaging > 0 && overhead > 0)) {
       await this.award('costs_filled', productId, XP.costsFilled, `Completed the cost sheet for ${product.name}`, productId);
     }
-    const quest = stageQuest(product, materials);
-    if (quest.complete) {
-      await this.award('quest_complete', `${productId}:${product.stage}`, XP.questComplete, `${product.stage} quest complete: ${product.name}`, productId);
+    for (const stage of new Set([product.stage, ...(Array.isArray(touchedStage) ? touchedStage : touchedStage ? [touchedStage] : [])])) {
+      if (stageQuest(product, materials, stage).complete) {
+        await this.award('quest_complete', `${productId}:${stage}`, XP.questComplete, `${stage} chapter complete: ${product.name}`, productId);
+      }
     }
     return { product, materials, summary: costSummary(product, materials) };
   }
@@ -150,6 +155,7 @@ export async function playerStats(db: Db, workspaceId: string, userId: string): 
     for (const p of products) {
       if (!p.target_price) continue;
       const cost = (bomCost.get(p.id) ?? 0) + p.labour + p.packaging + p.overhead;
+      if (cost <= 0) continue; // No margin achievement for an empty cost sheet.
       const margin = ((p.target_price - cost) / p.target_price) * 100;
       bestMargin = bestMargin === null ? margin : Math.max(bestMargin, margin);
     }

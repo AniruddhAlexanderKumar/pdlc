@@ -13,7 +13,7 @@ const created=await call('POST','/designs',{title:'Autosave fixture',projectId:n
 const browser=await pw.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(x=>x!=='--disable-web-security'),headless:true});
 try{
  const page=await browser.newPage({viewport:{width:1440,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(`${base}/login`);await page.getByLabel('Work email').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign in'}).click();await page.waitForURL(`${base}/projects`);
+ await page.goto(`${base}/login`);await page.getByLabel('Work email').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign in'}).click();await page.waitForURL(`${base}/`);
  await page.goto(`${base}/designs/${id}`);await page.getByRole('button',{name:'Add box'}).click();await page.getByLabel('Box label').fill('Persisted box');await page.getByText('Saved',{exact:true}).waitFor({timeout:10000});
  let result=await call('GET',`/designs/${id}`,undefined,cookie);assert.equal(result.data.document.headRevision,2);assert.equal(result.data.source.nodes[0].label,'Persisted box');
  await page.reload();await page.getByRole('button',{name:'Select Persisted box'}).waitFor();

@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  ActivityDraft,
+  AnswerValue,
+  GuideMode,
   AppLayoutSettings,
   DashboardLayout,
   DashboardSettings,
@@ -161,7 +164,10 @@ function useXpMutation<TVars, TData>(
   const celebrate = useCelebrate();
   return useMutation({
     mutationFn: fn,
-    onSuccess: (res, vars) => {
+    onMutate: () => qc.getQueryData<Me>(keys.me),
+    onSuccess: (res, vars, before) => {
+      const current = qc.getQueryData<Me>(keys.me);
+      if (!current || before?.workspace.id !== current.workspace.id || before?.user.id !== current.user.id) return;
       onData?.(res.data, vars);
       if (opts.refreshAll) qc.invalidateQueries({ queryKey: keys.data });
       qc.invalidateQueries({ queryKey: ['insights'] });
@@ -177,7 +183,8 @@ function useXpMutation<TVars, TData>(
 
 function useSetProduct() {
   const qc = useQueryClient();
-  return (product: Product) =>
+  return (product: Product) => {
+    qc.invalidateQueries({ queryKey: ['collaboration', product.id] });
     qc.setQueryData<WorkspaceData>(keys.data, (old) => {
       if (!old) return old;
       const exists = old.products.some((p) => p.id === product.id);
@@ -186,17 +193,19 @@ function useSetProduct() {
         products: exists ? old.products.map((p) => (p.id === product.id ? product : p)) : [product, ...old.products]
       };
     });
+  };
 }
 
 // ── Products ───────────────────────────────────────────────────────────────
 
-export type ProductPatch = Partial<Pick<Product, 'name' | 'category' | 'description' | 'imageUrl' | 'notes' | 'targetSellingPrice' | 'stage'>> & {
+export type ProductPatch = Partial<Pick<Product, 'name' | 'category' | 'description' | 'imageUrl' | 'notes' | 'targetSellingPrice' | 'stage' | 'productKind'>> & {
   costs?: Partial<Product['costs']>;
 };
 
 export function useCreateProduct() {
   const setProduct = useSetProduct();
-  return useXpMutation((body: ProductPatch) => post<WithXp<Product>>('/products', body), setProduct);
+  const qc = useQueryClient();
+  return useXpMutation((body: ProductPatch & { startingStage?: Product['stage']; guideMode?: GuideMode }) => post<WithXp<Product>>('/products', body), product => { setProduct(product); qc.invalidateQueries({ queryKey: keys.me }); });
 }
 
 export function useUpdateProduct(productId: string) {
@@ -224,9 +233,10 @@ export function useDeleteProduct() {
 
 export function useAnswer(productId: string) {
   const setProduct = useSetProduct();
+  const qc = useQueryClient();
   return useXpMutation(
-    ({ key, value }: { key: string; value: unknown }) => put<WithXp<Product>>(`/products/${productId}/answers/${encodeURIComponent(key)}`, { value }),
-    setProduct
+    ({ key, value, previousValue }: { key: string; value: unknown; previousValue?: AnswerValue }) => put<WithXp<Product>>(`/products/${productId}/answers/${encodeURIComponent(key)}`, { value, previousValue }),
+    (p) => { setProduct(p); qc.invalidateQueries({ queryKey: ['activity-drafts'] }); }
   );
 }
 
@@ -244,6 +254,7 @@ export function useRemoveBomLine(productId: string) {
 }
 
 export interface TaskInput {
+  chapter?: Product['stage'] | null;
   title?: string;
   description?: string;
   status?: 'todo' | 'in_progress' | 'done';
@@ -357,4 +368,16 @@ export function useImportVoice() {
       qc.invalidateQueries({ queryKey: ['projects'] });
     }
   );
+}
+
+export function useDrafts() {
+  const me = useSession();
+  return useQuery({ queryKey: ['activity-drafts', me.workspace.id, me.user.id], queryFn: () => get<ActivityDraft[]>('/products/drafts') });
+}
+
+export function useGuidePreferences() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({ mutationFn: (prefs: { guideMode?: GuideMode; showStreak?: boolean }) => patch<Me>('/game/preferences', prefs),
+    onSuccess: m => { const current = qc.getQueryData<Me>(keys.me); if (current?.user.id === m.user.id && current.workspace.id === m.workspace.id) qc.setQueryData(keys.me, m); }, onError: e => toast.error(e.message) });
 }

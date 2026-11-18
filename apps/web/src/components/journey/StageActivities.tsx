@@ -1,8 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { MessageSquare, Send, Users } from 'lucide-react';
-import type { JourneyStage, StageJourneyActivity, TeamContribution } from '@sv/shared';
+import { QUESTIONS_BY_KEY, type Product } from '@sv/shared';
+import { formatAnswer } from './AnswerInput';
+import { useMoney } from '../../lib/money';
+import type { Journey, JourneyStage, StageJourneyActivity, TeamContribution } from '@sv/shared';
 import { useAddComment, useComments } from '../../api/collaboration';
 import { Button, Spinner, Textarea } from '../ui';
+import { ActivityDependencies } from './ActivityDependencies';
 import { ActivityRow } from './ActivityRow';
 
 /**
@@ -21,6 +25,7 @@ import { ActivityRow } from './ActivityRow';
  */
 export function StageActivities({
   productId,
+  journey, dependencies, answers,
   stage,
   team,
   canManage,
@@ -36,6 +41,7 @@ export function StageActivities({
   onJumpToBlocker
 }: {
   productId: string;
+  answers: Product['answers']; journey: Journey; dependencies: Record<string,string[]>;
   stage: JourneyStage;
   team: TeamContribution[];
   canManage: boolean;
@@ -51,6 +57,7 @@ export function StageActivities({
   onReview: (key: string, decision: 'approve' | 'request_changes', note: string) => void;
   onJumpToBlocker: (key: string) => void;
 }) {
+  const { fmt } = useMoney();
   if (stage.activities.length === 0) {
     return <p className="px-4 py-4 text-sm text-zinc-500">Nothing to do here yet.</p>;
   }
@@ -60,6 +67,7 @@ export function StageActivities({
       {stage.activities.map((activity) => (
         <li key={activity.id} className="contents">
           <ActivityRow
+            recordedAnswer={activity.questionKey && activity.done ? formatAnswer(QUESTIONS_BY_KEY.get(activity.questionKey)!, answers[activity.questionKey], fmt) : undefined}
             activity={activity}
             team={team}
             canManage={canManage}
@@ -76,6 +84,7 @@ export function StageActivities({
           />
           {openKey === activity.id && (
             <div className="px-4 pb-3">
+              <ActivityDependencies productId={productId} activityKey={activity.id} journey={journey} linked={dependencies[activity.id] ?? []} editable={canManage || !activity.collaboration?.assigneeId || activity.collaboration.assigneeId === currentUserId}/>
               <ActivityComments productId={productId} activityKey={activity.id} />
             </div>
           )}

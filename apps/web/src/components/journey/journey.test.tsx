@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { buildJourney, STAGE_IDS, type Material, type Product } from '@sv/shared';
+import { buildJourney, PATH_STAGES, STAGE_IDS, type Material, type Product } from '@sv/shared';
 import { JourneyMap } from './JourneyMap';
 import { StageOverview } from './StageOverview';
 
@@ -108,8 +108,8 @@ test('Retired is offered off the main path, never as a ninth node on it', () => 
   const html = renderMap(product({ stage: 'Launch' }));
   assert.ok(html.includes('Retire this product'), 'retire affordance should exist');
   // The eight path stages are listed as nodes; Retired is not among them.
-  const nodeCount = (html.match(/aria-label="[A-Za-z]+ — (Completed|You are here|Ready to start|Locked)"/g) ?? []).length;
-  assert.equal(nodeCount, 8, `expected 8 journey nodes, got ${nodeCount}`);
+  assert.deepEqual([...html.matchAll(/aria-label="([A-Za-z]+) — [^"]+"/g)].map(match => match[1]), PATH_STAGES);
+  assert.match(html, /Idea — Earlier chapter; work remaining/);
 });
 
 test('the stage overview answers what/why/how-much/what-next in plain language', () => {
@@ -117,7 +117,6 @@ test('the stage overview answers what/why/how-much/what-next in plain language',
   const html = renderToStaticMarkup(
     <StageOverview
       product={product()}
-      materials={materials}
       stage={journey.current}
       nextStageId={journey.nextStageId}
       isCurrent
@@ -133,13 +132,12 @@ test('the stage overview answers what/why/how-much/what-next in plain language',
   assert.ok(html.includes('Capture the product idea'), 'must use the plain-English stage purpose');
 });
 
-test('a locked stage overview explains the prerequisite instead of offering actions', () => {
+test('a future chapter explains the stage lock but still allows reading the brief', () => {
   const journey = buildJourney(product({ stage: 'Idea' }), { materials });
   const lockedStage = journey.stages.find((s) => s.id === 'Testing')!;
   const html = renderToStaticMarkup(
     <StageOverview
       product={product()}
-      materials={materials}
       stage={lockedStage}
       nextStageId={null}
       isCurrent={false}
@@ -149,6 +147,8 @@ test('a locked stage overview explains the prerequisite instead of offering acti
     />
   );
   assert.match(html, /Finish .* to unlock Testing/);
+  assert.match(html, /Read or revise brief/);
+  assert.ok(!html.includes('Make Testing the current chapter'));
 });
 
 test('every stage deep-links its activities so nobody has to hunt for the next step', () => {
@@ -156,7 +156,6 @@ test('every stage deep-links its activities so nobody has to hunt for the next s
   const withLinks = renderToStaticMarkup(
     <StageOverview
       product={product()}
-      materials={materials}
       stage={journey.current}
       nextStageId={journey.nextStageId}
       isCurrent

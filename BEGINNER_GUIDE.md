@@ -1,4 +1,33 @@
-# Beginner's Guide to PDLC Platform
+# Your first product in Solution Velocity
+
+You do not need a finished business plan. Bring a working name and a problem you would like to understand. If you only want to explore, **Explore demo** on the landing page opens temporary sample data instead of changing a real workspace.
+
+## Start a chapter
+
+1. Choose **Start building**. Create a personal workspace if it is just you, or a team workspace to invite collaborators. If registration is closed, use an invitation or request access.
+2. Name your product and choose a kind, a starting chapter and the guidance that suits you. Beginner guidance explains terms and shows an example; advanced guidance asks for a more precise specification. Both save to the same record. Starting at Planning does **not** mark Idea or Research complete.
+3. Complete one activity. For example, in Idea, “A booking page that helps tutors fill cancelled lessons” is a product concept. It is not evidence that tutors will pay for it. Select **Complete activity**, then **Read brief** to see exactly what was saved.
+4. Stopping midway? **Save for later** stores your private draft. Use **Resume draft** on the building desk to return to it. Typing alone does not save it. **Revise** edits the team’s recorded section. If someone changed it since you started, read the new record before keeping your edits.
+
+## What to do next
+
+- **Research:** compare two alternatives on one criterion. Classify a notebook entry as an assumption, a research finding or independent evidence. For the latter two, include a traceable source; the system does not verify it. “Not yet” is an honest answer about interviews. Link a product task to Research so someone can do the next investigation.
+- **Planning and Design:** define an MVP (the smallest useful version to try), order features with the arrow controls or drag handle, and describe the user’s path through it. Check the chapter brief for missing sections.
+- **Prototype, Testing and Launch:** record a learning objective, resources and a Prototype task. Use one consistent cost basis, such as one unit, visit or subscription month. Add materials when they apply. Record test results and launch readiness, including checks that are **not** complete. A planned test is not a successful test.
+- **Improvement:** write down what happened, rank the next changes and choose which chapter to return to. **Start next cycle** changes the active chapter, not the contents of earlier briefs. Archiving is separate; reaching Improvement never retires the product automatically.
+
+Open **Journey** to inspect the core checklist. Expand an activity to see its recorded answer, assignment, comments, prerequisites and review controls. Workspace owners/admins can sign off interview coverage, design must-haves and testing criteria. In a personal workspace, you can review your own decision. Sign-off confirms the record, not the underlying claim. Editing a signed-off answer requires a fresh review.
+
+The **Founder copilot** can explain the current activity or point you to the next one. When a model is configured, review its suggestion; copying suggested text to a draft is not a save. Avoid including secrets or identifying interview details. When no model is available, the built-in guide still works.
+
+Use **Workspace overview** for existing project widgets and saved layouts. The building desk’s percentages reflect recorded core work; the health score combines answers, cost inputs, estimated margin and tasks. Neither is a company valuation. XP is credited for first-time work, not repeated edits. Streaks are optional, and team rankings can be hidden in Settings.
+
+---
+
+<details>
+<summary>Reference for the separate Next/Prisma engineering platform (not the root workspace)</summary>
+
+## Beginner’s Guide to the engineering platform
 
 Welcome to the **Aerospace Product Development Life Cycle (PDLC) Platform**. This guide introduces the core concepts, user interface navigation, engineering graph principles, and situation-aware tools built into the software.
 
@@ -90,3 +119,5 @@ The **Situation-Aware AI Assistant** automatically detects your current context 
 
 - Visit the in-app **Help & Reference** page (`/help`) for FAQs, transition explorers, and domain limit simulators.
 - Open the **Situation-Aware AI Assistant** anytime by clicking the ✨ button in the top bar.
+
+</details>

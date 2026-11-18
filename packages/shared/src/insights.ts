@@ -63,7 +63,7 @@ export function ruleInsights(
 
   // Pricing vs. target margin.
   if (summary.targetPrice === null) {
-    if (summary.totalUnitCost > 0) {
+    if (summary.totalUnitCost > 0 && targetMargin < 100) {
       const suggested = Math.ceil(summary.totalUnitCost / (1 - targetMargin / 100));
       out.push({
         id: `price:none:${suggested}`,
@@ -91,7 +91,7 @@ export function ruleInsights(
       action: aboveMarket ? { type: 'open_tab', tab: 'costs' } : { type: 'set_price', price: suggested },
       source: 'rules'
     });
-  } else if (summary.grossMargin !== null && summary.grossMargin >= targetMargin) {
+  } else if (summary.totalUnitCost > 0 && summary.grossMargin !== null && summary.grossMargin >= targetMargin) {
     out.push({
       id: `margin:healthy`,
       kind: 'margin',
@@ -119,7 +119,7 @@ export function ruleInsights(
   }
 
   // Missing information.
-  const unanswered = questionsForStage(product.stage).filter((q) => q.required && !isAnswered(product.answers[q.key]));
+  const unanswered = questionsForStage(product.stage, product.productKind).filter((q) => q.required && !isAnswered(product.answers[q.key]));
   if (unanswered.length > 0) {
     out.push({
       id: `discover:${product.stage}:${unanswered.length}`,
@@ -131,7 +131,7 @@ export function ruleInsights(
       source: 'rules'
     });
   }
-  if (product.materials.length === 0 && ['Design', 'Prototype', 'Testing', 'Launch', 'Improvement'].includes(product.stage)) {
+  if ((!product.productKind || product.productKind === 'physical') && product.materials.length === 0 && ['Design', 'Prototype', 'Testing', 'Launch', 'Improvement'].includes(product.stage)) {
     out.push({
       id: 'bom:empty',
       kind: 'costs',
@@ -167,7 +167,7 @@ export function ruleInsights(
       kind: 'stage',
       tone: 'win',
       title: `Ready for ${next}`,
-      detail: `You completed the ${product.stage} quest. Move the product forward to earn bonus XP.`,
+      detail: `The ${product.stage} work is complete. Move to ${next} when you are ready.`,
       action: { type: 'advance_stage' },
       source: 'rules'
     });

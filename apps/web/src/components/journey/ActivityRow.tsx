@@ -34,6 +34,7 @@ export interface ActivityRowProps {
   /** True when the signed-in user may assign to other people. */
   canManage: boolean;
   currentUserId: string;
+  recordedAnswer?: string;
   isOpen: boolean;
   onToggle: () => void;
   onOpen: () => void;
@@ -50,7 +51,7 @@ export function ActivityRow({
   team,
   canManage,
   currentUserId,
-  isOpen,
+  recordedAnswer, isOpen,
   onToggle,
   onOpen,
   onAssign,
@@ -184,6 +185,7 @@ export function ActivityRow({
         {/* Expanded controls: ownership, status, review. */}
         {isOpen && (
           <div className="mt-3 space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+            {recordedAnswer && <div className="rounded-md border-l-2 border-teal-500 px-3 py-1"><p className="sv-kicker">Current answer</p><p className="mt-1 whitespace-pre-wrap break-words text-sm">{recordedAnswer}</p></div>}
             {blockers.length === 0 && <p className="text-xs leading-5 text-zinc-500">{activity.why}</p>}
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -224,10 +226,10 @@ export function ActivityRow({
 
             {awaitingApproval && !pendingReview && (
               <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" loading={busy} icon={<ShieldCheck className="h-3.5 w-3.5" />} onClick={onSubmitReview}>
+                <Button size="sm" loading={busy} icon={<ShieldCheck className="h-3.5 w-3.5" />} disabled={!canActOnThis} onClick={onSubmitReview}>
                   Submit for review
                 </Button>
-                <span className="text-[11px] text-zinc-500">This activity only counts once a reviewer approves it.</span>
+                <span className="text-[11px] text-zinc-500">An owner or admin signs off on this record, not on market demand or product safety.</span>
               </div>
             )}
 

@@ -130,7 +130,7 @@ describe('contextual recommendations', () => {
     const p = product({
       stage: 'Research',
       description: 'A bottle',
-      tasks: [{ id: 't1', title: 'Bench test', description: '', status: 'todo', dueDate: null, position: 0, completedAt: null }] as never,
+      tasks: [{ id: 't1', title: 'Schedule interviews', chapter: 'Research', description: '', status: 'todo', dueDate: null, position: 0, completedAt: null }] as never,
       answers: { ...ideaAnswered, 'research.competitors': 'x', 'research.market_price': 20, 'research.validated': true, 'research.differentiator': 'y' }
     });
     const journey = buildJourney(p, { materials });
@@ -185,13 +185,13 @@ describe('contextual recommendations', () => {
       description: 'A bottle',
       targetSellingPrice: 100,
       costs: { labour: 1, packaging: 1, overhead: 1 },
-      // Design and Prototype quests need 2+ and 3+ BOM lines respectively.
+      // Historical BOM records remain part of this product.
       materials: [
         { materialId: 'm1', quantity: 1 },
         { materialId: 'm1', quantity: 2 },
         { materialId: 'm1', quantity: 3 }
       ],
-      tasks: [1, 2, 3].map((n) => ({ id: `t${n}`, title: `T${n}`, description: '', status: 'done', dueDate: null, position: n, completedAt: '2026-01-01' }))
+      tasks: [1, 2, 3].map((n) => ({ id: `t${n}`, title: `T${n}`, chapter: n === 1 ? 'Research' : 'Prototype', description: '', status: 'done', dueDate: null, position: n, completedAt: '2026-01-01' }))
     });
     for (const s of STAGE_IDS) {
       for (const q of questionsForStage(s)) {
@@ -227,7 +227,11 @@ describe('approval rules', () => {
   it('holds back stage completion while a sign-off is pending', () => {
     const answered = {
       ...ideaAnswered,
-      'research.competitors': 'Generic bottles',
+      'research.comparison': ['Lid design', 'Bottle A: screw top', 'Bottle B: clip'],
+          'research.profile': 'Commuters who refill during travel',
+          'research.interview': 'Ask about the last spill during a commute',
+          'research.finding': ['Founder assumption', 'People may prefer a locking lid', 'Interview planned'],
+          'research.competitors': 'Generic bottles',
       'research.market_price': 20,
       'research.validated': true,
       'research.differentiator': 'Does not leak'
@@ -236,7 +240,7 @@ describe('approval rules', () => {
       stage: 'Research',
       description: 'A bottle',
       // Research's quest also requires at least one research task.
-      tasks: [{ id: 't1', title: 'Bench test', description: '', status: 'todo', dueDate: null, position: 0, completedAt: null }] as never,
+      tasks: [{ id: 't1', title: 'Schedule interviews', chapter: 'Research', description: '', status: 'todo', dueDate: null, position: 0, completedAt: null }] as never,
       answers: answered
     });
 

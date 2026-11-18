@@ -34,8 +34,8 @@ workspaceRouter.patch(
   admin,
   route(async (req, res) => {
     const a = auth(req);
-    const body = parse(z.object({ name: shortText(80).min(1), currency: z.enum(CURRENCIES) }).partial().strict(), req.body);
-    if (Object.keys(body).length > 0) await db.updateTable('workspaces').set(body).where('id', '=', a.workspaceId).execute();
+    const body = parse(z.object({ name: shortText(80).min(1), currency: z.enum(CURRENCIES), showLeaderboard: z.boolean() }).partial().strict(), req.body);
+    if (Object.keys(body).length > 0) await db.updateTable('workspaces').set({ name: body.name, currency: body.currency, show_leaderboard: body.showLeaderboard }).where('id', '=', a.workspaceId).execute();
     res.json(await loadMe(db, a.userId, a.workspaceId));
   })
 );
@@ -288,9 +288,18 @@ gameRouter.get(
   })
 );
 
+gameRouter.patch('/preferences', route(async (req, res) => {
+  const a = auth(req);
+  const prefs = parse(z.object({ guideMode: z.enum(['beginner', 'advanced']).optional(), showStreak: z.boolean().optional() }).strict(), req.body);
+  if (Object.keys(prefs).length) await db.updateTable('users').set({ guide_mode: prefs.guideMode, show_streak: prefs.showStreak }).where('id', '=', a.userId).execute();
+  res.json(await loadMe(db, a.userId, a.workspaceId));
+}));
+
 gameRouter.get(
   '/leaderboard',
   route(async (req, res) => {
-    res.json(await leaderboard(db, auth(req).workspaceId));
+    const { workspaceId } = auth(req);
+    const ws = await db.selectFrom('workspaces').select(['mode','show_leaderboard']).where('id', '=', workspaceId).executeTakeFirstOrThrow();
+    res.set('Cache-Control', 'no-store').json(ws.mode !== 'solo' && ws.show_leaderboard ? await leaderboard(db, workspaceId) : []);
   })
 );

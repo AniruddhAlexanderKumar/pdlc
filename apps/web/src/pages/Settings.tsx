@@ -43,16 +43,19 @@ function WorkspaceSettings() {
   const toast = useToast();
   const canEdit = me.workspace.role !== 'member';
   const [name, setName] = useState(me.workspace.name);
+  const [showBoard, setBoard] = useState(me.workspace.showLeaderboard !== false);
   const [currency, setCurrency] = useState<string>(me.workspace.currency);
   useEffect(() => {
     setName(me.workspace.name);
     setCurrency(me.workspace.currency);
+    setBoard(me.workspace.showLeaderboard !== false);
   }, [me.workspace]);
   const save = useMutation({
-    mutationFn: () => patch<Me>('/workspace', { name, currency }),
+    mutationFn: () => patch<Me>('/workspace', { name, currency, showLeaderboard: showBoard }),
     onSuccess: (m) => {
       qc.setQueryData(keys.me, m);
       qc.invalidateQueries({ queryKey: ['insights'] });
+      qc.invalidateQueries({ queryKey: keys.leaderboard });
       toast.success('Workspace saved');
     },
     onError: (e) => toast.error(e.message)
@@ -82,6 +85,7 @@ function WorkspaceSettings() {
             Save
           </Button>
         )}
+        <label className="flex items-center gap-2 text-sm sm:col-span-full"><input type="checkbox" disabled={!canEdit} checked={showBoard} onChange={e => setBoard(e.target.checked)} /> Show the team leaderboard in Achievements</label>
       </form>
     </Card>
   );

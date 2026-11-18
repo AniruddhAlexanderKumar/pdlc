@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AnswerValue,
   ActivityComment,
   ActivityRecord,
   ActivityStatus,
@@ -10,7 +11,7 @@ import type {
   ReviewState,
   TeamContribution
 } from '@sv/shared';
-import { del, get, patch, post } from './client';
+import { ApiError, del, get, patch, post } from './client';
 import { useToast } from '../components/Toast';
 
 /**
@@ -54,6 +55,8 @@ function useInvalidate(productId: string) {
   return () => {
     qc.invalidateQueries({ queryKey: collabKeys.view(productId) });
     qc.invalidateQueries({ queryKey: ['workspace-data'] });
+    qc.invalidateQueries({ queryKey: ['game'] });
+    qc.invalidateQueries({ queryKey: ['leaderboard'] });
     qc.invalidateQueries({ queryKey: collabKeys.notifications });
     qc.invalidateQueries({ queryKey: collabKeys.team(productId) });
   };
@@ -66,7 +69,7 @@ function useAction<TVars>(productId: string, fn: (vars: TVars) => Promise<unknow
   return useMutation({
     mutationFn: fn,
     onSuccess: () => invalidate(),
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Something went wrong')
+    onError: (e) => { if (e instanceof ApiError && e.status === 409) invalidate(); toast.error(e instanceof Error ? e.message : 'Something went wrong'); }
   });
 }
 
@@ -89,8 +92,8 @@ export function useSubmitReview(productId: string) {
 }
 
 export function useReviewActivity(productId: string) {
-  return useAction(productId, ({ key, decision, note }: { key: string; decision: 'approve' | 'request_changes'; note?: string }) =>
-    post(`/products/${productId}/activities/${encodeURIComponent(key)}/review`, { decision, note })
+  return useAction(productId, ({ key, decision, note, expectedAnswer }: { expectedAnswer?: AnswerValue; key: string; decision: 'approve' | 'request_changes'; note?: string }) =>
+    post(`/products/${productId}/activities/${encodeURIComponent(key)}/review`, { decision, note, expectedAnswer })
   );
 }
 

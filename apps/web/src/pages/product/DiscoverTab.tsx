@@ -1,424 +1,522 @@
-import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { CheckCircle2, ChevronLeft, ChevronRight, Layers3, ListChecks, SkipForward } from 'lucide-react';
-import { getStage, isAnswered, questionsForStage, STAGES, type AnswerValue, type Product, type Question, type StageId } from '@sv/shared';
-import { useAnswer } from '../../api/hooks';
-import { Button, Card, cx, Input, ProgressBar, Textarea } from '../../components/ui';
+import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link, useBlocker, useNavigate, useSearchParams } from 'react-router';
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Bookmark,
+  Check,
+  CheckCheck,
+  Clock3,
+  FileText,
+  NotebookPen
+} from 'lucide-react';
+import {
+  CHAPTER_BRIEFS,
+  requiresApproval,
+  isAnswered,
+  normaliseAnswer,
+  questionsForStage,
+  STAGE_GUIDES,
+  STAGE_IDS,
+  type ActivityDraft,
+  type AnswerValue,
+  type Product,
+  type Question,
+  type StageId
+} from '@sv/shared';
+import { useCollaboration } from '../../api/collaboration';
+import { ApiError, del, put } from '../../api/client';
+import { keys, useAnswer, useDrafts, useGuidePreferences, useSession } from '../../api/hooks';
+import { AnswerInput, formatAnswer } from '../../components/journey/AnswerInput';
+import { LessonCopilot } from '../../components/journey/LessonCopilot';
+import { Button, Select, Spinner } from '../../components/ui';
 import { useMoney } from '../../lib/money';
 
-/** Renders the right control for a question type. `value` is the draft, not the saved answer. */
-function AnswerInput({ q, value, onChange, onSubmit, autoFocus }: { q: Question; value: AnswerValue; onChange: (v: AnswerValue) => void; onSubmit?: () => void; autoFocus?: boolean }) {
-  const { symbol } = useMoney();
-  const enter = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && onSubmit) {
-      e.preventDefault();
-      onSubmit();
-    }
-  };
-
-  switch (q.type) {
-    case 'text':
-      return <Input autoFocus={autoFocus} aria-label={q.prompt} maxLength={300} value={(value as string) ?? ''} placeholder={q.placeholder} onChange={(e) => onChange(e.target.value)} onKeyDown={enter} />;
-    case 'longtext':
-      return (
-        <Textarea
-          autoFocus={autoFocus}
-          aria-label={q.prompt}
-          rows={4}
-          maxLength={5000}
-          value={(value as string) ?? ''}
-          placeholder={q.placeholder ?? 'Type your answer… (Enter to save, Shift+Enter for a new line)'}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={enter}
-        />
-      );
-    case 'number':
-    case 'money':
-      return (
-        <div className="relative max-w-xs">
-          {q.type === 'money' && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">{symbol}</span>}
-          <Input
-            autoFocus={autoFocus}
-            aria-label={q.prompt}
-            type="number"
-            min={0}
-            step="any"
-            inputMode="decimal"
-            className={cx('tabular-nums', q.type === 'money' && 'pl-8')}
-            value={value === null || value === undefined ? '' : String(value)}
-            onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-            onKeyDown={enter}
-          />
-        </div>
-      );
-    case 'date':
-      return <Input autoFocus={autoFocus} aria-label={q.prompt} type="date" className="max-w-xs" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value || null)} onKeyDown={enter} />;
-    case 'yesno':
-      return (
-        <div className="flex gap-2">
-          {[
-            { v: true, label: 'Yes' },
-            { v: false, label: 'Not yet' }
-          ].map((o) => (
-            <button
-              key={o.label}
-              type="button"
-              aria-pressed={value === o.v}
-              onClick={() => onChange(o.v)}
-              className={cx(
-                'min-w-24 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
-                value === o.v ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'
-              )}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      );
-    case 'scale':
-      return (
-        <div>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                aria-pressed={value === n}
-                aria-label={`${n} of 5`}
-                onClick={() => onChange(n)}
-                className={cx(
-                  'h-11 w-11 rounded-lg border text-sm font-semibold tabular-nums transition-all',
-                  value === n ? 'scale-105 border-blue-500 bg-blue-600 text-white shadow-sm' : 'border-zinc-200 hover:border-blue-300 dark:border-zinc-700'
-                )}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-          {q.scale && (
-            <div className="mt-1.5 flex w-[15.5rem] justify-between text-[11px] text-zinc-500">
-              <span>{q.scale[0]}</span>
-              <span>{q.scale[1]}</span>
-            </div>
-          )}
-        </div>
-      );
-    case 'choice':
-    case 'multi': {
-      const selected: string[] = q.type === 'multi' ? (Array.isArray(value) ? value : []) : typeof value === 'string' ? [value] : [];
-      return (
-        <div className="flex flex-wrap gap-2">
-          {q.options?.map((o) => {
-            const on = selected.includes(o);
-            return (
-              <button
-                key={o}
-                type="button"
-                aria-pressed={on}
-                onClick={() => {
-                  if (q.type === 'choice') onChange(o);
-                  else onChange(on ? selected.filter((x) => x !== o) : [...selected, o]);
-                }}
-                className={cx(
-                  'rounded-full border px-3 py-1.5 text-sm transition-colors',
-                  on ? 'border-blue-500 bg-blue-500/10 font-medium text-blue-700 dark:text-blue-300' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700'
-                )}
-              >
-                {o}
-              </button>
-            );
-          })}
-        </div>
-      );
-    }
+const lessonHref = (id: string, q: Question) => `/products/${id}/discover?stage=${q.stage}&q=${q.key}`;
+export const briefHref = (id: string, stage: StageId) => `/products/${id}/discover?stage=${stage}&view=brief`;
+const same = (a: AnswerValue, b: AnswerValue) => JSON.stringify(a) === JSON.stringify(b);
+const relatedTools = (stage: StageId, physical: boolean): [string, string][] => {
+  switch (stage) {
+    case 'Research':
+    case 'Planning':
+    case 'Testing':
+      return [['tasks', 'Open product tasks']];
+    case 'Prototype':
+      return [
+        ['tasks', 'Track build tasks'],
+        ['costs', 'Review cost sheet'],
+        ...(physical
+          ? ([
+              ['materials', 'Bill of materials'],
+              ['/suppliers', 'Supplier catalog']
+            ] as [string, string][])
+          : [])
+      ];
+    case 'Launch':
+      return [
+        ['costs', 'Review price and margin'],
+        ['tasks', 'Release tasks']
+      ];
+    case 'Improvement':
+      return [
+        ['improve', 'Review improvement insights'],
+        ['tasks', 'Track improvements']
+      ];
+    case 'Design':
+      return physical ? [['materials', 'Review materials']] : [];
+    default:
+      return [];
   }
-}
+};
 
-function formatAnswer(q: Question, v: AnswerValue, fmt: (n: number) => string) {
-  if (v === null || v === undefined) return '';
-  if (q.type === 'money' && typeof v === 'number') return fmt(v);
-  if (q.type === 'yesno') return v ? 'Yes' : 'Not yet';
-  if (q.type === 'scale') return `${v} / 5`;
-  if (Array.isArray(v)) return v.join(', ');
-  return String(v);
-}
-
-function Deck({ product, questions, stage, onDone, focusKey }: { product: Product; questions: Question[]; stage: StageId; onDone: () => void; focusKey?: string | null }) {
-  const answer = useAnswer(product.id);
-  // A deep link (?q=...) wins, so "next activity" opens the exact card.
-  const focusedIndex = focusKey ? questions.findIndex((q) => q.key === focusKey) : -1;
-  const firstOpen = focusedIndex >= 0
-    ? focusedIndex
-    : Math.max(
-        0,
-        questions.findIndex((q) => !isAnswered(product.answers[q.key]))
-      );
-  const [i, setI] = useState(firstOpen);
-  const q = questions[i];
-  const [draft, setDraft] = useState<AnswerValue>(q ? (product.answers[q.key] ?? null) : null);
-  const [draftKey, setDraftKey] = useState<string | undefined>(q?.key);
-  const [finished, setFinished] = useState(false);
-
-  // Reset the draft while rendering, not in an effect, when moving to another
-  // question. An effect runs after the commit, so the next question's input
-  // would render once still holding the previous answer -- a 1-5 scale number
-  // arriving at a multi-choice question crashed on selected.includes().
-  if (q && q.key !== draftKey) {
-    setDraftKey(q.key);
-    setDraft(product.answers[q.key] ?? null);
-  }
-
-  const answeredCount = questions.filter((x) => isAnswered(product.answers[x.key])).length;
-
-  const advance = () => {
-    if (i < questions.length - 1) setI(i + 1);
-    else setFinished(true);
-  };
-
-  const save = () => {
-    if (!q) return;
-    const saved = product.answers[q.key] ?? null;
-    if (!isAnswered(draft) || JSON.stringify(draft) === JSON.stringify(saved)) return advance();
-    answer.mutate({ key: q.key, value: draft }, { onSuccess: advance });
-  };
-
-  if (finished || !q) {
-    const allDone = answeredCount === questions.length;
-    return (
-      <Card className="relative overflow-hidden p-8 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
-          <CheckCircle2 className="h-7 w-7" />
-        </div>
-        <h3 className="text-lg font-semibold">{allDone ? `${stage} questions complete` : 'End of the deck'}</h3>
-        <p className="mx-auto mt-1 max-w-sm text-sm text-zinc-500">
-          {allDone
-            ? 'Your answers are saved. Review them any time as the product develops.'
-            : `${questions.length - answeredCount} question${questions.length - answeredCount === 1 ? '' : 's'} left unanswered. You can come back to them any time.`}
-        </p>
-        <div className="mt-6 flex justify-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setFinished(false);
-              setI(0);
-            }}
-          >
-            Review answers
-          </Button>
-          <Button onClick={onDone}>Done</Button>
-        </div>
-      </Card>
-    );
-  }
-
-  const isDone = isAnswered(product.answers[q.key]);
+function Brief({ product, stage, questions }: { product: Product; stage: StageId; questions: Question[] }) {
+  const { fmt } = useMoney();
+  const recorded = questions.filter((q) => isAnswered(product.answers[q.key]));
+  const links = relatedTools(stage, product.productKind === 'physical');
   return (
-    <Card className="overflow-hidden">
-      <div className="px-5 pt-5">
-        <div className="flex items-center justify-between text-xs text-zinc-500">
-          <span>
-            Question {i + 1} of {questions.length}
-          </span>
-          <span className={cx('rounded-full px-2 py-0.5 font-semibold', isDone ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'bg-blue-500/10 text-blue-700 dark:text-blue-300')}>
-            {isDone ? 'Answered' : `+${q.xp} XP`}
-          </span>
-        </div>
-        <div className="mt-2 flex gap-1">
-          {questions.map((x, n) => (
-            <button
-              key={x.key}
-              onClick={() => setI(n)}
-              aria-label={`Go to question ${n + 1}`}
-              className={cx(
-                'h-1.5 flex-1 rounded-full transition-colors',
-                n === i ? 'bg-blue-600' : isAnswered(product.answers[x.key]) ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-800'
-              )}
-            />
+    <article className="sv-sheet p-5 sm:p-8">
+      <p className="sv-kicker flex items-center gap-2">
+        <FileText size={15} /> Product document
+      </p>
+      <h3 className="mt-2 text-2xl font-semibold tracking-tight">{CHAPTER_BRIEFS[stage]}</h3>
+      <p className="mt-2 text-sm text-zinc-500">
+        {recorded.length} recorded sections · {product.name}. These are your team’s notes, not verified findings.
+      </p>
+      {!recorded.length && (
+        <p className="my-5 rounded-lg bg-slate-50 p-4 text-sm dark:bg-zinc-800">
+          Your brief starts with your first answer. Open any section below to begin.
+        </p>
+      )}
+      <dl className="mt-5 divide-y divide-zinc-200 dark:divide-zinc-800">
+        {questions.map((q) => (
+          <div key={q.key} className="py-4">
+            <dt className="flex items-start justify-between gap-3">
+              <span className="font-semibold">{q.output}</span>
+              <Link className="sv-link text-xs" to={lessonHref(product.id, q)}>
+                {isAnswered(product.answers[q.key]) ? 'Revise' : 'Add'} <span className="sr-only">{q.output}</span> →
+              </Link>
+            </dt>
+            <dd className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+              {isAnswered(product.answers[q.key]) ? formatAnswer(q, product.answers[q.key], fmt) : 'Not recorded yet.'}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {links.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-4 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+          {links.map(([tab, label]) => (
+            <Link
+              key={tab}
+              className="sv-link text-sm"
+              to={
+                tab.startsWith('/') ? tab : `/products/${product.id}/${tab}${tab === 'tasks' ? `?stage=${stage}` : ''}`
+              }
+            >
+              {label} ↗
+            </Link>
           ))}
         </div>
-      </div>
-      <form
-        key={q.key}
-        className="animate-rise px-5 pb-5 pt-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save();
-        }}
-      >
-        <h3 className="text-lg font-semibold leading-snug">
-          {q.prompt}
-          {!q.required && <span className="ml-2 align-middle text-xs font-normal text-zinc-400">optional</span>}
-        </h3>
-        {q.help && <p className="mt-1 text-sm text-zinc-500">{q.help}</p>}
-        <div className="mt-4">
-          <AnswerInput q={q} value={draft} onChange={setDraft} onSubmit={save} autoFocus />
-        </div>
-        <div className="mt-6 flex items-center justify-between">
-          <Button variant="ghost" size="sm" disabled={i === 0} onClick={() => setI(i - 1)} icon={<ChevronLeft className="h-4 w-4" />}>
-            Back
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={advance} icon={<SkipForward className="h-3.5 w-3.5" />}>
-              Skip
-            </Button>
-            <Button type="submit" size="sm" loading={answer.isPending}>
-              {isAnswered(draft) ? 'Save & next' : 'Next'} <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </form>
-    </Card>
+      )}
+    </article>
   );
 }
 
-function AllQuestions({ product, questions }: { product: Product; questions: Question[] }) {
-  const answer = useAnswer(product.id);
-  const { fmt } = useMoney();
-  const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState<AnswerValue>(null);
-
+function Lesson({
+  product,
+  q,
+  questions,
+  existing
+}: {
+  product: Product;
+  q: Question;
+  questions: Question[];
+  existing?: ActivityDraft;
+}) {
+  const me = useSession(),
+    prefs = useGuidePreferences(),
+    qc = useQueryClient(),
+    navigate = useNavigate();
+  const answer = useAnswer(product.id),
+    { fmt } = useMoney();
+  const team = useCollaboration(product.id),
+    owner = team.data?.records[q.key];
+  const assignedElsewhere = me.workspace.role === 'member' && !!owner?.assigneeId && owner.assigneeId !== me.user.id;
+  const saved = product.answers[q.key] ?? null;
+  const initial = existing ? existing.value : saved;
+  const [draft, setDraft] = useState(initial);
+  const [base, setBase] = useState(existing ? existing.previousValue : saved);
+  const [finished, setFinished] = useState(false),
+    [issue, setIssue] = useState('');
+  const safeToLeave = useRef(false);
+  const advanced = me.user.guideMode === 'advanced';
+  const saveDraft = useMutation({
+    mutationFn: () => put<void>(`/products/${product.id}/drafts/${q.key}`, { value: draft, previousValue: base }),
+    onSuccess: async () => {
+      safeToLeave.current = true;
+      await qc.invalidateQueries({ queryKey: ['activity-drafts'] });
+      navigate(`/?view=journey&product=${product.id}`);
+    }
+  });
+  const discardDraft = useMutation({
+    mutationFn: () => del(`/products/${product.id}/drafts/${q.key}`),
+    onSuccess: async () => {
+      safeToLeave.current = true;
+      await qc.invalidateQueries({ queryKey: ['activity-drafts'] });
+      navigate(briefHref(product.id, q.stage));
+    }
+  });
+  const dirty = !same(draft, initial) && !finished;
+  const busy = answer.isPending || saveDraft.isPending || discardDraft.isPending;
+  const blocker = useBlocker(() => !safeToLeave.current && (dirty || busy));
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    if (
+      !busy &&
+      window.confirm('Leave without saving these edits? Choose Cancel, then Save for later to keep a draft.')
+    )
+      blocker.proceed();
+    else blocker.reset();
+  }, [blocker, busy]);
+  useEffect(() => {
+    const unload = (e: BeforeUnloadEvent) => {
+      if (!safeToLeave.current && (dirty || busy)) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    const sessionChange = (e: Event) => {
+      if (
+        !safeToLeave.current &&
+        (busy || (dirty && !window.confirm('Discard unsaved lesson edits before changing session?')))
+      )
+        e.preventDefault();
+    };
+    window.addEventListener('beforeunload', unload);
+    window.addEventListener('sv:before-session-change', sessionChange);
+    return () => {
+      window.removeEventListener('beforeunload', unload);
+      window.removeEventListener('sv:before-session-change', sessionChange);
+    };
+  }, [dirty, busy]);
+  const change = (v: AnswerValue) => {
+    safeToLeave.current = false;
+    setDraft(v);
+    setIssue('');
+  };
+  const save = (v: AnswerValue) => {
+    const normal = normaliseAnswer(q, v);
+    if ('error' in normal || (v !== null && !isAnswered(normal.value)))
+      return setIssue('error' in normal ? normal.error : 'Add a response, or save this as a draft.');
+    answer.mutate(
+      { key: q.key, value: normal.value, previousValue: base },
+      {
+        onSuccess: () => {
+          safeToLeave.current = true;
+          if (v === null) navigate(briefHref(product.id, q.stage));
+          else setFinished(true);
+        },
+        onError: (e) => {
+          setIssue(e.message);
+          if (e instanceof ApiError && e.status === 409) qc.invalidateQueries({ queryKey: keys.data });
+        }
+      }
+    );
+  };
+  const i = questions.findIndex((x) => x.key === q.key),
+    stale = !same(base, saved);
+  // Prefer remaining core activities. Optional detail is always accessible in the brief.
+  const rest = [...questions.slice(i + 1), ...questions.slice(0, i)].filter((x) => !isAnswered(product.answers[x.key]));
+  const next = rest.find((x) => x.required);
+  const example = (
+    <div className="mt-4 border-l-2 border-teal-500 pl-4">
+      <p className="sv-kicker">Example</p>
+      <p className="mt-1 text-sm leading-6">{q.example}</p>
+    </div>
+  );
+  if (finished)
+    return (
+      <section className="sv-sheet animate-rise p-6 sm:p-9" aria-live="polite">
+        <span className="sv-icon">
+          <CheckCheck size={22} />
+        </span>
+        <p className="sv-kicker mt-6">Activity recorded</p>
+        <h3 className="mt-2 text-2xl font-semibold tracking-tight">Your {q.output.toLowerCase()} is saved.</h3>
+        <p className="mt-2 text-sm leading-6 text-zinc-500">
+          You can revise it in your {CHAPTER_BRIEFS[q.stage].toLowerCase()}.{' '}
+          {requiresApproval(q.key) &&
+            product.approvalStates?.[q.key] !== 'approved' &&
+            'This decision also needs chapter review.'}
+        </p>
+        <blockquote className="my-5 max-h-56 overflow-auto whitespace-pre-wrap break-words border-l-2 border-teal-600 pl-4 text-sm">
+          {formatAnswer(q, saved, fmt)}
+        </blockquote>
+        <div className="flex flex-wrap items-center gap-4">
+          <Button
+            onClick={() =>
+              navigate(next ? lessonHref(product.id, next) : `/products/${product.id}/journey?stage=${q.stage}`)
+            }
+          >
+            {next ? `Next: ${next.output}` : 'Review chapter progress'} <ArrowRight size={15} />
+          </Button>
+          <Link className="sv-link text-sm" to={briefHref(product.id, q.stage)}>
+            Read brief
+          </Link>
+        </div>
+      </section>
+    );
   return (
-    <Card className="divide-y divide-zinc-100 dark:divide-zinc-800">
-      {questions.map((q) => {
-        const saved = product.answers[q.key] ?? null;
-        const isEditing = editing === q.key;
-        return (
-          <div key={q.key} className="px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="flex items-center gap-2 text-sm font-medium">
-                  {isAnswered(saved) ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" /> : <span className="h-4 w-4 shrink-0 rounded-full border-2 border-zinc-300 dark:border-zinc-600" />}
-                  {q.prompt}
+    <div className="space-y-4">
+      <article className="sv-sheet overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3 text-xs text-zinc-500 sm:px-8 dark:border-zinc-700">
+          <span className="flex items-center gap-2">
+            <NotebookPen size={15} /> Activity {i + 1} / {questions.length} · {q.required ? 'Core' : 'Optional'}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock3 size={14} />
+            {['longtext', 'evidence', 'ranked', 'comparison'].includes(q.type) ? '3–5 min' : '1–2 min'}
+          </span>
+        </div>
+        <div className="p-5 sm:p-8">
+          <p className="sv-kicker">Create your {q.output.toLowerCase()}</p>
+          <p className="mt-3 max-w-prose text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+            {advanced ? q.advanced : q.help}
+          </p>
+          {advanced ? (
+            <details className="mt-2 text-xs">
+              <summary className="sv-link cursor-pointer">See a worked example</summary>
+              {example}
+            </details>
+          ) : (
+            example
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!assignedElsewhere && !busy && !stale && isAnswered(draft)) save(draft);
+            }}
+            className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-700"
+          >
+            <fieldset disabled={busy}>
+              <legend className="mb-4 text-xl font-semibold leading-snug tracking-tight">{q.prompt}</legend>
+              {existing && (
+                <p className="mb-3 text-xs font-medium text-teal-700 dark:text-teal-300">
+                  Restored your private draft · {new Date(existing.updatedAt).toLocaleDateString()}
                 </p>
-                {!isEditing && (
-                  <p className={cx('ml-6 mt-1 whitespace-pre-wrap text-sm', isAnswered(saved) ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400')}>
-                    {isAnswered(saved) ? formatAnswer(q, saved, fmt) : `Not answered · +${q.xp} XP`}
-                  </p>
-                )}
-              </div>
-              {!isEditing && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setEditing(q.key);
-                    setDraft(saved);
-                  }}
-                >
-                  {isAnswered(saved) ? 'Edit' : 'Answer'}
-                </Button>
               )}
-            </div>
-            {isEditing && (
-              <form
-                className="ml-6 mt-3 space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  answer.mutate({ key: q.key, value: draft }, { onSuccess: () => setEditing(null) });
+              {assignedElsewhere && (
+                <p className="my-2 text-sm" role="note">
+                  Assigned to {owner?.assigneeName ?? 'a teammate'}. You can keep a private draft, but only the assignee
+                  or a workspace manager can change the shared answer.
+                </p>
+              )}
+              <AnswerInput q={q} value={draft} onChange={change} />
+              {q.syncsTo && (
+                <p className="mt-2 text-xs text-zinc-500">
+                  Also updates{' '}
+                  {q.syncsTo === 'overhead' || q.syncsTo === 'targetSellingPrice'
+                    ? 'the live cost sheet'
+                    : `the product ${q.syncsTo}`}
+                  .
+                </p>
+              )}
+              {stale && (
+                <div role="alert" className="my-3 rounded-md border border-amber-400 p-3 text-sm">
+                  <strong>The shared answer has changed.</strong>
+                  <p className="my-2 whitespace-pre-wrap break-words">
+                    Current record: {formatAnswer(q, saved, fmt) || 'Not recorded'}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setBase(saved);
+                      setIssue('');
+                    }}
+                  >
+                    Reviewed · keep my edits
+                  </Button>
+                </div>
+              )}
+              {(issue || saveDraft.isError || discardDraft.isError) && (
+                <p className="mt-3 text-sm text-rose-600" role="alert">
+                  {issue || saveDraft.error?.message || discardDraft.error?.message}
+                </p>
+              )}
+              <div className="mt-6 flex flex-wrap gap-2">
+                <Button
+                  type="submit"
+                  loading={answer.isPending}
+                  disabled={!isAnswered(draft) || stale || assignedElsewhere}
+                >
+                  <Check size={16} />
+                  {isAnswered(saved) ? 'Save revision' : 'Complete activity'}
+                </Button>
+                <Button variant="secondary" loading={saveDraft.isPending} onClick={() => saveDraft.mutate()}>
+                  <Bookmark size={15} /> Save for later
+                </Button>
+              </div>
+            </fieldset>
+          </form>
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+            <button
+              className="sv-link"
+              disabled={prefs.isPending || busy}
+              onClick={() => prefs.mutate({ guideMode: advanced ? 'beginner' : 'advanced' })}
+            >
+              {advanced ? 'Use beginner guidance' : 'Use advanced guidance'}
+            </button>
+            {existing && (
+              <button
+                disabled={busy}
+                className="text-zinc-500 underline"
+                onClick={() => {
+                  if (window.confirm('Discard this private draft? The shared answer will not change.'))
+                    discardDraft.mutate();
                 }}
               >
-                <AnswerInput q={q} value={draft} onChange={setDraft} autoFocus />
-                <div className="flex gap-2">
-                  <Button type="submit" size="sm" loading={answer.isPending}>
-                    Save
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => setEditing(null)}>
-                    Cancel
-                  </Button>
-                  {isAnswered(saved) && (
-                    <Button size="sm" variant="ghost" onClick={() => answer.mutate({ key: q.key, value: null }, { onSuccess: () => setEditing(null) })}>
-                      Clear answer
-                    </Button>
-                  )}
-                </div>
-              </form>
+                Discard draft
+              </button>
+            )}
+            {isAnswered(saved) && (
+              <button
+                disabled={busy || stale || assignedElsewhere}
+                className="text-zinc-500 underline"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      'Clear this section of the brief? Existing cost or product fields and previously earned XP are kept.'
+                    )
+                  )
+                    save(null);
+                }}
+              >
+                Clear answer
+              </button>
             )}
           </div>
-        );
-      })}
-    </Card>
+          <p className="mt-4 text-xs text-zinc-500">
+            First recorded answer: {q.xp} XP once across the team. Saving a draft or editing an existing answer does not
+            earn answer XP again.
+          </p>
+        </div>
+      </article>
+      <LessonCopilot disabled={busy} product={product} q={q} draft={draft} onUse={change} />
+    </div>
   );
 }
 
 export function DiscoverTab({ product }: { product: Product }) {
-  const [params, setParams] = useSearchParams();
-  const fromUrl = params.get('stage') as StageId | null;
-  const focusKey = params.get('q');
-  const stage: StageId = fromUrl && STAGES.some((s) => s.id === fromUrl) ? fromUrl : product.stage;
-  const questions = useMemo(() => questionsForStage(stage), [stage]);
-  const answered = questions.filter((q) => isAnswered(product.answers[q.key])).length;
-  const [mode, setMode] = useState<'deck' | 'list'>(answered === questions.length && questions.length > 0 ? 'list' : 'deck');
-
-  const pickStage = (s: StageId) => {
-    const next = new URLSearchParams(params);
-    next.set('stage', s);
-    setParams(next, { replace: true });
-    const qs = questionsForStage(s);
-    setMode(qs.every((q) => isAnswered(product.answers[q.key])) ? 'list' : 'deck');
-  };
-
-  const stageMeta = getStage(stage);
-
+  const [params, setParams] = useSearchParams(),
+    drafts = useDrafts();
+  const wanted = params.get('stage') as StageId,
+    stage = STAGE_IDS.includes(wanted) ? wanted : product.stage;
+  const list = questionsForStage(stage, product.productKind);
+  // Inapplicable historical work stays readable (e.g. when changing product type).
+  const personal = drafts.data?.filter((d) => d.productId === product.id) ?? [];
+  const questions = [
+    ...list,
+    ...questionsForStage(stage).filter(
+      (q) => !list.includes(q) && (isAnswered(product.answers[q.key]) || personal.some((d) => d.questionKey === q.key))
+    )
+  ];
+  const q =
+    questions.find((x) => x.key === params.get('q')) ??
+    questions.find(
+      (x) => x.key === personal.find((d) => questions.some((item) => item.key === d.questionKey))?.questionKey
+    ) ??
+    questions.find((x) => x.required && !isAnswered(product.answers[x.key])) ??
+    questions[0];
+  const brief = params.get('view') === 'brief';
+  // Pin the location before editing. A successful write must not replace the
+  // current lesson with the next unanswered one mid-render.
+  useEffect(() => {
+    if (drafts.data && !brief && params.get('q') !== q.key) setParams({ stage, q: q.key }, { replace: true });
+  }, [drafts.data, brief, params, q.key, setParams, stage]);
+  if (drafts.isLoading) return <Spinner label="Loading your lesson and drafts" />;
+  if (drafts.isError && !drafts.data)
+    return (
+      <p role="alert">
+        Could not restore your drafts.{' '}
+        <Button variant="secondary" onClick={() => drafts.refetch()}>
+          Retry
+        </Button>
+      </p>
+    );
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Question stage">
-        {STAGES.map((s) => {
-          const qs = questionsForStage(s.id);
-          if (qs.length === 0) return null;
-          const a = qs.filter((q) => isAnswered(product.answers[q.key])).length;
-          const done = a === qs.length;
-          return (
-            <button
-              key={s.id}
-              role="tab"
-              aria-selected={stage === s.id}
-              onClick={() => pickStage(s.id)}
-              className={cx(
-                'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                stage === s.id ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-zinc-200 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400'
-              )}
-            >
-              {done ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <span className="h-1.5 w-1.5 rounded-full bg-current opacity-50" aria-hidden="true" />}
-              {s.label}
-              <span className="tabular-nums opacity-60">
-                {a}/{qs.length}
-              </span>
-              {s.id === product.stage && <span className="h-1.5 w-1.5 rounded-full bg-blue-500" title="Current stage" />}
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          className="sv-link inline-flex items-center gap-1 text-xs"
+          to={`/products/${product.id}/journey?stage=${stage}`}
+        >
+          <ArrowLeft size={14} /> Chapter overview
+        </Link>
+        <Select
+          aria-label="Choose chapter"
+          className="w-auto py-1.5 text-xs"
+          value={stage}
+          onChange={(e) => setParams({ stage: e.target.value, ...(brief ? { view: 'brief' } : {}) })}
+        >
+          {STAGE_IDS.filter((s) => s !== 'Retired' || product.stage === s).map((s) => (
+            <option key={s}>{s}</option>
+          ))}
+        </Select>
       </div>
-
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Tell us · {stageMeta.label}</p>
-          <h2 className="mt-0.5 text-base font-semibold">
-            {answered} of {questions.length} answered
-          </h2>
-          <ProgressBar className="mt-2 w-48" value={questions.length ? (answered / questions.length) * 100 : 0} tone={answered === questions.length ? 'emerald' : 'indigo'} />
-        </div>
-        <div className="flex rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-800">
-          <button
-            onClick={() => setMode('deck')}
-            aria-pressed={mode === 'deck'}
-            className={cx('flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium', mode === 'deck' ? 'bg-zinc-100 dark:bg-zinc-800' : 'text-zinc-500')}
-          >
-            <Layers3 className="h-3.5 w-3.5" /> One at a time
-          </button>
-          <button
-            onClick={() => setMode('list')}
-            aria-pressed={mode === 'list'}
-            className={cx('flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium', mode === 'list' ? 'bg-zinc-100 dark:bg-zinc-800' : 'text-zinc-500')}
-          >
-            <ListChecks className="h-3.5 w-3.5" /> All
-          </button>
-        </div>
+      <div>
+        <p className="sv-kicker">
+          {stage === 'Retired' ? 'Archive' : `Chapter ${String(STAGE_IDS.indexOf(stage) + 1).padStart(2, '0')} / 08`} ·{' '}
+          {stage}
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{STAGE_GUIDES[stage].purpose}</h2>
       </div>
-
-      {mode === 'deck' ? (
-        <Deck key={`${stage}:${focusKey ?? ''}`} product={product} questions={questions} stage={stage} focusKey={focusKey} onDone={() => setMode('list')} />
+      <div className="flex gap-4 border-b border-zinc-200 text-sm dark:border-zinc-700">
+        {[
+          { label: 'Activity', icon: BookOpen, on: !brief, to: lessonHref(product.id, q) },
+          { label: 'Chapter brief', icon: FileText, on: brief, to: briefHref(product.id, stage) }
+        ].map((t) => (
+          <Link
+            key={t.label}
+            to={t.to}
+            aria-current={t.on ? 'page' : undefined}
+            className={`inline-flex items-center gap-1.5 border-b-2 pb-2 ${t.on ? 'border-teal-600 font-semibold' : 'border-transparent text-zinc-500'}`}
+          >
+            <t.icon size={15} />
+            {t.label}
+          </Link>
+        ))}
+      </div>
+      {brief ? (
+        <Brief product={product} stage={stage} questions={questions} />
       ) : (
-        <AllQuestions product={product} questions={questions} />
+        <Lesson
+          key={`${product.id}:${q.key}`}
+          product={product}
+          q={q}
+          questions={questions}
+          existing={personal.find((d) => d.questionKey === q.key)}
+        />
+      )}
+      {!brief && (
+        <details className="text-sm">
+          <summary className="cursor-pointer font-medium text-zinc-500">Browse this chapter’s activities</summary>
+          <ul className="mt-2 divide-y divide-zinc-200 dark:divide-zinc-800">
+            {questions.map((x) => (
+              <li key={x.key}>
+                <Link className="flex items-center gap-2 py-2.5" to={lessonHref(product.id, x)}>
+                  {isAnswered(product.answers[x.key]) ? (
+                    <Check size={15} className="text-teal-600" />
+                  ) : (
+                    <span className="w-[15px] text-center">·</span>
+                  )}
+                  {x.output}
+                  <span className="ml-auto text-xs text-zinc-500">{x.required ? 'Core' : 'Optional'}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </div>
   );

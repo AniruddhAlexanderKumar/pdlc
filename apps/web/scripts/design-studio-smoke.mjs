@@ -11,7 +11,10 @@ try{
  await page.goto(base);const consent=page.getByRole('button',{name:'Essential only'});if(await consent.isVisible())await consent.click();
  const registration=await page.evaluate(async()=>{const r=await fetch('/api/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Design browser',email:`design-ui-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'Design browser'})});return r.status});assert.equal(registration,201);
  await page.goto(`${base}/designs`);await page.getByRole('heading',{name:'Design Studio'}).waitFor();
- await page.getByLabel('Name',{exact:true}).fill('Editable fixture diagram');await page.getByRole('button',{name:'Create diagram'}).click();await page.getByRole('heading',{name:'Editable fixture diagram'}).waitFor();
+ // Creation moved out of the legacy UI. Seed a real previous diagram via its API,
+ // then check the supported navigation and the real editor (not a mocked document).
+ assert.equal(await page.evaluate(async()=>(await fetch('/api/designs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'Editable fixture diagram',projectId:null,productId:null})})).status),201);
+ await page.goto(`${base}/designs/diagrams`);await page.getByRole('link',{name:/Editable fixture diagram/}).click();await page.getByRole('heading',{name:'Editable fixture diagram'}).waitFor();
  await page.getByRole('button',{name:'Add box'}).click();await page.getByLabel('Box label').fill('Sensor');await page.getByRole('button',{name:'Add box'}).click();await page.getByLabel('Box label').fill('Controller');
  await page.getByLabel('From',{exact:true}).selectOption({label:'Sensor'});await page.getByLabel('To',{exact:true}).selectOption({label:'Controller'});await page.getByLabel('Connector label (optional)').fill('signal');await page.getByRole('button',{name:'Add connector'}).click();
  await page.getByRole('button',{name:'Save revision'}).click();await page.getByText(/revision 2 · editable/i).waitFor();

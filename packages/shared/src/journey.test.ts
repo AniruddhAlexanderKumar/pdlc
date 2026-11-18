@@ -51,8 +51,8 @@ function finishedProduct(stage: (typeof STAGE_IDS)[number]): Product {
       { materialId: 'm1', quantity: 3 }
     ],
     tasks: [
-      { id: 't1', title: 'a', description: '', status: 'done', dueDate: null, position: 0, completedAt: '2026-01-01' },
-      { id: 't2', title: 'b', description: '', status: 'done', dueDate: null, position: 1, completedAt: '2026-01-01' },
+      { id: 't1', title: 'Interview', chapter: 'Research', description: '', status: 'done', dueDate: null, position: 0, completedAt: '2026-01-01' },
+      { id: 't2', title: 'Build pilot', chapter: 'Prototype', description: '', status: 'done', dueDate: null, position: 1, completedAt: '2026-01-01' },
       { id: 't3', title: 'c', description: '', status: 'done', dueDate: null, position: 2, completedAt: '2026-01-01' }
     ]
   });

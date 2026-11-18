@@ -1,3 +1,4 @@
+import { ProductStartFields, startValues } from '../../components/journey/ProductStartFields';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -188,11 +189,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
     currency: 'USD' as CurrencyCode
   });
 
-  const [productForm, setProductForm] = useState({
-    name: '',
-    category: '',
-    targetPrice: ''
-  });
+  const [productForm, setProductForm] = useState(() => startValues());
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -235,7 +232,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
       }
       signedIn(result.me);
       const next = params.get('next');
-      navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : result.me.user.isAdmin ? '/admin' : '/projects');
+      navigate(next && next.startsWith('/') && !next.startsWith('//') ? next : result.me.user.isAdmin ? '/admin' : '/');
     }
   });
 
@@ -256,7 +253,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
   });
 
   const createProductMutation = useMutation({
-    mutationFn: (data: { name: string; category?: string; targetSellingPrice?: number | null }) =>
+    mutationFn: (data: ReturnType<typeof startValues>) =>
       post<WithXp<Product>>('/products', data)
   });
 
@@ -325,13 +322,10 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
   const handleCreateProduct = async () => {
     if (!productForm.name.trim() || !registeredMe) return;
     try {
-      const res = await createProductMutation.mutateAsync({
-        name: productForm.name.trim(),
-        category: productForm.category.trim() || undefined,
-        targetSellingPrice: productForm.targetPrice ? Number(productForm.targetPrice) : null
-      });
-      signedIn(registeredMe);
-      navigate(`/products/${res.data.id}`);
+      const res = await createProductMutation.mutateAsync(productForm);
+      // This crosses the guest → authenticated boundary. Start a fresh query cache
+      // at the exact lesson; a simultaneous GuestOnly redirect would lose it.
+      window.location.replace(`/products/${res.data.id}/discover?stage=${res.data.stage}`);
     } catch {
       // handled by mutation error
     }
@@ -719,39 +713,11 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
             </div>
             <h3 className="mt-1 text-base font-semibold text-zinc-900 dark:text-white">Create your first product</h3>
             <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-              Capture discovery notes, track component costs, and keep product work in one place.
+              Choose a starting point. We’ll guide you through one small activity at a time.
             </p>
 
             <div className="mt-4 space-y-3">
-              <Field label="Product name" htmlFor="product-name">
-                <Input
-                  id="product-name"
-                  placeholder="e.g. Ergonomic Standing Desk"
-                  value={productForm.name}
-                  onChange={(e) => setProductForm((f) => ({ ...f, name: e.target.value }))}
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Category" htmlFor="product-cat">
-                  <Input
-                    id="product-cat"
-                    placeholder="e.g. Hardware"
-                    value={productForm.category}
-                    onChange={(e) => setProductForm((f) => ({ ...f, category: e.target.value }))}
-                  />
-                </Field>
-                <Field label={`Target price (${currencySymbol(form.currency)})`} htmlFor="product-price">
-                  <Input
-                    id="product-price"
-                    type="number"
-                    min="0"
-                    step="any"
-                    placeholder="99.00"
-                    value={productForm.targetPrice}
-                    onChange={(e) => setProductForm((f) => ({ ...f, targetPrice: e.target.value }))}
-                  />
-                </Field>
-              </div>
+              <ProductStartFields value={productForm} onChange={setProductForm} />
               <ErrorText error={createProductMutation.error} />
               <Button
                 onClick={handleCreateProduct}
@@ -760,7 +726,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
                 className="w-full"
                 icon={<Plus className="h-4 w-4" />}
               >
-                Create product & start (+50 XP)
+                Start my journey
               </Button>
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 ## Scope and baseline
 
-This document describes the tracked application after the approved first projects/issues slice (2026-10-28). The product remains a product-development-lifecycle workspace, with an additive Jira-inspired project/issue capability. This is a description of the current code, not a claim that every route has been end-to-end tested.
+The deployed root application is Solution Velocity: a guided product lifecycle with a separate project/issue workspace. The founder journey uses the existing product, task, collaboration, costing and XP records. It is not a second project model, course enrollment system or privileged founder console.
 
 ## Technology and workspaces
 
@@ -12,7 +12,7 @@ This document describes the tracked application after the approved first project
 - **Shared domain:** `packages/shared/src` exports TypeScript types, lifecycle stages, discovery questions, dashboard layouts, costing, insights, formatting, and gamification logic for the web and API.
 - **Deployment/support:** Docker Compose and Dockerfile at the root; Caddy, nginx, and systemd examples under `deploy/`.
 
-The root `package.json` defines the `apps/*` and `packages/*` npm workspaces. The tracked application uses Vite; untracked root Next.js-era files and build artifacts are not part of this architecture and were not inspected as application source.
+The root `package.json` defines the `apps/*` and `packages/*` npm workspaces. The tracked application uses Vite; the separate Next/Prisma source tree is not built by the root manifests, Dockerfile or CI.
 
 ## Runtime and dependency flow
 
@@ -43,6 +43,14 @@ In development, Vite proxies `/api` to `http://localhost:4000`. In production, t
 
 The current architecture has useful shared services but does not uniformly enforce a dedicated repository layer for every query. Jira-inspired entities should be introduced through additive migrations and explicit tenant-scoped service boundaries rather than extending unrelated route queries ad hoc.
 
+## How a lesson becomes product work
+
+- `questions.ts` is the stable curriculum, keyed by chapter and activity. Depth affects guidance, kind affects applicable questions; neither changes authorization. `stageQuest` checks core answers, sign-offs and record-backed actions. `buildJourney` expands that into an eight-chapter read model. `recommendNextActions` resolves blockers and overdue work; `nextWork` selects one destination for the building desk, product page and “what next?” response. None of these functions writes progress.
+- The `/products/:id/discover?stage=…&q=…` web route edits one answer. `view=brief` reads the same stored answers, including historical sections no longer applicable to the current kind. Merely inspecting another chapter never changes the product stage. Project-focused and personally configured dashboards remain accessible independently of the building desk.
+- Draft reads join the active workspace’s products and filter by the session user. The draft stores an incomplete value and its base answer. Completing an activity validates the final value, locks the product, checks assignment and the supplied prior value, then writes the answer, field sync, collaboration state, applicable XP and draft cleanup in one transaction. Manual and reviewed voice answers share `services/save-answer.ts`. A recorded answer is a snapshot: changing a live cost field later does not rewrite a brief.
+- Selected decisions require explicit submission and approval. Editing one invalidates its review. Prerequisites explain blockers and can notify assignees; a dependency is not evidence of completion. Gate enforcement stays in the API, not in button state. Returning to an earlier position preserves the reach of prior chapters without treating them as finished. Retired is outside the eight milestones.
+- `routes/lessons.ts` serves private drafts and lesson assistance. Its bounded product context is assembled server-side. Model generation uses the existing assistant allowance and usage transactions with a nullable conversation ID; it has no mutation tool. The guide fallback and “what next?” path need no inference.
+
 ## Current domain model
 
 | Entity/table | Role and notable relationships |
@@ -53,14 +61,16 @@ The current architecture has useful shared services but does not uniformly enfor
 | `sessions` | Hashed session token, user/workspace, expiry, user-agent and IP |
 | `invites`, `password_resets` | Hashed one-time tokens, expiry and redemption state |
 | `products` | Workspace-scoped PDLC artifact with lifecycle stage, costs, price and description |
-| `answers` | Product discovery answers keyed by stable question identifier |
-| `tasks` | Product-linked execution checklist; status is `todo`, `in_progress`, or `done` |
+| `answers` | Shared chapter sections keyed by product/question, with recording user and timestamp |
+| `activity_drafts` | Private partial response and base value, unique per product/user/question |
+| `activity_records`, `activity_comments`, `activity_dependencies` | Ownership, status, review, discussions and explicit prerequisite relationships |
+| `tasks` | Product-linked execution checklist with optional chapter; status is `todo`, `in_progress`, or `done` |
 | `projects` | Workspace-scoped work project with a unique key within its workspace and transactional next-issue counter |
 | `issues` | Project-scoped Task/Bug/Story with stable project-number key, status, priority, labels, reporter and workspace-member assignee |
 | `stage_history` | Product lifecycle stage changes |
 | `product_cad_models`, `product_cad_revisions` | Product-linked 3D CAD models and versioned STL binary artifacts with CADit embed integration |
 | `materials`, `suppliers`, `material_quotes`, `product_materials` | Workspace-scoped catalog, quotes, and product BOM |
-| `xp_events` | Workspace/user/product progress events |
+| `xp_events` | Attributed credit ledger; partial unique index fences future repeats across teammates while preserving older points |
 | `analytics_events` | Product telemetry and admin audit-style activity |
 | `access_requests` | Public access intake and admin review state |
 
@@ -71,7 +81,7 @@ Artifacts are generally workspace-scoped. Project keys are unique per workspace;
 - Session tokens are generated as random tokens; only hashes are stored. Cookies are HTTP-only, `SameSite=Lax`, path `/`, and secure when `APP_URL` is HTTPS. Sessions expire and slide forward at most hourly.
 - API middleware loads sessions and checks request origin for state-changing requests. API routes use `requireAuth`, workspace roles, or `requireAdmin` as appropriate. System administrator status comes from persisted `users.is_admin`; public registration and email identity do not grant it.
 - Workspace route queries generally scope by `workspaceId`; admin routes intentionally operate globally and are mounted behind admin authorization.
-- Public registration/login are rate-limited. Passwords are hashed with Argon2id (see `apps/server/src/auth/crypto.ts`); routes validate inputs using Zod.
+- Public registration/login are rate-limited. Passwords are hashed with scrypt (see `apps/server/src/auth/crypto.ts`); routes validate inputs using Zod.
 - Error responses distinguish known HTTP/input errors and malformed/oversized bodies, map unique constraints to conflict, and log unexpected failures.
 - **Remediated:** the former fixed `admin@gmail.com` / `admin` login path was removed. System-admin bootstrap now requires the operator-controlled `create-admin --system-admin` CLI option. Migration `005_system_admins` defaults existing accounts to non-admin; operators must explicitly provision/promote the intended system administrator after upgrading. See `SECURITY.md`.
 
@@ -79,7 +89,7 @@ Artifacts are generally workspace-scoped. Project keys are unique per workspace;
 
 1. **Register/sign in:** Auth page → `/api/auth/config` and register/login → account/workspace membership → session cookie → `/api/auth/me` → protected routes.
 2. **Invite a teammate:** Workspace owner/admin creates a one-time invite → recipient registers/accepts → invite consumed transactionally → membership and session created.
-3. **Develop a product:** Create product → answer stage questions → capture BOM/materials and costs → manage tasks and stage → calculate health/insights and XP.
+3. **Develop a product:** Choose kind/chapter → edit or resume a lesson → record in a brief → resolve tasks and sign-offs → advance or revisit; read health and progress from those records.
 4. **Manage team/catalog:** Settings or catalog pages → workspace-scoped API routes → Kysely transactions where linked data must remain consistent.
 5. **Request access:** Public page → rate-limited validated POST → PostgreSQL → admin-only list/status/note endpoints → manual provisioning/contact (approval does not create an account).
 6. **Create project issues:** Authenticated workspace member opens Projects → workspace owner/admin creates a project → workspace member creates, searches, paginates, assigns, and updates issue fields/status. This is separate from PDLC products and their checklist tasks.

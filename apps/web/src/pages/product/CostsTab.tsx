@@ -27,7 +27,7 @@ export function CostsTab({ product, materials }: { product: Product; materials: 
         <CardHeader
           icon={<Receipt className="h-4 w-4" />}
           title="Cost per unit"
-          subtitle={`Fill in every cost for +${XP.costsFilled} XP. Changes save when you leave a field.`}
+          subtitle={`Estimates per sale, visit or subscription period. Use zero for costs that do not apply. Changes save when you leave a field.`}
         />
         <div className="space-y-4 p-4">
           <div className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2.5 text-sm dark:bg-zinc-800/50">
@@ -37,7 +37,7 @@ export function CostsTab({ product, materials }: { product: Product; materials: 
             <span className="font-medium tabular-nums">{fmt(summary.materialsCost)}</span>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Labour" hint="Assembly and handling">
+            <Field label="Labour" hint="Time to deliver one sale">
               <CommitInput prefix={symbol} value={product.costs.labour} ariaLabel="Labour cost" onCommit={(v) => update.mutate({ costs: { labour: v ?? 0 } })} />
             </Field>
             <Field label="Packaging" hint="Box, inserts, labels">
@@ -68,7 +68,7 @@ export function CostsTab({ product, materials }: { product: Product; materials: 
 
       <div className="space-y-5 lg:col-span-5">
         <Card>
-          <CardHeader icon={<Target className="h-4 w-4" />} title="What you keep" />
+          <CardHeader icon={<Target className="h-4 w-4" />} title="Estimated profit" subtitle="Based only on the costs you recorded, not actual sales." />
           <div className="p-4">
             <p className="text-xs text-zinc-500">Profit per unit</p>
             <p

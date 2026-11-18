@@ -1,5 +1,14 @@
 # Security Notes
 
+## Ordinary founder journey
+
+“Founder” on the building desk means a product builder with a normal workspace session. It grants **no** system-admin or experimental founder privileges. The journey keeps the existing session, CSRF, role, demo and tenant boundaries.
+
+- A saved answer is team-visible. A saved **draft** is personal: product ownership is resolved against the active workspace, the author comes from the session, and list/delete operations cannot select another user. The shared `/api/workspace/data` response omits drafts. Account operators with database access are not excluded by this privacy boundary. Product/user deletion cascades to drafts.
+- A member may keep a draft of a teammate’s assigned activity but cannot overwrite the shared answer. Reviews are owner/admin-only (including a solo owner reviewing their own work). Lesson edits and review decisions from the UI include the version of the answer the user saw. The server rejects stale overwrites/decisions instead of silently accepting them; changing an answer invalidates prior approval. An approved “Not yet” is not a verified finding.
+- Lesson assistance is explicitly requested, limited per user and metered by the existing backend assistant adapter. When enabled, it may send excerpts of the selected product’s description, notes, answers, tasks, cost totals, attention items and the submitted draft. Free text can contain sensitive information; this is **not** automatic de-identification. It does not send whole workspace catalogs, other products or teammates’ private drafts. The response is displayed as text with no write capability. Demo sessions use the built-in guide. See [provider disclosure and accounting](AI_ASSISTANT.md).
+- First-time credit is enforced by a database uniqueness constraint, not a browser counter. Repeating work in another session or as another member gives no duplicate credit. Guide depth, optional streak and team board visibility do not change access to product data.
+
 ## Founder prototype and CADit release gates
 
 The upstream `/api/founders-console` prototype returns sample records and simulated outcomes and lacks a founder-specific authorization boundary. It is unmounted and its namespace is denied for all methods before ordinary session loading; the prototype UI is unavailable. The separate experimental founder flows remain local/test-only and their production security review remains blocked. No founder-management rollout is implied by CI.

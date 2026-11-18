@@ -1,3 +1,39 @@
+# Release verification
+
+## Founder journey — local verification
+
+**18 November 2026 · root `apps/*` and `packages/*` workspace.** The founder journey was exercised with the compiled Express API, migrated PostgreSQL and Chromium. It uses ordinary workspace accounts; it does not enable privileged founder management. This is a local engineering result, **not production rollout approval**.
+
+| Check | What passed |
+| --- | --- |
+| Static and unit | `npm run typecheck`, `npm test` (212 passing: 43 CAD core, 72 shared, 52 server, 45 web), `npm run build`. The Vite build still warns about the main chunk exceeding 500 kB. |
+| Database | Fresh 001–035 migration and repeat/no-op on PostgreSQL 17. Populated 034 → 035 preserved the active chapter, prior reachable chapter, answers/author/date, review state and unlinked legacy task. Both older duplicate credits remained in the ledger; a third user could not claim the same work. No sign-off was inferred for an existing “Not yet” answer. Controlled startup with separate migration/runtime roles, rollback after an induced migration failure, retry and refusal of destructive down also passed. |
+| Eight-chapter API | A software product went from Idea to Improvement, **1 → 8** completed milestones and **100%** of core work, then back to Research. Tests checked actual task links, synced cost/price, sign-offs, revisions invalidating approval, stale review decisions, concurrent first-credit writes, private drafts, assignments, cycle rejection, team visibility and cross-workspace isolation. No earlier answers or points were lost on return. |
+| Browser | Real sign-up → solo workspace → first Planning lesson; guidance switch, navigation guard, save/reload/resume, conflict/review, reading and revising a brief, ranked features, evidence source requirement and structured comparison. Also tested prerequisite links, review, saved/empty dashboards, modal creation, iteration and explicit archive/return. Checked 375, 768 and 1440 px widths. |
+| Copilot | A **local HTTP provider fixture** exercised the real adapter and workspace allowance. Verified selected context, exclusion of other products/private drafts, zero provider calls without credits, 37 reported tokens settled on success, deterministic next step, 429 fallback and no answer/draft write. The browser separately used a stubbed model reply to verify explicit copy/edit/save. Neither is a test of an external model’s output quality. |
+| Existing workflows | Regression runs included ordinary auth and privileged founder boundaries, closed-registration demo isolation/expiry, projects and linked issues, cost/pricing, external reviews and reset mail (local SMTP sink), assistant proposals/accounting, Teamwork Graph, voice retry and status sync, Design Studio autosave/revisions, native sketch gates and product designer/CADit frame fixtures. No live CAD partner or mail-delivery guarantee is implied. |
+
+**Repeat the feature checks:** use Node 22, a disposable local API/database and `APP_URL=http://localhost:5173`. Never point smoke scripts at a shared or production database. The checked-in [workflow](.github/workflows/ci.yml) sets the local server, browser and database environment. After installing dependencies and building:
+
+```sh
+# An empty, separately created database named journey_upgrade_test, not the serving database:
+NODE_ENV=test DATABASE_URL="$EMPTY_LOCAL_UPGRADE_DB" node --import tsx apps/server/scripts/journey-upgrade-smoke.mjs
+
+# A separate migrated local *_test database with registration enabled.
+# Express on 4000, Vite on 5173 with its /api proxy; Playwright Chromium installed.
+export NODE_ENV=test DATABASE_URL="$LOCAL_SERVING_TEST_DB" APP_URL=http://localhost:5173
+JOURNEY_TEST_URL=http://localhost:4000 node --import tsx apps/server/scripts/journey-smoke.mjs
+node --import tsx apps/server/scripts/journey-copilot-smoke.mjs
+STUDIO_TEST_URL=http://localhost:5173 node apps/web/scripts/journey-browser-smoke.mjs
+```
+
+**Remaining operator checks:** hosted CI and the production Docker image were not run in this sandbox (no Docker daemon). No deployment, external inference, live email, accessibility certification, load test or backup/restore on production-sized data is claimed. Before rollout, rehearse migration and recovery on a restored copy, verify the exact HTTPS origin and secure session behind the real proxy, and review provider retention/billing before enabling AI. See [deployment](DEPLOYMENT.md) and [security boundaries](SECURITY.md).
+
+---
+
+<details>
+<summary>Historical V1 audit of the separate Next/Prisma tree — not a release decision for the founder journey</summary>
+
 # V1 Release Readiness
 
 The final release-readiness record for this build. Where [ARCHITECTURE.md](./ARCHITECTURE.md),
@@ -492,3 +528,5 @@ assessment should confirm CI is green on the commit below before treating
 that portion as independently re-verified, or run
 `npm run db:up && npm run db:migrate:deploy && npm run test:integration && npm run test:e2e`
 themselves in an environment with PostgreSQL and a browser available.
+
+</details>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import type { Product } from '@sv/shared';
+import { PRODUCT_KINDS, KIND_LABELS, type ProductKind, type Product } from '@sv/shared';
 import { useUpdateProduct } from '../../api/hooks';
-import { Button, Field, Input, Modal, Textarea } from '../../components/ui';
+import { Button, Field, Input, Modal, Select, Textarea } from '../../components/ui';
 import { useMoney } from '../../lib/money';
 
 export function EditProductModal({ product, onClose }: { product: Product; onClose: () => void }) {
@@ -10,6 +10,7 @@ export function EditProductModal({ product, onClose }: { product: Product; onClo
   const [form, setForm] = useState({
     name: product.name,
     category: product.category,
+    productKind: product.productKind ?? 'other',
     description: product.description,
     imageUrl: product.imageUrl,
     price: product.targetSellingPrice === null ? '' : String(product.targetSellingPrice)
@@ -21,6 +22,7 @@ export function EditProductModal({ product, onClose }: { product: Product; onClo
       {
         name: form.name.trim(),
         category: form.category.trim(),
+        productKind: form.productKind,
         description: form.description,
         imageUrl: form.imageUrl.trim(),
         targetSellingPrice: form.price === '' ? null : Number(form.price)
@@ -53,6 +55,7 @@ export function EditProductModal({ product, onClose }: { product: Product; onClo
         <Field label="Name" htmlFor="e-name">
           <Input id="e-name" required maxLength={120} value={form.name} onChange={set('name')} />
         </Field>
+        <Field htmlFor="e-kind" label="Product type"><Select id="e-kind" value={form.productKind} onChange={e => setForm(f => ({ ...f, productKind: e.target.value as ProductKind }))}>{PRODUCT_KINDS.map(k => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}</Select></Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Category" htmlFor="e-cat">
             <Input id="e-cat" maxLength={60} value={form.category} onChange={set('category')} />

@@ -1,3 +1,4 @@
+import { saveAnswer } from '../services/save-answer.js';
 import express, { Router } from 'express';
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
@@ -61,7 +62,7 @@ voiceRouter.post(
     const llm = await processVoiceTranscript(stt.text);
     res.json({
       transcript: stt.text,
-      data: llm.data,
+      data: validateVoiceDraft(llm.data),
       provider: `${stt.provider} + ${llm.provider}`
     });
   })
@@ -167,33 +168,7 @@ voiceRouter.post(
       for (const ans of payload.answers) {
         const q = QUESTIONS_BY_KEY.get(ans.question_key);
         if (q && !q.retired && isAnswered(ans.value)) {
-          await trx
-            .insertInto('answers')
-            .values({
-              product_id: productId,
-              question_key: q.key,
-              value: JSON.stringify(ans.value),
-              answered_by: ctx.userId,
-              answered_at: new Date()
-            })
-            .onConflict((oc) =>
-              oc.columns(['product_id', 'question_key']).doUpdateSet({
-                value: JSON.stringify(ans.value),
-                answered_by: ctx.userId,
-                answered_at: new Date()
-              })
-            )
-            .execute();
-
-          await ledger.award('answer', `${productId}:${q.key}`, q.xp, `Answered “${q.prompt}”`, productId);
-
-          if (q.syncsTo === 'targetSellingPrice' && typeof ans.value === 'number') {
-            await trx.updateTable('products').set({ target_price: ans.value }).where('id', '=', productId).execute();
-          } else if (q.syncsTo === 'description' && typeof ans.value === 'string') {
-            await trx.updateTable('products').set({ description: ans.value }).where('id', '=', productId).execute();
-          } else if (q.syncsTo === 'category' && typeof ans.value === 'string') {
-            await trx.updateTable('products').set({ category: ans.value }).where('id', '=', productId).execute();
-          }
+          await saveAnswer(trx, ledger, productId, q, ans.value);
         }
       }
 
@@ -256,6 +231,7 @@ voiceRouter.post(
           .insertInto('tasks')
           .values({
             product_id: productId,
+            chapter: payload.product.stage,
             title: issue.summary,
             description: issue.description,
             status: taskStatus[issue.status],
@@ -291,7 +267,8 @@ voiceRouter.post(
         }
       }, trx);
 
-      const evaluated = await ledger.evaluateProduct(productId);
+      const touched = [...new Set(payload.answers.map(a => QUESTIONS_BY_KEY.get(a.question_key)!.stage))];
+      const evaluated = await ledger.evaluateProduct(productId, touched);
       return {
         productId,
         projectId: projectRow.id,

@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import { Crown, Flame, History, Lock, Medal, Trophy } from 'lucide-react';
 import { ACHIEVEMENTS, LEVEL_TITLES, xpForLevel } from '@sv/shared';
-import { useGame, useLeaderboard, useSession } from '../api/hooks';
+import { useGame, useGuidePreferences, useLeaderboard, useSession } from '../api/hooks';
 import { Card, CardHeader, cx, PageHeader, ProgressBar, Spinner } from '../components/ui';
 
 function timeAgo(iso: string) {
@@ -16,6 +16,7 @@ export function AchievementsPage() {
   const me = useSession();
   const game = useGame();
   const board = useLeaderboard();
+  const prefs = useGuidePreferences();
   if (!game.data) return <Spinner />;
   const g = game.data;
   const unlocked = new Set(g.achievements.filter((a) => a.unlocked).map((a) => a.id));
@@ -33,13 +34,13 @@ export function AchievementsPage() {
                   <h2 className="text-2xl font-bold">{g.levelTitle}</h2>
                   <p className="mt-1 text-sm text-blue-100">{g.xp.toLocaleString()} XP total</p>
                 </div>
-                <div className="text-right">
+                {me.user.showStreak && <div className="text-right">
                   <p className="flex items-center justify-end gap-1 text-2xl font-bold">
                     <Flame className="h-6 w-6 text-orange-300" />
                     {g.streakDays}
                   </p>
                   <p className="text-xs text-blue-100">day streak</p>
-                </div>
+                </div>}
               </div>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/20">
                 <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${(g.xpIntoLevel / g.xpForNextLevel) * 100}%` }} />
@@ -48,6 +49,7 @@ export function AchievementsPage() {
                 {g.xpForNextLevel - g.xpIntoLevel} XP to level {g.level + 1} · {LEVEL_TITLES[Math.min(g.level, LEVEL_TITLES.length - 1)]}
               </p>
             </div>
+            <label className="flex items-center gap-2 px-4 py-3 text-xs"><input type="checkbox" checked={!!me.user.showStreak} disabled={prefs.isPending} onChange={e => prefs.mutate({ showStreak: e.target.checked })} /> Show my streak · breaks never cost XP</label>
             <div className="grid grid-cols-4 divide-x divide-zinc-100 text-center dark:divide-zinc-800">
               {LEVEL_TITLES.slice(0, 4).map((t, i) => (
                 <div key={t} className={cx('px-2 py-3', g.level >= i + 1 ? '' : 'opacity-40')}>
@@ -87,7 +89,7 @@ export function AchievementsPage() {
         </div>
 
         <div className="space-y-5">
-          <Card>
+          {me.workspace.mode !== 'solo' && me.workspace.showLeaderboard !== false && <Card>
             <CardHeader icon={<Medal className="h-4 w-4" />} title="Team leaderboard" subtitle="XP earned in the last 7 days" />
             {board.isLoading ? (
               <Spinner />
@@ -116,10 +118,10 @@ export function AchievementsPage() {
                 <Link to="/settings" className="font-medium text-blue-600 dark:text-blue-400">
                   Settings
                 </Link>{' '}
-                to compete.
+                to collaborate.
               </p>
             )}
-          </Card>
+          </Card>}
 
           <Card>
             <CardHeader icon={<History className="h-4 w-4" />} title="Recent XP" />
@@ -139,8 +141,7 @@ export function AchievementsPage() {
               </ul>
             )}
             <div className="border-t border-zinc-100 px-4 py-3 dark:border-zinc-800">
-              <ProgressBar value={(g.weeklyXp / Math.max(200, g.weeklyXp)) * 100} />
-              <p className="mt-1.5 text-[11px] text-zinc-500">{g.weeklyXp} XP this week · aim for 200</p>
+              <p className="mt-1.5 text-[11px] text-zinc-500">{g.weeklyXp} XP this week</p>
             </div>
           </Card>
         </div>

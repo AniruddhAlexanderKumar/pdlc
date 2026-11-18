@@ -1,5 +1,6 @@
 import {
   preferenceFor,
+  type StageId,
   type NotificationKind,
   type NotificationPreference
 } from '@sv/shared';
@@ -84,4 +85,75 @@ export function reviewersFor(role: string, members: { userId: string; role: stri
   return members
     .filter((m) => (m.role === 'owner' || m.role === 'admin') && m.userId !== submitterId)
     .map((m) => m.userId);
+}
+
+/**
+ * Tells whoever was waiting on a prerequisite that it is now satisfied.
+ *
+ * Derived entirely from the dependency rows: if activity B depends on A and A
+ * has just become done, B's owner is notified once. Nothing is sent when A was
+ * already done, so a repeated status change cannot spam the team.
+ */
+export async function notifyUnblocked(
+  trx: Db,
+  input: {
+    workspaceId: string;
+    actorId: string;
+    productId: string;
+    completedKey: string;
+    completedLabel: string;
+    /** True when the prerequisite was already complete, so nothing is sent. */
+    wasAlreadyDone: boolean;
+  }
+): Promise<void> {
+  if (input.wasAlreadyDone) return;
+  const dependents = await trx
+    .selectFrom('activity_dependencies as d')
+    .leftJoin('activity_records as r', (join) =>
+      join.onRef('r.activity_key', '=', 'd.activity_key').onRef('r.product_id', '=', 'd.product_id')
+    )
+    .select(['d.activity_key', 'r.assignee_id'])
+    .where('d.product_id', '=', input.productId)
+    .where('d.depends_on_key', '=', input.completedKey)
+    .execute();
+  const recipients = dependents.map((d) => d.assignee_id).filter((id): id is string => Boolean(id));
+  if (recipients.length === 0) return;
+  // One notification per dependent activity, so the body names what is unblocked.
+  for (const dependent of dependents) {
+    if (!dependent.assignee_id) continue;
+    await notify(trx, {
+      workspaceId: input.workspaceId,
+      recipientIds: [dependent.assignee_id],
+      actorId: input.actorId,
+      kind: 'blocker_resolved',
+      title: 'A prerequisite is complete',
+      body: `“${input.completedLabel}” is done. Review your activity for any remaining blockers.`,
+      productId: input.productId,
+      activityKey: dependent.activity_key
+    });
+  }
+}
+
+/**
+ * Notifies the team when a stage completes. Exported for the product route so
+ * the transition and the notification happen in the same transaction.
+ */
+export async function notifyStageCompleted(
+  trx: Db,
+  input: { workspaceId: string; actorId: string; productId: string; productName: string; stage: StageId }
+): Promise<void> {
+  const members = await trx
+    .selectFrom('memberships')
+    .select(['user_id'])
+    .where('workspace_id', '=', input.workspaceId)
+    .execute();
+  await notify(trx, {
+    workspaceId: input.workspaceId,
+    recipientIds: members.map((m) => m.user_id),
+    actorId: input.actorId,
+    kind: 'stage_completed',
+    title: `${input.stage} completed`,
+    body: `${input.productName} moved past ${input.stage}.`,
+    productId: input.productId
+  });
 }

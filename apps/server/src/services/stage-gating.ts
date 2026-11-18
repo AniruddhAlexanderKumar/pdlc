@@ -41,7 +41,7 @@ export function isGrandfathered(product: Pick<Product, 'stage' | 'legacyStage'>,
  *     complete. Missing items are returned so the UI can name them.
  */
 export function canTransition(
-  product: Pick<Product, 'stage' | 'legacyStage' | 'answers' | 'description' | 'targetSellingPrice' | 'costs' | 'materials' | 'tasks'>,
+  product: Pick<Product, 'stage' | 'legacyStage' | 'productKind' | 'answers' | 'description' | 'targetSellingPrice' | 'costs' | 'materials' | 'tasks'>,
   to: StageId,
   materials: Map<string, Material>,
   /** Review state of sign-off activities, keyed by activity key. */
@@ -55,7 +55,7 @@ export function canTransition(
   if (to === 'Retired') return { allowed: true };
   if (isGrandfathered(product, to)) return { allowed: true };
 
-  const quest = stageQuest(product as Product, materials, from);
+  const quest = stageQuest({ ...product, approvalStates: undefined } as Product, materials, from);
   if (!quest.complete) {
     const missing = quest.items.filter((i) => !i.done).map((i) => i.label);
     const reason = missing.length
@@ -67,7 +67,7 @@ export function canTransition(
   // The quest is satisfied, but an activity that needs sign-off is only complete
   // once approved. Without this the API would let a stage advance on unapproved
   // work, which would make the review workflow advisory.
-  const unapproved = questionsForStage(from)
+  const unapproved = questionsForStage(from, product.productKind)
     .filter((q) => q.required && requiresApproval(q.key) && approvals[q.key] !== 'approved')
     .map((q) => q.prompt);
   if (unapproved.length > 0) {

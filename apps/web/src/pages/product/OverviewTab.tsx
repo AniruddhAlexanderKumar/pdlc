@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, Circle, Gauge, PartyPopper, Sparkles, StickyNote, Target } from 'lucide-react';
-import { activityHref, buildJourney, getStage, STAGE_IDS, XP, type Material, type Product, type StageId } from '@sv/shared';
+import { ArrowRight, CheckCircle2, Circle, Gauge, StickyNote, Target } from 'lucide-react';
+import { activityHref, getStage, type Journey, type nextWork, type Material, type Product } from '@sv/shared';
 import { useUpdateProduct } from '../../api/hooks';
 import { productMetrics } from '../../components/ProductBits';
 import { Button, Card, CardHeader, cx, ProgressBar, Textarea } from '../../components/ui';
@@ -26,26 +26,16 @@ function AutoSaveText({ label, value, onSave, placeholder, rows = 4 }: { label: 
  * pushed below and collapsed in importance, so the page answers "where am I and
  * what do I do next" before it shows any numbers.
  */
-export function OverviewTab({ product, materials, goTab, openHref }: { product: Product; materials: Map<string, Material>; goTab: (t: TabId) => void; openHref: (href: string) => void }) {
+export function OverviewTab({ product, materials, goTab, openHref, journey, work }: { journey: Journey; work: ReturnType<typeof nextWork>; product: Product; materials: Map<string, Material>; goTab: (t: TabId) => void; openHref: (href: string) => void }) {
   const update = useUpdateProduct(product.id);
   const { fmt } = useMoney();
   const { summary, health } = productMetrics(product, materials);
-  const journey = buildJourney(product, {
-    materials,
-    visitedStages: product.legacyStage ? STAGE_IDS.slice(0, STAGE_IDS.indexOf(product.legacyStage) + 1) : []
-  });
   const stage = getStage(product.stage);
-  const next = journey.nextActivity;
-
-  const openActivity = () => {
-    if (!next) return goTab('journey');
-    openHref(activityHref(product.id, next.stage, next.activity));
-  };
 
   const parts = [
     { label: 'Discovery', value: health.parts.discovery, hint: 'Questions answered so far' },
-    { label: 'Costs', value: health.parts.costs, hint: 'Materials, other costs and a price' },
-    { label: 'Margin', value: health.parts.margin, hint: 'Full marks at a 50% margin' },
+    { label: 'Costs', value: health.parts.costs, hint: 'Recorded cost inputs and selling price; materials for physical products' },
+    { label: 'Margin', value: health.parts.margin, hint: 'Estimated margin relative to 50%; no credit without a recorded cost' },
     { label: 'Tasks', value: health.parts.tasks, hint: 'Share of tasks done' }
   ];
 
@@ -66,9 +56,9 @@ export function OverviewTab({ product, materials, goTab, openHref }: { product: 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-100">
-                Stage {journey.currentIndex + 1} of {journey.totalCount} · {stage.label}
+                {stage.id === 'Retired' ? 'Archived product' : `Chapter ${journey.currentIndex + 1} of ${journey.totalCount} · ${stage.label}`}
               </p>
-              <h2 className="mt-1 text-xl font-semibold">{journey.isComplete ? 'Journey complete' : journey.current.guide.purpose}</h2>
+              <h2 className="mt-1 text-xl font-semibold">{journey.current.guide.purpose}</h2>
               <p className="mt-1 max-w-lg text-sm text-blue-100">
                 {journey.completedCount} of {journey.totalCount} stages done
                 {outstanding > 0 ? ` · ${outstanding} step${outstanding === 1 ? '' : 's'} left in total` : ' · nothing outstanding'}
@@ -86,28 +76,8 @@ export function OverviewTab({ product, materials, goTab, openHref }: { product: 
 
         {/* One obvious next action. */}
         <div className="flex flex-col gap-3 border-t border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
-          {next ? (
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-[#16598d] dark:text-blue-400">
-                <Target className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Next up · {next.stage}</p>
-                <p className="mt-0.5 text-sm font-medium">{next.activity.label}</p>
-                <p className="mt-0.5 text-xs leading-5 text-zinc-500">{next.activity.why}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-start gap-3">
-              <PartyPopper className="mt-0.5 h-5 w-5 text-emerald-500" aria-hidden="true" />
-              <div>
-                <p className="text-sm font-medium">Every stage is complete.</p>
-                <p className="text-xs text-zinc-500">Keep improving, or retire the product when you stop making it.</p>
-              </div>
-            </div>
-          )}
-          <Button onClick={openActivity} icon={<ArrowRight className="h-4 w-4" />} className="shrink-0">
-            {next ? 'Continue journey' : 'Review the journey'}
+          <div className="flex min-w-0 items-start gap-3"><Target size={18} className="mt-1 shrink-0 text-teal-700"/><div><p className="sv-kicker">Continue building</p><p className="mt-1 text-sm font-semibold">{work.title}</p><p className="mt-1 text-xs leading-5 text-zinc-500">{work.reason}</p></div></div>
+          <Button onClick={() => openHref(work.href)} icon={<ArrowRight size={16}/>} className="shrink-0">{work.action}
           </Button>
         </div>
 
@@ -123,7 +93,7 @@ export function OverviewTab({ product, materials, goTab, openHref }: { product: 
             {journey.current.activities.map((item) => (
               <li key={item.id}>
                 <button
-                  onClick={() => goTab(item.tab === 'overview' ? 'overview' : (item.tab as TabId))}
+                  onClick={() => openHref(activityHref(product.id, stage.id, item))}
                   className="flex w-full items-center gap-3 px-5 py-2.5 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
                 >
                   {item.done ? (
@@ -139,17 +109,6 @@ export function OverviewTab({ product, materials, goTab, openHref }: { product: 
           </ul>
         </div>
 
-        {journey.nextStageId && journey.current.complete && (
-          <div className="flex flex-col gap-2 border-t border-zinc-100 bg-emerald-50/60 px-5 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:bg-emerald-950/20">
-            <p className="flex items-center gap-1.5 text-xs text-emerald-800 dark:text-emerald-300">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              {stage.label} is complete. Moving to {journey.nextStageId} earns +{XP.stageAdvanced} XP.
-            </p>
-            <Button size="sm" loading={update.isPending} onClick={() => update.mutate({ stage: journey.nextStageId as StageId })}>
-              Move to {journey.nextStageId}
-            </Button>
-          </div>
-        )}
       </Card>
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -177,7 +136,7 @@ export function OverviewTab({ product, materials, goTab, openHref }: { product: 
 
         <div className="space-y-5">
           <Card>
-            <CardHeader icon={<Gauge className="h-4 w-4" />} title="Product health" subtitle="One score for how well-understood and profitable this product is." />
+            <CardHeader icon={<Gauge className="h-4 w-4" />} title="Product health" subtitle="Recorded work and estimated unit economics, not proof of demand or profitability." />
             <div className="p-4">
               <div className="flex items-center gap-4">
                 <div
