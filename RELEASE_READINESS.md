@@ -1,5 +1,11 @@
 # Release verification
 
+## World progression (036)
+
+The [world progression runbook](docs/operations/world-progression.md) covers the pre/post inventory, recognition rules, example fixture results, transaction keys and roll-forward procedure for this release. The section below describes the preceding 035 release, not a production deployment of 036.
+
+Local acceptance for 036 used Node 22, isolated PostgreSQL 17 databases and Chromium. Typecheck, 219 automated tests and the web/server/migrator production build passed. A clean migration and repeat, populated 034→035 and 035→036 upgrades, controlled startup and read-only reporting passed. The 036 legacy browser logged in without onboarding, switched between existing Testing/Launch products and read the historical XP ledger. The new-user browser imported a note, completed Idea, passed its checkpoint, entered Research and opened the journal; the path was also checked at 375/768/1440 px. API tests completed all 24 units and eight world finishes and exercised simultaneous member claims, edits, rechecks and quest/ledger isolation. Product/voice transaction rollback, workspace/role boundaries, password reset, pricing/external review, CAD, design/project workflows and metered AI/fallback were exercised locally with test fixtures. These results are not a hosted CI run, production-sized restore rehearsal, live provider/SMTP check or deployment.
+
 ## Founder journey — local verification
 
 **18 November 2026 · root `apps/*` and `packages/*` workspace.** The founder journey was exercised with the compiled Express API, migrated PostgreSQL and Chromium. It uses ordinary workspace accounts; it does not enable privileged founder management. This is a local engineering result, **not production rollout approval**.

@@ -149,6 +149,7 @@ export interface Invite {
 }
 
 export interface XpEvent {
+  origin?: 'legacy' | 'earned';
   id: string;
   kind: string;
   points: number;
@@ -165,7 +166,11 @@ export interface PlayerStats {
   xpForNextLevel: number;
   streakDays: number;
   weeklyXp: number;
-  achievements: { id: string; unlocked: boolean }[];
+  longestStreak: number;
+  calendar: { day: string; active: boolean; xp: number }[];
+  streakHistory: { from: string; to: string; days: number }[];
+  levelHistory: { level: number; day: string }[];
+  achievements: { id: string; unlocked: boolean; progress: number; target: number; legacyTeam: boolean }[];
   recent: XpEvent[];
 }
 

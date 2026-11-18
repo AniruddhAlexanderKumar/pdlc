@@ -1,6 +1,6 @@
 import { cheaperQuote, costSummary } from './costing.js';
 import { stageQuest } from './gamification.js';
-import { isAnswered, questionsForStage } from './questions.js';
+import { isPhysicalKind, isAnswered, questionsForStage } from './questions.js';
 import { nextStage } from './stages.js';
 import type { Material, Product, Supplier } from './types.js';
 
@@ -131,7 +131,11 @@ export function ruleInsights(
       source: 'rules'
     });
   }
-  if ((!product.productKind || product.productKind === 'physical') && product.materials.length === 0 && ['Design', 'Prototype', 'Testing', 'Launch', 'Improvement'].includes(product.stage)) {
+  if (
+    (!product.productKind || isPhysicalKind(product.productKind)) &&
+    product.materials.length === 0 &&
+    ['Design', 'Prototype', 'Testing', 'Launch', 'Improvement'].includes(product.stage)
+  ) {
     out.push({
       id: 'bom:empty',
       kind: 'costs',

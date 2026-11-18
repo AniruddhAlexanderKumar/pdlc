@@ -20,3 +20,6 @@ export * from './founder-identity.js';
 
 export * from './design.js';
 export * from './next-work.js';
+
+export * from './worlds.js';
+export * from './builder-history.js';

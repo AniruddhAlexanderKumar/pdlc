@@ -40,7 +40,12 @@ function product(overrides: Partial<Product> = {}): Product {
 
 const completeIdea = product({
   description: 'A bottle',
-  answers: { 'idea.problem': 'Leaks', 'idea.customer': 'Commuters', 'idea.oneliner': 'A bottle' }
+  answers: {
+    'idea.problem': 'Leaks',
+    'idea.customer': 'Commuters',
+    'idea.promise': 'Keep the bag dry',
+    'idea.oneliner': 'A bottle'
+  }
 });
 
 const renderMap = (p: Product) => renderToStaticMarkup(<JourneyMap journey={buildJourney(p, { materials })} onSelect={() => {}} />);
@@ -79,6 +84,7 @@ test('a genuinely finished stage is labelled Done', () => {
     answers: {
       'idea.problem': 'Leaks',
       'idea.customer': 'Commuters',
+      'idea.promise': 'Keep the bag dry',
       'idea.oneliner': 'A bottle',
       // Idea's quest also needs a description, supplied above.
       'research.competitors': 'Generic bottles',

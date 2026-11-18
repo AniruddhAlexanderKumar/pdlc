@@ -44,6 +44,7 @@ function product(overrides: Partial<Product> = {}): Product {
 const ideaAnswered = {
   'idea.problem': 'Leaks',
   'idea.customer': 'Commuters',
+  'idea.promise': 'Keep the bag dry',
   'idea.oneliner': 'A bottle'
 };
 
@@ -197,13 +198,25 @@ describe('contextual recommendations', () => {
       for (const q of questionsForStage(s)) {
         if (!q.required) continue;
         answers[q.key] =
-          q.type === 'number' || q.type === 'money' ? 100
-          : q.type === 'yesno' ? true
-          : q.type === 'scale' ? 5
-          : q.type === 'choice' ? (q.options?.[0] ?? 'x')
-          : q.type === 'date' ? '2026-01-01'
-          : q.type === 'multi' ? [(q.options ?? ['x'])[0]!]
-          : 'text';
+          q.type === 'ranked'
+            ? ['Pilot booking']
+            : q.type === 'evidence'
+              ? ['Research finding', 'Recorded trial', 'Trial notebook, 2 May']
+              : q.type === 'comparison'
+                ? ['Delivery time', 'Option A: 2 days', 'Option B: 3 days']
+                : q.type === 'number' || q.type === 'money'
+                  ? 100
+                  : q.type === 'yesno'
+                    ? true
+                    : q.type === 'scale'
+                      ? 5
+                      : q.type === 'choice'
+                        ? (q.options?.[0] ?? 'x')
+                        : q.type === 'date'
+                          ? '2026-01-01'
+                          : q.type === 'multi'
+                            ? [(q.options ?? ['x'])[0]!]
+                            : 'text';
       }
     }
     const done = { ...p, answers };
@@ -228,10 +241,11 @@ describe('approval rules', () => {
     const answered = {
       ...ideaAnswered,
       'research.comparison': ['Lid design', 'Bottle A: screw top', 'Bottle B: clip'],
-          'research.profile': 'Commuters who refill during travel',
-          'research.interview': 'Ask about the last spill during a commute',
-          'research.finding': ['Founder assumption', 'People may prefer a locking lid', 'Interview planned'],
-          'research.competitors': 'Generic bottles',
+      'research.profile': 'Commuters who refill during travel',
+      'research.interview': 'Ask about the last spill during a commute',
+      'research.to_check': ['Will the lid fit?'],
+      'research.finding': ['Research finding', 'The sample closure leaked in the trial', 'Dated trial log'],
+      'research.competitors': 'Generic bottles',
       'research.market_price': 20,
       'research.validated': true,
       'research.differentiator': 'Does not leak'

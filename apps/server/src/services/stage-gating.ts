@@ -1,4 +1,15 @@
-import { questionsForStage, requiresApproval, stageQuest, STAGE_IDS, stageIndex, type Material, type Product, type ReviewState, type StageId } from '@sv/shared';
+import {
+  questionsForStage,
+  requiresApproval,
+  stageQuest,
+  nextStage,
+  STAGE_IDS,
+  stageIndex,
+  type Material,
+  type Product,
+  type ReviewState,
+  type StageId
+} from '@sv/shared';
 
 /**
  * Stage transition gating.
@@ -51,9 +62,23 @@ export function canTransition(
   if (from === to) return { allowed: true };
   if (!STAGE_IDS.includes(to)) return { allowed: false, reason: 'That is not a lifecycle stage.', missing: [] };
 
+  if (from === 'Retired' && product.legacyStage && stageIndex(to) > stageIndex(product.legacyStage))
+    return {
+      allowed: false,
+      reason: `Reopen a reached world (through ${product.legacyStage}) before moving forward.`,
+      missing: [product.legacyStage]
+    };
+
   if (stageIndex(to) < stageIndex(from)) return { allowed: true };
   if (to === 'Retired') return { allowed: true };
   if (isGrandfathered(product, to)) return { allowed: true };
+
+  if (to !== nextStage(from))
+    return {
+      allowed: false,
+      reason: 'Finish each new world in order. Previously reached worlds remain accessible.',
+      missing: [nextStage(from) ?? from]
+    };
 
   const quest = stageQuest({ ...product, approvalStates: undefined } as Product, materials, from);
   if (!quest.complete) {

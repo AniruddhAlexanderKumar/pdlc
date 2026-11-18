@@ -1,4 +1,5 @@
-import { isAnswered, requiresApproval, type AnswerValue, type Question } from '@sv/shared';
+import { sql } from 'kysely';
+import { lessonEvidence, isAnswered, requiresApproval, type AnswerValue, type Question } from '@sv/shared';
 import type { Db } from '../db/index.js';
 import { conflict, forbidden } from '../lib/http.js';
 import { upsertRecord } from './collaboration.js';
@@ -44,13 +45,16 @@ export async function saveAnswer(
     const now = new Date();
     const filled = isAnswered(value);
     if (filled) {
+      await sql`INSERT INTO builder_activity_days(workspace_id,user_id) VALUES(${ctx.workspaceId},${ctx.userId}) ON CONFLICT DO NOTHING`.execute(
+        trx
+      );
       const fields = { value: JSON.stringify(value), answered_by: ctx.userId, answered_at: now };
       await trx
         .insertInto('answers')
         .values({ product_id: id, question_key: question.key, ...fields })
         .onConflict((oc) => oc.columns(['product_id', 'question_key']).doUpdateSet(fields))
         .execute();
-      if (!isAnswered(previous))
+      if (lessonEvidence(question, value) && !lessonEvidence(question, previous))
         await ledger.award(
           'answer',
           `${id}:${question.key}`,
@@ -61,9 +65,13 @@ export async function saveAnswer(
       const synced = syncedProductFields(question, value);
       if (synced) await trx.updateTable('products').set(synced).where('id', '=', id).execute();
     } else {
-      await trx.deleteFrom('answers').where('product_id', '=', id).where('question_key', '=', question.key).execute();
+      await trx
+        .deleteFrom('answers')
+        .where('product_id', '=', id)
+        .where('question_key', '=', question.key)
+        .execute();
     }
-    const complete = filled && !requiresApproval(question.key);
+    const complete = lessonEvidence(question, value) && !requiresApproval(question.key);
     await upsertRecord(trx, id, question.key, {
       status: complete ? 'completed' : filled ? 'in_progress' : 'not_started',
       startedAt: record?.started_at ?? now,

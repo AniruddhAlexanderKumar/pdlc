@@ -34,6 +34,7 @@ r = await call('POST', `/products/${pid}/tasks`, { title: 'Do it', dueDate: '202
 const tid = r.j.data.tasks[0].id;
 r = await call('PATCH', `/products/${pid}/tasks/${tid}`, { status: 'done' }); ok(r.j.xp[0]?.points===15, 'task done xp');
 r = await call('PATCH', `/products/${pid}/tasks/${tid}`, { status: 'todo' }); r = await call('PATCH', `/products/${pid}/tasks/${tid}`, { status: 'done' }); ok(r.j.xp.length===0, 'no task farming');
+await call('PUT', `/products/${pid}/answers/idea.promise`, { value: 'One place to see the build record' });
 r = await call('PATCH', `/products/${pid}`, { stage: 'Research' }); ok(r.j.xp.some(x=>x.points===50), 'stage advance xp ' + JSON.stringify(r.j.xp));
 const steel = data.materials.find(m => m.name.includes('Steel'));
 r = await call('PUT', `/products/${pid}/materials/${steel.id}`, { quantity: 2 }); ok(r.s===200 && r.j.data.materials.length===1, 'bom add');

@@ -66,6 +66,14 @@ jobs:
         run: |
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE journey_upgrade_test'
           DATABASE_URL="${DATABASE_URL%/*}/journey_upgrade_test" node --import tsx apps/server/scripts/journey-upgrade-smoke.mjs
+      - name: Install Chromium
+        run: npx playwright-core install --with-deps chromium
+      - name: Verify populated worlds cutover and aggregate report
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE worlds_upgrade_test'
+          export DATABASE_URL="${DATABASE_URL%/*}/worlds_upgrade_test"
+          WORLDS_UPGRADE_BROWSER=1 node --import tsx apps/server/scripts/worlds-upgrade-smoke.mjs
+          node apps/server/dist/scripts/journey-report.js
       - name: Build production Docker image
         run: docker build -t solution-velocity:ci .
       - name: Verify production image health against migrated test database
@@ -80,8 +88,6 @@ jobs:
             if [ "$i" -eq 40 ]; then docker logs sv-ci; exit 1; fi
             sleep 1
           done
-      - name: Install Chromium
-        run: npx playwright-core install --with-deps chromium
       - name: API and browser integration tests
         env:
           CAD_NATIVE_EXPERIMENTAL: 'true'
@@ -107,6 +113,7 @@ jobs:
             sleep 1
           done
           JOURNEY_TEST_URL=http://localhost:4000 node --import tsx apps/server/scripts/journey-smoke.mjs
+          JOURNEY_TEST_URL=http://localhost:4000 node apps/server/scripts/worlds-smoke.mjs
           node --import tsx apps/server/scripts/journey-copilot-smoke.mjs
           node apps/web/scripts/journey-browser-smoke.mjs
           node apps/server/scripts/design-studio-smoke.mjs

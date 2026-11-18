@@ -324,8 +324,8 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
     try {
       const res = await createProductMutation.mutateAsync(productForm);
       // This crosses the guest → authenticated boundary. Start a fresh query cache
-      // at the exact lesson; a simultaneous GuestOnly redirect would lose it.
-      window.location.replace(`/products/${res.data.id}/discover?stage=${res.data.stage}`);
+      // at the placed world; a simultaneous GuestOnly redirect would lose it.
+      window.location.replace(`/products/${res.data.id}/journey`);
     } catch {
       // handled by mutation error
     }

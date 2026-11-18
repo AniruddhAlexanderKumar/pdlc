@@ -1,6 +1,6 @@
 import { requiresApproval } from './activity.js';
 import { costSummary } from './costing.js';
-import { isAnswered, questionsForStage } from './questions.js';
+import { isPhysicalKind, lessonEvidence, isAnswered, questionsForStage } from './questions.js';
 import { STAGE_IDS, stageIndex, type StageId } from './stages.js';
 import type { Material, Product } from './types.js';
 
@@ -10,6 +10,10 @@ import type { Material, Product } from './types.js';
  */
 
 export const XP = {
+  unitComplete: 50,
+  worldComplete: 200,
+  dailyQuest: 20,
+  weeklyQuest: 75,
   productCreated: 20,
   taskCompleted: 15,
   materialAdded: 5,
@@ -75,7 +79,11 @@ export function stageQuest(product: Product, materials: Map<string, Material>, s
   const items: QuestItem[] = [];
 
   const required = questionsForStage(stage, product.productKind).filter((q) => q.required);
-  const answered = required.filter(q => isAnswered(product.answers[q.key]) && (!product.approvalStates || !requiresApproval(q.key) || product.approvalStates[q.key] === 'approved')).length;
+  const answered = required.filter(
+    (q) =>
+      lessonEvidence(q, product.answers[q.key]) &&
+      (!product.approvalStates || !requiresApproval(q.key) || product.approvalStates[q.key] === 'approved')
+  ).length;
   if (required.length > 0) {
     items.push({
       id: 'questions',
@@ -122,7 +130,7 @@ export function productHealth(product: Product, materials: Map<string, Material>
 
   const summary = costSummary(product, materials);
   const costParts = [product.costs.labour > 0 || product.costs.packaging > 0 || product.costs.overhead > 0 || isAnswered(product.answers['prototype.overhead']), product.targetSellingPrice !== null];
-  if (product.productKind === 'physical' || !product.productKind) costParts.push(product.materials.length > 0);
+  if (isPhysicalKind(product.productKind) || !product.productKind) costParts.push(product.materials.length > 0);
   const costs = costParts.filter(Boolean).length / costParts.length;
 
   const margin = summary.grossMargin === null || summary.totalUnitCost <= 0 ? 0 : Math.max(0, Math.min(1, summary.grossMargin / 50));
@@ -156,6 +164,8 @@ export interface AchievementContext {
   bestMargin: number | null;
   suppliers: number;
   streakDays: number;
+  units?: number;
+  worlds?: Record<string, number>;
 }
 
 export const ACHIEVEMENTS: { id: string; title: string; description: string; test: (c: AchievementContext) => boolean }[] = [
@@ -171,3 +181,62 @@ export const ACHIEVEMENTS: { id: string; title: string; description: string; tes
   { id: 'scout', title: 'Supplier Scout', description: 'Add 3 suppliers', test: (c) => c.suppliers >= 3 },
   { id: 'on_fire', title: 'On Fire', description: 'Keep a 5-day streak', test: (c) => c.streakDays >= 5 }
 ];
+
+/** Badges are durable honours, not a second payment for an already rewarded milestone. */
+const worldTitles = [
+  'Idea Founder',
+  'Market Explorer',
+  'Master Planner',
+  'Design Thinker',
+  'First Build',
+  'Quality Seeker',
+  'Ready for Launch',
+  'Continuous Innovator'
+];
+for (const [i, world] of STAGE_IDS.slice(0, 8).entries())
+  ACHIEVEMENTS.push({
+    id: 'world_' + world,
+    title: worldTitles[i],
+    description: `Personally finish the ${world} world checkpoint and close that world.`,
+    test: (c) => (c.worlds?.[world] ?? 0) > 0
+  });
+ACHIEVEMENTS.push(
+  {
+    id: 'first_steps',
+    title: 'First Steps',
+    description: 'Record your first lesson output.',
+    test: (c) => c.questionsAnswered >= 1
+  },
+  {
+    id: 'unit_maker',
+    title: 'Milestone Maker',
+    description: 'Complete your first unit.',
+    test: (c) => (c.units ?? 0) >= 1
+  },
+  ...([7, 30] as const).map((n) => ({
+    id: 'streak_' + n,
+    title: n === 7 ? 'Seven-Day Consistency' : 'Month of Making',
+    description: `Record meaningful work on ${n} consecutive UTC days.`,
+    test: (c: AchievementContext) => c.streakDays >= n
+  }))
+);
+export function badgeProgress(id: string, c: AchievementContext): [number, number] {
+  const m: Record<string, [number, number]> = {
+    first_product: [c.productsCreated, 1],
+    curious: [c.questionsAnswered, 10],
+    deep_diver: [c.questionsAnswered, 50],
+    closer: [c.tasksCompleted, 10],
+    quest_master: [c.questsCompleted, 3],
+    momentum: [c.stagesAdvanced, 5],
+    ship_it: [c.launchedProducts, 1],
+    margin_master: [c.bestMargin ?? 0, 50],
+    optimizer: [c.suggestionsApplied, 3],
+    scout: [c.suppliers, 3],
+    on_fire: [c.streakDays, 5],
+    first_steps: [c.questionsAnswered, 1],
+    unit_maker: [c.units ?? 0, 1],
+    streak_7: [c.streakDays, 7],
+    streak_30: [c.streakDays, 30]
+  };
+  return m[id] ?? [c.worlds?.[id.replace('world_', '')] ?? 0, 1];
+}

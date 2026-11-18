@@ -35,8 +35,8 @@ import * as m031 from './migrations/031_founder_customer_audit.js';
 import * as m032 from './migrations/032_product_cad_models.js';
 import * as m033 from './migrations/033_stage_gating_grandfather.js';
 import * as m034 from './migrations/034_activity_collaboration.js';
-
 import * as m035 from './migrations/035_founder_journey.js';
+import * as m036 from './migrations/036_world_progression.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -78,7 +78,8 @@ const migrations: Record<string, Migration> = {
   '032_product_cad_models': m032,
   '033_stage_gating_grandfather': m033,
   '034_activity_collaboration': m034,
-  '035_founder_journey': m035
+  '035_founder_journey': m035,
+  '036_world_progression': m036
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

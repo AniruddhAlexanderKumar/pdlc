@@ -65,6 +65,8 @@ try {
   await page.getByLabel('Where are you now?').selectOption('Planning');
   await page.getByLabel('How familiar is product development?').selectOption('advanced');
   await btn('Start my journey').click();
+  await page.waitForURL(/\/journey$/);
+  await link('Continue building').click();
   await page.waitForURL(/q=planning.mvp/);
   const id = new URL(page.url()).pathname.split('/')[2],
     root = `/products/${id}`;
@@ -139,8 +141,11 @@ try {
   await page.getByRole('heading', { name: 'Your building desk' }).waitFor();
   for (const w of [375, 768, 1440]) await desktop(w, 920);
   const chapters = page.getByRole('region', { name: 'Your product journey' });
-  assert.equal(await chapters.getByRole('link').count(), 8);
-  await chapters.getByRole('link', { name: /Research/ }).click();
+  await chapters.locator('[data-world]').first().waitFor();
+  assert.equal(await chapters.locator('[data-world]').count(), 8);
+  const researchWorld = chapters.locator('[data-world=Research]');
+  await researchWorld.getByRole('button', { name: /World 02/ }).click();
+  await researchWorld.getByRole('link', { name: 'World workspace →' }).click();
   await page.getByRole('region', { name: 'Research overview' }).waitFor();
   await btn('Read or revise brief →').click();
   await page.getByRole('link', { name: /Add Research notebook/ }).click();
@@ -159,6 +164,8 @@ try {
     .waitFor();
   await api('/dashboard', 'PUT', { preset: 'personal' });
   await page.goto(base);
+  await page.getByRole('region', { name: 'Your product journey' }).waitFor();
+  await link('Workspace overview').click();
   await link('Choose layout').waitFor();
   await page.getByRole('link', { name: /Founder journey/ }).click();
   await page.getByRole('heading', { name: 'Your building desk' }).waitFor();
@@ -200,7 +207,7 @@ try {
   const iteration = '/products/' + cycle.data.id;
   await api(iteration + '/answers/improve.return', 'PUT', { value: 'Design' });
   await api(iteration + '/answers/design.journey', 'PUT', { value: 'Existing journey map' });
-  await page.goto(`${base}${iteration}/journey`);
+  await page.goto(`${base}${iteration}/journey?stage=Improvement`);
   await btn('Start next cycle in Design →').click();
   await page.waitForURL(/stage=Design&view=brief/);
   await page.getByText('Existing journey map', { exact: true }).waitFor();
@@ -219,6 +226,7 @@ try {
   empty.setDefaultTimeout(9000);
   empty.on('pageerror', (e) => errors.push(e.message));
   await empty.goto(base);
+  await empty.getByRole('button', { name: 'Essential only' }).click();
   await empty.evaluate(async () => {
     const r = await fetch('/api/auth/register', {
       method: 'POST',
@@ -236,8 +244,46 @@ try {
   await empty.getByRole('heading', { name: 'Let’s build your product.' }).waitFor();
   await empty.getByRole('button', { name: 'Create a product', exact: true }).click();
   await empty.getByLabel('Product name').fill('Another pilot');
+  await empty.getByText('Already developing this? Bring existing work').click();
+  await empty.getByLabel('Import text (.txt / .md)').setInputFiles({
+    name: 'concept.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from('A field notebook with revisions.')
+  });
+  await empty.waitForFunction(
+    () => document.querySelector('textarea')?.value === 'A field notebook with revisions.'
+  );
   await empty.getByRole('button', { name: 'Start my journey' }).click();
+  await empty.waitForURL(/\/journey$/);
+  await empty.getByRole('link', { name: 'Continue building', exact: true }).click();
   await empty.waitForURL(/q=idea.oneliner/);
+  const otherRoot = new URL(empty.url()).pathname.replace(/\/discover$/, '');
+  for (const [key, text] of [
+    ['idea.oneliner', 'A field notebook with revisions.'],
+    ['idea.problem', 'Teams lose notes in the field.'],
+    ['idea.customer', 'Field teams'],
+    ['idea.promise', 'Keep every revision with the trial.']
+  ]) {
+    if (key !== 'idea.oneliner') {
+      await empty.goto(base + otherRoot + '/journey');
+      await empty.getByRole('link', { name: 'Continue building', exact: true }).click();
+    }
+    await empty.waitForURL((u) => u.searchParams.get('q') === key && u.searchParams.get('guided') === '1');
+    await empty.locator('article form').getByRole('textbox').fill(text);
+    await empty.getByRole('button', { name: 'Complete activity', exact: true }).click();
+    await empty.getByText('Activity recorded', { exact: true }).waitFor();
+  }
+  await empty.goto(base + otherRoot + '/journey');
+  await empty.getByText('Your evidence meets this checkpoint.').waitFor();
+  await empty.getByRole('button', { name: 'Check evidence', exact: true }).click();
+  await empty.getByText('Checkpoint passed. Rechecking does not repeat the reward.').waitFor();
+  await empty.getByRole('button', { name: 'Finish world', exact: true }).click();
+  await empty.getByRole('button', { name: 'Enter Research', exact: true }).click();
+  await empty.getByRole('heading', { name: 'Another pilot / Research' }).waitFor();
+  await empty.goto(base + '/achievements');
+  await empty.getByRole('list', { name: 'Daily activity calendar' }).waitFor();
+  await empty.getByRole('button', { name: 'View all XP transactions' }).click();
+  await empty.getByText('World complete: Idea · Another pilot', { exact: true }).first().waitFor();
   await empty.close();
   assert.deepEqual(errors, []);
   console.log(

@@ -294,6 +294,7 @@ export interface StageHistoryTable {
 }
 
 export interface XpEventsTable {
+  origin: Generated<'legacy' | 'earned'>;
   id: Generated<string>;
   workspace_id: string;
   user_id: string;
@@ -488,10 +489,32 @@ export interface Database {
   tasks: TasksTable;
   answers: AnswersTable;
   activity_drafts: {
-    product_id: string; user_id: string; question_key: string;
-    value: ColumnType<AnswerValue, string, string>; previous_value: ColumnType<AnswerValue, string, string>; updated_at: Timestamp;
+    product_id: string;
+    user_id: string;
+    question_key: string;
+    value: ColumnType<AnswerValue, string, string>;
+    previous_value: ColumnType<AnswerValue, string, string>;
+    updated_at: Timestamp;
   };
   stage_history: StageHistoryTable;
+  journey_upgrades: {
+    product_id: string;
+    version: string;
+    original_stage: string;
+    through_stage: StageId;
+    needs_placement: Generated<boolean>;
+    known_keys: string[];
+    imported_keys: string[];
+    counts: ColumnType<Record<string, number>, string, never>;
+  };
+  journey_stamps: {
+    product_id: string;
+    node: string;
+    origin: 'recognised' | 'earned';
+    actor_id: string | null;
+    recorded_at: CreatedAt;
+  };
+  builder_badges: { workspace_id: string; user_id: string; badge: string; origin: string; recorded_at: CreatedAt };
   xp_events: XpEventsTable;
   analytics_events: AnalyticsEventsTable;
   access_requests: AccessRequestsTable;

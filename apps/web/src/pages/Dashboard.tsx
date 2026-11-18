@@ -44,7 +44,12 @@ export function DashboardPage() {
   const projectFocused = isProjectFocusedDefault(profile, layout.isDefault);
   const visibleItems = projectFocused ? layout.items.filter(item => WIDGET_DEFINITIONS[item.widget].dataSource !== 'workspace products') : layout.items;
 
-  if (params.get('view') === 'journey' || (params.get('view') !== 'workspace' && !projectFocused && layout.isDefault)) return <FounderHome data={data}/>;
+  if (
+    params.get('view') === 'journey' ||
+    (params.get('view') !== 'workspace' &&
+      (data.products.some((p) => p.stage !== 'Retired') || (!projectFocused && layout.isDefault)))
+  )
+    return <FounderHome data={data} />;
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6 px-5 py-7 md:px-8 md:py-8">

@@ -1,14 +1,27 @@
 import type { StageId } from './stages.js';
 
 /** Keys, types and option values are persisted. Add keys instead of repurposing them. */
-export const PRODUCT_KINDS = ['physical', 'software', 'service', 'other'] as const;
+export const PRODUCT_KINDS = [
+  'physical',
+  'software',
+  'hardware',
+  'engineering',
+  'consumer',
+  'service',
+  'other'
+] as const;
 export type ProductKind = (typeof PRODUCT_KINDS)[number];
 export const KIND_LABELS: Record<ProductKind, string> = {
   physical: 'Physical product',
-  software: 'Software',
+  software: 'SaaS / software',
+  hardware: 'Hardware / electronics',
+  engineering: 'Aerospace / engineering',
+  consumer: 'Consumer goods',
   service: 'Service',
   other: 'Other / still exploring'
 };
+export const isPhysicalKind = (kind?: ProductKind) =>
+  !!kind && ['physical', 'hardware', 'engineering', 'consumer'].includes(kind);
 export type GuideMode = 'beginner' | 'advanced';
 export type AnswerValue = string | number | boolean | string[] | null;
 export type QuestionType =
@@ -41,12 +54,16 @@ export interface Question {
   options?: string[];
   scale?: [string, string];
   physicalOnly?: boolean;
+  forKinds?: ProductKind[];
   syncsTo?: 'targetSellingPrice' | 'description' | 'category' | 'overhead';
   retired?: boolean;
 }
 
 type Options = Partial<
-  Pick<Question, 'type' | 'required' | 'xp' | 'placeholder' | 'options' | 'scale' | 'syncsTo' | 'physicalOnly'>
+  Pick<
+    Question,
+    'type' | 'required' | 'xp' | 'placeholder' | 'options' | 'scale' | 'syncsTo' | 'physicalOnly' | 'forKinds'
+  >
 >;
 const chapter =
   (stage: StageId) =>
@@ -68,7 +85,7 @@ const chapter =
     advanced,
     type: 'longtext',
     required: true,
-    xp: 15,
+    xp: 20,
     ...options
   });
 const idea = chapter('Idea'),
@@ -97,7 +114,8 @@ export const QUESTION_BANK: Question[] = [
     'What problem are you trying to solve?',
     'Picture a moment when someone gets stuck. What happens, and why does it matter?',
     'A tutor loses a paid hour when a student cancels too late to find a replacement.',
-    'Describe the trigger, frequency and cost of the problem. Mark estimates as assumptions.'
+    'Describe the trigger, frequency and cost of the problem. Mark estimates as assumptions.',
+    { xp: 15 }
   ),
   idea(
     'idea.customer',
@@ -124,7 +142,7 @@ export const QUESTION_BANK: Question[] = [
     'A value proposition is the benefit someone gets by choosing your approach.',
     'One invitation reaches the waiting list without a chain of messages.',
     'Contrast the promised benefit with the current alternative; do not claim measured gains yet.',
-    extra
+    { xp: 10 }
   ),
   idea(
     'idea.success',
@@ -221,7 +239,7 @@ export const QUESTION_BANK: Question[] = [
     'Keep an explicit list of what you do not know. Put the riskiest assumption first.',
     'Families can accept at short notice → tutors have permission to message the list.',
     'Rank by consequence and uncertainty. Link each assumption to a planned observation.',
-    { ...extra, type: 'ranked' }
+    { type: 'ranked', xp: 10 }
   ),
   research(
     'research.market_price',
@@ -392,6 +410,51 @@ export const QUESTION_BANK: Question[] = [
     { ...extra, type: 'scale', scale: ['Not considered yet', 'Core to the product'] }
   ),
 
+  design(
+    'design.architecture',
+    'Service architecture',
+    'How will one request move through your software?',
+    'Follow one user action from screen to storage. Name the parts that exchange information and what should happen if one is unavailable.',
+    'Booking form → availability check → reservation record. If the check times out, leave the slot open and show a retry.',
+    'Describe ownership of state, a failure boundary and what you would measure in a pilot.',
+    { forKinds: ['software'] }
+  ),
+  design(
+    'design.interfaces',
+    'Interface specification',
+    'What must fit or connect in the first build?',
+    'Describe a boundary between two parts. Record one measurable fit, connection or tolerance to verify, without guessing missing values.',
+    'For a weather-monitor enclosure: record the mounting-hole spacing from the supplier drawing and check it on the prototype.',
+    'State the reference revision, units, tolerance owner and how conformance will be checked.',
+    { forKinds: ['engineering', 'hardware', 'physical'] }
+  ),
+  design(
+    'design.delivery',
+    'Delivery hand-off',
+    'What must the next person receive to deliver the service?',
+    'Write the hand-off from booking to delivery: who receives it, what information they need and what tells them it is ready.',
+    'The scheduler sends the tutor a confirmed time and the requested topic; the tutor acknowledges both.',
+    'Name the acceptance criterion and a recovery path for a missed hand-off.',
+    { forKinds: ['service'] }
+  ),
+  design(
+    'design.unpack',
+    'First-use instructions',
+    'How will someone unpack and use the product for the first time?',
+    'Describe the first minute of use, including one potential source of confusion and the instruction that addresses it.',
+    'The refill marker must be visible before a customer fills the bottle, not hidden under the sleeve.',
+    'Name a first-use failure mode and how a packaging trial could reveal it.',
+    { forKinds: ['consumer'] }
+  ),
+  proto(
+    'prototype.artifact',
+    'Prototype evidence',
+    'Which working version have you actually tried?',
+    'Record the version, what you could do with it and where to find the dated build or trial record. A plan is useful, but not evidence of a build.',
+    'For a scheduling pilot, cite the pilot build tag and record the booking action you ran. Do not report an outcome you have not seen.',
+    'Cite a reproducible revision or trial log, distinguish observation from interpretation, and record known limits.',
+    { type: 'evidence', xp: 30 }
+  ),
   proto(
     'prototype.objective',
     'Prototype plan',
@@ -479,7 +542,7 @@ export const QUESTION_BANK: Question[] = [
     'Put failures that prevent the main job above annoyances. Use Tasks to track the fix.',
     'A duplicate booking comes before a confusing button colour.',
     'Rank by severity, frequency and user impact; specify how to retest.',
-    { type: 'ranked', required: false }
+    { type: 'ranked', required: true }
   ),
   test(
     'testing.testers',
@@ -642,7 +705,10 @@ export const QUESTION_BANK: Question[] = [
 export const QUESTIONS_BY_KEY = new Map(QUESTION_BANK.map((q) => [q.key, q]));
 export function questionsForStage(stage: StageId, kind?: ProductKind): Question[] {
   return QUESTION_BANK.filter(
-    (q) => q.stage === stage && !q.retired && (!q.physicalOnly || !kind || kind === 'physical')
+    (q) =>
+      q.stage === stage &&
+      !q.retired &&
+      (!kind || ((!q.physicalOnly || isPhysicalKind(kind)) && (!q.forKinds || q.forKinds.includes(kind))))
   );
 }
 export function isAnswered(value: AnswerValue | undefined): boolean {
@@ -729,4 +795,12 @@ export function normaliseAnswer(q: Question, raw: unknown): { value: AnswerValue
       return { value: [basis, note, source] };
     }
   }
+}
+
+/** Saving an honest assumption is welcome. It is not a completed observation or a release check. */
+export function lessonEvidence(q: Question, raw: unknown): boolean {
+  const parsed=normaliseAnswer(q,raw);
+  if ('error' in parsed || !isAnswered(parsed.value)) return false;
+  if (q.key==='research.finding' || q.key==='prototype.artifact') return Array.isArray(parsed.value) && parsed.value[0]!==EVIDENCE_TYPES[0];
+  return !(q.key==='launch.readiness' && Array.isArray(parsed.value) && parsed.value.includes('None finished yet'));
 }

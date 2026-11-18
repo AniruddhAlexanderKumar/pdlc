@@ -27,7 +27,7 @@ export function CelebrateProvider({ children }: { children: ReactNode }) {
         className="pointer-events-none fixed inset-x-0 bottom-20 z-[70] flex justify-center md:bottom-6"
       >
         {receipt && (
-          <div className="flex max-w-[90vw] items-center gap-3 rounded-lg border border-teal-200 bg-white px-4 py-2.5 text-sm shadow-md dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="sv-reward-enter flex max-w-[90vw] items-center gap-3 rounded-lg border border-teal-200 bg-white px-4 py-2.5 text-sm shadow-md dark:border-zinc-700 dark:bg-zinc-900">
             <span className="truncate">{receipt.label}</span>
             <strong className="whitespace-nowrap text-xs tabular-nums text-teal-700 dark:text-teal-300">
               +{receipt.points} XP
@@ -66,7 +66,7 @@ export function LevelUpWatcher() {
   if (!shown) return null;
   return (
     <div
-      className="fixed right-4 top-4 z-[80] flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+      className="sv-reward-enter fixed right-4 top-4 z-[80] flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
       role="status"
       aria-live="polite"
     >

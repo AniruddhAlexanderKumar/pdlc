@@ -91,6 +91,7 @@ await call(owner, 'DELETE', dep + '/idea.oneliner');
 await call(owner, 'PATCH', '/workspace', { showLeaderboard: false });
 await call(member, 'PATCH', '/workspace', { showLeaderboard: true }, 403);
 assert.deepEqual((await call(member, 'GET', '/game/leaderboard')).result, []);
+await call(member, 'PATCH', '/game/preferences', { showStreak: false });
 await call(owner, 'PATCH', '/game/preferences', { guideMode: 'beginner', showStreak: true });
 assert.equal((await call(member, 'GET', '/auth/me')).result.user.showStreak, false);
 const assist = root + '/lessons/planning.mvp/assist';
@@ -114,7 +115,7 @@ function response(q) {
     case 'date':
       return '2027-02-01';
     case 'multi':
-      return [q.options.at(-1)];
+      return [q.options[0]];
     case 'choice':
       return q.key === 'improve.return' ? 'Research' : q.options[0];
     case 'scale':
@@ -122,7 +123,11 @@ function response(q) {
     case 'comparison':
       return ['Booking flow', 'Calendar: unknown', 'Group chat: manual'];
     case 'evidence':
-      return ['Founder assumption', 'We do not have independent evidence.', 'Book an interview'];
+      return [
+        'Research finding',
+        'Observed a missed confirmation in the synthetic pilot.',
+        'Fixture trial log, November 18'
+      ];
     case 'ranked':
       return ['Publish a slot', 'Confirm booking'];
     default:
@@ -172,6 +177,10 @@ for (const [index, stage] of PATH_STAGES.entries()) {
   assert.equal(currentJourney.current.complete, true, stage);
   milestones.push(currentJourney.completedCount);
   chapters.push(currentJourney.current.id);
+  const check = await call(owner, 'POST', root + '/worlds/' + stage + '/check', {});
+  assert.deepEqual(check.result.xp, []);
+  const finish = await call(owner, 'POST', root + '/worlds/' + stage + '/finish', {});
+  assert.equal(finish.result.xp.filter((x) => x.points === 200).length, 1);
   if (next) {
     const move = await call(owner, 'PATCH', root, { stage: next });
     assert.ok(move.result.xp.some((x) => x.label.includes(`moved to ${next}`)));
@@ -180,6 +189,8 @@ for (const [index, stage] of PATH_STAGES.entries()) {
 assert.deepEqual(chapters, PATH_STAGES);
 assert.deepEqual(milestones, [1, 2, 3, 4, 5, 6, 7, 8]);
 assert.equal(awards.filter((x) => x.label.includes('chapter complete')).length, 8);
+const trail = (await act()).trail;
+assert.ok(trail.worlds.every((w) => w.finished && w.checkpoint && w.ready && w.units.every((u) => u.complete)));
 const complete = (await act()).journey;
 assert.equal(complete.overallPercent, 100);
 assert.equal(complete.nextStageId, null);

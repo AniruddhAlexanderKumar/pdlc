@@ -1,4 +1,4 @@
-import { isAnswered, questionsForStage } from './questions.js';
+import { lessonEvidence, questionsForStage } from './questions.js';
 import { stageQuest } from './gamification.js';
 import { STAGES, STAGE_IDS, getStage, nextStage, stageIndex, type PhaseId, type StageId } from './stages.js';
 import type { Material, Product } from './types.js';
@@ -139,7 +139,7 @@ function activitiesForStage(product: Product, stage: StageId, materials: Map<str
     id: q.key,
     label: q.prompt,
     why: q.help ?? STEP_WHY.questions,
-    done: isAnswered(product.answers[q.key]),
+    done: lessonEvidence(q, product.answers[q.key]),
     required: q.required,
     kind: 'question' as const,
     questionKey: q.key,
@@ -264,8 +264,10 @@ export function buildJourney(product: Product, options: BuildJourneyOptions = {}
     const pendingApproval = collab || product.approvalStates
       ? required.filter(a => a.done && requiresApproval(a.id) && (collab ? collab.records[a.id]?.reviewState : product.approvalStates?.[a.id]) !== 'approved')
       : [];
-    const done = required.filter((a) => a.done).length - pendingApproval.length;
-    const complete = questComplete && pendingApproval.length === 0;
+    const blocked = required.filter((a) => a.collaboration?.blockers.length);
+    const excluded = new Set([...pendingApproval, ...blocked].map((a) => a.id));
+    const done = required.filter((a) => a.done && !excluded.has(a.id)).length;
+    const complete = questComplete && !excluded.size;
     const index = stageIndex(id);
     return {
       id,
@@ -289,6 +291,13 @@ export function buildJourney(product: Product, options: BuildJourneyOptions = {}
 
   for (const stage of stages) {
     stage.state = stageStateFor(stage.index, currentIndex, currentComplete, unlockedThrough);
+    if (
+      product.stage === 'Retired' &&
+      product.legacyStage &&
+      stage.id !== 'Retired' &&
+      stage.index > stageIndex(product.legacyStage)
+    )
+      stage.state = 'locked';
     stage.lockReason = stage.state === 'locked' ? lockReasonFor(stage.id) : null;
   }
 

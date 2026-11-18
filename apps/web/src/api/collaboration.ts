@@ -9,9 +9,12 @@ import type {
   NotificationPreference,
   Recommendation,
   ReviewState,
+  Product,
+  WithXp,
   TeamContribution
 } from '@sv/shared';
 import { ApiError, del, get, patch, post } from './client';
+import { useXpMutation } from './hooks';
 import { useToast } from '../components/Toast';
 
 /**
@@ -23,6 +26,7 @@ import { useToast } from '../components/Toast';
 
 export interface CollaborationView {
   journey: Journey;
+  trail: import('@sv/shared').Trail;
   records: Record<string, ActivityRecord>;
   dependencies: Record<string, string[]>;
   commentCounts: Record<string, number>;
@@ -80,8 +84,11 @@ export function useAssignActivity(productId: string) {
 }
 
 export function useActivityStatus(productId: string) {
-  return useAction(productId, ({ key, status }: { key: string; status: ActivityStatus }) =>
-    patch(`/products/${productId}/activities/${encodeURIComponent(key)}/status`, { status })
+  const refresh = useInvalidate(productId);
+  return useXpMutation(
+    ({ key, status }: { key: string; status: ActivityStatus }) =>
+      patch<WithXp<Product>>(`/products/${productId}/activities/${encodeURIComponent(key)}/status`, { status }),
+    refresh
   );
 }
 
@@ -92,8 +99,25 @@ export function useSubmitReview(productId: string) {
 }
 
 export function useReviewActivity(productId: string) {
-  return useAction(productId, ({ key, decision, note, expectedAnswer }: { expectedAnswer?: AnswerValue; key: string; decision: 'approve' | 'request_changes'; note?: string }) =>
-    post(`/products/${productId}/activities/${encodeURIComponent(key)}/review`, { decision, note, expectedAnswer })
+  const refresh = useInvalidate(productId);
+  return useXpMutation(
+    ({
+      key,
+      decision,
+      note,
+      expectedAnswer
+    }: {
+      expectedAnswer?: AnswerValue;
+      key: string;
+      decision: 'approve' | 'request_changes';
+      note?: string;
+    }) =>
+      post<WithXp<Product>>(`/products/${productId}/activities/${encodeURIComponent(key)}/review`, {
+        decision,
+        note,
+        expectedAnswer
+      }),
+    refresh
   );
 }
 

@@ -154,7 +154,7 @@ export function useInvites(enabled: boolean) {
  * Wraps a mutation that returns `{ data, xp }`: shows errors, celebrates XP,
  * and refreshes whatever the change affects.
  */
-function useXpMutation<TVars, TData>(
+export function useXpMutation<TVars, TData>(
   fn: (vars: TVars) => Promise<WithXp<TData>>,
   onData?: (data: TData, vars: TVars) => void,
   opts: { refreshAll?: boolean } = {}
@@ -171,9 +171,10 @@ function useXpMutation<TVars, TData>(
       onData?.(res.data, vars);
       if (opts.refreshAll) qc.invalidateQueries({ queryKey: keys.data });
       qc.invalidateQueries({ queryKey: ['insights'] });
+      qc.invalidateQueries({ queryKey: keys.game });
+      qc.invalidateQueries({ queryKey: ['xp-history'] });
       if (res.xp.length > 0) {
         celebrate(res.xp);
-        qc.invalidateQueries({ queryKey: keys.game });
         qc.invalidateQueries({ queryKey: keys.leaderboard });
       }
     },
@@ -219,6 +220,22 @@ export function useMoveStage() {
   return useXpMutation(({ id, stage }: { id: string; stage: Product['stage'] }) => patch<WithXp<Product>>(`/products/${id}`, { stage }), setProduct);
 }
 
+export function useConfirmPlacement(id: string) {
+  const set = useSetProduct();
+  return useXpMutation(
+    (stage: Product['stage']) => post<WithXp<Product>>(`/products/${id}/placement`, { stage }),
+    set
+  );
+}
+export function useWorldCheck(id: string) {
+  const set = useSetProduct();
+  return useXpMutation(
+    ({ world, op }: { world: string; op: 'check' | 'finish' }) =>
+      post<WithXp<Product>>(`/products/${id}/worlds/${world}/${op}`, {}),
+    set
+  );
+}
+
 export function useDeleteProduct() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -235,8 +252,26 @@ export function useAnswer(productId: string) {
   const setProduct = useSetProduct();
   const qc = useQueryClient();
   return useXpMutation(
-    ({ key, value, previousValue }: { key: string; value: unknown; previousValue?: AnswerValue }) => put<WithXp<Product>>(`/products/${productId}/answers/${encodeURIComponent(key)}`, { value, previousValue }),
-    (p) => { setProduct(p); qc.invalidateQueries({ queryKey: ['activity-drafts'] }); }
+    ({
+      key,
+      value,
+      previousValue,
+      guided
+    }: {
+      key: string;
+      value: unknown;
+      previousValue?: AnswerValue;
+      guided?: boolean;
+    }) =>
+      put<WithXp<Product>>(`/products/${productId}/answers/${encodeURIComponent(key)}`, {
+        value,
+        previousValue,
+        guided
+      }),
+    (p) => {
+      setProduct(p);
+      qc.invalidateQueries({ queryKey: ['activity-drafts'] });
+    }
   );
 }
 
@@ -321,6 +356,8 @@ export function useDeleteEntity(kind: 'materials' | 'suppliers') {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.data });
       qc.invalidateQueries({ queryKey: ['insights'] });
+      qc.invalidateQueries({ queryKey: keys.game });
+      qc.invalidateQueries({ queryKey: ['xp-history'] });
     },
     onError: (e) => toast.error(e.message)
   });

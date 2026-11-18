@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import {
+  productWorlds,
   QUESTIONS_BY_KEY,
   STAGE_IDS,
   XP,
@@ -13,6 +14,8 @@ import {
   type StageId,
   type ProductCadModel
 } from '@sv/shared';
+import { journeyFor } from '../services/collaboration.js';
+import { stampsFor, upgradeFor } from '../services/world-trail.js';
 import { auth } from '../auth/session.js';
 import { db, type Db } from '../db/index.js';
 import { badRequest, conflict, notFound, parse, route, uuid } from '../lib/http.js';
@@ -25,37 +28,61 @@ import { recordAnalyticsEvent } from '../services/analytics.js';
 import { saveAnswer } from '../services/save-answer.js';
 import { validateSyncedQuestionValue } from '../services/question-validation.js';
 import { productFields, taskFields } from '../lib/record-validation.js';
-import { mutate, param } from './util.js';
+import { mutate, mutateProduct, param } from './util.js';
 
 export const productsRouter = Router();
 
-async function changeStage(trx: Db, ledger: XpLedger, productId: string, name: string, from: StageId, to: StageId) {
+async function changeStage(
+  trx: Db,
+  ledger: XpLedger,
+  productId: string,
+  name: string,
+  from: StageId,
+  to: StageId
+) {
   if (from === to) return;
   // Enforce the journey rules here so the PATCH route and the "apply suggestion"
   // path can never diverge. Backwards moves, retiring and grandfathered stages
   // are allowed; forward moves need a complete checklist.
   const workspaceId = ledger.ctx.workspaceId;
-  const current = await loadProduct(trx, workspaceId, productId);
-  const materials = new Map((await loadMaterials(trx, workspaceId, current.materials.map((m) => m.materialId))).map((m) => [m.id, m]));
+  const { product: current, materials, journey } = await journeyFor(trx, workspaceId, productId);
   const verdict = canTransition(current, to, materials, current.approvalStates);
   if (!verdict.allowed) throw conflict(verdict.reason);
   // Keep the furthest *active* chapter when returning for another cycle. An
   // archive is not evidence that all eight chapters were reached or finished.
+  // Re-entering a reached world is always permitted, even if a new dependency was added later.
+  const inReach = current.legacyStage && stageIndex(to) <= stageIndex(current.legacyStage);
+  if (to === nextStage(from) && stageQuest(current, materials, from).complete) {
+    if (!inReach || journey.current.complete) await ledger.checkWorld(current, from, true);
+  }
   const previousHigh = current.legacyStage ? stageIndex(current.legacyStage) : 0;
   const reached = from === 'Retired' ? stageIndex(to) : stageIndex(from);
-  await trx.updateTable('products').set({ stage: to, legacy_stage: STAGE_IDS[Math.max(reached, previousHigh)], updated_at: new Date() })
-    .where('id', '=', productId).execute();
-  await trx.insertInto('stage_history').values({ product_id: productId, from_stage: from, to_stage: to, user_id: ledger.ctx.userId }).execute();
-  if (to === nextStage(from) && stageQuest(current, materials, from).complete) {
-    const firstAdvance = await ledger.award('stage_advanced', `${productId}:${to}`, XP.stageAdvanced, `${name} moved to ${to}`, productId);
+  await trx
+    .updateTable('products')
+    .set({ stage: to, legacy_stage: STAGE_IDS[Math.max(reached, previousHigh)], updated_at: new Date() })
+    .where('id', '=', productId)
+    .execute();
+  await trx
+    .insertInto('stage_history')
+    .values({ product_id: productId, from_stage: from, to_stage: to, user_id: ledger.ctx.userId })
+    .execute();
+  if (!inReach && to === nextStage(from) && journey.current.complete) {
+    const firstAdvance = await ledger.award(
+      'stage_advanced',
+      `${productId}:${to}`,
+      XP.stageAdvanced,
+      `${name} moved to ${to}`,
+      productId
+    );
     // One quiet notification, and only to teammates.
-    if (firstAdvance) await notifyStageCompleted(trx, {
-      workspaceId,
-      actorId: ledger.ctx.userId,
-      productId,
-      productName: name,
-      stage: from
-    });
+    if (firstAdvance)
+      await notifyStageCompleted(trx, {
+        workspaceId,
+        actorId: ledger.ctx.userId,
+        productId,
+        productName: name,
+        stage: from
+      });
   }
 }
 
@@ -63,8 +90,19 @@ productsRouter.post(
   '/',
   route(async (req, res) => {
     const body = parse(
-      productFields.pick({ name: true, category: true, description: true, imageUrl: true, targetSellingPrice: true, productKind: true })
-        .partial().required({ name: true }).extend({
+      productFields
+        .pick({
+          name: true,
+          category: true,
+          description: true,
+          notes: true,
+          imageUrl: true,
+          targetSellingPrice: true,
+          productKind: true
+        })
+        .partial()
+        .required({ name: true })
+        .extend({
           startingStage: z.enum(STAGE_IDS).exclude(['Retired']).default('Idea'),
           guideMode: z.enum(['beginner', 'advanced']).optional()
         }),
@@ -78,6 +116,7 @@ productsRouter.post(
           name: body.name,
           category: body.category || 'General',
           description: body.description ?? '',
+          notes: body.notes ?? '',
           image_url: body.imageUrl ?? '',
           target_price: body.targetSellingPrice ?? null,
           stage: body.startingStage,
@@ -108,7 +147,7 @@ productsRouter.patch(
   route(async (req, res) => {
     const id = parse(uuid, param(req, 'id'));
     const body = parse(productFields.partial(), req.body);
-    const result = await mutate(req, async (trx, ledger, ctx) => {
+    const result = await mutateProduct(req, id, async (trx, ledger, ctx) => {
       const current = await trx
         .selectFrom('products')
         .select(['id', 'name', 'stage'])
@@ -137,18 +176,21 @@ productsRouter.patch(
           .execute();
       }
       if (body.stage) await changeStage(trx, ledger, id, body.name ?? current.name, current.stage, body.stage);
-      await recordAnalyticsEvent({
-        eventType: 'action',
-        eventName: body.stage && body.stage !== current.stage ? 'product.stage_transition' : 'product.update',
-        userId: ctx.userId,
-        workspaceId: ctx.workspaceId,
-        metadata: {
-          productId: id,
-          name: body.name ?? current.name,
-          fromStage: current.stage,
-          toStage: body.stage ?? current.stage
-        }
-      }, trx);
+      await recordAnalyticsEvent(
+        {
+          eventType: 'action',
+          eventName: body.stage && body.stage !== current.stage ? 'product.stage_transition' : 'product.update',
+          userId: ctx.userId,
+          workspaceId: ctx.workspaceId,
+          metadata: {
+            productId: id,
+            name: body.name ?? current.name,
+            fromStage: current.stage,
+            toStage: body.stage ?? current.stage
+          }
+        },
+        trx
+      );
       return (await ledger.evaluateProduct(id)).product;
     });
     res.json(result);
@@ -174,14 +216,26 @@ productsRouter.put(
     const id = parse(uuid, param(req, 'id'));
     const question = QUESTIONS_BY_KEY.get(param(req, 'key'));
     if (!question || question.retired) throw notFound('Question');
-    const body = parse(z.object({ value: z.json(), previousValue: z.json().optional() }), req.body);
+    const body = parse(
+      z.object({ value: z.json(), previousValue: z.json().optional(), guided: z.boolean().optional() }),
+      req.body
+    );
     const normalised = normaliseAnswer(question, body.value);
     if ('error' in normalised) throw badRequest(normalised.error);
     const { value } = normalised;
     validateSyncedQuestionValue(question, value);
 
-    const result = await mutate(req, async (trx, ledger, ctx) => {
+    const result = await mutateProduct(req, id, async (trx, ledger, ctx) => {
       await assertProduct(trx, ctx.workspaceId, id, true);
+      if (body.guided) {
+        const { product, journey } = await journeyFor(trx, ctx.workspaceId, id);
+        const [upgrade,stamps]=await Promise.all([upgradeFor(trx,id),stampsFor(trx,id)]);
+        const world = productWorlds(product, journey, upgrade, stamps).find(
+          (w) => w.stage === question.stage
+        );
+        const lesson = world?.units.flatMap((u) => u.lessons).find((l) => l.key === question.key);
+        if (!lesson || lesson.lock) throw conflict(lesson?.lock ?? 'This lesson is not on this product path.');
+      }
       await saveAnswer(trx, ledger, id, question, value, body.previousValue);
       return (await ledger.evaluateProduct(id, question.stage)).product;
     });
@@ -197,7 +251,7 @@ productsRouter.put(
     const id = parse(uuid, param(req, 'id'));
     const materialId = parse(uuid, param(req, 'materialId'));
     const { quantity } = parse(z.object({ quantity: z.coerce.number().positive('Quantity must be more than 0').max(1e6) }), req.body);
-    const result = await mutate(req, async (trx, ledger, ctx) => {
+    const result = await mutateProduct(req, id, async (trx, ledger, ctx) => {
       const product = await assertProduct(trx, ctx.workspaceId, id);
       await assertMaterial(trx, ctx.workspaceId, materialId);
       const { next } = await trx
@@ -210,7 +264,13 @@ productsRouter.put(
         .values({ product_id: id, material_id: materialId, quantity, position: next })
         .onConflict((oc) => oc.columns(['product_id', 'material_id']).doUpdateSet({ quantity }))
         .execute();
-      await ledger.award('material_added', `${id}:${materialId}`, XP.materialAdded, 'Added a material to the bill of materials', product.id);
+      await ledger.award(
+        'material_added',
+        `${id}:${materialId}`,
+        XP.materialAdded,
+        'Added a material to the bill of materials',
+        product.id
+      );
       await touchProduct(trx, id);
       return (await ledger.evaluateProduct(id)).product;
     });
@@ -223,9 +283,13 @@ productsRouter.delete(
   route(async (req, res) => {
     const id = parse(uuid, param(req, 'id'));
     const materialId = parse(uuid, param(req, 'materialId'));
-    const result = await mutate(req, async (trx, ledger, ctx) => {
+    const result = await mutateProduct(req, id, async (trx, ledger, ctx) => {
       await assertProduct(trx, ctx.workspaceId, id);
-      await trx.deleteFrom('product_materials').where('product_id', '=', id).where('material_id', '=', materialId).execute();
+      await trx
+        .deleteFrom('product_materials')
+        .where('product_id', '=', id)
+        .where('material_id', '=', materialId)
+        .execute();
       await touchProduct(trx, id);
       return (await ledger.evaluateProduct(id)).product;
     });
@@ -240,7 +304,7 @@ productsRouter.post(
   route(async (req, res) => {
     const id = parse(uuid, param(req, 'id'));
     const body = parse(taskFields.partial({ description: true, status: true, dueDate: true, position: true }), req.body);
-    const result = await mutate(req, async (trx, ledger, ctx) => {
+    const result = await mutateProduct(req, id, async (trx, ledger, ctx) => {
       const product = await assertProduct(trx, ctx.workspaceId, id, true);
       const { count } = await trx
         .selectFrom('tasks')
@@ -269,14 +333,18 @@ productsRouter.post(
         })
         .returning('id')
         .executeTakeFirstOrThrow();
-      if (status === 'done') await ledger.award('task_done', task.id, XP.taskCompleted, `Completed “${body.title}”`, product.id);
-      await recordAnalyticsEvent({
-        eventType: 'action',
-        eventName: status === 'done' ? 'task.complete' : 'task.create',
-        userId: ctx.userId,
-        workspaceId: ctx.workspaceId,
-        metadata: { productId: id, taskId: task.id, title: body.title, status }
-      }, trx);
+      if (status === 'done')
+        await ledger.award('task_done', task.id, XP.taskCompleted, `Completed “${body.title}”`, product.id);
+      await recordAnalyticsEvent(
+        {
+          eventType: 'action',
+          eventName: status === 'done' ? 'task.complete' : 'task.create',
+          userId: ctx.userId,
+          workspaceId: ctx.workspaceId,
+          metadata: { productId: id, taskId: task.id, title: body.title, status }
+        },
+        trx
+      );
       await touchProduct(trx, id);
       return (await ledger.evaluateProduct(id, body.chapter ?? product.stage)).product;
     });
@@ -290,9 +358,14 @@ productsRouter.patch(
     const id = parse(uuid, param(req, 'id'));
     const taskId = parse(uuid, param(req, 'taskId'));
     const body = parse(taskFields.partial(), req.body);
-    const result = await mutate(req, async (trx, ledger, ctx) => {
+    const result = await mutateProduct(req, id, async (trx, ledger, ctx) => {
       await assertProduct(trx, ctx.workspaceId, id, true);
-      const task = await trx.selectFrom('tasks').select(['id', 'title', 'status', 'chapter']).where('id', '=', taskId).where('product_id', '=', id).executeTakeFirst();
+      const task = await trx
+        .selectFrom('tasks')
+        .select(['id', 'title', 'status', 'chapter'])
+        .where('id', '=', taskId)
+        .where('product_id', '=', id)
+        .executeTakeFirst();
       if (!task) throw notFound('Task');
       const set: Record<string, unknown> = { updated_at: new Date() };
       if (body.chapter !== undefined) set.chapter = body.chapter;
@@ -306,13 +379,16 @@ productsRouter.patch(
         if (body.status === 'done') {
           await ledger.award('task_done', taskId, XP.taskCompleted, `Completed “${body.title ?? task.title}”`, id);
         }
-        await recordAnalyticsEvent({
-          eventType: 'action',
-          eventName: body.status === 'done' ? 'task.complete' : 'task.update',
-          userId: ctx.userId,
-          workspaceId: ctx.workspaceId,
-          metadata: { productId: id, taskId, title: task.title, status: body.status }
-        }, trx);
+        await recordAnalyticsEvent(
+          {
+            eventType: 'action',
+            eventName: body.status === 'done' ? 'task.complete' : 'task.update',
+            userId: ctx.userId,
+            workspaceId: ctx.workspaceId,
+            metadata: { productId: id, taskId, title: task.title, status: body.status }
+          },
+          trx
+        );
 
         // Finishing a task can clear a blocker someone else is waiting on.
         if (body.status === 'done' && task.status !== 'done') {
@@ -339,9 +415,13 @@ productsRouter.delete(
   route(async (req, res) => {
     const id = parse(uuid, param(req, 'id'));
     const taskId = parse(uuid, param(req, 'taskId'));
-    const result = await mutate(req, async (trx, ledger, ctx) => {
+    const result = await mutateProduct(req, id, async (trx, ledger, ctx) => {
       await assertProduct(trx, ctx.workspaceId, id);
-      const r = await trx.deleteFrom('tasks').where('id', '=', taskId).where('product_id', '=', id).executeTakeFirst();
+      const r = await trx
+        .deleteFrom('tasks')
+        .where('id', '=', taskId)
+        .where('product_id', '=', id)
+        .executeTakeFirst();
       if (Number(r.numDeletedRows) === 0) throw notFound('Task');
       await touchProduct(trx, id);
       return (await ledger.evaluateProduct(id)).product;
@@ -382,7 +462,7 @@ productsRouter.post(
   route(async (req, res) => {
     const id = parse(uuid, param(req, 'id'));
     const { insightId } = parse(z.object({ insightId: z.string().min(1).max(300) }), req.body);
-    const result = await mutate(req, async (trx, ledger, ctx) => {
+    const result = await mutateProduct(req, id, async (trx, ledger, ctx) => {
       await assertProduct(trx, ctx.workspaceId, id, true);
       const input = await insightInput(trx, ctx.workspaceId, id);
       // Re-derive suggestions server-side; never trust an action sent by the client.
@@ -397,7 +477,11 @@ productsRouter.post(
           .where('workspace_id', '=', ctx.workspaceId)
           .execute();
       } else if (action.type === 'set_price') {
-        await trx.updateTable('products').set({ target_price: action.price, updated_at: new Date() }).where('id', '=', id).execute();
+        await trx
+          .updateTable('products')
+          .set({ target_price: action.price, updated_at: new Date() })
+          .where('id', '=', id)
+          .execute();
       } else if (action.type === 'advance_stage') {
         const to = nextStage(input.product.stage);
         if (!to) throw conflict('This product is already at its final stage');
@@ -405,7 +489,13 @@ productsRouter.post(
       } else {
         throw badRequest('This suggestion has nothing to apply');
       }
-      await ledger.award('suggestion_applied', `${id}:${insight.id}`, XP.suggestionApplied, `Applied: ${insight.title}`, id);
+      await ledger.award(
+        'suggestion_applied',
+        `${id}:${insight.id}`,
+        XP.suggestionApplied,
+        `Applied: ${insight.title}`,
+        id
+      );
       return (await ledger.evaluateProduct(id)).product;
     });
     res.json(result);
@@ -483,7 +573,7 @@ productsRouter.post(
       throw badRequest('STL file exceeds the 50MB limit');
     }
 
-    const result = await mutate(req, async (trx, ledger, ctx) => {
+    const result = await mutateProduct(req, productId, async (trx, ledger, ctx) => {
       const product = await loadProduct(trx, ctx.workspaceId, productId);
       const existing = await trx
         .selectFrom('product_cad_models')
@@ -538,7 +628,14 @@ productsRouter.post(
         })
         .execute();
 
-      await ledger.award('cad_model_saved', `${productId}:${nextRevision}`, 15, `Saved 3D model revision for ${product.name}`, productId);
+      if (!existing)
+        await ledger.award(
+          'cad_model_saved',
+          `${productId}:${nextRevision}`,
+          15,
+          `Saved 3D model revision for ${product.name}`,
+          productId
+        );
 
       const updated = await trx
         .selectFrom('product_cad_models')

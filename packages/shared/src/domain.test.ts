@@ -114,7 +114,12 @@ describe('gamification', () => {
     assert.equal(stageQuest(p, materials).complete, false);
     const done = product({
       description: 'A bottle',
-      answers: { 'idea.problem': 'Leaks', 'idea.customer': 'Commuters', 'idea.oneliner': 'A bottle' }
+      answers: {
+        'idea.problem': 'Leaks',
+        'idea.customer': 'Commuters',
+        'idea.promise': 'Keep the bag dry',
+        'idea.oneliner': 'A bottle'
+      }
     });
     assert.equal(stageQuest(done, materials).complete, true);
   });

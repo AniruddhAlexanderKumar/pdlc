@@ -1,3 +1,4 @@
+import { readTrail } from '../services/world-trail.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import {
@@ -23,8 +24,7 @@ import {
 } from '../services/collaboration.js';
 import { assertProduct, loadProduct } from '../services/repo.js';
 import { notify, notifyUnblocked, loadPreferences, savePreferences } from '../services/notifications.js';
-import { mutate, param } from './util.js';
-import { XpLedger } from '../services/xp.js';
+import { mutate, mutateProduct, param } from './util.js';
 
 /**
  * Activity collaboration endpoints.
@@ -62,7 +62,15 @@ collaborationRouter.get(
     const ctx = auth(req);
     const id = parse(uuid, param(req, 'id'));
     const { product, journey, collab, materials } = await journeyFor(db, ctx.workspaceId, id);
-    const team = await teamContribution(db, ctx.workspaceId, id);
+    const [team, trail] = await Promise.all([
+      teamContribution(db, ctx.workspaceId, id),
+      readTrail(db, ctx.workspaceId, ctx.userId, product, journey)
+    ]);
+    // Old detail views show the same configured values as the product path.
+    const credits = new Map(
+      trail.worlds.flatMap((w) => w.units.flatMap((u) => u.lessons.map((l) => [l.key, l.credit] as const)))
+    );
+    for (const s of journey.path) for (const a of s.activities) a.xp = credits.get(a.id) ?? a.xp;
     // Ranked on the server so every client sees the same "next action".
     const recommendations = recommendNextActions({
       product,
@@ -71,7 +79,8 @@ collaborationRouter.get(
       records: collab.records,
       dependencies: collab.dependencies
     });
-    res.json({
+    res.set('Cache-Control', 'no-store').json({
+      trail,
       journey,
       records: collab.records,
       dependencies: collab.dependencies,
@@ -209,7 +218,7 @@ collaborationRouter.patch(
     const key = param(req, 'key');
     const body = parse(statusSchema, req.body);
 
-    const result = await mutate(req, async (trx, ledger) => {
+    const result = await mutateProduct(req, id, async (trx, ledger) => {
       await assertProduct(trx, ctx.workspaceId, id, true);
       const { journey, collab } = await journeyFor(trx, ctx.workspaceId, id);
       const activity = assertActivity(journey, key);
@@ -242,7 +251,14 @@ collaborationRouter.patch(
       const now = new Date();
       await upsertRecord(trx, id, key, {
         status,
-        startedAt: status === 'in_progress' ? (existing?.startedAt ? new Date(existing.startedAt) : now) : existing?.startedAt ? new Date(existing.startedAt) : null,
+        startedAt:
+          status === 'in_progress'
+            ? existing?.startedAt
+              ? new Date(existing.startedAt)
+              : now
+            : existing?.startedAt
+              ? new Date(existing.startedAt)
+              : null,
         completedAt: status === 'completed' ? now : null,
         completedBy: status === 'completed' ? ctx.userId : null
       });
@@ -343,7 +359,7 @@ collaborationRouter.post(
     const key = param(req, 'key');
     const body = parse(reviewSchema, req.body);
 
-    const result = await mutate(req, async (trx, ledger) => {
+    const result = await mutateProduct(req, id, async (trx, ledger) => {
       await assertProduct(trx, ctx.workspaceId, id, true);
       const { journey, collab, product } = await journeyFor(trx, ctx.workspaceId, id);
       const activity = assertActivity(journey, key);
@@ -351,7 +367,11 @@ collaborationRouter.post(
       if (existing?.reviewState !== 'pending') throw conflict('This activity is not awaiting review.');
 
       if (!activity.done) throw conflict('Fill in this activity before approving it.');
-      if (body.expectedAnswer !== undefined && JSON.stringify(body.expectedAnswer) !== JSON.stringify(product.answers[key])) throw conflict('The submitted answer changed. Read the new version before reviewing.');
+      if (
+        body.expectedAnswer !== undefined &&
+        JSON.stringify(body.expectedAnswer) !== JSON.stringify(product.answers[key])
+      )
+        throw conflict('The submitted answer changed. Read the new version before reviewing.');
       const approve = body.decision === 'approve';
       await upsertRecord(trx, id, key, {
         status: approve ? 'completed' : 'in_progress',
@@ -375,11 +395,20 @@ collaborationRouter.post(
         activityKey: key
       });
 
-      if (approve) await notifyUnblocked(trx, { workspaceId: ctx.workspaceId, actorId: ctx.userId, productId: id,
-        completedKey: key, completedLabel: activity.label, wasAlreadyDone: false });
+      if (approve)
+        await notifyUnblocked(trx, {
+          workspaceId: ctx.workspaceId,
+          actorId: ctx.userId,
+          productId: id,
+          completedKey: key,
+          completedLabel: activity.label,
+          wasAlreadyDone: false
+        });
       // Approving a sign-off can be what unlocks the stage's completion, so XP
       // is evaluated through the normal ledger rather than awarded here.
-      return (await ledger.evaluateProduct(id, journey.stages.find(s => s.activities.some(a => a.id === key))?.id)).product;
+      return (
+        await ledger.evaluateProduct(id, journey.stages.find((s) => s.activities.some((a) => a.id === key))?.id)
+      ).product;
     });
     res.json(result);
   })

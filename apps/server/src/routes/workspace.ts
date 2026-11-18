@@ -11,7 +11,7 @@ import { db } from '../db/index.js';
 import { HttpError, badRequest, conflict, forbidden, notFound, parse, route, shortText, uuid } from '../lib/http.js';
 import { loadWorkspaceData } from '../services/repo.js';
 import { loadSampleData } from '../services/sampleData.js';
-import { leaderboard, playerStats } from '../services/xp.js';
+import { leaderboard, playerStats, xpHistory } from '../services/xp.js';
 import { loadMe } from './auth.js';
 import { param } from './util.js';
 
@@ -301,5 +301,14 @@ gameRouter.get(
     const { workspaceId } = auth(req);
     const ws = await db.selectFrom('workspaces').select(['mode','show_leaderboard']).where('id', '=', workspaceId).executeTakeFirstOrThrow();
     res.set('Cache-Control', 'no-store').json(ws.mode !== 'solo' && ws.show_leaderboard ? await leaderboard(db, workspaceId) : []);
+  })
+);
+
+gameRouter.get(
+  '/history',
+  route(async (req, res) => {
+    const a = auth(req),
+      { after } = parse(z.object({ after: uuid.optional() }).strict(), req.query);
+    res.set('Cache-Control', 'no-store').json(await xpHistory(db, a.workspaceId, a.userId, after));
   })
 );

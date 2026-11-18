@@ -71,7 +71,12 @@ test('old option values, false, zero and explicit clears remain valid; invalid e
 test('dashboard milestone, outstanding work and percentage derive from real core responses and chapter-linked tasks', () => {
   const p = product({
     description: 'Tutor booking',
-    answers: { 'idea.problem': 'Cancellations', 'idea.customer': 'Tutors', 'idea.oneliner': 'Tutor booking' },
+    answers: {
+      'idea.problem': 'Cancellations',
+      'idea.customer': 'Tutors',
+      'idea.promise': 'Refill cancelled lessons',
+      'idea.oneliner': 'Tutor booking'
+    },
     tasks: [
       {
         chapter: 'Research',
@@ -88,7 +93,7 @@ test('dashboard milestone, outstanding work and percentage derive from real core
   const j = buildJourney(p);
   assert.ok(j.current.complete);
   assert.equal(j.completedCount, 1);
-  assert.equal(j.overallPercent, Math.round((100 * 5) / j.path.reduce((n, s) => n + s.total, 0)));
+  assert.equal(j.overallPercent, Math.round((100 * 6) / j.path.reduce((n, s) => n + s.total, 0)));
   assert.equal(stageQuest(p, new Map(), 'Prototype').items.find((i) => i.id === 'tasks')!.done, false);
   assert.equal(nextWork(p, j, []).action, 'Review milestone');
   const { parts } = productHealth(
@@ -133,6 +138,7 @@ test('chapter sign-off considers the requested chapter, including recorded decis
       'research.validated': false,
       'idea.problem': 'Late cancellations',
       'idea.customer': 'Tutors',
+      'idea.promise': 'Refill cancelled lessons',
       'idea.oneliner': 'Booking page'
     },
     description: 'Booking page'

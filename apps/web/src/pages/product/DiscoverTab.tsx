@@ -1,3 +1,4 @@
+import { RecordedWork } from '../../components/journey/RecordedWork';
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useBlocker, useNavigate, useSearchParams } from 'react-router';
@@ -13,6 +14,8 @@ import {
   NotebookPen
 } from 'lucide-react';
 import {
+  isPhysicalKind,
+  lessonEvidence,
   CHAPTER_BRIEFS,
   requiresApproval,
   isAnswered,
@@ -74,7 +77,7 @@ const relatedTools = (stage: StageId, physical: boolean): [string, string][] => 
 function Brief({ product, stage, questions }: { product: Product; stage: StageId; questions: Question[] }) {
   const { fmt } = useMoney();
   const recorded = questions.filter((q) => isAnswered(product.answers[q.key]));
-  const links = relatedTools(stage, product.productKind === 'physical');
+  const links = relatedTools(stage, isPhysicalKind(product.productKind));
   return (
     <article className="sv-sheet p-5 sm:p-8">
       <p className="sv-kicker flex items-center gap-2">
@@ -143,8 +146,14 @@ function Lesson({
   const team = useCollaboration(product.id),
     owner = team.data?.records[q.key];
   const assignedElsewhere = me.workspace.role === 'member' && !!owner?.assigneeId && owner.assigneeId !== me.user.id;
+  const [params] = useSearchParams(),
+    guided = params.get('guided') === '1';
+  const world = team.data?.trail.worlds.find((w) => w.stage === q.stage),
+    unit = world?.units.find((u) => u.lessons.some((l) => l.key === q.key)),
+    node = unit?.lessons.find((l) => l.key === q.key);
   const saved = product.answers[q.key] ?? null;
-  const initial = existing ? existing.value : saved;
+  const malformed = isAnswered(saved) && 'error' in normaliseAnswer(q, saved);
+  const initial = existing ? existing.value : malformed ? null : saved;
   const [draft, setDraft] = useState(initial);
   const [base, setBase] = useState(existing ? existing.previousValue : saved);
   const [finished, setFinished] = useState(false),
@@ -210,7 +219,7 @@ function Lesson({
     if ('error' in normal || (v !== null && !isAnswered(normal.value)))
       return setIssue('error' in normal ? normal.error : 'Add a response, or save this as a draft.');
     answer.mutate(
-      { key: q.key, value: normal.value, previousValue: base },
+      { key: q.key, value: normal.value, previousValue: base, guided },
       {
         onSuccess: () => {
           safeToLeave.current = true;
@@ -228,7 +237,10 @@ function Lesson({
     stale = !same(base, saved);
   // Prefer remaining core activities. Optional detail is always accessible in the brief.
   const rest = [...questions.slice(i + 1), ...questions.slice(0, i)].filter((x) => !isAnswered(product.answers[x.key]));
-  const next = rest.find((x) => x.required);
+  const next = guided
+    ? questions.find((x) => x.key === team.data?.trail.next?.key && x.key !== q.key)
+    : rest.find((x) => x.required);
+  const lock = guided && (!node || node.lock);
   const example = (
     <div className="mt-4 border-l-2 border-teal-500 pl-4">
       <p className="sv-kicker">Example</p>
@@ -244,7 +256,8 @@ function Lesson({
         <p className="sv-kicker mt-6">Activity recorded</p>
         <h3 className="mt-2 text-2xl font-semibold tracking-tight">Your {q.output.toLowerCase()} is saved.</h3>
         <p className="mt-2 text-sm leading-6 text-zinc-500">
-          You can revise it in your {CHAPTER_BRIEFS[q.stage].toLowerCase()}.{' '}
+          {!lessonEvidence(q, saved) && 'Your work is recorded, but this checkpoint still needs evidence. '}You can
+          revise it in your {CHAPTER_BRIEFS[q.stage].toLowerCase()}.{' '}
           {requiresApproval(q.key) &&
             product.approvalStates?.[q.key] !== 'approved' &&
             'This decision also needs chapter review.'}
@@ -255,7 +268,13 @@ function Lesson({
         <div className="flex flex-wrap items-center gap-4">
           <Button
             onClick={() =>
-              navigate(next ? lessonHref(product.id, next) : `/products/${product.id}/journey?stage=${q.stage}`)
+              navigate(
+                next
+                  ? lessonHref(product.id, next) + (guided ? '&guided=1' : '')
+                  : guided
+                    ? `/products/${product.id}/journey`
+                    : `/products/${product.id}/journey?stage=${q.stage}`
+              )
             }
           >
             {next ? `Next: ${next.output}` : 'Review chapter progress'} <ArrowRight size={15} />
@@ -271,7 +290,8 @@ function Lesson({
       <article className="sv-sheet overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3 text-xs text-zinc-500 sm:px-8 dark:border-zinc-700">
           <span className="flex items-center gap-2">
-            <NotebookPen size={15} /> Activity {i + 1} / {questions.length} · {q.required ? 'Core' : 'Optional'}
+            <NotebookPen size={15} /> {unit ? `${q.stage} / ${unit.title} · ` : ''}Lesson {i + 1} /{' '}
+            {questions.length} · {q.required ? 'Core' : 'Optional'}
           </span>
           <span className="flex items-center gap-1.5">
             <Clock3 size={14} />
@@ -283,6 +303,24 @@ function Lesson({
           <p className="mt-3 max-w-prose text-sm leading-6 text-zinc-600 dark:text-zinc-300">
             {advanced ? q.advanced : q.help}
           </p>
+          <details className="mt-2 text-xs">
+            <summary className="sv-link cursor-pointer">Key term · {q.stage}</summary>
+            <p className="mt-2">
+              {
+                {
+                  Idea: 'Value proposition: the improvement a specific customer can expect.',
+                  Research: 'Evidence: an observation with a traceable source, rather than a belief.',
+                  Planning: 'MVP: the smallest useful release that can test the main assumption.',
+                  Design: 'Acceptance criterion: an observable condition the design must satisfy.',
+                  Prototype: 'Prototype: a learning build, not necessarily a production-ready product.',
+                  Testing: 'Test scenario: a reproducible setup, action and expected result.',
+                  Launch: 'Go-to-market plan: who you will reach, how and with what offer.',
+                  Improvement: 'Backlog: a ranked list of changes informed by feedback.',
+                  Retired: 'Sunset: a deliberate decision to stop supporting a version.'
+                }[q.stage]
+              }
+            </p>
+          </details>
           {advanced ? (
             <details className="mt-2 text-xs">
               <summary className="sv-link cursor-pointer">See a worked example</summary>
@@ -291,10 +329,21 @@ function Lesson({
           ) : (
             example
           )}
+          {malformed && (
+            <p className="sv-inset my-3 p-3 text-xs">
+              Previous format · review before replacing: {JSON.stringify(saved).slice(0, 1600)}
+            </p>
+          )}
+          <RecordedWork q={q} sources={team.data?.trail.sources ?? []} onUse={change} disabled={busy} />
+          {lock && (
+            <p role="status" className="sv-inset p-3 text-sm">
+              {node?.lock ?? 'Checking guided lesson access…'} You can keep a draft.
+            </p>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!assignedElsewhere && !busy && !stale && isAnswered(draft)) save(draft);
+              if (!assignedElsewhere && !lock && !busy && !stale && isAnswered(draft)) save(draft);
             }}
             className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-700"
           >
@@ -307,8 +356,8 @@ function Lesson({
               )}
               {assignedElsewhere && (
                 <p className="my-2 text-sm" role="note">
-                  Assigned to {owner?.assigneeName ?? 'a teammate'}. You can keep a private draft, but only the assignee
-                  or a workspace manager can change the shared answer.
+                  Assigned to {owner?.assigneeName ?? 'a teammate'}. You can keep a private draft, but only the
+                  assignee or a workspace manager can change the shared answer.
                 </p>
               )}
               <AnswerInput q={q} value={draft} onChange={change} />
@@ -348,7 +397,7 @@ function Lesson({
                 <Button
                   type="submit"
                   loading={answer.isPending}
-                  disabled={!isAnswered(draft) || stale || assignedElsewhere}
+                  disabled={!isAnswered(draft) || stale || assignedElsewhere || !!lock}
                 >
                   <Check size={16} />
                   {isAnswered(saved) ? 'Save revision' : 'Complete activity'}
@@ -381,7 +430,7 @@ function Lesson({
             )}
             {isAnswered(saved) && (
               <button
-                disabled={busy || stale || assignedElsewhere}
+                disabled={busy || stale || assignedElsewhere || !!lock}
                 className="text-zinc-500 underline"
                 onClick={() => {
                   if (
@@ -397,8 +446,10 @@ function Lesson({
             )}
           </div>
           <p className="mt-4 text-xs text-zinc-500">
-            First recorded answer: {q.xp} XP once across the team. Saving a draft or editing an existing answer does not
-            earn answer XP again.
+            {team.data?.trail.upgrade?.knownKeys.includes(q.key)
+              ? 'Pre-upgrade work is recognised without retroactive XP.'
+              : `First eligible submission: ${node?.credit ?? q.xp} XP once across the team.`}{' '}
+            Saving a draft or editing an existing answer does not earn answer XP again.
           </p>
         </div>
       </article>
@@ -426,7 +477,7 @@ export function DiscoverTab({ product }: { product: Product }) {
     questions.find(
       (x) => x.key === personal.find((d) => questions.some((item) => item.key === d.questionKey))?.questionKey
     ) ??
-    questions.find((x) => x.required && !isAnswered(product.answers[x.key])) ??
+    questions.find((x) => x.required && !lessonEvidence(x, product.answers[x.key])) ??
     questions[0];
   const brief = params.get('view') === 'brief';
   // Pin the location before editing. A successful write must not replace the

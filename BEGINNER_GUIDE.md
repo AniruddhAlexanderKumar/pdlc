@@ -2,6 +2,14 @@
 
 You do not need a finished business plan. Bring a working name and a problem you would like to understand. If you only want to explore, **Explore demo** on the landing page opens temporary sample data instead of changing a real workspace.
 
+## Find your place
+
+Select your product in **Your building desk**. The path shows its current world, three units for that world and the work behind each lesson. **Continue building** opens the next useful record. A locked node explains what to do first; you can still inspect an earlier brief. The checkpoint lists the exact core outputs and reviews that are missing. Select **Check evidence**, then **Finish world** and **Enter** the next world. Later edits never remove previously earned XP.
+
+Already have a product here? Sign in normally. The upgrade notice explains what was recognised, and **Use existing work** lets you inspect linked material before using it. Earlier, reachable worlds need not be repeated. If an old stage name was unrecognisable, a workspace manager can confirm the position without claiming a milestone. For a *new* product already in development, choose the current world and optionally bring a reviewed text/Markdown project note.
+
+In **Achievements → Builder journal**, see your level history, streak calendar and transactions. World progress is shared; XP and periodic quests are personal within this workspace. A badge marked as a previous team badge is not personal credit for a colleague’s work.
+
 ## Start a chapter
 
 1. Choose **Start building**. Create a personal workspace if it is just you, or a team workspace to invite collaborators. If registration is closed, use an invitation or request access.

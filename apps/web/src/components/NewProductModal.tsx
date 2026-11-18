@@ -34,7 +34,7 @@ export function NewProductModal({ onClose }: { onClose: () => void }) {
           create.mutate(form, {
             onSuccess: (res) => {
               onClose();
-              navigate(`/products/${res.data.id}/discover?stage=${res.data.stage}`);
+              navigate(`/products/${res.data.id}/journey`);
             }
           });
         }}

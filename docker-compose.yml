@@ -53,6 +53,7 @@ services:
       DATABASE_URL: postgres://velocity:${POSTGRES_PASSWORD}@db:5432/velocity
       # Controlled deployments may run migrations separately; default preserves existing startup behavior.
       MIGRATIONS_ON_STARTUP: ${MIGRATIONS_ON_STARTUP:-true}
+      BUILDER_XP_RULES: ${BUILDER_XP_RULES:-}
       ALLOW_SIGNUP: ${ALLOW_SIGNUP:-false}
       TRUST_PROXY: ${TRUST_PROXY:-1}
       SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}

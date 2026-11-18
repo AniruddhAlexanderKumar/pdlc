@@ -33,16 +33,23 @@ export function LessonCopilot({
       </summary>
       <div className="space-y-3 border-t border-[#d6e3e4] p-5 dark:border-zinc-700">
         <p className="text-xs leading-5 text-zinc-600 dark:text-zinc-400">
-          Ask about this activity. Asking shares a short excerpt of this product and your draft with your workspace’s
-          configured AI, if available. Suggestions never change the record.
+          Ask about this activity. Asking shares a short excerpt of this product and your draft with your
+          workspace’s configured AI, if available. Suggestions never change the record.
         </p>
         <div className="flex flex-wrap gap-2">
           {[
             'Why does this matter?',
             ...(typeof draft === 'string' && draft.trim() ? ['Help rewrite my draft'] : []),
+            'Explain this checkpoint',
             'What should I do next?'
           ].map((text) => (
-            <Button key={text} variant="secondary" size="sm" disabled={ask.isPending} onClick={() => ask.mutate(text)}>
+            <Button
+              key={text}
+              variant="secondary"
+              size="sm"
+              disabled={ask.isPending}
+              onClick={() => ask.mutate(text)}
+            >
               {text}
             </Button>
           ))}

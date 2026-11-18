@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { rewardOverrides } from './services/reward-rules.js';
+
 const bool = z
   .enum(['true', 'false', '1', '0', 'yes', 'no'])
   .transform((v) => v === 'true' || v === '1' || v === 'yes');
@@ -14,6 +16,7 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
   /** Preserve legacy automatic migrations by default. Controlled deployments may disable them. */
+  BUILDER_XP_RULES: rewardOverrides,
   MIGRATIONS_ON_STARTUP: bool.default(true),
   /** Session lifetime in days. Sessions slide forward while in use. */
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),

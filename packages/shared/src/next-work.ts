@@ -9,7 +9,8 @@ export function nextWork(
   product: Product,
   journey: Journey,
   recommendations: Recommendation[],
-  drafts: ActivityDraft[] = []
+  drafts: ActivityDraft[] = [],
+  trail?: import('./worlds.js').Trail
 ) {
   const root = `/products/${product.id}`;
   const stage = journey.current;
@@ -37,6 +38,23 @@ export function nextWork(
       ? `${root}/tasks`
       : `${root}/journey?stage=${urgent.stage}&activity=${encodeURIComponent(urgent.activityKey)}`;
     return plan(urgent.label, urgent.because, target, 'Review next step');
+  }
+  const world = trail?.worlds.find((w) => w.stage === product.stage);
+  if (world?.ready && !world.finished)
+    return plan(
+      `Close the ${world.stage} world`,
+      `Your ${CHAPTER_BRIEFS[world.stage].toLowerCase()} meets the checkpoint. Review it before recording the milestone.`,
+      `${root}/journey#checkpoint-${world.stage}`,
+      'Review milestone'
+    );
+  if (trail?.next && !stage.complete) {
+    const lesson = trail.next;
+    return plan(
+      lesson.title,
+      lesson.reason ?? `Build this part of the ${CHAPTER_BRIEFS[stage.id].toLowerCase()}.`,
+      lesson.href + (lesson.href.includes('/discover?') ? '&guided=1' : ''),
+      lesson.href.includes('&activity=') ? 'Open review' : 'Continue building'
+    );
   }
   if (stage.complete) {
     if (stage.id === 'Improvement')

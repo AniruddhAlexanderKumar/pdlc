@@ -60,7 +60,26 @@ function finishedProduct(stage: (typeof STAGE_IDS)[number]): Product {
   for (const stageId of STAGE_IDS.slice(0, stageIndex(stage) + 1)) {
     for (const q of stageQuestAllQuestions(stageId)) {
       if (!q.required) continue;
-      answers[q.key] = q.type === 'number' || q.type === 'money' ? 100 : q.type === 'yesno' ? true : q.type === 'scale' ? 5 : q.type === 'choice' ? (q.options?.[0] ?? 'x') : q.type === 'date' ? '2026-01-01' : q.type === 'multi' ? [(q.options ?? ['x'])[0]!] : 'text';
+      answers[q.key] =
+        q.type === 'ranked'
+          ? ['Pilot booking']
+          : q.type === 'evidence'
+            ? ['Research finding', 'Recorded trial', 'Trial notebook, 2 May']
+            : q.type === 'comparison'
+              ? ['Delivery time', 'Option A: 2 days', 'Option B: 3 days']
+              : q.type === 'number' || q.type === 'money'
+                ? 100
+                : q.type === 'yesno'
+                  ? true
+                  : q.type === 'scale'
+                    ? 5
+                    : q.type === 'choice'
+                      ? (q.options?.[0] ?? 'x')
+                      : q.type === 'date'
+                        ? '2026-01-01'
+                        : q.type === 'multi'
+                          ? [(q.options ?? ['x'])[0]!]
+                          : 'text';
     }
   }
   return { ...p, answers: answers as Product['answers'] };

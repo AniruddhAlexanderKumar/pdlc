@@ -41,7 +41,12 @@ const completeIdea = (stage: StageId = 'Idea', extra: Partial<Product> = {}) =>
   product({
     stage,
     description: 'A bottle',
-    answers: { 'idea.problem': 'Leaks', 'idea.customer': 'Commuters', 'idea.oneliner': 'A bottle' },
+    answers: {
+      'idea.problem': 'Leaks',
+      'idea.customer': 'Commuters',
+      'idea.promise': 'Keep the bag dry',
+      'idea.oneliner': 'A bottle'
+    },
     ...extra
   });
 
@@ -63,12 +68,8 @@ describe('stage gating', () => {
     assert.equal(canTransition(completeIdea(), 'Research', materials).allowed, true);
   });
 
-  it('gates only on the current stage, so skipping ahead is refused by the missing checklist', () => {
-    // A complete Idea unlocks the *next* stage. Jumping straight to Design is a
-    // forward move from a stage whose own checklist is satisfied, so the gate
-    // permits it; the journey UI is what restricts navigation to available
-    // stages. Keeping this explicit stops the rule drifting silently.
-    assert.equal(canTransition(completeIdea(), 'Design', materials).allowed, true);
+  it('does not skip an unreached world even when Idea is complete', () => {
+    assert.equal(canTransition(completeIdea(), 'Design', materials).allowed, false);
   });
 
   it('always allows moving backwards to revisit a completed stage', () => {
@@ -127,15 +128,28 @@ describe('stage gating', () => {
       product({
         stage: 'Research',
         description: 'A bottle',
-        tasks: [{ id: 't1', title: 'Schedule interviews', chapter: 'Research', description: '', status: 'todo', dueDate: null, position: 0, completedAt: null }],
+        tasks: [
+          {
+            id: 't1',
+            title: 'Schedule interviews',
+            chapter: 'Research',
+            description: '',
+            status: 'todo',
+            dueDate: null,
+            position: 0,
+            completedAt: null
+          }
+        ],
         answers: {
           'idea.problem': 'Leaks',
           'idea.customer': 'Commuters',
+          'idea.promise': 'Keep the bag dry',
           'idea.oneliner': 'A bottle',
           'research.comparison': ['Lid design', 'Bottle A: screw top', 'Bottle B: clip'],
           'research.profile': 'Commuters who refill during travel',
           'research.interview': 'Ask about the last spill during a commute',
-          'research.finding': ['Founder assumption', 'People may prefer a locking lid', 'Interview planned'],
+          'research.to_check': ['Will the lid fit?'],
+          'research.finding': ['Research finding', 'The sample closure leaked in the trial', 'Dated trial log'],
           'research.competitors': 'Generic bottles',
           'research.market_price': 20,
           'research.validated': true,

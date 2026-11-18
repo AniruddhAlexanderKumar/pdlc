@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import {
+  WORLD_UNITS,
+  STAGE_IDS,
   CHAPTER_BRIEFS,
   costSummary,
   nextWork,
@@ -12,11 +14,12 @@ import {
 } from '@sv/shared';
 import { auth } from '../auth/session.js';
 import { db } from '../db/index.js';
-import { HttpError, notFound, parse, route, uuid } from '../lib/http.js';
+import { conflict, forbidden, HttpError, notFound, parse, route, uuid } from '../lib/http.js';
 import { generateAssistantReply } from '../services/assistant-ai.js';
-import { assertProduct } from '../services/repo.js';
+import { assertProduct, loadProduct } from '../services/repo.js';
 import { journeyFor } from '../services/collaboration.js';
-import { param } from './util.js';
+import { readTrail } from '../services/world-trail.js';
+import { mutateProduct, param } from './util.js';
 
 export const lessonsRouter = Router();
 const draftValue = z.union([
@@ -63,7 +66,15 @@ lessonsRouter.put(
     const a = auth(req),
       id = parse(uuid, param(req, 'id')),
       q = question(param(req, 'key'));
-    const body = parse(z.object({ value: draftValue, previousValue: draftValue }).strict(), req.body);
+    const body = parse(
+      z
+        .object({
+          value: draftValue,
+          previousValue: z.json().refine((v) => JSON.stringify(v).length <= 30000, 'Prior answer too large')
+        })
+        .strict(),
+      req.body
+    );
     await db.transaction().execute(async (trx) => {
       await assertProduct(trx, a.workspaceId, id, true);
       const fields = {
@@ -120,10 +131,19 @@ lessonsRouter.post(
       db.selectFrom('workspaces').select('currency').where('id', '=', a.workspaceId).executeTakeFirstOrThrow(),
       draftsFor(a.workspaceId, a.userId, id)
     ]);
-    const recs = recommendNextActions({ product, journey, records: collab.records, dependencies: collab.dependencies });
-    const next = nextWork(product, journey, recs, drafts);
+    const recs = recommendNextActions({
+      product,
+      journey,
+      records: collab.records,
+      dependencies: collab.dependencies
+    });
+    const trail = await readTrail(db, a.workspaceId, a.userId, product, journey);
+    const next = nextWork(product, journey, recs, drafts, trail);
     const { lines: _catalog, ...totals } = costSummary(product, materials);
     const advanced = user.guide_mode === 'advanced';
+    const unit = q.stage === 'Retired' ? undefined : WORLD_UNITS[q.stage].find((u) => u.keys.includes(q.key));
+    const world = trail.worlds.find((w) => w.stage === q.stage);
+    const remaining = world?.missing ?? [];
     const data = { source: 'guide', text: '', next };
     if (/what.*next|next (step|action)/i.test(message)) {
       data.text = `For ${product.name}: ${next.title}\n${next.reason}`;
@@ -138,14 +158,18 @@ lessonsRouter.post(
       const costing = /cost|price|margin|budget/i.test(message);
       const estimate = `Your cost sheet currently records ${ws.currency} ${totals.totalUnitCost} per sale. ${totals.targetPrice == null ? 'No selling price is set.' : `The target selling price is ${ws.currency} ${totals.targetPrice}.`} Missing inputs can make this estimate too low.`;
       const fallback = `${costing ? estimate + '\n\n' : ''}${tip.help}\n\nExample (not a finding about ${product.name}): ${tip.example}\n\nFor your ${CHAPTER_BRIEFS[q.stage].toLowerCase()}: ${advanced ? tip.advanced : tip.prompt}`;
-      data.text = fallback;
+      const checkpoint = /checkpoint|outstanding|still need/i.test(message);
+      data.text = checkpoint
+        ? `${q.stage} checkpoint: ${remaining.length ? 'Still needed: ' + remaining.join('; ') : 'All required evidence is recorded.'}. ${fallback}`
+        : fallback;
       if (!a.isDemo) {
         // Only this deliberately selected product. Do not send workspace catalogs,
         // member identities, comments, other products or other people's drafts.
         const answers = Object.entries(product.answers)
           .sort(
             ([k], [l]) =>
-              Number(QUESTIONS_BY_KEY.get(l)?.stage === q.stage) - Number(QUESTIONS_BY_KEY.get(k)?.stage === q.stage)
+              Number(QUESTIONS_BY_KEY.get(l)?.stage === q.stage) -
+              Number(QUESTIONS_BY_KEY.get(k)?.stage === q.stage)
           )
           .slice(0, 24);
         const context = {
@@ -153,6 +177,12 @@ lessonsRouter.post(
           kind: product.productKind,
           stage: product.stage,
           chapter: q.stage,
+          unit: unit?.title,
+          checkpointMissing: remaining,
+          relatedDocuments: trail.sources
+            .filter((s) => s.keys.includes(q.key))
+            .slice(0, 4)
+            .map((s) => ({ title: s.label, excerpt: s.excerpt.slice(0, 320) })),
           activity: q.prompt,
           mode: user.guide_mode,
           concept: product.description.slice(0, 600),
@@ -181,10 +211,62 @@ lessonsRouter.post(
           data.source = 'ai';
         } catch (e) {
           if (!(e instanceof HttpError)) throw e;
-          data.text = `${e.status === 402 ? 'No assistant credits are available.' : 'Live AI is unavailable.'} Here is the built-in guide.\n\n${fallback}`;
+          data.text = `${e.status === 402 ? 'No assistant credits are available.' : 'Live AI is unavailable.'} Here is the built-in guide.\n\n${data.text}`;
         }
       }
     }
     res.set('Cache-Control', 'no-store').json(data);
+  })
+);
+
+// Never accept a score, evidence verdict, author, amount, or workspace ID from the client.
+lessonsRouter.post(
+  '/:id/worlds/:world/:operation',
+  route(async (req, res) => {
+    const id = parse(uuid, param(req, 'id')),
+      world = parse(z.enum(STAGE_IDS).exclude(['Retired']), param(req, 'world')),
+      op = parse(z.enum(['check', 'finish']), param(req, 'operation'));
+    parse(z.object({}).strict(), req.body ?? {});
+    const result = await mutateProduct(req, id, async (trx, ledger, ctx) => {
+      const product = await loadProduct(trx, ctx.workspaceId, id);
+      await ledger.checkWorld(product, world, op === 'finish');
+      return product;
+    });
+    res.json(result);
+  })
+);
+
+// One-time repair of an unrecognisable historical placement; never a self-service skip or XP claim.
+lessonsRouter.post(
+  '/:id/placement',
+  route(async (req, res) => {
+    const a = auth(req);
+    if (a.role === 'member') throw forbidden('A workspace owner or admin must confirm the historical position.');
+    const id = parse(uuid, param(req, 'id')),
+      { stage } = parse(z.object({ stage: z.enum(STAGE_IDS).exclude(['Retired']) }).strict(), req.body);
+    const result = await mutateProduct(req, id, async (trx, _ledger, ctx) => {
+      const p = await loadProduct(trx, ctx.workspaceId, id);
+      const u = await trx
+        .updateTable('journey_upgrades')
+        .set({ needs_placement: false })
+        .where('product_id', '=', id)
+        .where('needs_placement', '=', true)
+        .returning('product_id')
+        .executeTakeFirst();
+      if (!u) throw conflict('This product does not need a historical placement decision.');
+      const high =
+        STAGE_IDS[Math.max(STAGE_IDS.indexOf(stage), p.legacyStage ? STAGE_IDS.indexOf(p.legacyStage) : 0)];
+      await trx
+        .updateTable('products')
+        .set({ stage, legacy_stage: high, updated_at: new Date() })
+        .where('id', '=', id)
+        .execute();
+      await trx
+        .insertInto('stage_history')
+        .values({ product_id: id, from_stage: p.stage, to_stage: stage, user_id: ctx.userId })
+        .execute();
+      return loadProduct(trx, ctx.workspaceId, id);
+    });
+    res.json(result);
   })
 );

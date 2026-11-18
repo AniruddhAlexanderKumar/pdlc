@@ -1,3 +1,4 @@
+import { WorldPath } from '../../components/journey/WorldPath';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ArrowLeft, Box, ClipboardList, Edit3, Lightbulb, Map as MapIcon, MessageCircleQuestion, Package, Receipt, Trash2, Wrench } from 'lucide-react';
@@ -47,6 +48,7 @@ export function ProductPage() {
   return <ProductWorkspace key={product.id} product={product} tab={tab} catalog={query.data.materials}/>;
 }
 function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: string; catalog: import('@sv/shared').Material[] }) {
+  const pOnPath = product.stage !== 'Retired';
   const id = product.id, navigate = useNavigate(), materials = useMaterialsMap(catalog);
   const update = useUpdateProduct(id), remove = useDeleteProduct(), confirm = useConfirm(), { fmt } = useMoney();
   const [editing, setEditing] = useState(false);
@@ -83,7 +85,7 @@ function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: st
     } });
   };
   const openHref = (href: string) => navigate(href);
-  const work = nextWork(product, journey, collab?.recommendations ?? [], drafts.data);
+  const work = nextWork(product, journey, collab?.recommendations ?? [], drafts.data, collab?.trail);
   const openActivity = (key: string) => {
     const stageOf = focused.activities.some(a => a.id === key) ? focused : journey.stages.find(st => st.activities.some(a => a.id === key));
     const activity = stageOf?.activities.find(a => a.id === key);
@@ -117,10 +119,13 @@ function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: st
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#16598d]/10 px-2.5 py-1 text-xs font-semibold text-[#16598d] dark:text-blue-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#16598d] dark:bg-blue-400" aria-hidden="true" />
-                  {product.stage === 'Retired' ? 'Archived product' : `Chapter ${journey.currentIndex + 1} of ${journey.totalCount} · ${product.stage}`}
+                  {product.stage === 'Retired'
+                    ? 'Archived product'
+                    : `Chapter ${journey.currentIndex + 1} of ${journey.totalCount} · ${product.stage}`}
                 </span>
                 <span className="text-xs tabular-nums text-zinc-500">
-                  {journey.overallPercent}% of the journey · {journey.current.done}/{journey.current.total} core activities
+                  {journey.overallPercent}% of the journey · {journey.current.done}/{journey.current.total} core
+                  activities
                 </span>
               </div>
             </div>
@@ -140,7 +145,11 @@ function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: st
                 <p
                   className={cx(
                     'font-semibold tabular-nums',
-                    summary.grossMargin === null || !summary.totalUnitCost ? '' : summary.grossMargin >= 30 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                    summary.grossMargin === null || !summary.totalUnitCost
+                      ? ''
+                      : summary.grossMargin >= 30
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-amber-600 dark:text-amber-400'
                   )}
                 >
                   {summary.grossMargin === null || !summary.totalUnitCost ? '—' : `${summary.grossMargin}%`}
@@ -157,7 +166,13 @@ function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: st
             </div>
           </div>
         </div>
-        {activeTab !== 'discover' && activeTab !== 'overview' && activeTab !== 'journey' && <div className="mt-4"><Link className="sv-link inline-flex items-center gap-2 text-sm" to={work.href}><MapIcon size={15}/> {work.action}: {work.title}</Link></div>}
+        {activeTab !== 'discover' && activeTab !== 'overview' && activeTab !== 'journey' && (
+          <div className="mt-4">
+            <Link className="sv-link inline-flex items-center gap-2 text-sm" to={work.href}>
+              <MapIcon size={15} /> {work.action}: {work.title}
+            </Link>
+          </div>
+        )}
         <nav className="-mb-px mt-3 flex gap-1 overflow-x-auto" aria-label="Product sections">
           {TABS.map((t) => (
             <button
@@ -179,7 +194,10 @@ function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: st
       </header>
 
       <div className="flex-1 px-4 py-5 md:px-6">
-        {activeTab === 'journey' && (
+        {activeTab === 'journey' && !params.get('stage') && pOnPath && (
+          <WorldPath product={product} materials={materials} />
+        )}
+        {activeTab === 'journey' && (!pOnPath || !!params.get('stage')) && (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
             <div className="hidden space-y-4 lg:block">
               <Card className="h-fit p-4">
@@ -188,10 +206,38 @@ function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: st
               {collab && <TeamContributionCard team={collab.team} currentUserId={me.user.id} />}
             </div>
             <div className="min-w-0 space-y-4">
-              <label className="flex items-center gap-3 text-sm lg:hidden">View chapter <select className="rounded-md border bg-white p-2 dark:bg-zinc-900" value={focused.id} onChange={e => setFocusStage(e.target.value as StageId)}>{journey.stages.map(st => <option key={st.id}>{st.id}</option>)}</select></label>
-              {collabQuery.isError && <p className="rounded-md border p-3 text-sm" role="status">Team activity could not be refreshed. <button className="sv-link" onClick={() => collabQuery.refetch()}>Try again</button></p>}
-              {focused.id === product.stage && !focused.complete && <div className="sv-inset p-5"><p className="sv-kicker">Continue building</p><h2 className="mt-2 text-lg font-semibold">{work.title}</h2><p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{work.reason}</p><Link className="sv-link mt-3 inline-block text-sm" to={work.href}>{work.action} →</Link></div>}
+              <label className="flex items-center gap-3 text-sm lg:hidden">
+                View chapter{' '}
+                <select
+                  className="rounded-md border bg-white p-2 dark:bg-zinc-900"
+                  value={focused.id}
+                  onChange={(e) => setFocusStage(e.target.value as StageId)}
+                >
+                  {journey.stages.map((st) => (
+                    <option key={st.id}>{st.id}</option>
+                  ))}
+                </select>
+              </label>
+              {collabQuery.isError && (
+                <p className="rounded-md border p-3 text-sm" role="status">
+                  Team activity could not be refreshed.{' '}
+                  <button className="sv-link" onClick={() => collabQuery.refetch()}>
+                    Try again
+                  </button>
+                </p>
+              )}
+              {focused.id === product.stage && !focused.complete && (
+                <div className="sv-inset p-5">
+                  <p className="sv-kicker">Continue building</p>
+                  <h2 className="mt-2 text-lg font-semibold">{work.title}</h2>
+                  <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{work.reason}</p>
+                  <Link className="sv-link mt-3 inline-block text-sm" to={work.href}>
+                    {work.action} →
+                  </Link>
+                </div>
+              )}
               <StageOverview
+                checkpointXp={collab?.trail.rewards.checkpoint}
                 product={product}
                 stage={focused}
                 nextStageId={focused.id === product.stage ? journey.nextStageId : null}
@@ -204,19 +250,25 @@ function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: st
                     ? () => (
                         <StageActivities
                           productId={product.id}
-                          journey={journey} answers={product.answers} dependencies={collab.dependencies}
+                          journey={journey}
+                          answers={product.answers}
+                          dependencies={collab.dependencies}
                           stage={focused}
                           team={collab.team}
                           canManage={me.workspace.role !== 'member'}
                           currentUserId={me.user.id}
-                          busy={assign.isPending || setStatus.isPending || submitReview.isPending || review.isPending}
+                          busy={
+                            assign.isPending || setStatus.isPending || submitReview.isPending || review.isPending
+                          }
                           openKey={openActivityKey}
                           onToggleKey={(key) => setOpenActivityKey((cur) => (cur === key ? null : key))}
                           onOpenActivity={openActivity}
                           onAssign={(key, assigneeId) => assign.mutate({ key, assigneeId })}
                           onStatus={(key, status) => setStatus.mutate({ key, status })}
                           onSubmitReview={(key) => submitReview.mutate({ key })}
-                          onReview={(key, decision, note) => review.mutate({ key, decision, note, expectedAnswer: product.answers[key] ?? null })}
+                          onReview={(key, decision, note) =>
+                            review.mutate({ key, decision, note, expectedAnswer: product.answers[key] ?? null })
+                          }
                           onJumpToBlocker={openActivity}
                         />
                       )
@@ -226,7 +278,16 @@ function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: st
             </div>
           </div>
         )}
-        {activeTab === 'overview' && <OverviewTab journey={journey} work={work} product={product} materials={materials} goTab={goTab} openHref={openHref} />}
+        {activeTab === 'overview' && (
+          <OverviewTab
+            journey={journey}
+            work={work}
+            product={product}
+            materials={materials}
+            goTab={goTab}
+            openHref={openHref}
+          />
+        )}
         {activeTab === 'discover' && <DiscoverTab product={product} />}
         {activeTab === 'materials' && <MaterialsTab product={product} materials={materials} />}
         {activeTab === 'costs' && <CostsTab product={product} materials={materials} />}
@@ -236,7 +297,6 @@ function ProductWorkspace({ product, tab, catalog }: { product: Product; tab: st
       </div>
 
       {editing && <EditProductModal product={product} onClose={() => setEditing(false)} />}
-
     </div>
   );
 }

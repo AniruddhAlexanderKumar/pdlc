@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, X } from 'lucide-react';
-import { EVIDENCE_TYPES, type AnswerValue, type Question } from '@sv/shared';
+import { normaliseAnswer, EVIDENCE_TYPES, type AnswerValue, type Question } from '@sv/shared';
 import { Button, cx, Field, IconButton, Input, Select, Textarea } from '../ui';
 import { useMoney } from '../../lib/money';
 
@@ -298,6 +298,7 @@ export function AnswerInput({
 
 export function formatAnswer(q: Question, v: AnswerValue, fmt: (n: number) => string) {
   if (v === null || v === undefined) return '';
+  if ('error' in normaliseAnswer(q, v)) return 'Prior format: ' + JSON.stringify(v);
   if (q.type === 'money' && typeof v === 'number') return fmt(v);
   if (q.type === 'yesno') return v ? 'Yes' : 'Not yet';
   if (q.type === 'scale') return `${v} / 5`;

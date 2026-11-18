@@ -1,5 +1,7 @@
 # Solution Velocity
 
+**Connect the Tools. Accelerate the Build.**
+
 A workspace for taking a product from a rough idea to a tested release and a next iteration. Start with the product you have today: a physical product, software, a service or an idea you are still exploring. Each short activity adds something you can read, share and revise in the product’s chapter brief.
 
 **Try it:** open the field guide on the landing page, then choose **Explore demo** for a temporary sample workspace or **Start building** to create your own. On a closed-registration server, request access or use an invitation. See the [first-product walkthrough](BEGINNER_GUIDE.md).
@@ -15,7 +17,7 @@ A workspace for taking a product from a rough idea to a tested release and a nex
 | Launch | A launch plan: audience, channel, release checks, price and success measures |
 | Improvement | An iteration brief: feedback, ordered changes and a chapter to revisit |
 
-The building desk shows the active product, a resumable next step and what still needs attention. A founder can keep a draft private, record an answer for the workspace, or ask for guidance without changing either. A chapter milestone counts recorded work, not market validation. The existing project dashboards, tasks, cost sheet, materials, suppliers, Design Studio and workspace settings remain available.
+The building desk is a connected path of **eight worlds and 24 units**. Pick a product to see its current lesson, next checkpoint, real deliverables and personal quests. [Progression rules and migration runbook →](docs/operations/world-progression.md) A founder can keep a draft private, record an answer for the workspace, or ask for guidance without changing either. A chapter milestone counts recorded work, not market validation. The existing project dashboards, tasks, cost sheet, materials, suppliers, Design Studio and workspace settings remain available.
 
 ---
 
@@ -196,16 +198,19 @@ npm run migrate
 | Action                                   | XP                     |
 | ---------------------------------------- | ---------------------- |
 | Create a product                         | 20                     |
-| Answer a discovery question              | 5–15 (per question)    |
+| Answer a discovery question              | 5–30 (per question)    |
 | Complete a task                          | 15                     |
 | Add a material to a product              | 5                      |
 | Set a price / complete a cost estimate          | 10 / 20                |
 | Move to the next chapter after completing the current one           | 50                     |
-| Complete a stage quest                   | 100                    |
+| Complete a unit / pass a checkpoint / finish a world | 50 / 100 / 200 |
+| Complete a daily / weekly quest          | 20 / 75                |
 | Apply an improvement suggestion          | 25                     |
 | Add a supplier / library material        | 10 / 5                 |
 
 New credit is unique across the workspace for the work reference (for example, the product plus question key). Revising, clearing/refilling, changing assignee or repeating a cycle cannot earn that credit again. Drafts earn no credit. Historical credits are retained on upgrade. Levels need `50 × L × (L − 1)` total XP (L2 = 100, L3 = 300, L4 = 600…). The rules live in [packages/shared/src/gamification.ts](packages/shared/src/gamification.ts).
+
+An operator can tune future awards with `BUILDER_XP_RULES`. See the [cutover and reward rules](docs/operations/world-progression.md) for defaults, ledger scope, historical recognition, and pre/post upgrade reports.
 
 ### Adding or changing questions
 

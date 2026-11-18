@@ -1,8 +1,18 @@
-import { KIND_LABELS, PATH_STAGES, PRODUCT_KINDS, type GuideMode, type ProductKind, type StageId } from '@sv/shared';
+import { useState } from 'react';
+import { readNote } from './RecordedWork';
+import {
+  KIND_LABELS,
+  PATH_STAGES,
+  PRODUCT_KINDS,
+  type GuideMode,
+  type ProductKind,
+  type StageId
+} from '@sv/shared';
 import { Field, Input, Select } from '../ui';
 
 export const startValues = (guideMode: GuideMode = 'beginner') => ({
   name: '',
+  notes: '',
   productKind: 'other' as ProductKind,
   startingStage: 'Idea' as StageId,
   guideMode
@@ -16,6 +26,7 @@ export function ProductStartFields({
   value: ReturnType<typeof startValues>;
   onChange: (v: ReturnType<typeof startValues>) => void;
 }) {
+  const [error, setError] = useState('');
   return (
     <div className="space-y-4">
       <Field label="Product name" htmlFor="product-name" hint="A working name is enough. You can change it later.">
@@ -68,6 +79,43 @@ export function ProductStartFields({
           <option value="advanced">Experienced builder · advanced guidance</option>
         </Select>
       </Field>
+      <details className="sv-inset p-3 text-xs">
+        <summary className="cursor-pointer font-semibold">Already developing this? Bring existing work</summary>
+        <p className="my-2">
+          Choose your current world above. Paste or import a project note, review it, then create the product. It
+          will be saved in the product notebook, not treated as verified completion.
+        </p>
+        <label>
+          Project notebook
+          <textarea
+            className="my-2 block w-full rounded border bg-transparent p-2"
+            rows={4}
+            value={value.notes}
+            maxLength={10000}
+            onChange={(e) => onChange({ ...value, notes: e.target.value })}
+          />
+        </label>
+        <label>
+          Import text (.txt / .md)
+          <input
+            className="block w-full"
+            type="file"
+            accept=".txt,.md"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              try {
+                const notes = await readNote(f, 10000);
+                onChange({ ...value, notes });
+                setError('');
+              } catch (err) {
+                setError((err as Error).message);
+              }
+            }}
+          />
+        </label>
+        {error && <p role="alert">{error}</p>}
+      </details>
     </div>
   );
 }
