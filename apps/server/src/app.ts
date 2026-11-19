@@ -21,6 +21,7 @@ import { materialsRouter, suppliersRouter } from './routes/catalog.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { productsRouter } from './routes/products.js';
 import { collaborationRouter, notificationsRouter } from './routes/collaboration.js';
+import { journeyRouter } from './routes/journey.js';
 import { projectsRouter } from './routes/projects.js';
 import { teamworkGraphRouter } from './routes/teamwork-graph.js';
 import { graphIntelligenceRouter } from './routes/graph-intelligence.js';
@@ -154,6 +155,7 @@ export function createApp() {
   api.use('/dashboard', requireAuth, dashboardRouter);
   api.use('/products', requireAuth, productsRouter);
   api.use('/products', requireAuth, collaborationRouter);
+  api.use('/products', requireAuth, journeyRouter);
   api.use('/notifications', requireAuth, notificationsRouter);
   api.use('/projects', requireAuth, projectsRouter);
   api.use('/teamwork-graph', requireAuth, graphIntelligenceRouter, teamworkGraphRouter);

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { buildJourney, STAGE_IDS, type Material, type Product } from '@sv/shared';
-import { JourneyMap } from './JourneyMap';
+import { StageJourneyMap } from './StageJourneyMap';
 import { StageOverview } from './StageOverview';
 
 const steel: Material = {
@@ -43,7 +43,7 @@ const completeIdea = product({
   answers: { 'idea.problem': 'Leaks', 'idea.customer': 'Commuters', 'idea.oneliner': 'A bottle' }
 });
 
-const renderMap = (p: Product) => renderToStaticMarkup(<JourneyMap journey={buildJourney(p, { materials })} onSelect={() => {}} />);
+const renderMap = (p: Product) => renderToStaticMarkup(<StageJourneyMap journey={buildJourney(p, { materials })} onSelect={() => {}} />);
 
 test('the journey map shows every stage and all three existing phases', () => {
   const html = renderMap(product());

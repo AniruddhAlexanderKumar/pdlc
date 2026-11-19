@@ -22,7 +22,7 @@ export function AchievementsPage() {
 
   return (
     <>
-      <PageHeader title="Achievements" subtitle="Earn XP by learning about your products, tracking costs and making them better." />
+      <PageHeader title="Achievements" subtitle="Earn XP by working through the journey — every lesson, unit and world you finish counts." />
       <div className="grid gap-5 px-4 py-5 md:px-6 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Card className="overflow-hidden">

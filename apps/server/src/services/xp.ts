@@ -1,6 +1,7 @@
 import { sql } from 'kysely';
 import {
   ACHIEVEMENTS,
+  WORLDS,
   XP,
   costSummary,
   levelFromXp,
@@ -155,6 +156,39 @@ export async function playerStats(db: Db, workspaceId: string, userId: string): 
     }
   }
 
+  // ── Journey achievements ──
+  // Counted from the completion rows this player actually wrote, not from XP,
+  // so a badge cannot be earned without the work behind it.
+  const [lessonRows, checkpointRows, streakRows] = await Promise.all([
+    db
+      .selectFrom('lesson_progress')
+      .select(['product_id', 'lesson_id'])
+      .where('user_id', '=', userId)
+      .where('status', '=', 'completed')
+      .execute(),
+    db
+      .selectFrom('journey_checkpoints')
+      .select(['checkpoint_id'])
+      .where('user_id', '=', userId)
+      .where('status', '=', 'passed')
+      .execute(),
+    db
+      .selectFrom('xp_events')
+      .select(sql<string>`to_char(created_at, 'YYYY-MM-DD')`.as('day'))
+      .where('workspace_id', '=', workspaceId)
+      .where('user_id', '=', userId)
+      .where('kind', 'in', ['lesson', 'checkpoint'])
+      .orderBy('created_at', 'desc')
+      .limit(400)
+      .execute()
+  ]);
+
+  const lessonsCompleted = new Set(lessonRows.map((r) => r.lesson_id)).size;
+  const checkpointsPassed = new Set(checkpointRows.map((r) => r.checkpoint_id)).size;
+  const unitsCompleted = countCompletedUnits(lessonRows);
+  const worldsCompleted = countCompletedWorlds(checkpointRows.map((r) => r.checkpoint_id));
+  const journeyStreakDays = streakFromDays(streakRows.map((r) => r.day));
+
   const ctx = {
     productsCreated: kinds.product_created ?? 0,
     questionsAnswered: kinds.answer ?? 0,
@@ -165,7 +199,12 @@ export async function playerStats(db: Db, workspaceId: string, userId: string): 
     launchedProducts: launches.n,
     bestMargin,
     suppliers: suppliers.n,
-    streakDays
+    streakDays,
+    lessonsCompleted,
+    unitsCompleted,
+    worldsCompleted,
+    checkpointsPassed,
+    journeyStreakDays
   };
 
   const lvl = levelFromXp(totals.xp);
@@ -207,4 +246,25 @@ export async function leaderboard(db: Db, workspaceId: string): Promise<Leaderbo
     .orderBy('xp', 'desc')
     .execute();
   return rows.map((r) => ({ userId: r.id, name: r.name, xp: r.xp, weeklyXp: r.weekly, level: levelFromXp(r.xp).level }));
+}
+
+/** How many distinct (product, unit) pairs have every one of their lessons complete. */
+function countCompletedUnits(rows: { product_id: string; lesson_id: string }[]): number {
+  const done = new Set(rows.map((r) => `${r.product_id}:${r.lesson_id}`));
+  let count = 0;
+  for (const world of WORLDS) {
+    for (const unit of world.units) {
+      const productIds = new Set(rows.map((r) => r.product_id));
+      for (const productId of productIds) {
+        if (unit.lessons.every((l) => done.has(`${productId}:${l.id}`))) count++;
+      }
+    }
+  }
+  return count;
+}
+
+/** How many distinct world checkpoints this player has passed. */
+function countCompletedWorlds(checkpointIds: string[]): number {
+  const passed = new Set(checkpointIds);
+  return WORLDS.filter((w) => passed.has(w.checkpoint.id)).length;
 }
