@@ -15,6 +15,7 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AuthPage, ForgotPasswordPage, JoinPage, ResetPage, VerifyEmailPage } from './pages/auth/Auth';
 const AssistantPage = lazy(() => import('./pages/Assistant').then(m => ({ default: m.AssistantPage })));
 import { AssistantAdminPage } from './pages/admin/AssistantAdmin';
+import { HomeJourneyPage } from './pages/HomeJourney';
 import { DashboardPage } from './pages/Dashboard';
 import { LandingPage } from './pages/Landing';
 import { MaterialsPage } from './pages/Materials';
@@ -214,7 +215,9 @@ const router = createBrowserRouter([
           {
             element: <Layout />,
             children: [
-              { path: '/', element: <DashboardPage /> },
+              // The journey is the product's home screen.
+              { path: '/', element: <HomeJourneyPage /> },
+              { path: '/dashboard', element: <DashboardPage /> },
               { path: '/products', element: <ProductsPage /> },
               { path: '/projects', element: <ProjectsPage /> },
               { path: '/designs', element: <CaditStudioPage /> },
