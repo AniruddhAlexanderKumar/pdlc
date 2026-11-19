@@ -10,7 +10,7 @@ async function call(cookie, method, path, body) {
   return {status: response.status, data, cookie: response.headers.get('set-cookie')?.split(';')[0]};
 }
 const stamp = Date.now(); const pw = `Test-${stamp}Abc9`;
-const register = async n => { const r = await call('', 'POST', '/auth/register', {name: `Graph ${n}`, email: `graph-${stamp}-${n}@example.com`, password: pw, workspaceName: `Graph ${n}`}); assert.equal(r.status, 201, JSON.stringify(r.data)); return r.cookie; };
+const register = async n => { const r = await call('', 'POST', '/auth/register', {acceptedTerms:true,name: `Graph ${n}`, email: `graph-${stamp}-${n}@example.com`, password: pw, workspaceName: `Graph ${n}`}); assert.equal(r.status, 201, JSON.stringify(r.data)); return r.cookie; };
 const owner = await register('one'); const other = await register('two');
 const project = await call(owner, 'POST', '/projects', {key: 'GRAPH', name: 'Graph test'}); assert.equal(project.status, 201);
 const createIssue = async (cookie, projectId, summary) => {const r = await call(cookie, 'POST', `/projects/${projectId}/issues`, {summary}); assert.equal(r.status, 201, JSON.stringify(r.data)); return r.data;};

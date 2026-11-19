@@ -52,7 +52,9 @@ The current architecture has useful shared services but does not uniformly enfor
 | `memberships` | User-to-workspace relationship and `owner`/`admin`/`member` role |
 | `sessions` | Hashed session token, user/workspace, expiry, user-agent and IP |
 | `invites`, `password_resets` | Hashed one-time tokens, expiry and redemption state |
-| `products` | Workspace-scoped PDLC artifact with lifecycle stage, costs, price and description |
+| `email_verifications` | Hashed single-use email-confirmation tokens for new accounts |
+| `workspaces.onboarding` | The two onboarding answers (what is being built, starting point) shared by the workspace |
+| `products` | Workspace-scoped PDLC artifact with lifecycle stage, costs, price and description. The first product may be created during registration onboarding. |
 | `answers` | Product discovery answers keyed by stable question identifier |
 | `tasks` | Product-linked execution checklist; status is `todo`, `in_progress`, or `done` |
 | `projects` | Workspace-scoped work project with a unique key within its workspace and transactional next-issue counter |
@@ -66,6 +68,14 @@ The current architecture has useful shared services but does not uniformly enfor
 
 Artifacts are generally workspace-scoped. Project keys are unique per workspace; issue numbers are unique and allocated per project. The initial project/issue API checks the active workspace on project and issue reads/writes, and only permits assigning a workspace member. It does not yet have project-specific roles, configurable issue types/workflows, custom fields, issue relationships, comments, attachments, or issue-level change history.
 
+## Access policy, onboarding, and registration
+
+- **Access policy.** `packages/shared/src/access-policy.ts` is the single description of who may register and what an unpaid account receives. `ACCESS_POLICY` (`beta-open` default, `registered`, `invite-only`) selects it at boot; the legacy `ALLOW_SIGNUP=false` still means `invite-only`. `GET /api/auth/config` reports the policy, whether a payment step is required (never, in the shipping policies), whether email verification is enforced, and whether password recovery is available — the UI never promises a capability the deployment lacks.
+- **Entitlements vs. policy.** No code path requires a paid subscription to use the standard workspace, and no pricing, subscription, billing-history or entitlement table was removed. The pricing engine (`packages/shared/src/pricing.ts`, `apps/server/src/lib/pricing.ts`), education pricing, `access_requests` intake and admin proposals remain intact; only the public pricing surface was withdrawn. When paid plans are reintroduced they can read the same records.
+- **Registration transaction.** Account → workspace → membership (`owner`) → optional invite consumption → workspace profile derived from the onboarding answer → first product at the onboarding starting stage with its `stage_history` row and the ordinary 20 XP `product_created` award. Everything commits together or not at all; the unique email index is the final duplicate guard.
+- **Email verification.** Tokens are random, stored only as SHA-256 hashes in `email_verifications`, expire in 24 hours and are single use. A token is issued whenever `RESET_SMTP_*` is configured; verification is *enforced* only when `REQUIRE_EMAIL_VERIFICATION=true`. Sending happens after the registration transaction commits, and a failed delivery downgrades to a session so an account is never stranded unverifiable.
+- **Password recovery.** `POST /api/auth/forgot-password` reuses the existing `password_resets` table and `/reset` flow. It answers `202` with the same body for known and unknown addresses (no enumeration) and never reveals whether SMTP is configured.
+
 ## Authentication, authorization, and validation
 
 - Session tokens are generated as random tokens; only hashes are stored. Cookies are HTTP-only, `SameSite=Lax`, path `/`, and secure when `APP_URL` is HTTPS. Sessions expire and slide forward at most hourly.
@@ -77,7 +87,7 @@ Artifacts are generally workspace-scoped. Project keys are unique per workspace;
 
 ## Critical user flows
 
-1. **Register/sign in:** Auth page → `/api/auth/config` and register/login → account/workspace membership → session cookie → `/api/auth/me` → protected routes.
+1. **Register/sign in:** Public landing → **Get Started** → `/signup` (name, email, password + confirmation, Terms/Privacy acceptance, two onboarding questions) → `/api/auth/register` creates the account, workspace, membership, workspace-setup profile and first product in one transaction → optional verification email → session cookie → `/api/auth/me` → the gamified PDLC journey. Authentication policy (open registration vs. invite-only) is described by `ACCESS_POLICY`; see "Access policy and entitlements" below.
 2. **Invite a teammate:** Workspace owner/admin creates a one-time invite → recipient registers/accepts → invite consumed transactionally → membership and session created.
 3. **Develop a product:** Create product → answer stage questions → capture BOM/materials and costs → manage tasks and stage → calculate health/insights and XP.
 4. **Manage team/catalog:** Settings or catalog pages → workspace-scoped API routes → Kysely transactions where linked data must remain consistent.

@@ -1,4 +1,5 @@
 import type { AnswerValue } from './questions.js';
+import type { OnboardingStartingPoint } from './onboarding.js';
 import type { CurrencyCode, Role, StageId, TaskStatus } from './stages.js';
 
 /** Shapes exchanged between the API and the web app. */
@@ -9,6 +10,8 @@ export interface User {
   name: string;
   createdAt: string;
   isAdmin?: boolean;
+  /** ISO timestamp of confirmed email ownership; null when never verified. */
+  emailVerifiedAt?: string | null;
 }
 
 export type WorkspaceMode = 'solo' | 'team';
@@ -26,6 +29,23 @@ export interface Me {
   workspace: Workspace;
   workspaces: Workspace[];
   demo?: { expiresAt: string };
+  /** Present for real accounts: what access policy applied at sign-in. */
+  access?: {
+    policy: string;
+    standardAccess: 'full' | 'none';
+    emailVerified: boolean;
+    emailVerificationRequired: boolean;
+  };
+  /** Present until the founder completes the two-question onboarding. */
+  onboarding?: OnboardingState | null;
+}
+
+/** What the founder told us when they signed up, plus where it put them. */
+export interface OnboardingState {
+  building: string;
+  startingPoint: OnboardingStartingPoint;
+  startingStage: StageId;
+  completedAt: string;
 }
 
 export interface ProductCosts {

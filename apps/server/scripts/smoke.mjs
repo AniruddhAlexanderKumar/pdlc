@@ -13,9 +13,9 @@ async function call(method, path, body, opts = {}) {
 const ok = (c, m) => { console.log((c ? 'PASS' : 'FAIL') + ' ' + m); if (!c) process.exitCode = 1; };
 const email = `t${Date.now()}@example.com`;
 let r = await call('GET', '/auth/config'); ok(r.s===200, 'config ' + JSON.stringify(r.j));
-r = await call('POST', '/auth/register', { name: 'Test User', email, password: 'short' }); ok(r.s===400, 'weak pw rejected: ' + r.j.error);
-r = await call('POST', '/auth/register', { name: 'Test User', email, password: pw, workspaceName: 'Test Co' }); ok(r.s===201 && r.j.workspace.role==='owner', 'register ' + r.s);
-r = await call('POST', '/auth/register', { name: 'X', email, password: pw }); ok(r.s===409, 'dup email 409');
+r = await call('POST', '/auth/register', {acceptedTerms:true, name: 'Test User', email, password: 'short' }); ok(r.s===400, 'weak pw rejected: ' + r.j.error);
+r = await call('POST', '/auth/register', {acceptedTerms:true, name: 'Test User', email, password: pw, workspaceName: 'Test Co' }); ok(r.s===201 && r.j.workspace.role==='owner', 'register ' + r.s);
+r = await call('POST', '/auth/register', {acceptedTerms:true, name: 'X', email, password: pw }); ok(r.s===409, 'dup email 409');
 r = await call('GET', '/auth/me'); ok(r.s===200, 'me');
 r = await call('POST', '/products', { name: 'Evil' }, { origin: 'https://evil.example' }); ok(r.s===403, 'cross-origin blocked');
 r = await call('POST', '/workspace/sample-data'); ok(r.s===201 && r.j.products.length===4, 'sample data ' + r.s + ' ' + (r.j.error||''));
@@ -47,10 +47,10 @@ r = await call('POST', '/workspace/invites', { role: 'member' }); ok(r.s===201 &
 const inviteToken = r.j.url.split('/join/')[1];
 const ownerCookie = cookie; cookie='';
 r = await call('GET', `/auth/invite/${inviteToken}`); ok(r.s===200 && r.j.workspaceName==='Test Co', 'invite lookup');
-r = await call('POST', '/auth/register', { name: 'Member', email: 'm'+email, password: pw, inviteToken }); ok(r.s===201 && r.j.workspace.role==='member' && r.j.workspace.name==='Test Co', 'join via invite');
+r = await call('POST', '/auth/register', {acceptedTerms:true, name: 'Member', email: 'm'+email, password: pw, inviteToken }); ok(r.s===201 && r.j.workspace.role==='member' && r.j.workspace.name==='Test Co', 'join via invite');
 r = await call('PATCH', '/workspace', { name: 'Hacked' }); ok(r.s===403, 'member cannot edit workspace');
 r = await call('GET', '/workspace/data'); ok(r.j.products.length===5, 'member sees shared products');
-cookie=''; r = await call('POST', '/auth/register', { name: 'Again', email: 'n'+email, password: pw, inviteToken }); ok(r.s===410, 'invite single use');
+cookie=''; r = await call('POST', '/auth/register', {acceptedTerms:true, name: 'Again', email: 'n'+email, password: pw, inviteToken }); ok(r.s===410, 'invite single use');
 cookie = ownerCookie;
 r = await call('POST', '/auth/logout'); ok(r.s===204, 'logout');
 r = await call('GET', '/auth/me'); ok(r.s===401, 'me after logout 401');

@@ -24,7 +24,8 @@ async function call(cookie, method, path, body) {
 async function run() {
   const stamp = Date.now();
   // 1. Register a test user
-  const reg = await call('', 'POST', '/auth/register', {
+  const reg = await call('', 'POST', '/auth/register', {acceptedTerms: true,
+    
     name: 'CAD Tester',
     email: `cad-test-${stamp}@example.test`,
     password: 'Test-Password-123!',

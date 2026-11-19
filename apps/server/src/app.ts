@@ -189,8 +189,21 @@ export function createApp() {
     app.get(/^(?!\/api\/).*/, (req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       const pagePath = req.path.replace(/\/+$/, '') || '/';
-      if (pagePath !== '/' && pagePath !== '/request-access') res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-      if (pagePath === '/review' || /^\/reset(?:\/|$)/.test(pagePath) || /^\/founders(?:\/|$)/i.test(pagePath)) { res.setHeader('Referrer-Policy', 'no-referrer'); res.setHeader('Cache-Control', 'no-store'); }
+      // Pricing is temporarily withdrawn from the public site. Redirect the old
+      // address at the server so bookmarks, search results and any stale link
+      // land on the front door instead of a dead page. The pricing engines,
+      // subscription tables and billing records remain in place.
+      if (/^\/pricing(?:\/|$)/i.test(pagePath)) {
+        res.setHeader('Cache-Control', 'no-store');
+        res.redirect(308, '/');
+        return;
+      }
+      const publicPage = pagePath === '/' || pagePath === '/request-access' || pagePath === '/terms' || pagePath === '/privacy';
+      if (!publicPage) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      if (pagePath === '/review' || /^\/reset(?:\/|$)/.test(pagePath) || /^\/founders(?:\/|$)/i.test(pagePath) || pagePath === '/verify-email' || pagePath === '/forgot-password') {
+        res.setHeader('Referrer-Policy', 'no-referrer');
+        res.setHeader('Cache-Control', 'no-store');
+      }
       const accessPage = path.join(webDist, 'request-access.html');
       res.sendFile(pagePath === '/request-access' && existsSync(accessPage) ? accessPage : path.join(webDist, 'index.html'));
     });

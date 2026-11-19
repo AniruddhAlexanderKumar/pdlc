@@ -37,7 +37,7 @@ try {
   }
   r = await call(first.cookie, 'POST', '/auth/demo', {}); assert.equal(r.status, 200); assert.equal(r.data.workspace.id, first.data.workspace.id);
   r = await call('', 'GET', '/auth/config'); assert.equal(r.data.allowSignup, true, 'demo users must not block first real signup');
-  const real = await call('', 'POST', '/auth/register', {name:'Real User', email:`real-${Date.now()}@example.test`, password:'Password123!', workspaceName:'Real workspace', workspaceMode:'solo'});
+  const real = await call('', 'POST', '/auth/register', {acceptedTerms:true,name:'Real User', email:`real-${Date.now()}@example.test`, password:'Password123!', workspaceName:'Real workspace', workspaceMode:'solo'});
   assert.equal(real.status, 201, JSON.stringify(real.data));
   r = await call('', 'GET', '/auth/config'); assert.equal(r.data.allowSignup, false);
   r = await call(real.cookie, 'POST', '/auth/demo', {}); assert.equal(r.status, 409);

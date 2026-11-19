@@ -213,7 +213,10 @@ productsRouter.put(
           productId: id,
           completedKey: question.key,
           completedLabel: question.prompt,
-          wasAlreadyDone: Boolean(previous && isAnswered(JSON.parse(String(previous.value)) as AnswerValue))
+          // answers.value is jsonb, so the driver already returns a parsed value.
+          // Parsing it again turns any text answer into invalid JSON ("P", "M", …)
+          // and would fail the whole save.
+          wasAlreadyDone: Boolean(previous && isAnswered(previous.value as AnswerValue))
         });
       } else {
         await trx.deleteFrom('answers').where('product_id', '=', id).where('question_key', '=', question.key).execute();

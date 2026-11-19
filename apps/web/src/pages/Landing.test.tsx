@@ -29,6 +29,27 @@ test('landing describes implemented capabilities and clearly limits their scope'
   assert.match(page, /Agents and persistent product memory<\/h3><span[^>]*>Planned/);
 });
 
+test('landing leads with Get Started and never links to pricing', () => {
+  const page = renderToStaticMarkup(<MemoryRouter><LandingPage /></MemoryRouter>);
+  // Primary call to action, secondary action, and the footer pair.
+  assert.match(page, /<a\b[^>]*href="\/signup"[^>]*>(?:(?!<\/a>)[\s\S])*Get Started<\/a>/);
+  assert.match(page, /<a\b[^>]*href="\/login"[^>]*>(?:(?!<\/a>)[\s\S])*Log In<\/a>/);
+  assert.match(page, /Get Started/);
+  assert.match(page, /Log In/);
+  // Terms and Privacy are reachable before an account exists.
+  assert.match(page, /href="\/terms"/);
+  assert.match(page, /href="\/privacy"/);
+  // No public pricing surface, price list or payment claim survives. The single
+  // remaining mention is the FAQ answer that says pricing is not offered here.
+  assert.doesNotMatch(page, /(?:href|to)="\/pricing/);
+  assert.doesNotMatch(page, /\$\s?\d/);
+  assert.doesNotMatch(page, /per month|\/ month|billing period/i);
+  assert.equal((page.match(/pricing/gi) ?? []).length, 1);
+  assert.match(page, /Pricing is not currently offered on this website/);
+  // The CTA must not imply a permanent free tier either.
+  assert.doesNotMatch(page, /forever free|free forever|free plan/i);
+});
+
 test('sign-in offers a clear link back to the landing page', () => {
   const client = new QueryClient();
   const page = renderToStaticMarkup(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/login?next=%2Fdesigns']}><AuthPage mode="login" /></MemoryRouter></QueryClientProvider>);

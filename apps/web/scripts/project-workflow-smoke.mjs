@@ -12,7 +12,7 @@ async function call(method, path, body, cookie) {
  const response = await fetch(`${base}/api${path}`, {method, headers:{origin:base, ...(cookie?{cookie}:{}), ...(body?{'content-type':'application/json'}:{})}, ...(body?{body:JSON.stringify(body)}:{})});
  const data = await response.json().catch(()=>null); return {status:response.status,data,cookie:response.headers.get('set-cookie')?.split(';')[0]};
 }
-const registered = await call('POST','/auth/register',{name:'Project fixture',email,password,workspaceName:'Fixture workspace'}); assert.equal(registered.status,201); const cookie=registered.cookie; assert(cookie);
+const registered = await call('POST','/auth/register',{acceptedTerms:true,name:'Project fixture',email,password,workspaceName:'Fixture workspace'}); assert.equal(registered.status,201); const cookie=registered.cookie; assert(cookie);
 const first=await call('POST','/projects',{name:'Alpha fixture',key:'ALPHA'},cookie); const second=await call('POST','/projects',{name:'Beta fixture',key:'BETA'},cookie); assert.equal(first.status,201);assert.equal(second.status,201);
 const old=await call('POST','/designs',{title:'Existing alpha diagram',projectId:first.data.id,productId:null},cookie);
 const elsewhere=await call('POST','/designs',{title:'Existing beta diagram',projectId:second.data.id,productId:null},cookie);
@@ -22,7 +22,7 @@ assert.equal(old.status,201);assert.equal(elsewhere.status,201);assert.equal(una
 const browser=await pw.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(x=>x!=='--disable-web-security'),headless:true});
 try {
  const page=await browser.newPage({viewport:{width:390,height:850}}); const errors=[]; page.on('pageerror',e=>errors.push(e.message));
- await page.goto(`${base}/login`);await page.getByLabel('Work email').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign in'}).click();
+ await page.goto(`${base}/login`);await page.getByLabel('Work email').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Log in'}).click();
  await page.waitForURL(`${base}/projects`);await page.getByRole('heading',{name:'Choose a project'}).waitFor({timeout:10000}).catch(async error=>{console.error('Project chooser failed:', page.url(), (await page.locator('body').innerText()).slice(0,600), errors); throw error;});
  await page.getByRole('link',{name:/Alpha fixture/}).click();await page.waitForURL(`${base}/projects/${first.data.id}`);
  await page.getByRole('link',{name:'Existing alpha diagram'}).waitFor();assert.equal(await page.getByText('Existing beta diagram').count(),0);assert.equal(await page.getByText('Existing workspace diagram').count(),0);
@@ -42,6 +42,6 @@ try {
  await page.getByRole('heading',{name:/Beta fixture/}).waitFor();const all=await call('GET','/designs',undefined,cookie);assert([old.data.document.id,elsewhere.data.document.id,unassigned.data.document.id].every(id=>all.data.some(d=>d.id===id)));
  const products=await call('GET','/workspace/data',undefined,cookie);assert(products.data.products.some(p=>p.name==='Existing workspace product'));
  for (const width of [390,1440]) { await page.setViewportSize({width,height:850}); const size=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth})); assert(size.scroll<=size.width); }
- await page.evaluate(async()=>{await fetch('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});});await page.goto(`${base}/login?next=%2Fdesigns`);await page.getByLabel('Work email').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign in'}).click();await page.waitForURL(`${base}/designs`);await page.getByRole('heading',{name:'Design Studio'}).waitFor();assert.deepEqual(errors,[]);
+ await page.evaluate(async()=>{await fetch('/api/auth/logout',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});});await page.goto(`${base}/login?next=%2Fdesigns`);await page.getByLabel('Work email').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Log in'}).click();await page.waitForURL(`${base}/designs`);await page.getByRole('heading',{name:'Design Studio'}).waitFor();assert.deepEqual(errors,[]);
  console.log('PASS project selection, isolation of linked diagrams, creation/reload, switch guards and existing workspace data');
 } finally {await browser.close();}

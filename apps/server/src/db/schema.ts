@@ -20,6 +20,10 @@ export interface UsersTable {
   failed_logins: Generated<number>;
   locked_until: Date | null;
   last_login_at: Date | null;
+  /** When the account confirmed control of its email address; NULL if never requested. */
+  email_verified_at: Date | null;
+  /** When a self-registered account accepted the Terms of Service and Privacy Policy. */
+  terms_accepted_at: Date | null;
   /** DashboardSettings from @sv/shared; write with JSON.stringify. */
   dashboard_layout: ColumnType<unknown, string | null | undefined, string | null>;
   /** Per-account workspace shell preferences. */
@@ -113,7 +117,18 @@ export interface WorkspacesTable {
   id: Generated<string>;
   name: string;
   currency: Generated<string>;
+  /** Onboarding answers from @sv/shared; write with JSON.stringify. NULL for existing workspaces. */
+  onboarding: ColumnType<unknown, string | null | undefined, string | null>;
   created_at: CreatedAt;
+}
+
+export interface EmailVerificationsTable {
+  id: Generated<string>;
+  user_id: string;
+  token_hash: string;
+  created_at: CreatedAt;
+  expires_at: Date;
+  used_at: Date | null;
 }
 
 export interface WorkspaceProfilesTable {
@@ -475,6 +490,7 @@ export interface Database {
   demo_guests: DemoGuestsTable;
   invites: InvitesTable;
   password_resets: PasswordResetsTable;
+  email_verifications: EmailVerificationsTable;
   suppliers: SuppliersTable;
   materials: MaterialsTable;
   material_quotes: MaterialQuotesTable;

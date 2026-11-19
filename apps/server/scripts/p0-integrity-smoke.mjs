@@ -24,7 +24,7 @@ const model = http.createServer(async (req,res) => {
 });
 await new Promise((resolve,reject)=>model.listen(8091,'127.0.0.1',resolve).once('error',reject));
 try {
- let r=await call('POST','/auth/register',{name:'P0 Owner',email:`p0-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'P0'});
+ let r=await call('POST','/auth/register',{acceptedTerms:true,name:'P0 Owner',email:`p0-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'P0'});
  assert.equal(r.status,201,JSON.stringify(r.body));const ws=r.body.workspace.id;
  const writes=await Promise.all(Array.from({length:12},(_,i)=>call('POST','/products',{name:`Concurrent P0 ${i}`})));
  assert(writes.every(x=>x.status===201),JSON.stringify(writes));
@@ -107,7 +107,7 @@ try {
  } finally { await Promise.all([left.end(),right.end()]); }
  console.log('PASS forced opposite-direction deadlock rolls back one writer and preserves synchronized status');
  const ownerCookie=cookie;
- r=await call('POST','/auth/register',{name:'Other',email:`p0-other-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'Other'});assert.equal(r.status,201);
+ r=await call('POST','/auth/register',{acceptedTerms:true,name:'Other',email:`p0-other-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'Other'});assert.equal(r.status,201);
  assert.equal((await call('PATCH',`/products/${result.productId}/tasks/${task.id}`,{status:'done'})).status,404);
  assert.equal((await call('PATCH',`/projects/${result.projectId}/issues/${issue.id}`,{status:'Done'})).status,404);
  cookie=ownerCookie;

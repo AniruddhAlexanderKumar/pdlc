@@ -1,13 +1,29 @@
-import { ArrowRight, Boxes, ClipboardList, Mic, Plus, Settings2, Wand2 } from 'lucide-react';
+import { ArrowRight, Boxes, ClipboardList, Compass, Mail, Mic, Plus, Settings2, Wand2 } from 'lucide-react';
 import { Link } from 'react-router';
 import { PHASES, PRESETS, WIDGET_DEFINITIONS, isProjectFocusedDefault, type DashboardSpan } from '@sv/shared';
 import { useDashboardLayout, useLoadSamples, useSession, useSaveDashboardLayout, useWorkspaceData, useWorkspaceProfile } from '../api/hooks';
+import { post } from '../api/client';
+import { useMutation } from '@tanstack/react-query';
 import { useNewProduct, useVoiceDictation } from '../components/Layout';
 import { DashboardModelProvider } from '../components/dashboard/model';
 import { DashboardDensity } from '../components/dashboard/density';
 import { AssignedIssues } from '../components/dashboard/ProjectWidgets';
 import { WIDGET_COMPONENTS } from '../components/dashboard/widgets';
 import { Button, Card, Spinner, useConfirm } from '../components/ui';
+
+/** Sends a fresh verification email without leaving the dashboard. */
+function EmailVerificationResend() {
+  const send = useMutation({ mutationFn: () => post<{ sent?: boolean; alreadyVerified?: boolean }>('/auth/verify-email/resend', {}) });
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-3">
+      <Button size="sm" variant="secondary" loading={send.isPending} onClick={() => send.mutate()}>
+        Resend verification email
+      </Button>
+      {send.isSuccess && <span role="status" className="text-xs text-amber-900 dark:text-amber-200">{send.data?.alreadyVerified ? 'Your address is already confirmed.' : 'Sent — check your inbox.'}</span>}
+      {send.isError && <span role="alert" className="text-xs text-rose-700 dark:text-rose-400">{(send.error as Error).message}</span>}
+    </div>
+  );
+}
 
 function greeting() {
   const h = new Date().getHours();
@@ -79,6 +95,22 @@ export function DashboardPage() {
         <div className="flex flex-wrap gap-2"><Link to="/settings?section=dashboard" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 text-sm font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900"><Settings2 className="h-4 w-4" /> Choose layout</Link><Button variant="ghost" loading={save.isPending} onClick={async () => { if (await confirm({ title: 'Reset your dashboard?', body: 'Your personal layout will return to the default for your role. Shared data will not change.', confirmLabel: 'Reset layout' })) save.mutate({ preset: me.workspace.role === 'member' ? 'personal' : 'executive' }); }}>Reset layout</Button></div>
       </div>
 
+      {!me.demo && !me.onboarding && (
+        <section className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm dark:border-blue-900 dark:bg-blue-950">
+          <h2 className="font-semibold">Find your starting point</h2>
+          <p className="mt-1">Answer two questions — what you are building and whether you are starting from scratch — and your first product enters the right stage of the journey.</p>
+          <Link className="mt-2 inline-flex items-center gap-1.5 font-semibold underline" to="/onboarding">
+            <Compass className="h-4 w-4" aria-hidden="true" /> Start onboarding
+          </Link>
+        </section>
+      )}
+      {!me.demo && me.access?.emailVerificationRequired && !me.access.emailVerified && (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+          <h2 className="flex items-center gap-2 font-semibold"><Mail className="h-4 w-4" aria-hidden="true" /> Confirm your email address</h2>
+          <p className="mt-1">Open the verification link we emailed to {me.user.email} to secure your account.</p>
+          <EmailVerificationResend />
+        </section>
+      )}
       {!me.demo && workspaceProfile.data?.profile === null && me.workspace.role !== 'member' && <section className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm dark:border-blue-900 dark:bg-blue-950"><h2 className="font-semibold">Make this workspace yours</h2><p className="mt-1">Tell us what you are working on and choose which existing tools to prioritise. You can change this later.</p><Link className="mt-2 inline-block font-semibold underline" to="/workspace-setup">Set up workspace</Link></section>}
       <section className="rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><h2 className="text-sm font-semibold">Quick actions</h2><div className="mt-3 flex flex-wrap gap-2">{me.workspace.role !== 'member' && <Link to="/projects?create=1" className="inline-flex min-h-10 items-center rounded-md bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800">Create project</Link>}<Button variant="secondary" onClick={openNew}>Create product</Button><Link to="/projects" className="inline-flex min-h-10 items-center rounded-md border border-zinc-200 px-4 text-sm font-semibold dark:border-zinc-700">View project work</Link><Link to="/help" className="inline-flex min-h-10 items-center rounded-md border border-zinc-200 px-4 text-sm font-semibold dark:border-zinc-700">Get help</Link></div></section>
       {layout.isDefault && !visibleItems.some(item => item.widget === 'assigned-issues') && <AssignedIssues />}
