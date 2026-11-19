@@ -20,5 +20,4 @@ services:
       - key: DATABASE_URL
         value: postgresql://neondb_owner:npg_SA3dr0cGxFVX@ep-empty-rice-bezspzz5-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require
       - key: APP_URL
-        sync: false
-        # Set this to your Render service URL (e.g., https://pdlc-platform.onrender.com) once assigned
+        value: https://pdlc.dalvigroup.co.in
