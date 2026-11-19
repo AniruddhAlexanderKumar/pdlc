@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: pdlc-platform
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: ohio
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=384
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_POOL_MAX
+        value: "5"
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_SA3dr0cGxFVX@ep-empty-rice-bezspzz5-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require
+      - key: APP_URL
+        sync: false
+        # Set this to your Render service URL (e.g., https://pdlc-platform.onrender.com) once assigned

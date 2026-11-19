@@ -26,7 +26,7 @@ RUN npm ci --omit=dev --workspace @sv/server --include-workspace-root=false --ig
 
 # ── Runtime ─────────────────────────────────────────────────────────────────
 FROM node:22-alpine
-ENV NODE_ENV=production PORT=4000
+ENV NODE_ENV=production PORT=4000 NODE_OPTIONS="--max-old-space-size=384"
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/apps/server/dist ./dist
