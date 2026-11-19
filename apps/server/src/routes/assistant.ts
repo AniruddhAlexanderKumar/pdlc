@@ -47,10 +47,37 @@ assistantRouter.get('/conversations/:id',route(async(req,res)=>{
 assistantRouter.patch('/conversations/:id',route(async(req,res)=>{const a=auth(req),id=convId(req),b=parse(z.object({title:shortText(100).min(1)}).strict(),req.body);await conversation(id,a.userId,a.workspaceId);await sql`UPDATE assistant_conversations SET title=${b.title},updated_at=now() WHERE id=${id}::uuid AND user_id=${a.userId}::uuid AND workspace_id=${a.workspaceId}::uuid`.execute(db);res.json({ok:true});}));
 assistantRouter.delete('/conversations/:id',route(async(req,res)=>{const a=auth(req),id=convId(req);await conversation(id,a.userId,a.workspaceId);await db.transaction().execute(async trx=>{await sql`UPDATE assistant_actions SET status='cancelled' WHERE conversation_id=${id}::uuid AND status='pending'`.execute(trx);await sql`DELETE FROM assistant_conversations WHERE id=${id}::uuid AND user_id=${a.userId}::uuid AND workspace_id=${a.workspaceId}::uuid`.execute(trx);});res.status(204).end();}));
 assistantRouter.delete('/conversations/:id/messages',route(async(req,res)=>{const a=auth(req),id=convId(req);await conversation(id,a.userId,a.workspaceId);await db.transaction().execute(async trx=>{await sql`UPDATE assistant_actions SET status='cancelled' WHERE conversation_id=${id}::uuid AND status='pending'`.execute(trx);await sql`DELETE FROM assistant_messages WHERE conversation_id=${id}::uuid`.execute(trx);});res.status(204).end();}));
-assistantRouter.get('/usage',route(async(req,res)=>{const a=auth(req);const bal=await sql<{remaining_tokens:number}>`SELECT remaining_tokens FROM assistant_allowances WHERE workspace_id=${a.workspaceId}::uuid`.execute(db);const usage=await sql`SELECT provider,model,charged_tokens,status,created_at FROM assistant_usage WHERE workspace_id=${a.workspaceId}::uuid AND user_id=${a.userId}::uuid ORDER BY created_at DESC LIMIT 20`.execute(db);const providers=assistantProviderNames();res.json({enabled:providers.length>0,providers,remainingTokens:Number(bal.rows[0]?.remaining_tokens??0),unit:'provider tokens',history:usage.rows});}));
+assistantRouter.get('/usage',route(async(req,res)=>{
+  const a=auth(req);
+  const isAdmin=Boolean(a.isAdmin || a.role==='admin' || a.role==='owner');
+  const countRes=await sql<{count:number}>`SELECT count(*)::int AS count FROM assistant_messages m JOIN assistant_conversations ac ON ac.id=m.conversation_id WHERE ac.user_id=${a.userId}::uuid AND m.role='user' AND m.created_at>=date_trunc('day',now())`.execute(db);
+  const countToday=countRes.rows[0]?.count??0;
+  const bal=await sql<{remaining_tokens:number}>`SELECT remaining_tokens FROM assistant_allowances WHERE workspace_id=${a.workspaceId}::uuid`.execute(db);
+  const usage=await sql`SELECT provider,model,charged_tokens,status,created_at FROM assistant_usage WHERE workspace_id=${a.workspaceId}::uuid AND user_id=${a.userId}::uuid ORDER BY created_at DESC LIMIT 20`.execute(db);
+  const providers=assistantProviderNames();
+  res.json({
+    enabled:providers.length>0,
+    providers,
+    remainingTokens:Number(bal.rows[0]?.remaining_tokens??0),
+    unit:'provider tokens',
+    isAdmin,
+    dailyMessagesUsed:countToday,
+    dailyMessageLimit:isAdmin?null:10,
+    history:usage.rows
+  });
+}));
 
 assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=>{
- const a=auth(req),c=await conversation(convId(req),a.userId,a.workspaceId);const b=parse(z.object({content:shortText(2000).min(1)}).strict(),req.body);
+ const a=auth(req),c=await conversation(convId(req),a.userId,a.workspaceId);
+ const b=parse(z.object({content:z.string().trim().min(1).max(200_000)}).strict(),req.body);
+ const isAdmin=Boolean(a.isAdmin || a.role==='admin' || a.role==='owner');
+ if(!isAdmin){
+  const countRes=await sql<{count:number}>`SELECT count(*)::int AS count FROM assistant_messages m JOIN assistant_conversations ac ON ac.id=m.conversation_id WHERE ac.user_id=${a.userId}::uuid AND m.role='user' AND m.created_at>=date_trunc('day',now())`.execute(db);
+  const countToday=countRes.rows[0]?.count??0;
+  if(countToday>=10){
+   throw new HttpError(429,'Daily message limit reached (10 messages per day). Admins have unlimited messages.','daily_message_limit_reached');
+  }
+ }
  const previous=await sql<{content:string}>`SELECT content FROM assistant_messages WHERE conversation_id=${c.id}::uuid AND role='user' ORDER BY created_at DESC LIMIT 4`.execute(db);
  await sql`INSERT INTO assistant_messages(conversation_id,role,content) VALUES(${c.id}::uuid,'user',${b.content})`.execute(db);
  await sql`UPDATE assistant_conversations SET title=CASE WHEN title='New conversation' THEN ${b.content.slice(0,80)} ELSE title END,updated_at=now() WHERE id=${c.id}::uuid`.execute(db);
