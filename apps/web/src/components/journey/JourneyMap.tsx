@@ -1,25 +1,28 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import {
   ArrowRight,
   BadgeCheck,
   Beaker,
   Boxes,
   Check,
-  ClipboardList,
   CircleDashed,
+  ClipboardList,
+  Flag,
   FlaskConical,
   Lightbulb,
   Lock,
   Megaphone,
   PenTool,
   Rocket,
-  Search
+  Search,
+  Sparkles,
+  Star
 } from 'lucide-react';
-import { PHASES, stageStateLabel, type Journey, type JourneyStage, type PhaseId, type StageId } from '@sv/shared';
+import type { CheckpointProgress, LessonProgress, UnitProgress, WorldProgress, JourneyV2 } from '@sv/shared';
 import { cx } from '../ui';
 
-/** One recognisable icon per lifecycle stage. */
-const STAGE_ICONS: Record<StageId, typeof Lightbulb> = {
+/** One recognisable icon per world (the eight lifecycle stages). */
+const WORLD_ICONS: Record<string, typeof Lightbulb> = {
   Idea: Lightbulb,
   Research: Search,
   Planning: ClipboardList,
@@ -27,250 +30,343 @@ const STAGE_ICONS: Record<StageId, typeof Lightbulb> = {
   Prototype: Boxes,
   Testing: FlaskConical,
   Launch: Rocket,
-  Improvement: Megaphone,
-  Retired: CircleDashed
+  Improvement: Megaphone
 };
 
-const PHASE_TONE: Record<PhaseId, { ring: string; text: string; chip: string; line: string }> = {
-  discover: { ring: 'bg-sky-600', text: 'text-sky-700 dark:text-sky-400', chip: 'bg-sky-500/10 text-sky-700 dark:text-sky-400', line: 'bg-sky-500/25' },
-  build: { ring: 'bg-[#16598d]', text: 'text-[#16598d] dark:text-blue-400', chip: 'bg-blue-500/10 text-blue-700 dark:text-blue-400', line: 'bg-blue-500/25' },
-  grow: { ring: 'bg-emerald-600', text: 'text-emerald-700 dark:text-emerald-400', chip: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400', line: 'bg-emerald-500/25' }
+/** Tone per world so each stretch of the path is distinguishable. */
+const WORLD_TONE: Record<string, { ring: string; text: string; chip: string; line: string; glow: string }> = {
+  Idea: { ring: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-400', chip: 'bg-amber-500/10 text-amber-700 dark:text-amber-400', line: 'bg-amber-400/40', glow: 'shadow-amber-500/25' },
+  Research: { ring: 'bg-sky-600', text: 'text-sky-700 dark:text-sky-400', chip: 'bg-sky-500/10 text-sky-700 dark:text-sky-400', line: 'bg-sky-400/40', glow: 'shadow-sky-500/25' },
+  Planning: { ring: 'bg-indigo-600', text: 'text-indigo-700 dark:text-indigo-400', chip: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400', line: 'bg-indigo-400/40', glow: 'shadow-indigo-500/25' },
+  Design: { ring: 'bg-fuchsia-600', text: 'text-fuchsia-700 dark:text-fuchsia-400', chip: 'bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-400', line: 'bg-fuchsia-400/40', glow: 'shadow-fuchsia-500/25' },
+  Prototype: { ring: 'bg-[#16598d]', text: 'text-[#16598d] dark:text-blue-400', chip: 'bg-blue-500/10 text-blue-700 dark:text-blue-400', line: 'bg-blue-400/40', glow: 'shadow-blue-500/25' },
+  Testing: { ring: 'bg-teal-600', text: 'text-teal-700 dark:text-teal-400', chip: 'bg-teal-500/10 text-teal-700 dark:text-teal-400', line: 'bg-teal-400/40', glow: 'shadow-teal-500/25' },
+  Launch: { ring: 'bg-rose-600', text: 'text-rose-700 dark:text-rose-400', chip: 'bg-rose-500/10 text-rose-700 dark:text-rose-400', line: 'bg-rose-400/40', glow: 'shadow-rose-500/25' },
+  Improvement: { ring: 'bg-emerald-600', text: 'text-emerald-700 dark:text-emerald-400', chip: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400', line: 'bg-emerald-400/40', glow: 'shadow-emerald-500/25' }
 };
 
-export function stageIcon(stage: StageId) {
-  return STAGE_ICONS[stage] ?? Beaker;
+const NEUTRAL_TONE = { ring: 'bg-slate-400', text: 'text-slate-600 dark:text-zinc-400', chip: 'bg-slate-500/10 text-slate-600 dark:text-zinc-400', line: 'bg-slate-300/50', glow: 'shadow-slate-400/20' };
+
+function toneFor(stage: string) {
+  return WORLD_TONE[stage] ?? NEUTRAL_TONE;
+}
+
+export interface JourneyMapProps {
+  journey: JourneyV2;
+  /** Open a lesson by id. Locked lessons call `onLocked` instead. */
+  onOpenLesson: (lessonId: string) => void;
+  onOpenCheckpoint: (worldId: string) => void;
+  onLocked?: (reason: string) => void;
+  /** Highlight this lesson even if the engine picks another. */
+  focusLessonId?: string | null;
 }
 
 /**
- * The four journey states, as distinct as possible without relying on colour
- * alone: completed = solid tinted + check, current = elevated ring + "You are
- * here", available = outlined, locked = muted + padlock.
+ * The journey map: one connected path, world by world, unit by unit.
+ *
+ * Reading order is the only reading order — down the page, in curriculum order.
+ * Every node is a real control: completed and available lessons open, locked
+ * nodes explain exactly what unlocks them, and checkpoints open once their
+ * world's lessons are done.
  */
-function nodeClasses(state: JourneyStage['state']): string {
-  switch (state) {
-    case 'completed':
-      return 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-300';
-    case 'current':
-      return 'border-[#16598d] bg-white text-zinc-900 ring-4 ring-[#16598d]/15 dark:border-blue-500 dark:bg-zinc-900 dark:text-white dark:ring-blue-500/20';
-    case 'available':
-      return 'border-zinc-300 bg-white text-zinc-800 hover:border-[#16598d]/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100';
-    case 'locked':
-      return 'border-dashed border-zinc-200 bg-zinc-50 text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-500';
-  }
-}
-
-function iconClasses(state: JourneyStage['state'], phase: PhaseId): string {
-  switch (state) {
-    case 'completed':
-      return 'bg-emerald-500 text-white';
-    case 'current':
-      return cx(PHASE_TONE[phase].ring, 'text-white shadow-sm');
-    case 'available':
-      return 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400';
-    case 'locked':
-      return 'bg-zinc-200/70 text-zinc-400 dark:bg-zinc-800/60 dark:text-zinc-600';
-  }
-}
-
-/**
- * The collaboration line under a stage: what is waiting on review, what is
- * blocked, who is involved. Only rendered when there is something to say, so a
- * quiet stage stays visually clean.
- */
-function StageCardSummary({ stage }: { stage: JourneyStage }) {
-  const activities = stage.activities;
-  const awaitingReview = activities.filter(
-    (a) => a.collaboration?.reviewState === 'pending' || a.collaboration?.reviewState === 'changes_requested'
-  ).length;
-  const blocked = activities.filter((a) => (a.collaboration?.blockers.length ?? 0) > 0).length;
-  const owners = new Set(activities.map((a) => a.collaboration?.assigneeName).filter((n): n is string => Boolean(n)));
-
-  if (awaitingReview === 0 && blocked === 0 && owners.size === 0) return null;
+export const JourneyMap = memo(function JourneyMap({ journey, onOpenLesson, onOpenCheckpoint, onLocked, focusLessonId }: JourneyMapProps) {
+  const nextId = focusLessonId ?? journey.nextLesson?.id ?? null;
+  const focusRef = useMemo(() => nextId, [nextId]);
 
   return (
-    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] leading-4">
-      {awaitingReview > 0 && (
-        <span className="font-medium text-amber-700 dark:text-amber-400">
-          {awaitingReview} awaiting review
-        </span>
-      )}
-      {blocked > 0 && <span className="font-medium text-rose-700 dark:text-rose-400">{blocked} blocked</span>}
-      {owners.size > 0 && (
-        <span className="truncate text-zinc-500 dark:text-zinc-400">
-          {[...owners].slice(0, 2).join(', ')}
-          {owners.size > 2 && ` +${owners.size - 2}`}
-        </span>
-      )}
-    </span>
-  );
-}
+    <div className="relative">
+      {/* The spine: one continuous line running behind every node. */}
+      <div aria-hidden="true" className="absolute bottom-6 left-[1.4rem] top-6 w-0.5 bg-gradient-to-b from-slate-200 via-slate-200 to-transparent sm:left-6 dark:from-zinc-800 dark:via-zinc-800" />
 
-function StageNode({
-  stage,
-  isLast,
-  onSelect
+      <ol className="relative space-y-2">
+        {journey.worlds.map((world) => (
+          <WorldSection
+            key={world.id}
+            world={world}
+            isCurrent={journey.currentWorld.id === world.id}
+            focusLessonId={focusRef}
+            onOpenLesson={onOpenLesson}
+            onOpenCheckpoint={onOpenCheckpoint}
+            onLocked={onLocked}
+          />
+        ))}
+      </ol>
+
+      <div className="relative mt-2 flex items-center gap-3 pl-1 sm:pl-3">
+        <div className={cx('flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2', journey.isComplete ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-dashed border-slate-300 bg-white text-slate-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-600')}>
+          {journey.isComplete ? <Star className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />}
+        </div>
+        <p className="text-sm text-slate-600 dark:text-zinc-400">
+          {journey.isComplete ? 'Every world complete. Your product has been taken from idea to improvement.' : 'The path ends here once all eight worlds are complete.'}
+        </p>
+      </div>
+    </div>
+  );
+});
+
+function WorldSection({
+  world,
+  isCurrent,
+  focusLessonId,
+  onOpenLesson,
+  onOpenCheckpoint,
+  onLocked
 }: {
-  stage: JourneyStage;
-  isLast: boolean;
-  onSelect: (s: StageId) => void;
+  world: WorldProgress;
+  isCurrent: boolean;
+  focusLessonId: string | null;
+  onOpenLesson: (id: string) => void;
+  onOpenCheckpoint: (worldId: string) => void;
+  onLocked?: (reason: string) => void;
 }) {
-  const Icon = STAGE_ICONS[stage.id] ?? Beaker;
-  const locked = stage.state === 'locked';
-  const tone = PHASE_TONE[stage.phase];
+  const tone = toneFor(world.stage);
+  const Icon = WORLD_ICONS[world.stage] ?? Beaker;
+  const locked = world.state === 'locked';
 
   return (
     <li className="relative">
-      <button
-        type="button"
-        onClick={() => onSelect(stage.id)}
-        aria-current={stage.state === 'current' ? 'step' : undefined}
-        aria-label={`${stage.label} — ${stageStateLabel(stage.state)}`}
-        className={cx(
-          'group flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-all',
-          nodeClasses(stage.state),
-          locked ? 'cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-sm'
-        )}
-      >
-        <span className={cx('relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform', iconClasses(stage.state, stage.phase))}>
-          <Icon className="h-5 w-5" aria-hidden="true" />
-          {stage.state === 'completed' && (
-            <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-emerald-500 dark:border-zinc-900">
-              <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} aria-hidden="true" />
-            </span>
+      {/* World milestone header */}
+      <div className="relative flex items-start gap-3 py-3 sm:gap-4">
+        <div
+          className={cx(
+            'relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 shadow-sm transition',
+            locked ? 'border-slate-300 bg-slate-100 text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-600' : `${tone.ring} border-transparent text-white shadow-lg ${isCurrent ? tone.glow : ''}`
           )}
-          {locked && (
-            <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-zinc-400 dark:border-zinc-900">
-              <Lock className="h-2 w-2 text-white" strokeWidth={3} aria-hidden="true" />
+          aria-hidden="true"
+        >
+          {locked ? <Lock className="h-5 w-5" /> : world.complete ? <BadgeCheck className="h-6 w-6" /> : <Icon className="h-5 w-5" />}
+        </div>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className={cx('text-[11px] font-bold uppercase tracking-[0.14em]', locked ? 'text-slate-400 dark:text-zinc-600' : tone.text)}>
+              World {world.index}
             </span>
+            {world.state === 'completed' && <Pill tone="emerald">Completed</Pill>}
+            {isCurrent && <Pill tone="blue">You are here</Pill>}
+            {world.state === 'available' && <Pill tone="slate">Open</Pill>}
+            {locked && <Pill tone="slate">Locked</Pill>}
+          </div>
+          <h3 className={cx('mt-0.5 text-base font-semibold tracking-tight sm:text-lg', locked ? 'text-slate-400 dark:text-zinc-600' : 'text-slate-900 dark:text-zinc-100')}>{world.title}</h3>
+          <p className={cx('mt-0.5 text-xs leading-5 sm:text-sm', locked ? 'text-slate-400 dark:text-zinc-600' : 'text-slate-600 dark:text-zinc-400')}>{world.blurb}</p>
+          {!locked && (
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-1.5 w-full max-w-[14rem] overflow-hidden rounded-full bg-slate-200 dark:bg-zinc-800" role="progressbar" aria-valuenow={world.progress} aria-valuemin={0} aria-valuemax={100} aria-label={`${world.title} progress`}>
+                <div className={cx('h-full rounded-full transition-all duration-500', world.complete ? 'bg-emerald-500' : tone.ring)} style={{ width: `${world.progress}%` }} />
+              </div>
+              <span className="shrink-0 text-[11px] font-semibold text-slate-500 dark:text-zinc-400">
+                {world.completed}/{world.total}
+              </span>
+            </div>
           )}
-        </span>
-
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-semibold">{stage.label}</span>
-            {stage.state === 'current' && (
-              <span className={cx('rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide', tone.chip)}>You are here</span>
-            )}
-            {stage.state === 'completed' && stage.complete && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-                <BadgeCheck className="h-3 w-3" aria-hidden="true" /> Done
-              </span>
-            )}
-            {/* Behind the current stage but not actually finished: say so instead of
-                claiming it is done, so a skipped stage is never misleading. */}
-            {stage.state === 'completed' && !stage.complete && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                {stage.total - stage.done} left
-              </span>
-            )}
-            {stage.state === 'available' && (
-              <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                Ready
-              </span>
-            )}
+          {locked && world.lockReason && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-500">
+              <Lock className="h-3 w-3 shrink-0" aria-hidden="true" /> {world.lockReason}
+            </p>
+          )}
+        </div>
+        {world.complete && (
+          <span className="hidden shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 sm:flex dark:bg-emerald-500/10 dark:text-emerald-400">
+            <Sparkles className="h-3 w-3" /> {world.checkpoint.xp} XP
           </span>
-          <span className="mt-0.5 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">{stage.guide.purpose}</span>
+        )}
+      </div>
 
-          {stage.state !== 'locked' ? (
-            <>
-              <span className="mt-2 flex items-center gap-2">
-                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200/80 dark:bg-zinc-800">
-                  <span
-                    className={cx('block h-full rounded-full transition-all duration-500', stage.complete ? 'bg-emerald-500' : tone.ring)}
-                    style={{ width: `${stage.progress}%` }}
-                  />
-                </span>
-                <span className="shrink-0 text-[11px] font-medium tabular-nums text-zinc-500">
-                  {stage.done}/{stage.total}
-                </span>
-              </span>
-              <StageCardSummary stage={stage} />
-            </>
-          ) : (
-            <span className="mt-1.5 block text-[11px] text-zinc-400 dark:text-zinc-500">{stage.lockReason}</span>
-          )}
-        </span>
-      </button>
+      {/* Units and their lessons, indented under the spine */}
+      <div className={cx('space-y-1 pl-6 sm:pl-8', locked && 'pointer-events-none opacity-60')}>
+        {world.units.map((unit) => (
+          <UnitBlock key={unit.id} unit={unit} worldStage={world.stage} focusLessonId={focusLessonId} onOpenLesson={onOpenLesson} onLocked={onLocked} />
+        ))}
 
-      {!isLast && (
-        <span aria-hidden="true" className="ml-8 flex h-4 w-0.5 justify-center">
-          <span className={cx('h-full w-0.5 rounded', stage.state === 'completed' ? 'bg-emerald-400' : tone.line)} />
-        </span>
-      )}
+        {/* Checkpoint node closes the world */}
+        <CheckpointNode
+          checkpoint={world.checkpoint}
+          worldTitle={world.title}
+          onOpen={() => onOpenCheckpoint(world.id)}
+          onLocked={onLocked}
+        />
+      </div>
     </li>
   );
 }
 
-/**
- * The product journey: a vertical progression path grouped into the existing
- * three phases. Reads entirely from a `Journey` built by `buildJourney`, so it
- * never redefines stage order or completion.
- */
-export const JourneyMap = memo(function JourneyMap({
-  journey,
-  onSelect,
-  compact = false
+function UnitBlock({
+  unit,
+  worldStage,
+  focusLessonId,
+  onOpenLesson,
+  onLocked
 }: {
-  journey: Journey;
-  onSelect: (s: StageId) => void;
-  compact?: boolean;
+  unit: UnitProgress;
+  worldStage: string;
+  focusLessonId: string | null;
+  onOpenLesson: (id: string) => void;
+  onLocked?: (reason: string) => void;
 }) {
-  const grouped = PHASES.map((phase) => ({
-    phase,
-    stages: journey.path.filter((s) => s.phase === phase.id)
-  }));
-
+  const tone = toneFor(worldStage);
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Your product journey</p>
-        <p className="text-[11px] font-medium tabular-nums text-zinc-500">
-          {journey.completedCount}/{journey.totalCount} stages · {journey.overallPercent}% of steps
-        </p>
+    <div className="relative py-1">
+      <div className="flex items-center gap-2 py-1">
+        <span className={cx('h-2 w-2 shrink-0 rounded-full', unit.state === 'completed' ? 'bg-emerald-500' : unit.state === 'locked' ? 'bg-slate-300 dark:bg-zinc-700' : tone.ring)} aria-hidden="true" />
+        <h4 className={cx('text-xs font-semibold uppercase tracking-wide', unit.state === 'locked' ? 'text-slate-400 dark:text-zinc-600' : 'text-slate-600 dark:text-zinc-300')}>{unit.title}</h4>
+        {unit.state === 'completed' && <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-label="Unit complete" />}
+        <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">{unit.completed}/{unit.total}</span>
       </div>
-      <div className="mb-4 h-2 overflow-hidden rounded-full bg-zinc-200/80 dark:bg-zinc-800">
-        <div className="h-full rounded-full bg-[#16598d] transition-all duration-700" style={{ width: `${journey.overallPercent}%` }} />
+      <div className="space-y-1">
+        {unit.lessons.map((lesson) => (
+          <LessonNode
+            key={lesson.id}
+            lesson={lesson}
+            tone={tone}
+            isFocus={focusLessonId === lesson.id}
+            onOpen={() => onOpenLesson(lesson.id)}
+            onLocked={onLocked}
+          />
+        ))}
       </div>
-
-      <div className={cx('space-y-4', compact && 'space-y-3')}>
-        {grouped.map(({ phase, stages }) => {
-          const done = stages.filter((s) => s.complete).length;
-          return (
-            <section key={phase.id} aria-label={phase.label}>
-              <header className="mb-2 flex items-baseline justify-between gap-2">
-                <h3 className={cx('text-xs font-bold uppercase tracking-wider', PHASE_TONE[phase.id].text)}>{phase.label}</h3>
-                <span className="text-[11px] tabular-nums text-zinc-400">
-                  {done}/{stages.length}
-                </span>
-              </header>
-              <p className="mb-2 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">{phase.blurb}</p>
-              <ol className="space-y-0">
-                {stages.map((s, i) => (
-                  <StageNode key={s.id} stage={s} isLast={i === stages.length - 1} onSelect={onSelect} />
-                ))}
-              </ol>
-            </section>
-          );
-        })}
-      </div>
-
-      {/* Retiring is always allowed (the server permits it regardless of the
-          checklist), so this affordance is not gated on the Retired node. */}
-      {journey.current.id !== 'Retired' && (
-        <div className="mt-4 border-t border-zinc-100 pt-3 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={() => onSelect('Retired')}
-            className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-[11px] text-zinc-500 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-          >
-            <span className="flex items-center gap-1.5">
-              <CircleDashed className="h-3.5 w-3.5" aria-hidden="true" />
-              Retire this product
-            </span>
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        </div>
-      )}
     </div>
   );
-});
+}
+
+function LessonNode({
+  lesson,
+  tone,
+  isFocus,
+  onOpen,
+  onLocked
+}: {
+  lesson: LessonProgress;
+  tone: ReturnType<typeof toneFor>;
+  isFocus: boolean;
+  onOpen: () => void;
+  onLocked?: (reason: string) => void;
+}) {
+  const done = lesson.state === 'completed';
+  const locked = lesson.state === 'locked';
+  const recog = lesson.recognition;
+
+  if (locked) {
+    return (
+      <button
+        type="button"
+        onClick={() => onLocked?.(lesson.lockReason ?? 'This lesson is locked.')}
+        aria-disabled="true"
+        aria-label={`${lesson.lesson.title} — locked. ${lesson.lockReason ?? ''}`}
+        title={lesson.lockReason ?? undefined}
+        className="group flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 text-left transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800/50"
+      >
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-slate-200 bg-white text-slate-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-600">
+          <Lock className="h-3 w-3" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-slate-400 dark:text-zinc-600">{lesson.lesson.title}</span>
+          {/* The world header already states why; a locked unit says what unlocks it. */}
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cx(
+        'group flex w-full items-center gap-2.5 rounded-lg border px-2 py-2 text-left transition focus-visible:ring-2 focus-visible:ring-blue-500',
+        isFocus
+          ? 'border-blue-300 bg-blue-50/70 shadow-sm hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-500/10 dark:hover:bg-blue-500/15'
+          : 'border-transparent hover:bg-slate-50 dark:hover:bg-zinc-800/50'
+      )}
+      aria-current={isFocus ? 'step' : undefined}
+    >
+      <span
+        className={cx(
+          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition',
+          done
+            ? 'border-emerald-500 bg-emerald-500 text-white'
+            : isFocus
+              ? `${tone.ring} border-transparent text-white shadow-md`
+              : 'border-slate-300 bg-white text-slate-400 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-500'
+        )}
+      >
+        {done ? <Check className="h-3.5 w-3.5" /> : isFocus ? <ArrowRight className="h-3.5 w-3.5" /> : <CircleDashed className="h-3.5 w-3.5" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={cx('block truncate text-sm', done || isFocus ? 'font-semibold text-slate-900 dark:text-zinc-100' : 'font-medium text-slate-700 dark:text-zinc-300')}>
+          {lesson.lesson.title}
+        </span>
+        <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-500">
+          <span className="font-semibold text-slate-400 dark:text-zinc-500">{lesson.xp} XP</span>
+          {recog === 'legacy' && <span className="rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">Recognised from earlier work</span>}
+          {recog === 'in_progress' && !done && <span className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">Partly done</span>}
+          {recog === 'needs_review' && <span className="rounded bg-rose-100 px-1.5 py-0.5 font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">Needs review</span>}
+          {isFocus && !done && <span className="rounded bg-blue-100 px-1.5 py-0.5 font-semibold text-blue-800 dark:bg-blue-500/15 dark:text-blue-300">Next up</span>}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function CheckpointNode({
+  checkpoint,
+  worldTitle,
+  onOpen,
+  onLocked
+}: {
+  checkpoint: CheckpointProgress;
+  worldTitle: string;
+  onOpen: () => void;
+  onLocked?: (reason: string) => void;
+}) {
+  const passed = checkpoint.passed;
+  const locked = checkpoint.state === 'locked';
+
+  return (
+    <div className="pt-2">
+      <button
+        type="button"
+        onClick={() => (locked ? onLocked?.(checkpoint.lockReason ?? 'This checkpoint is locked.') : onOpen())}
+        aria-disabled={locked}
+        className={cx(
+          'flex w-full items-center gap-3 rounded-xl border-2 px-3 py-2.5 text-left transition focus-visible:ring-2 focus-visible:ring-blue-500',
+          passed
+            ? 'border-emerald-300 bg-emerald-50/70 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-500/10'
+            : locked
+              ? 'border-dashed border-slate-200 bg-slate-50/60 dark:border-zinc-800 dark:bg-zinc-900/40'
+              : 'border-indigo-300 bg-indigo-50/60 shadow-sm hover:bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-500/10'
+        )}
+      >
+        <span
+          className={cx(
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+            passed ? 'bg-emerald-500 text-white' : locked ? 'bg-slate-200 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600' : 'bg-indigo-600 text-white'
+          )}
+        >
+          {passed ? <BadgeCheck className="h-5 w-5" /> : locked ? <Lock className="h-4 w-4" /> : <Flag className="h-4 w-4" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className={cx('text-[11px] font-bold uppercase tracking-[0.12em]', passed ? 'text-emerald-700 dark:text-emerald-400' : locked ? 'text-slate-400 dark:text-zinc-600' : 'text-indigo-700 dark:text-indigo-400')}>
+              Checkpoint
+            </span>
+            {!locked && !passed && <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-200">{checkpoint.met}/{checkpoint.total} met</span>}
+            {passed && <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200">{checkpoint.xp} XP earned</span>}
+          </span>
+          <span className={cx('mt-0.5 block truncate text-sm font-semibold', locked ? 'text-slate-400 dark:text-zinc-600' : 'text-slate-900 dark:text-zinc-100')}>{checkpoint.title}</span>
+          <span className={cx('mt-0.5 block truncate text-[11px]', locked ? 'text-slate-400 dark:text-zinc-600' : 'text-slate-500 dark:text-zinc-400')}>
+            {locked ? `Locked until ${worldTitle} is finished` : passed ? `Unlocked ${worldTitle}'s next world` : checkpoint.deliverable}
+          </span>
+        </span>
+        {!locked && !passed && <ArrowRight className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />}
+      </button>
+    </div>
+  );
+}
+
+function Pill({ tone, children }: { tone: 'emerald' | 'blue' | 'slate'; children: React.ReactNode }) {
+  const cls =
+    tone === 'emerald'
+      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300'
+      : tone === 'blue'
+        ? 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300'
+        : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400';
+  return <span className={cx('rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide', cls)}>{children}</span>;
+}

@@ -467,6 +467,103 @@ export interface NotificationPreferencesTable {
   updated_at: Date;
 }
 
+// ── Gamified journey (migration 036) ─────────────────────────────────────
+
+export interface LessonProgressTable {
+  product_id: string;
+  user_id: string;
+  lesson_id: string;
+  status: Generated<'in_progress' | 'completed' | 'needs_review' | 'legacy'>;
+  evidence: Generated<string>;
+  xp_awarded: Generated<number>;
+  completed_at: Generated<Timestamp>;
+  updated_at: Timestamp;
+}
+
+export interface LessonChecklistItemsTable {
+  product_id: string;
+  user_id: string;
+  lesson_id: string;
+  item_id: string;
+  checked_at: Timestamp;
+}
+
+export interface JourneyCheckpointsTable {
+  product_id: string;
+  user_id: string;
+  checkpoint_id: string;
+  status: Generated<'submitted' | 'passed' | 'failed'>;
+  /** jsonb: the criterion results captured at submission time. */
+  results: ColumnType<unknown, string | undefined, string>;
+  evidence: Generated<string>;
+  submitted_at: Generated<Timestamp>;
+  updated_at: Timestamp;
+}
+
+export interface ResearchEntriesTable {
+  id: Generated<string>;
+  workspace_id: string;
+  product_id: string;
+  kind: string;
+  title: string;
+  detail: Generated<string>;
+  source: Generated<string>;
+  created_by: string | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
+export interface RequirementsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  product_id: string;
+  kind: string;
+  text: string;
+  detail: Generated<string>;
+  priority: Generated<'must' | 'should' | 'could'>;
+  created_by: string | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
+export interface TestResultsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  product_id: string;
+  requirement_id: string | null;
+  name: string;
+  result: string;
+  outcome: Generated<'pass' | 'fail' | 'partial'>;
+  tested_at: Generated<Timestamp>;
+  created_by: string | null;
+  created_at: CreatedAt;
+}
+
+export interface DecisionsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  product_id: string;
+  kind: string;
+  decision: string;
+  rationale: Generated<string>;
+  alternatives: Generated<string>;
+  created_by: string | null;
+  created_at: CreatedAt;
+}
+
+export interface FeedbackItemsTable {
+  id: Generated<string>;
+  workspace_id: string;
+  product_id: string;
+  kind: string;
+  body: string;
+  severity: Generated<'low' | 'normal' | 'high' | 'blocker'>;
+  status: Generated<'open' | 'planned' | 'done' | 'wont_fix'>;
+  created_by: string | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
 export interface Database {
   founder_accounts: FounderAccountsTable;
   founder_auth_flows: FounderAuthFlowsTable;
@@ -519,6 +616,14 @@ export interface Database {
   activity_dependencies: ActivityDependenciesTable;
   notifications: NotificationsTable;
   notification_preferences: NotificationPreferencesTable;
+  lesson_progress: LessonProgressTable;
+  lesson_checklist_items: LessonChecklistItemsTable;
+  journey_checkpoints: JourneyCheckpointsTable;
+  research_entries: ResearchEntriesTable;
+  requirements: RequirementsTable;
+  test_results: TestResultsTable;
+  decisions: DecisionsTable;
+  feedback_items: FeedbackItemsTable;
 }
 
 export type UserRow = Selectable<UsersTable>;

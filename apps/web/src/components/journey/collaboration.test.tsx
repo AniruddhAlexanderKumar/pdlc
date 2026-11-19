@@ -13,7 +13,7 @@ import {
   type Product,
   type Recommendation
 } from '@sv/shared';
-import { JourneyMap } from './JourneyMap';
+import { StageJourneyMap } from './StageJourneyMap';
 import { ActivityRow } from './ActivityRow';
 import { NextActionCard } from './NextActionCard';
 import { TeamContributionCard } from './StageActivities';
@@ -241,7 +241,7 @@ test('the stage card summarises review and blocked counts without clutter', () =
     },
     { 'research.channels': ['research.validated'] }
   );
-  const html = renderToStaticMarkup(<JourneyMap journey={journey} onSelect={noop} />);
+  const html = renderToStaticMarkup(<StageJourneyMap journey={journey} onSelect={noop} />);
   assert.match(html, /1 awaiting review/);
   assert.match(html, /1 blocked/);
   // Owners are named so it is clear who to ask.
@@ -253,7 +253,7 @@ test('the stage card summarises review and blocked counts without clutter', () =
 });
 
 test('a quiet stage adds no collaboration noise', () => {
-  const html = renderToStaticMarkup(<JourneyMap journey={buildJourney(product(), { materials })} onSelect={noop} />);
+  const html = renderToStaticMarkup(<StageJourneyMap journey={buildJourney(product(), { materials })} onSelect={noop} />);
   assert.doesNotMatch(html, /awaiting review/);
   assert.doesNotMatch(html, /blocked/);
 });

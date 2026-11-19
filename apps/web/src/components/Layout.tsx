@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, BookOpen, PenTool, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
+import { BarChart3, BookOpen, PenTool, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Route, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
 import { DEFAULT_APP_LAYOUT, NAV_FOCUS_PATHS, type Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData, useWorkspaceProfile } from '../api/hooks';
@@ -24,7 +24,8 @@ const VoiceDictationCtx = createContext<() => void>(() => {});
 export const useVoiceDictation = () => useContext(VoiceDictationCtx);
 
 const NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
+  { to: '/', label: 'Journey', icon: Route, end: true },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { to: '/assistant', label: 'AI Assistant', icon: Sparkles },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/designs', label: 'Design Studio', icon: PenTool },

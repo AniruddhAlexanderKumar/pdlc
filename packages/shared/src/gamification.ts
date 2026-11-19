@@ -212,6 +212,13 @@ export interface AchievementContext {
   bestMargin: number | null;
   suppliers: number;
   streakDays: number;
+  /** Journey (world → unit → lesson → checkpoint) progress for this user. */
+  lessonsCompleted: number;
+  unitsCompleted: number;
+  worldsCompleted: number;
+  checkpointsPassed: number;
+  /** Consecutive days with journey activity; separate from the stage streak. */
+  journeyStreakDays: number;
 }
 
 export const ACHIEVEMENTS: { id: string; title: string; description: string; test: (c: AchievementContext) => boolean }[] = [
@@ -225,5 +232,16 @@ export const ACHIEVEMENTS: { id: string; title: string; description: string; tes
   { id: 'margin_master', title: 'Margin Master', description: 'Get a product to a 50% margin', test: (c) => (c.bestMargin ?? 0) >= 50 },
   { id: 'optimizer', title: 'Optimizer', description: 'Apply 3 improvement suggestions', test: (c) => c.suggestionsApplied >= 3 },
   { id: 'scout', title: 'Supplier Scout', description: 'Add 3 suppliers', test: (c) => c.suppliers >= 3 },
-  { id: 'on_fire', title: 'On Fire', description: 'Keep a 5-day streak', test: (c) => c.streakDays >= 5 }
+  { id: 'on_fire', title: 'On Fire', description: 'Keep a 5-day streak', test: (c) => c.streakDays >= 5 },
+
+  // ── Journey achievements: lessons, units, worlds, milestones, consistency ──
+  { id: 'first_lesson', title: 'First Step', description: 'Complete your first lesson', test: (c) => c.lessonsCompleted >= 1 },
+  { id: 'ten_lessons', title: 'Getting Somewhere', description: 'Complete 10 lessons', test: (c) => c.lessonsCompleted >= 10 },
+  { id: 'first_unit', title: 'Unit Clear', description: 'Complete a whole unit', test: (c) => c.unitsCompleted >= 1 },
+  { id: 'first_world', title: 'World One Done', description: 'Pass your first world checkpoint', test: (c) => c.worldsCompleted >= 1 },
+  { id: 'three_worlds', title: 'Halfway There', description: 'Pass three world checkpoints', test: (c) => c.worldsCompleted >= 3 },
+  { id: 'all_checkpoints', title: 'Checked at Every Gate', description: 'Pass all eight world checkpoints', test: (c) => c.checkpointsPassed >= 8 },
+  { id: 'journey_complete', title: 'Idea to Improvement', description: 'Complete the whole journey', test: (c) => c.worldsCompleted >= 8 },
+  { id: 'three_day_habit', title: 'Three Days Running', description: 'Work on the journey three days in a row', test: (c) => c.journeyStreakDays >= 3 },
+  { id: 'seven_day_habit', title: 'A Week of It', description: 'Keep a seven-day journey streak', test: (c) => c.journeyStreakDays >= 7 }
 ];
