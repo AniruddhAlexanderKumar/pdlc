@@ -8,6 +8,7 @@ import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData, u
 import { openCookiePreferences } from '../lib/cookieConsent';
 import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
+import { AssistantChatBubble } from './AssistantChatBubble';
 import { LevelUpWatcher } from './Celebrate';
 import { NotificationBell } from './NotificationBell';
 import { NewProductModal } from './NewProductModal';
@@ -371,6 +372,7 @@ export function Layout() {
         </nav>
       </div>
       <QuickActions onNew={() => setNewOpen(true)} />
+      <AssistantChatBubble />
       {newOpen && <NewProductModal onClose={() => setNewOpen(false)} />}
       {voiceOpen && <VoiceDictationModal onClose={() => setVoiceOpen(false)} />}
       <LevelUpWatcher />

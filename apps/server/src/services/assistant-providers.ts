@@ -32,7 +32,13 @@ export function parseAssistantProviders(env: NodeJS.ProcessEnv, fallback: Assist
 }
 
 /** The AI/ML API schema for GPT-5.5 does not list temperature. */
-export function assistantRequestBody(provider: AssistantProvider, messages: {role:string;content:string}[], maxTokens: number) {
+export function assistantRequestBody(provider: AssistantProvider, messages: any[], maxTokens: number, tools?: any[]) {
   const isAimlGpt55 = new URL(provider.baseUrl).hostname === 'api.aimlapi.com' && provider.model === 'openai/gpt-5-5';
-  return {model:provider.model,messages,max_tokens:maxTokens,...(isAimlGpt55 ? {} : {temperature:0.2})};
+  return {
+    model: provider.model,
+    messages,
+    max_tokens: maxTokens,
+    ...(isAimlGpt55 ? {} : { temperature: 0.2 }),
+    ...(tools && tools.length ? { tools } : {})
+  };
 }

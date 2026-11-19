@@ -5,6 +5,7 @@ import { logger } from '../lib/logger.js';
 import { HttpError } from '../lib/http.js';
 import type { AiChatMessage } from './ai.js';
 import { assistantRequestBody, parseAssistantProviders, type AssistantProvider as Provider } from './assistant-providers.js';
+import { ASSISTANT_MCP_TOOLS, executeInternalMcpTool } from './assistant-mcp.js';
 
 function configuredProviders(): Provider[] {
   try {
@@ -39,7 +40,7 @@ async function settle(id:string,workspaceId:string,reserved:number,charged:numbe
   if(row.rows.length && reserved > 0) await sql`UPDATE assistant_allowances SET remaining_tokens=remaining_tokens+${reserved-charged},updated_at=now() WHERE workspace_id=${workspaceId}::uuid`.execute(trx);
  });
 }
-export async function generateAssistantReply(actor:{workspaceId:string;userId:string},conversationId:string,messages:AiChatMessage[]):Promise<string> {
+export async function generateAssistantReply(actor:{workspaceId:string;userId:string;role?:string;isAdmin?:boolean},conversationId:string,messages:AiChatMessage[]):Promise<string> {
  const providers=configuredProviders();
  if(!providers.length) throw new HttpError(503,'AI generation is not configured. Project summaries and Help Centre search remain available.','assistant_ai_unavailable');
  // Conservative UTF-8 byte budget; charge reported actual tokens and allow a negative balance if a provider exceeds its reservation.
@@ -47,8 +48,14 @@ export async function generateAssistantReply(actor:{workspaceId:string;userId:st
  for(const [index,provider] of providers.entries()) {
   const usageId=await reserve(actor.workspaceId,actor.userId,conversationId,provider,budget);
   let response:Response;
+  const currentMessages: any[] = [...messages];
   try {
-   response=await fetch(`${provider.baseUrl.replace(/\/+$/,'')}/chat/completions`,{method:'POST',headers:{'content-type':'application/json',...(provider.apiKey?{authorization:`Bearer ${provider.apiKey}`}:{})},body:JSON.stringify(assistantRequestBody(provider,messages,maxOutput)),signal:AbortSignal.timeout(30000)});
+   response=await fetch(`${provider.baseUrl.replace(/\/+$/,'')}/chat/completions`,{
+     method:'POST',
+     headers:{'content-type':'application/json',...(provider.apiKey?{authorization:`Bearer ${provider.apiKey}`}:{})},
+     body:JSON.stringify(assistantRequestBody(provider,currentMessages,maxOutput,ASSISTANT_MCP_TOOLS)),
+     signal:AbortSignal.timeout(30000)
+   });
   } catch {
    await settle(usageId,actor.workspaceId,budget,budget,'uncertain');
    logger.warn({provider:provider.name,attempt:index+1},'Assistant provider transport failed; reserved credits retained for reconciliation');
@@ -64,14 +71,65 @@ export async function generateAssistantReply(actor:{workspaceId:string;userId:st
    throw new HttpError(502,'The AI provider rejected the request.','assistant_provider_error');
   }
   try {
-   const data=await response.json() as {choices?:{message?:{content?:unknown;reasoning?:unknown}}[];usage?:{total_tokens?:unknown}};
-   const msg=data.choices?.[0]?.message;
+   let data=await response.json() as {
+     choices?:{
+       message?:{
+         content?:unknown;
+         reasoning?:unknown;
+         tool_calls?:Array<{id:string;type:string;function:{name:string;arguments:string}}>;
+       }
+     }[];
+     usage?:{total_tokens?:unknown};
+   };
+   let msg=data.choices?.[0]?.message;
+   let cumulativeTokens=Number(data.usage?.total_tokens??0);
+
+   // If the model invoked internal MCP tools, execute them and request follow-up response (up to 3 turns)
+   let loopCount = 0;
+   while (loopCount < 3 && msg?.tool_calls && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+     loopCount++;
+     currentMessages.push({
+       role: 'assistant',
+       content: msg.content ?? null,
+       tool_calls: msg.tool_calls
+     });
+
+     for (const call of msg.tool_calls) {
+       let toolArgs: Record<string, unknown> = {};
+       try { toolArgs = JSON.parse(call.function.arguments || '{}'); } catch {}
+       const toolResult = await executeInternalMcpTool(actor, call.function.name, toolArgs);
+       currentMessages.push({
+         role: 'tool',
+         tool_call_id: call.id,
+         content: JSON.stringify(toolResult)
+       });
+     }
+
+     const followUp = await fetch(`${provider.baseUrl.replace(/\/+$/,'')}/chat/completions`, {
+       method: 'POST',
+       headers: { 'content-type': 'application/json', ...(provider.apiKey ? { authorization: `Bearer ${provider.apiKey}` } : {}) },
+       body: JSON.stringify(assistantRequestBody(provider, currentMessages, maxOutput, ASSISTANT_MCP_TOOLS)),
+       signal: AbortSignal.timeout(30000)
+     });
+
+     if (followUp.ok) {
+       const followUpData = (await followUp.json()) as typeof data;
+       if (followUpData.choices?.[0]?.message) {
+         msg = followUpData.choices[0].message;
+         cumulativeTokens += Number(followUpData.usage?.total_tokens ?? 0);
+       } else {
+         break;
+       }
+     } else {
+       break;
+     }
+   }
+
    let text=typeof msg?.content==='string'&&msg.content.trim()?msg.content:'';
    if(!text&&typeof msg?.reasoning==='string'&&msg.reasoning.trim()){
      text=msg.reasoning;
    }
-   const rawTokens=data.usage?.total_tokens;
-   const tokens=Number.isSafeInteger(rawTokens)&&Number(rawTokens)>=0?Number(rawTokens):1;
+   const tokens=Number.isSafeInteger(cumulativeTokens)&&cumulativeTokens>=0?cumulativeTokens:1;
    if(typeof text!=='string'||!text.trim()||text.length>50000) throw new Error('Invalid provider response');
    await settle(usageId,actor.workspaceId,budget,tokens,'success');
    if(index) logger.info({provider:provider.name,attempt:index+1},'Assistant provider fallback succeeded');
