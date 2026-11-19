@@ -8,7 +8,7 @@ if(!base||!database||!mail||!['localhost','127.0.0.1'].includes(new URL(base).ho
 const db=new pg.Client({connectionString:database});await db.connect();const stamp=Date.now();
 async function call(method,path,body,cookie,origin='http://localhost:5173'){const r=await fetch(base+'/api'+path,{method,headers:{origin,...(cookie?{cookie}:{}),...(body!==undefined?{'content-type':'application/json'}:{})},body:body!==undefined?JSON.stringify(body):undefined});return {status:r.status,data:await r.json().catch(()=>null),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
 function expect(r,status){assert.equal(r.status,status,JSON.stringify(r.data));}
-async function register(name,inviteToken){const email=`${name}-${stamp}@example.test`;const r=await call('POST','/auth/register',{name,email,password:'Old-Password-123!',workspaceName:`${name} workspace`,inviteToken});expect(r,201);return {...r,email};}
+async function register(name,inviteToken){const email=`${name}-${stamp}@example.test`;const r=await call('POST','/auth/register',{acceptedTerms:true,name,email,password:'Old-Password-123!',workspaceName:`${name} workspace`,inviteToken});expect(r,201);return {...r,email};}
 async function invite(owner,role){const r=await call('POST','/workspace/invites',{role},owner.cookie);expect(r,201);return new URL(r.data.url).pathname.split('/').pop();}
 async function messages(){return (await readFile(mail,'utf8').catch(()=>'' )).trim().split('\n').filter(Boolean).map(JSON.parse);}
 function tokenOf(message){const text=message.data.replace(/=\r?\n/g,'');const token=text.match(/\/reset#([A-Za-z0-9_-]{43})/);assert(token,'email must contain a fragment-only reset token');return token[1];}

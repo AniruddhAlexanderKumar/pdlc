@@ -5,14 +5,6 @@ import {
   ACCESS_REQUEST_INDUSTRIES,
   ACCESS_REQUEST_ROLES,
   ACCESS_REQUEST_TEAM_SIZES,
-  BILLING,
-  BILLING_PERIODS,
-  PLAN_CONFIG,
-  PLANS,
-  calculatePricing,
-  recommendedPlan,
-  type BillingPeriod,
-  type PricingPlan,
 } from "@sv/shared";
 import { ApiError, post } from "../api/client";
 import { Button, Field, Input, Select, Textarea } from "../components/ui";
@@ -45,44 +37,15 @@ const initial: Form = {
 };
 const selectClass =
   "w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15";
-const money = (cents: number | null) =>
-  cents === null
-    ? "Custom"
-    : new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(cents / 100);
-const planDescription: Record<PricingPlan, string> = {
-  individual: "For one editor",
-  small: "For 2–49 editors",
-  medium: "For 50–199 editors",
-  enterprise: "For 200+ editors or custom needs",
-};
-const defaults: Record<PricingPlan, number> = {
-  individual: 1,
-  small: 2,
-  medium: 50,
-  enterprise: 200,
-};
 export function RequestAccessPage() {
   const [searchParams] = useSearchParams();
   const requestedCategory = searchParams.get("category");
   const [category, setCategory] = useState<"commercial" | "education">(() => educationCategoryFromQuery(requestedCategory));
   useEffect(() => { setCategory(educationCategoryFromQuery(requestedCategory)); }, [requestedCategory]);
   const [form, setForm] = useState(initial);
-  const [plan, setPlan] = useState<PricingPlan>("individual");
-  const [editorsText, setEditorsText] = useState("1");
-  const [billing, setBilling] = useState<BillingPeriod>("monthly");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const editors = Number(editorsText);
-  let quote: ReturnType<typeof calculatePricing> | null = null;
-  try {
-    if (editorsText.trim()) quote = calculatePricing(plan, editors, billing);
-  } catch {
-    /* validation shown below */
-  }
   const set =
     (key: keyof Form) =>
     (
@@ -91,35 +54,15 @@ export function RequestAccessPage() {
       >,
     ) =>
       setForm((current) => ({ ...current, [key]: event.target.value }));
-  const selectPlan = (value: PricingPlan) => {
-    setPlan(value);
-    const p = PLAN_CONFIG[value];
-    if (
-      !Number.isInteger(editors) ||
-      editors < p.minEditors ||
-      editors > p.maxEditors
-    )
-      setEditorsText(String(defaults[value]));
-  };
-  const changeEditors = (value: string) => {
-    setEditorsText(value);
-    const n = Number(value);
-    if (value && Number.isSafeInteger(n) && n >= 1 && n <= 100000)
-      setPlan(recommendedPlan(n));
-  };
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!quote) {
-      setError("Enter a valid editor count for your plan.");
-      return;
-    }
     setSubmitting(true);
     setError("");
     try {
-      await post("/access-requests", {
-        ...form,
-        pricing: { plan, editors, billing },
-      });
+      // No pricing selection is collected while pricing is withdrawn from the
+      // public site. The API still accepts a priced request from other clients;
+      // this form simply does not ask for one.
+      await post("/access-requests", form);
       setSubmitted(true);
       window.scrollTo(0, 0);
     } catch (err) {
@@ -155,14 +98,16 @@ export function RequestAccessPage() {
                 Your access request has been submitted.
               </h1>
               <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-slate-600">
-                Your selected plan and billing preferences are attached. Our
-                team will review your request and contact you at{" "}
-                <span className="font-semibold">{form.email}</span> regarding
-                activation.
+                Your message is with our team, who will reply to{" "}
+                <span className="font-semibold">{form.email}</span>.
               </p>
               <p className="mt-3 text-sm text-slate-500">
-                No subscription has been activated and no payment has been
-                taken.
+                You do not need to wait for a reply to use Solution Velocity:
+                create your account with{" "}
+                <Link to="/signup" className="font-semibold text-blue-700 underline">
+                  Get Started
+                </Link>
+                .
               </p>
               <Link
                 to="/"
@@ -175,19 +120,24 @@ export function RequestAccessPage() {
           ) : (
             <>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#287b9a]">
-                Request access
+                Contact
               </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#102f46] sm:text-4xl">
-                Get started with Solution Velocity.
+                Talk to the Solution Velocity team.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                Tell us about your engineering team, choose the workspace plan
-                that fits your organisation and request access to the platform.
+                Accounts are open — you don’t need to request access. Use this
+                form if you would like to discuss your engineering workflow, a
+                team or education deployment, or a custom requirement.
               </p>
               <p className="mt-3 text-sm font-medium text-[#315d76]">
-                Our team will review your request and contact you.
+                Prefer to start now?{" "}
+                <Link to="/signup" className="font-semibold text-blue-700 underline">
+                  Get Started
+                </Link>{" "}
+                and create your workspace in a few minutes.
               </p>
-              <fieldset className="mt-7"><legend className="text-sm font-semibold text-[#12394f]">Choose a pricing category</legend><div className="mt-2 flex flex-wrap gap-2">{([['commercial','Commercial'],['education','Education']] as const).map(([value,label]) => <label key={value} className={`cursor-pointer border px-5 py-3 text-sm font-semibold ${category === value ? 'border-[#237b9e] bg-[#eef8fa] text-[#12394f]' : 'border-slate-200 text-slate-600'}`}><input type="radio" name="category" checked={category === value} onChange={() => setCategory(value)} className="mr-2" />{label}</label>)}</div></fieldset>
+              <fieldset className="mt-7"><legend className="text-sm font-semibold text-[#12394f]">Choose a topic</legend><div className="mt-2 flex flex-wrap gap-2">{([['commercial','Commercial'],['education','Education']] as const).map(([value,label]) => <label key={value} className={`cursor-pointer border px-5 py-3 text-sm font-semibold ${category === value ? 'border-[#237b9e] bg-[#eef8fa] text-[#12394f]' : 'border-slate-200 text-slate-600'}`}><input type="radio" name="category" checked={category === value} onChange={() => setCategory(value)} className="mr-2" />{label}</label>)}</div></fieldset>
               {category === 'education' ? <EducationAccessForm /> : <form onSubmit={submit} className="mt-9 space-y-10">
                 <section aria-labelledby="org-heading">
                   <h2
@@ -322,190 +272,30 @@ export function RequestAccessPage() {
                   </div>
                 </section>
                 <section
-                  aria-labelledby="plan-heading"
+                  aria-labelledby="access-heading"
                   className="border-t border-slate-200 pt-8"
                 >
                   <h2
-                    id="plan-heading"
+                    id="access-heading"
                     className="text-xl font-semibold text-[#12394f]"
                   >
-                    Choose your plan
+                    Account access
                   </h2>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Estimates in USD. Your request is not a purchase.
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    During the current launch period you can create an
+                    account directly — no request, invitation or payment details
+                    are needed. Use{" "}
+                    <Link to="/signup" className="font-semibold text-blue-700 underline">
+                      Get Started
+                    </Link>{" "}
+                    to begin now.
                   </p>
-                  <div
-                    role="radiogroup"
-                    aria-labelledby="plan-heading"
-                    className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-                  >
-                    {PLANS.map((id) => {
-                      const p = PLAN_CONFIG[id];
-                      return (
-                        <label
-                          key={id}
-                          className={`cursor-pointer border p-4 transition-colors ${plan === id ? "border-[#237b9e] bg-[#eef8fa] ring-1 ring-[#237b9e]" : "border-slate-200 bg-white hover:border-slate-400"}`}
-                        >
-                          <span className="flex items-center gap-2">
-                            <input
-                              type="radio"
-                              name="plan"
-                              value={id}
-                              checked={plan === id}
-                              onChange={() => selectPlan(id)}
-                              className="accent-[#176c91]"
-                            />
-                            <span className="font-semibold text-[#12394f]">
-                              {p.label}
-                            </span>
-                          </span>
-                          <span className="mt-3 block text-xs text-slate-600">
-                            {planDescription[id]}
-                          </span>
-                          <span className="mt-3 block text-sm font-semibold">
-                            {id === "enterprise"
-                              ? "Custom pricing"
-                              : id === "individual"
-                                ? "$5 / month"
-                                : `${money(p.baseCents)} workspace + ${money(p.editorCents)} / editor / month`}
-                          </span>
-                          <span className="mt-2 block text-xs text-[#34738f]">
-                            {BILLING[billing].label}
-                            {id === "enterprise" ? " · custom terms" : BILLING[billing].discountPercent
-                              ? ` · save ${BILLING[billing].discountPercent}%`
-                              : " · no discount"}
-                          </span>
-                          <span className="mt-3 block text-xs leading-5 text-slate-500">
-                            {id === "enterprise"
-                              ? "Custom requirements and onboarding, subject to agreement."
-                              : "Product and project workspaces, issues and dependency graph."}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-6 max-w-xs">
-                    <Field
-                      label="Paid editors"
-                      htmlFor="request-editors"
-                      hint="Changing the count recommends the matching plan; Enterprise also supports custom requirements."
-                    >
-                      <Input
-                        id="request-editors"
-                        type="number"
-                        min={1}
-                        max={100000}
-                        step={1}
-                        required
-                        value={editorsText}
-                        onChange={(e) => changeEditors(e.target.value)}
-                      />
-                    </Field>
-                  </div>
-                  <fieldset className="mt-7">
-                    <legend className="text-sm font-semibold text-[#12394f]">
-                      Billing frequency
-                    </legend>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                      {BILLING_PERIODS.map((id) => (
-                        <label
-                          key={id}
-                          className={`flex cursor-pointer items-center gap-2 border px-3 py-3 text-sm ${billing === id ? "border-[#237b9e] bg-[#eef8fa] font-semibold" : "border-slate-200"}`}
-                        >
-                          <input
-                            type="radio"
-                            name="billing"
-                            value={id}
-                            checked={billing === id}
-                            onChange={() => setBilling(id)}
-                            className="accent-[#176c91]"
-                          />
-                          {BILLING[id].label}
-                          {BILLING[id].discountPercent > 0 && (
-                            <span className="text-xs text-teal-700">
-                              Save {BILLING[id].discountPercent}%
-                            </span>
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <p className="mt-5 text-xs leading-6 text-slate-600">
-                    External reviewers are free, require no account, and can
-                    view only explicitly shared project issues. Internal
-                    read-only seats, editor-seat enforcement, AI allowances and
-                    additional credits are not yet available. No unlimited AI
-                    usage is included.
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    This form is for pre-sales conversations: custom
+                    requirements, procurement and deployment questions. Sending
+                    it does not create an account, activate a subscription or
+                    take payment.
                   </p>
-                </section>
-                <section
-                  aria-labelledby="summary-heading"
-                  className="border border-[#d1e1e7] bg-[#f6fafb] p-5 sm:p-6"
-                >
-                  <h2
-                    id="summary-heading"
-                    className="text-xl font-semibold text-[#12394f]"
-                  >
-                    Pricing summary
-                  </h2>
-                  {quote ? (
-                    <>
-                      <dl className="mt-4 grid gap-x-8 text-sm sm:grid-cols-2">
-                        {(
-                          [
-                            ["Plan", PLAN_CONFIG[quote.plan].label],
-                            ["Paid editors", String(quote.editors)],
-                            ["Workspace fee / month", money(quote.baseCents)],
-                            [
-                              "Per-editor fee / month",
-                              money(quote.editorCents),
-                            ],
-                            [
-                              "Regular monthly amount",
-                              money(quote.regularMonthlyCents),
-                            ],
-                            ["Billing frequency", BILLING[quote.billing].label],
-                            ["Discount", quote.discountPercent === null ? "Custom terms" : `${quote.discountPercent}%`],
-                            [
-                              "Original billing-period total",
-                              money(quote.originalPeriodCents),
-                            ],
-                            ["Discount amount", money(quote.discountCents)],
-                            [
-                              "Discounted billing-period total",
-                              money(quote.periodTotalCents),
-                            ],
-                            [
-                              "Effective monthly equivalent",
-                              money(quote.effectiveMonthlyCents),
-                            ],
-                          ] as [string, string][]
-                        ).map(([k, v]) => (
-                          <div
-                            key={k}
-                            className="flex justify-between gap-4 border-b border-[#dce9ed] py-2"
-                          >
-                            <dt className="text-slate-600">{k}</dt>
-                            <dd className="text-right font-semibold">{v}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                      <p className="mt-4 font-semibold text-[#12394f]">
-                        Expected per billing cycle:{" "}
-                        {money(quote.periodTotalCents)}
-                      </p>
-                      <p className="mt-2 text-xs leading-5 text-slate-600">
-                        {plan === "enterprise"
-                          ? "Enterprise pricing and discounts are agreed separately; the displayed standard-plan savings do not set enterprise terms."
-                          : "Estimate only; the billing-period total is the amount for the full period, not the monthly equivalent. Taxes are not included."}{" "}
-                        No charge occurs with this request.
-                      </p>
-                    </>
-                  ) : (
-                    <p role="alert" className="mt-4 text-sm text-rose-700">
-                      Enter a valid editor count to see an estimate.
-                    </p>
-                  )}
                 </section>
                 {error && (
                   <p
@@ -517,15 +307,15 @@ export function RequestAccessPage() {
                 )}
                 <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
                   <p className="max-w-md text-xs leading-5 text-slate-500">
-                    Submitting requests review only. No subscription or payment
-                    is activated.
+                    Sending this message does not create an account, subscription
+                    or payment. For immediate access, use Get Started.
                   </p>
                   <Button
                     type="submit"
                     loading={submitting}
                     className="min-h-11 px-6"
                   >
-                    Request Access{" "}
+                    Send message{" "}
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
@@ -535,9 +325,18 @@ export function RequestAccessPage() {
         </div>
         <footer className="mt-8 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
           <span>Solution Velocity · Engineering work, connected.</span>
-          <nav aria-label="Footer navigation" className="flex gap-5">
+          <nav aria-label="Footer navigation" className="flex flex-wrap gap-5">
+            <Link to="/signup" className="hover:text-blue-700">
+              Get Started
+            </Link>
             <Link to="/login" className="hover:text-blue-700">
-              Sign in
+              Log In
+            </Link>
+            <Link to="/terms" className="hover:text-blue-700">
+              Terms of Service
+            </Link>
+            <Link to="/privacy" className="hover:text-blue-700">
+              Privacy Policy
             </Link>
             <button
               type="button"

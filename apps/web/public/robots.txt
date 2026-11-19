@@ -12,4 +12,7 @@ Disallow: /teamwork-graph
 Disallow: /achievements
 Disallow: /join/
 Disallow: /reset/
+Disallow: /forgot-password
+Disallow: /verify-email
+Disallow: /pricing
 Sitemap: https://pdlc.dalvigroup.co.in/sitemap.xml

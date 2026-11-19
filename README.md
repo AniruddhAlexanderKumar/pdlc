@@ -39,15 +39,32 @@ legacy/          the original single-file prototype (reference only)
 deploy/          Caddy and nginx examples
 ```
 
-## Requesting access
+## Getting started
 
-The public landing page links to `/request-access`. Prospective teams can share their
-contact details, role, industry, team size, product stage, current tools, and goals.
-Requests are stored in PostgreSQL and reviewed by an administrator in the **Access
-Requests** tab of `/admin`. The tab supports pending, reviewing, approved, and declined
-statuses, plus internal review notes. Approval records the review only; an administrator
-must still provision an account or workspace invitation and contact the requester.
-Public submissions are rate-limited.
+Registration is open. The public landing page leads with **Get Started** (secondary
+action: **Log In**). A new account needs a name, an email address and a password, formal
+acceptance of the Terms of Service and Privacy Policy, and two onboarding answers —
+what the founder is building, and whether they are starting from scratch or already have
+a product. The account, its workspace, its workspace profile and its first product are
+created in one transaction, and the founder lands directly in the gamified PDLC
+journey. No payment details are requested and no checkout exists.
+
+The policy is configurable with `ACCESS_POLICY` (`beta-open` by default, `registered`,
+or `invite-only`); legacy `ALLOW_SIGNUP=false` still means `invite-only`. Email
+verification is issued whenever `RESET_SMTP_*` is configured and enforced only when
+`REQUIRE_EMAIL_VERIFICATION=true`. Self-service password recovery is at
+`/forgot-password`. See [SERVER_SETUP.md](SERVER_SETUP.md) section F.
+
+**Pricing is temporarily withdrawn from the public site.** The `/pricing` URL redirects
+to the landing page, the navigation, footer, landing sections and sitemap contain no
+pricing links, and `/request-access` is now a plain contact form. Nothing in the
+pricing or billing architecture was deleted: the pricing engines, `access_requests`
+intake, proposals, subscription tables and history remain, so pricing can be
+reintroduced without rebuilding it.
+
+The contact form at `/request-access` still stores submissions in PostgreSQL and
+reviews them in the **Access Requests** tab of `/admin`; it no longer collects a plan or
+billing preference. Public submissions are rate-limited.
 
 ---
 
@@ -82,6 +99,15 @@ npm run typecheck
 
 ```bash
 npm test
+```
+
+The open-registration flow can be exercised against a disposable local server and
+database (no SMTP provider required):
+
+```bash
+OPEN_REG_TEST_URL=http://localhost:4000 \
+OPEN_REG_TEST_DB=postgres://velocity:velocity@localhost:5433/velocity \
+npm run open-registration-smoke --workspace @sv/server
 ```
 
 The API smoke test needs the dev server running and creates throwaway users:

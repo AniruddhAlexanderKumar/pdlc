@@ -6,7 +6,7 @@ if(!base||!dbUrl||!['localhost','127.0.0.1'].includes(new URL(base).hostname)||!
 const db=new pg.Client({connectionString:dbUrl});await db.connect();const stamp=Date.now();
 async function call(method,path,body,cookie){const r=await fetch(base+'/api'+path,{method,headers:{origin:'http://localhost:5173',...(cookie?{cookie}:{}),...(body!==undefined?{'content-type':'application/json'}:{})},body:body===undefined?undefined:JSON.stringify(body)});return{status:r.status,data:await r.json().catch(()=>null),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
 const expect=(r,n)=>assert.equal(r.status,n,JSON.stringify(r.data));
-async function register(name,inviteToken){const r=await call('POST','/auth/register',{name,email:`env-${name}-${stamp}@example.test`,password:'Test-Password-123!',workspaceName:name+' workspace',inviteToken});expect(r,201);return r;}
+async function register(name,inviteToken){const r=await call('POST','/auth/register',{acceptedTerms:true,name,email:`env-${name}-${stamp}@example.test`,password:'Test-Password-123!',workspaceName:name+' workspace',inviteToken});expect(r,201);return r;}
 try{
  const owner=await register('owner'),other=await register('other');const invite=await call('POST','/workspace/invites',{role:'member'},owner.cookie);expect(invite,201);const member=await register('member',new URL(invite.data.url).pathname.split('/').pop());
  expect(await call('GET','/ai/health'),401);expect(await call('GET','/ai/health',undefined,member.cookie),403);

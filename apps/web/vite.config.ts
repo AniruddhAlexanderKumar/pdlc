@@ -13,8 +13,8 @@ function accessPageMetadata(): Plugin {
     configResolved(config) { output = resolve(config.root, config.build.outDir); },
     async closeBundle() {
       const root = await readFile(resolve(output, 'index.html'), 'utf8');
-      const title = 'Request Early Access | Solution Velocity';
-      const description = 'Request early access to Solution Velocity and tell us about your engineering workflow.';
+      const title = 'Contact & Access | Solution Velocity';
+      const description = 'Contact the Solution Velocity team about your engineering workflow, a team or education deployment, or create your account and get started today.';
       const page = root
         .replaceAll('Solution Velocity | Engineering Product Development Lifecycle Management', title)
         .replaceAll('Bring product and project work together for engineering teams, students and educational organisations with Solution Velocity.', description)

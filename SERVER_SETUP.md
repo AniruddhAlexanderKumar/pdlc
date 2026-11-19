@@ -55,9 +55,13 @@ Edit `.env.production`:
 ```
 APP_URL=https://velocity.yourcompany.com
 POSTGRES_PASSWORD=<the long random string>
-ALLOW_SIGNUP=false
+ACCESS_POLICY=beta-open
 TRUST_PROXY=1
 ```
+
+`ACCESS_POLICY` decides who can create an account. The default, `beta-open`, lets
+anyone register and use the standard workspace without payment details. Set it to
+`invite-only` for a closed deployment. See section F below.
 
 ### A3. Build and start
 
@@ -144,7 +148,7 @@ PORT=4000
 HOST=127.0.0.1
 APP_URL=https://velocity.yourcompany.com
 DATABASE_URL=postgres://velocity:the-long-random-string@localhost:5432/velocity
-ALLOW_SIGNUP=false
+ACCESS_POLICY=beta-open
 TRUST_PROXY=1
 LOG_LEVEL=info
 ```
@@ -261,7 +265,10 @@ A cron entry for a nightly backup on the host (keeps 14 days):
 
 ## F. Users and access
 
-- **Sign-up** is invite-only when `ALLOW_SIGNUP=false` (recommended). The very first account can always be created, so a fresh install is never locked out.
+- **Sign-up** follows `ACCESS_POLICY` (see `.env.example`): `beta-open` and `registered` allow open registration without payment details; `invite-only` requires an invite link. The legacy `ALLOW_SIGNUP=false` is still honoured and means `invite-only`. The very first account can always be created, so a fresh install is never locked out.
+- **Registration** asks for full name, email, password (with confirmation), Terms of Service and Privacy Policy acceptance, and the two onboarding questions (what you are building, and whether you are starting from scratch). New accounts own their workspace and enter the PDLC journey at the stage their answer implies. No payment step exists.
+- **Email verification** is issued whenever `RESET_SMTP_*` is configured, and only *enforced* when `REQUIRE_EMAIL_VERIFICATION=true`. Without SMTP, verification cannot be completed by anyone, so the server reports it as unavailable and admits the account rather than locking it out. `/api/auth/config` reports both flags truthfully.
+- **Forgot password:** users can request their own reset link at `/forgot-password`. Requires `RESET_SMTP_*`; the endpoint answers identically whether or not the address exists, so it cannot be used to enumerate accounts.
 - **Inviting people:** an owner or admin goes to Settings → Team → **Invite link** and sends the link. Links work once and expire after 7 days.
 - **Forgotten password:** an owner or admin uses Settings → Team → Send reset email next to the person. Configure `RESET_SMTP_HOST`, `RESET_SMTP_FROM` and optional SMTP credentials as described in SECURITY.md. The server sends a single-use link valid for 24 hours directly to the registered email address.
 - **Owner locked out:** run the `create-admin` command again (A4 or B6) with the owner's email. It resets the password and signs them out everywhere.
@@ -278,7 +285,9 @@ A cron entry for a nightly backup on the host (keeps 14 days):
 | `DATABASE_URL`      | yes      | —       | `postgres://user:pass@host:5432/db`; add `?sslmode=require` for remote TLS.    |
 | `NODE_ENV`          |          | `development` | Set to `production`.                                                     |
 | `PORT` / `HOST`     |          | `4000` / `0.0.0.0` | Listen address. Use `HOST=127.0.0.1` when not in Docker.               |
-| `ALLOW_SIGNUP`      |          | `true`  | `false` = invite-only.                                                          |
+| `ACCESS_POLICY`     |          | `beta-open` | `beta-open` / `registered` = open registration, no payment step; `invite-only` = invite links only. |
+| `REQUIRE_EMAIL_VERIFICATION` | | `false` | Enforce email confirmation before a session is issued. Only effective when `RESET_SMTP_*` is configured. |
+| `ALLOW_SIGNUP`      |          | unset   | Legacy. `false` = `invite-only`.                                                |
 | `TRUST_PROXY`       |          | `0`     | `1` behind one reverse proxy.                                                   |
 | `SESSION_TTL_DAYS`  |          | `30`    | How long a login lasts. It renews while in use.                                 |
 | `DATABASE_POOL_MAX` |          | `10`    | Maximum DB connections per app instance.                                        |
@@ -304,7 +313,8 @@ The app refuses to start, and lists the problem, if a required variable is missi
 
 - [ ] `APP_URL` uses `https://` and the proxy redirects HTTP to HTTPS
 - [ ] Port 4000 and PostgreSQL (5432) are not reachable from the internet
-- [ ] `ALLOW_SIGNUP=false`
+- [ ] `ACCESS_POLICY` set deliberately (`invite-only` for a closed deployment)
+- [ ] `RESET_SMTP_*` configured, then `REQUIRE_EMAIL_VERIFICATION=true` if you want confirmed addresses
 - [ ] `.env.production` or `/etc/solution-velocity.env` is not world-readable
 - [ ] Nightly database backups are running and a restore has been tested
 - [ ] The temporary owner password was changed after first sign-in

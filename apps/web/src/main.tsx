@@ -12,7 +12,7 @@ import { ToastProvider } from './components/Toast';
 import { Button, ConfirmProvider, Spinner } from './components/ui';
 import { AchievementsPage } from './pages/Achievements';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { AuthPage, JoinPage, ResetPage } from './pages/auth/Auth';
+import { AuthPage, ForgotPasswordPage, JoinPage, ResetPage, VerifyEmailPage } from './pages/auth/Auth';
 const AssistantPage = lazy(() => import('./pages/Assistant').then(m => ({ default: m.AssistantPage })));
 import { AssistantAdminPage } from './pages/admin/AssistantAdmin';
 import { DashboardPage } from './pages/Dashboard';
@@ -25,6 +25,9 @@ import { ProjectHomePage } from './pages/ProjectHome';
 import { ProjectIssuesPage } from './pages/ProjectIssues';
 const TeamworkGraphPage = lazy(() => import('./pages/TeamworkGraph').then(m => ({ default: m.TeamworkGraphPage })));
 import { RequestAccessPage } from './pages/RequestAccess';
+import { TermsPage } from './pages/Terms';
+import { OnboardingPage } from './pages/Onboarding';
+import { PrivacyPage } from './pages/Privacy';
 import { HelpCentrePage } from './pages/HelpCentre';
 import { HelpAdminPage } from './pages/admin/HelpAdmin';
 import { ExternalReviewPage } from './pages/ExternalReview';
@@ -138,10 +141,12 @@ function RootApp() {
   const location = useLocation();
   useEffect(() => {
     const pathname = location.pathname.replace(/\/+$/, '') || '/';
-    const publicPage = pathname === '/' || pathname === '/request-access';
-    const pageName = ({ '/request-access': 'Request Early Access', '/login': 'Sign In', '/signup': 'Create Account', '/register': 'Create Account', '/try-demo': 'Sample Workspace', '/products': 'Products', '/projects': 'Projects', '/teamwork-graph': 'Teamwork Graph', '/materials': 'Materials', '/suppliers': 'Suppliers', '/settings': 'Settings', '/achievements': 'Achievements', '/admin': 'Administration' } as Record<string, string>)[pathname];
+    const publicPage = pathname === '/' || pathname === '/request-access' || pathname === '/terms' || pathname === '/privacy';
+    const pageName = ({ '/request-access': 'Contact & Access', '/terms': 'Terms of Service', '/privacy': 'Privacy Policy', '/forgot-password': 'Reset Password', '/verify-email': 'Verify Email', '/login': 'Log In', '/signup': 'Get Started', '/register': 'Get Started', '/try-demo': 'Sample Workspace', '/products': 'Products', '/projects': 'Projects', '/teamwork-graph': 'Teamwork Graph', '/materials': 'Materials', '/suppliers': 'Suppliers', '/settings': 'Settings', '/onboarding': 'Get Started', '/achievements': 'Achievements', '/admin': 'Administration' } as Record<string, string>)[pathname];
     const title = pathname === '/' ? 'Solution Velocity | Engineering Product Development Lifecycle Management' : `${/^\/founders(?:\/|$)/i.test(pathname) ? (import.meta.env.VITE_FOUNDER_AUTH_EXPERIMENTAL === 'true' ? 'Founder authentication (experimental)' : 'Founders Console unavailable') : pageName ?? 'Engineering Workspace'} | Solution Velocity`;
-    const description = pathname === '/request-access' ? 'Request early access to Solution Velocity and tell us about your engineering workflow.' : 'Bring product and project work together for engineering teams, students and educational organisations with Solution Velocity.';
+    const description = pathname === '/request-access'
+      ? 'Contact the Solution Velocity team about your engineering workflow, a team or education deployment, or create your account and get started today.'
+      : 'Create your Solution Velocity account and develop products through a guided, gamified product development lifecycle. For engineering teams, students and educational organisations.';
     document.title = title;
     const set = (selector: string, value: string) => document.querySelector<HTMLMetaElement>(selector)?.setAttribute('content', value);
     set('meta[name="description"]', description);
@@ -178,7 +183,17 @@ const router = createBrowserRouter([
       { path: '/join/:token', element: <JoinPage /> },
       { path: '/reset', element: <ResetPage /> },
       { path: '/reset/:token', element: <ResetPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/verify-email', element: <VerifyEmailPage /> },
+      { path: '/terms', element: <TermsPage /> },
+      { path: '/privacy', element: <PrivacyPage /> },
       { path: '/request-access', element: <RequestAccessPage /> },
+      // Pricing is temporarily withdrawn from public navigation while accounts
+      // are open to everyone. The pricing engines, subscription architecture and
+      // access-request review flow stay in place; only the public entry point is
+      // redirected to the front door so old links do not dead-end.
+      { path: '/pricing', element: <Navigate to="/" replace /> },
+      { path: '/pricing/*', element: <Navigate to="/" replace /> },
       { path: '/review', element: <ReviewRoute /> },
       { path: '/founders/*', element: import.meta.env.VITE_FOUNDER_AUTH_EXPERIMENTAL === 'true' ? <FoundersExperimental /> : <FoundersUnavailable /> },
       { path: '/contact', element: <Navigate to="/request-access" replace /> },
@@ -223,6 +238,7 @@ const router = createBrowserRouter([
               { path: '/settings', element: <SettingsPage /> },
               { path: '/settings/notifications', element: <NotificationSettings /> },
               { path: '/workspace-setup', element: <WorkspaceSetupPage /> },
+              { path: '/onboarding', element: <OnboardingPage /> },
               { path: '*', element: <Navigate to="/" replace /> }
             ]
           }

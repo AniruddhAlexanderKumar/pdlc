@@ -20,7 +20,7 @@ async function request(path, { method = 'GET', cookie, body } = {}) {
   return { response, data: response.status === 204 ? null : await response.json(), cookie: response.headers.get('set-cookie')?.split(';')[0] };
 }
 async function register(label) {
-  const result = await request('/auth/register', { method: 'POST', body: { name: label, email: `${label}-${stamp}@example.test`, password: 'Synthetic-test-password-123!', workspaceName: label, workspaceMode: 'team' } });
+  const result = await request('/auth/register', {acceptedTerms:true, method: 'POST', body: { name: label, email: `${label}-${stamp}@example.test`, password: 'Synthetic-test-password-123!', workspaceName: label, workspaceMode: 'team' } });
   assert.equal(result.response.status, 201);
   return result;
 }

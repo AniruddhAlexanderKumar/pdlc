@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ACCESS_POLICIES, DEFAULT_ACCESS_POLICY } from '@sv/shared';
 
 const bool = z
   .enum(['true', 'false', '1', '0', 'yes', 'no'])
@@ -17,8 +18,25 @@ const schema = z.object({
   MIGRATIONS_ON_STARTUP: bool.default(true),
   /** Session lifetime in days. Sessions slide forward while in use. */
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
-  /** When false, people can only join with an invite link from an admin. */
-  ALLOW_SIGNUP: bool.default(true),
+  /**
+   * Temporary launch access policy (see packages/shared/src/access-policy.ts).
+   * `beta-open` / `registered`: anyone can create an account and use the
+   * standard product-development workspace without payment.
+   * `invite-only`: accounts require an invite link.
+   */
+  ACCESS_POLICY: z.enum(ACCESS_POLICIES).default(DEFAULT_ACCESS_POLICY),
+  /**
+   * Legacy switch, superseded by ACCESS_POLICY. When explicitly set to false it
+   * forces the invite-only policy so existing deployments keep their choice.
+   */
+  ALLOW_SIGNUP: bool.optional(),
+  /**
+   * Whether new registrations must confirm their email address before a
+   * session is issued. Off by default: no SMTP transport is configured on
+   * every deployment, so making verification mandatory would lock new users
+   * out of their own workspace. Set to true once RESET_SMTP_* is configured.
+   */
+  REQUIRE_EMAIL_VERIFICATION: bool.optional(),
   /** Trust X-Forwarded-* headers from this many proxies (set to 1 behind nginx/Caddy). */
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   RESET_SMTP_HOST: z.string().default(''),
@@ -67,8 +85,14 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+const legacySignupClosed = parsed.data.ALLOW_SIGNUP === false;
+// ALLOW_SIGNUP=false historically meant invite-only; keep that meaning unless
+// an operator has deliberately chosen a different policy.
+const accessPolicy = legacySignupClosed && parsed.data.ACCESS_POLICY === DEFAULT_ACCESS_POLICY ? 'invite-only' : parsed.data.ACCESS_POLICY;
+
 export const config = {
   ...parsed.data,
+  accessPolicy,
   isProd: parsed.data.NODE_ENV === 'production',
   appOrigin: new URL(parsed.data.APP_URL).origin,
   secureCookies: new URL(parsed.data.APP_URL).protocol === 'https:',

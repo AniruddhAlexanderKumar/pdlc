@@ -3,13 +3,29 @@ import { randomUUID } from 'node:crypto';
 import { rateLimit } from 'express-rate-limit';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import { CURRENCIES, type Me, type Role, type Workspace, type CurrencyCode } from '@sv/shared';
+import {
+  CURRENCIES,
+  ONBOARDING_STARTING_POINTS,
+  STARTING_POINT_STAGES,
+  accessStatusFor,
+  planOnboarding,
+  type Me,
+  type OnboardingState,
+  type OnboardingStartingPoint,
+  type Role,
+  type Workspace,
+  type CurrencyCode
+} from '@sv/shared';
 import { config } from '../config.js';
 import { db, type Db } from '../db/index.js';
 import { getDummyHash, hashPassword, hashToken, verifyPassword } from '../auth/crypto.js';
 import { auth, endSession, requireAuth, startSession } from '../auth/session.js';
 import { HttpError, badRequest, conflict, forbidden, parse, route, shortText, unauthorized } from '../lib/http.js';
+import { mailConfigured } from '../lib/mailer.js';
 import { recordAnalyticsEvent } from '../services/analytics.js';
+import { sendPasswordReset, recoveryConfigured } from '../services/account-recovery.js';
+import { deliverVerificationEmail, emailVerificationEnforced, issueEmailVerification, redeemEmailVerification, sendEmailVerification } from '../services/email-verification.js';
+import { applyOnboarding, onboardingFor, type OnboardingResult } from '../services/onboarding.js';
 import { loadSampleData } from '../services/sampleData.js';
 
 export const authRouter = Router();
@@ -42,7 +58,7 @@ const strictLimiter = rateLimit({
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 export async function loadMe(trx: Db, userId: string, workspaceId: string): Promise<Me> {
-  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at']).where('id', '=', userId).executeTakeFirstOrThrow();
+  const user = await trx.selectFrom('users').select(['id', 'email', 'name', 'is_admin', 'created_at', 'email_verified_at']).where('id', '=', userId).executeTakeFirstOrThrow();
   const rows = await trx
     .selectFrom('memberships as m')
     .innerJoin('workspaces as w', 'w.id', 'm.workspace_id')
@@ -54,17 +70,32 @@ export async function loadMe(trx: Db, userId: string, workspaceId: string): Prom
   const demo = await trx.selectFrom('demo_guests').select('expires_at').where('user_id', '=', userId).executeTakeFirst();
   const workspace = workspaces.find((w) => w.id === workspaceId) || workspaces[0];
   if (!workspace) throw unauthorized();
+  const onboarding = demo ? null : await onboardingFor(trx, workspace.id);
+  // The access block describes what this account may use right now. A demo
+  // guest is a separate, temporary product; real accounts report the operator's
+  // policy and whether their email is confirmed.
+  const access = demo
+    ? undefined
+    : {
+        policy: config.accessPolicy,
+        standardAccess: accessStatusFor(config.accessPolicy).standardAccess,
+        emailVerified: Boolean(user.email_verified_at),
+        emailVerificationRequired: emailVerificationEnforced()
+      };
   return {
     user: {
       id: user.id,
       email: user.email,
       name: user.name,
       createdAt: user.created_at.toISOString(),
-      isAdmin: user.is_admin
+      isAdmin: user.is_admin,
+      emailVerifiedAt: user.email_verified_at ? user.email_verified_at.toISOString() : null
     },
     workspace,
     workspaces,
-    ...(demo ? { demo: { expiresAt: demo.expires_at.toISOString() } } : {})
+    ...(demo ? { demo: { expiresAt: demo.expires_at.toISOString() } } : {}),
+    ...(access ? { access } : {}),
+    ...(onboarding ? { onboarding } : {})
   };
 }
 
@@ -98,8 +129,24 @@ authRouter.get(
   '/config',
   route(async (_req, res) => {
     const { count } = await db.selectFrom('users').select(sql<number>`count(*)`.as('count')).where('id', 'not in', db.selectFrom('demo_guests').select('user_id')).executeTakeFirstOrThrow();
-    // The very first account can always be created, so a fresh install is never locked out.
-    res.json({ allowSignup: config.ALLOW_SIGNUP || count === 0 });
+    const status = accessStatusFor(config.accessPolicy);
+    // The very first account can always be created, so a fresh install is never
+    // locked out even under an invite-only policy.
+    const firstAccount = count === 0;
+    res.set('Cache-Control', 'no-store').json({
+      allowSignup: status.openRegistration || firstAccount,
+      policy: status.policy,
+      openRegistration: status.openRegistration || firstAccount,
+      paymentRequired: status.paymentRequired,
+      launchPeriod: status.launchPeriod,
+      summary: status.summary,
+      // Reported truthfully so the UI never promises an email that cannot be sent.
+      emailVerification: {
+        required: emailVerificationEnforced(),
+        available: mailConfigured()
+      },
+      passwordRecovery: { available: recoveryConfigured() }
+    });
   })
 );
 
@@ -140,57 +187,208 @@ authRouter.post(
         workspaceName: shortText(80).optional(),
         workspaceMode: z.enum(['solo', 'team']).default('team'),
         currency: z.enum(CURRENCIES).optional(),
-        inviteToken: z.string().max(200).optional()
+        inviteToken: z.string().max(200).optional(),
+        // Registration itself must state that the terms were accepted. The
+        // server records it; the client can never imply consent on its own.
+        acceptedTerms: z.literal(true, { message: 'Accept the Terms of Service and Privacy Policy to continue' }),
+        // Post-registration onboarding, asked as two questions on the sign-up form.
+        onboarding: z
+          .object({
+            building: shortText(120).min(1, 'Tell us what you are building'),
+            startingPoint: z.enum(ONBOARDING_STARTING_POINTS),
+            category: shortText(60).optional()
+          })
+          .optional()
       }),
       req.body
     );
 
-    const me = await db.transaction().execute(async (trx) => {
-      const existing = await trx.selectFrom('users').select('id').where('email', '=', body.email).executeTakeFirst();
-      if (existing) throw conflict('An account with this email already exists. Try signing in.');
+    const status = accessStatusFor(config.accessPolicy);
+    // Enforcement is decided from configuration, never from whether an
+    // individual message happened to be delivered: a transient SMTP failure
+    // must not silently downgrade a security setting, and it must not create
+    // an account the user cannot activate either — see `sendEmailVerification`.
+    const enforcement = emailVerificationEnforced();
+    let registered: {
+      me: Me;
+      userId: string;
+      issued: { token: string; expiresInHours: number } | null;
+      blocked: boolean;
+      onboarding: OnboardingResult | null;
+    };
+    try {
+      registered = await db.transaction().execute(async (trx) => {
+        const existing = await trx.selectFrom('users').select('id').where('email', '=', body.email).executeTakeFirst();
+        if (existing) throw conflict('An account with this email already exists. Try signing in.');
 
-      const invite = body.inviteToken ? await findInvite(trx, body.inviteToken) : null;
-      if (!invite) {
-        const { count } = await trx.selectFrom('users').select(sql<number>`count(*)`.as('count')).where('id', 'not in', trx.selectFrom('demo_guests').select('user_id')).executeTakeFirstOrThrow();
-        if (!config.ALLOW_SIGNUP && count > 0) throw forbidden('Sign-up is invite-only. Ask an admin for an invite link.');
-      }
+        const invite = body.inviteToken ? await findInvite(trx, body.inviteToken) : null;
+        if (!invite && !status.openRegistration) {
+          const { count } = await trx.selectFrom('users').select(sql<number>`count(*)`.as('count')).where('id', 'not in', trx.selectFrom('demo_guests').select('user_id')).executeTakeFirstOrThrow();
+          if (count > 0) throw forbidden('Sign-up is invite-only. Ask an admin for an invite link.');
+        }
 
-      const user = await trx
-        .insertInto('users')
-        .values({ email: body.email, name: body.name, password_hash: await hashPassword(body.password), last_login_at: new Date() })
-        .returning('id')
-        .executeTakeFirstOrThrow();
-
-      let workspaceId: string;
-      if (invite) {
-        await consumeInvite(trx, invite.id, user.id);
-        await trx.insertInto('memberships').values({ workspace_id: invite.workspace_id, user_id: user.id, role: invite.role }).execute();
-        workspaceId = invite.workspace_id;
-      } else {
-        const ws = await trx
-          .insertInto('workspaces')
-          .values({ name: body.workspaceName || `${body.name.split(' ')[0]}'s workspace`, currency: body.currency ?? 'USD', mode: body.workspaceMode })
+        const user = await trx
+          .insertInto('users')
+          .values({
+            email: body.email,
+            name: body.name,
+            password_hash: await hashPassword(body.password),
+            last_login_at: new Date(),
+            terms_accepted_at: new Date()
+          })
           .returning('id')
           .executeTakeFirstOrThrow();
-        await trx.insertInto('memberships').values({ workspace_id: ws.id, user_id: user.id, role: 'owner' }).execute();
-        workspaceId = ws.id;
+
+        let workspaceId: string;
+        if (invite) {
+          await consumeInvite(trx, invite.id, user.id);
+          await trx.insertInto('memberships').values({ workspace_id: invite.workspace_id, user_id: user.id, role: invite.role }).execute();
+          workspaceId = invite.workspace_id;
+        } else {
+          const ws = await trx
+            .insertInto('workspaces')
+            .values({ name: body.workspaceName || `${body.name.split(' ')[0]}'s workspace`, currency: body.currency ?? 'USD', mode: body.workspaceMode })
+            .returning('id')
+            .executeTakeFirstOrThrow();
+          await trx.insertInto('memberships').values({ workspace_id: ws.id, user_id: user.id, role: 'owner' }).execute();
+          workspaceId = ws.id;
+        }
+
+        // Onboarding runs inside the same transaction: if it fails, the account
+        // is not created rather than half-initialised.
+        const onboarding = body.onboarding && !invite
+          ? await applyOnboarding(trx, { workspaceId, userId: user.id, name: body.name, answers: body.onboarding })
+          : null;
+
+        // The verification token is written inside the transaction; the message
+        // itself is sent after it commits, so a delivery failure can never leave
+        // an account without a usable token.
+        const issued = enforcement ? await issueEmailVerification(trx, user.id) : null;
+        const me = await loadMe(trx, user.id, workspaceId);
+        return { me, userId: user.id, issued, blocked: Boolean(enforcement), onboarding };
+      });
+    } catch (error) {
+      // Two concurrent sign-ups for one address: the database unique index is
+      // the real guard; give the second request the same answer as a serial one.
+      if ((error as { code?: string }).code === '23505') {
+        throw conflict('An account with this email already exists. Try signing in.');
       }
+      throw error;
+    }
 
-      await startSession(trx, req, res, user.id, workspaceId);
-      return loadMe(trx, user.id, workspaceId);
-    });
+    // Outside the transaction: deliver the verification message, if enforcing.
+    let emailDelivery: 'sent' | 'unavailable' | 'failed' | 'not_required' = 'not_required';
+    let blocked = registered.blocked;
+    if (registered.issued) {
+      emailDelivery = await deliverVerificationEmail(registered.me.user.email, registered.me.user.name, registered.issued.token);
+      if (emailDelivery !== 'sent') {
+        // Nothing to verify with, so do not hold the account hostage to it.
+        await db.deleteFrom('email_verifications').where('user_id', '=', registered.userId).where('used_at', 'is', null).execute();
+        blocked = false;
+        req.log.warn({ userId: registered.userId, emailDelivery }, 'verification email not delivered; issuing a session');
+      }
+    }
+    if (!blocked) {
+      await db.transaction().execute(async (trx) => {
+        // Re-resolve the membership: an invite-based registration has its own workspace.
+        const membership = await trx.selectFrom('memberships').select('workspace_id').where('user_id', '=', registered.userId).orderBy('created_at').executeTakeFirstOrThrow();
+        await startSession(trx, req, res, registered.userId, membership.workspace_id);
+      });
+    }
 
-    req.log.info({ userId: me.user.id }, 'user registered');
+    req.log.info({ userId: registered.me.user.id, emailDelivery }, 'user registered');
     await recordAnalyticsEvent({
       eventType: 'action',
       eventName: 'auth.register',
-      userId: me.user.id,
-      workspaceId: me.workspace.id,
+      userId: registered.me.user.id,
+      workspaceId: registered.me.workspace.id,
       ip: req.ip ?? null,
       userAgent: req.get('user-agent') ?? null,
-      metadata: { email: me.user.email, name: me.user.name }
+      metadata: {
+        email: registered.me.user.email,
+        name: registered.me.user.name,
+        policy: status.policy,
+        emailDelivery
+      }
     });
-    res.status(201).json(me);
+
+    if (blocked) {
+      // No session, no workspace data: only the fact that a verification email
+      // is on its way. The account exists but cannot be used until confirmed.
+      res.status(202).json({
+        verificationRequired: true,
+        email: registered.me.user.email,
+        emailDelivery: 'sent'
+      });
+      return;
+    }
+    res.status(201).json({
+      ...registered.me,
+      // Reported so the UI can say "check your inbox" without blocking access.
+      emailDelivery,
+      // Where onboarding put this founder, when they answered the questions.
+      onboardedProductId: registered.onboarding?.productId ?? null
+    });
+  })
+);
+
+/** Resends the verification email for the signed-in account. */
+authRouter.post(
+  '/verify-email/resend',
+  requireAuth,
+  strictLimiter,
+  route(async (req, res) => {
+    const a = auth(req);
+    const user = await db.selectFrom('users').select(['id', 'email', 'name', 'email_verified_at']).where('id', '=', a.userId).executeTakeFirstOrThrow();
+    if (user.email_verified_at) {
+      res.json({ alreadyVerified: true });
+      return;
+    }
+    const result = await sendEmailVerification(db, user);
+    if (result.mail === 'unavailable') throw new HttpError(503, 'Email delivery is not configured on this server.', 'email_unavailable');
+    if (result.mail === 'failed') throw new HttpError(502, 'Could not send the verification email. Try again shortly.', 'email_failed');
+    res.status(202).json({ sent: true, expiresInHours: 24 });
+  })
+);
+
+/** Redeems an emailed verification token. Idempotent for an already-verified address. */
+authRouter.post(
+  '/verify-email',
+  strictLimiter,
+  route(async (req, res) => {
+    const { token } = parse(z.object({ token: z.string().min(20).max(200) }).strict(), req.body);
+    const redeemed = await redeemEmailVerification(db, token);
+    if (!redeemed) throw new HttpError(410, 'This verification link is invalid or has expired.', 'verification_invalid');
+    // A verified user who has not signed in yet may now do so; anyone already
+    // holding a session simply sees their account marked verified.
+    const membership = req.auth?.userId === redeemed.userId
+      ? null
+      : await db.selectFrom('memberships').select('workspace_id').where('user_id', '=', redeemed.userId).orderBy('created_at').executeTakeFirst();
+    if (!req.auth && membership) {
+      await db.transaction().execute(async (trx) => {
+        await startSession(trx, req, res, redeemed.userId, membership.workspace_id);
+      });
+    }
+    res.set('Cache-Control', 'no-store').json({ verified: true, signedIn: Boolean(req.auth) || Boolean(membership) });
+  })
+);
+
+/** Public "forgot password" request. Always answers the same way. */
+authRouter.post(
+  '/forgot-password',
+  strictLimiter,
+  route(async (req, res) => {
+    const { email: address } = parse(z.object({ email }).strict(), req.body);
+    const user = await db.selectFrom('users').select(['id', 'email', 'name', 'is_disabled']).where('email', '=', address).executeTakeFirst();
+    let delivered = false;
+    if (user && !user.is_disabled) delivered = await sendPasswordReset(db, user);
+    req.log.info({ found: Boolean(user), delivered }, 'password reset requested');
+    // One response for every outcome: no account enumeration, and no hint about
+    // whether SMTP is configured on this deployment.
+    res.set('Cache-Control', 'no-store').status(202).json({
+      accepted: true,
+      message: 'If an account exists for that address, a reset link is on its way.'
+    });
   })
 );
 
@@ -280,6 +478,45 @@ authRouter.get(
   route(async (req, res) => {
     const a = auth(req);
     res.json(await loadMe(db, a.userId, a.workspaceId));
+  })
+);
+
+/** Finishes onboarding for an account that registered without answering the two questions. */
+authRouter.post(
+  '/onboarding',
+  requireAuth,
+  route(async (req, res) => {
+    const a = auth(req);
+    if (a.isDemo) throw forbidden('Onboarding is not available in the temporary demo.');
+    const body = parse(
+      z.object({
+        building: shortText(120).min(1, 'Tell us what you are building'),
+        startingPoint: z.enum(ONBOARDING_STARTING_POINTS),
+        category: shortText(60).optional()
+      }).strict(),
+      req.body
+    );
+    const existing = await onboardingFor(db, a.workspaceId);
+    if (existing) {
+      // Idempotent: repeating the request never creates a second product.
+      res.json({ onboarding: existing, productId: null });
+      return;
+    }
+    const result = await db.transaction().execute(async (trx) => {
+      const applied = await applyOnboarding(trx, { workspaceId: a.workspaceId, userId: a.userId, name: a.name, answers: body });
+      const me = await loadMe(trx, a.userId, a.workspaceId);
+      return { ...applied, me };
+    });
+    await recordAnalyticsEvent({
+      eventType: 'action',
+      eventName: 'auth.onboarding',
+      userId: a.userId,
+      workspaceId: a.workspaceId,
+      ip: req.ip ?? null,
+      userAgent: req.get('user-agent') ?? null,
+      metadata: { startingPoint: result.state.startingPoint, startingStage: result.state.startingStage, productId: result.productId }
+    });
+    res.status(201).json({ onboarding: result.state, productId: result.productId, me: result.me });
   })
 );
 

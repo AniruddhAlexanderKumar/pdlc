@@ -11,7 +11,7 @@ async function call(cookie, method, path, body) {
   return { status: r.status, data: r.status === 204 ? null : await r.json(), cookie: r.headers.get('set-cookie')?.split(';')[0] };
 }
 async function register(name, workspaceMode) {
-  const r = await call('', 'POST', '/auth/register', { name, email: `workspace-mode-${stamp}-${name.toLowerCase()}@example.test`, password: `Test-${stamp}Abc9`, workspaceName: `${name} personal`, workspaceMode });
+  const r = await call('', 'POST', '/auth/register', {acceptedTerms:true, name, email: `workspace-mode-${stamp}-${name.toLowerCase()}@example.test`, password: `Test-${stamp}Abc9`, workspaceName: `${name} personal`, workspaceMode });
   assert.equal(r.status, 201, JSON.stringify(r.data)); return r;
 }
 const owner = await register('Owner', 'solo');

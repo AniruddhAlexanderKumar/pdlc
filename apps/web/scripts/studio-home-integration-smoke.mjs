@@ -6,7 +6,7 @@ const {chromium:pw}=await import(process.env.STUDIO_PLAYWRIGHT_MODULE);
 const {default:chromium}=await import(process.env.STUDIO_CHROMIUM_MODULE);
 const email=`studio-${randomBytes(12).toString('hex')}@example.test`,password=`Fixture-${randomBytes(24).toString('base64url')}`,base=process.env.STUDIO_TEST_URL;
 async function call(method,path,body,cookie){const res=await fetch(`${base}/api${path}`,{method,headers:{origin:base,...(body?{'content-type':'application/json'}:{}),...(cookie?{cookie}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:res.status,data:await res.json(),cookie:res.headers.get('set-cookie')?.split(';')[0]};}
-const reg=await call('POST','/auth/register',{name:'Studio fixture',email,password,workspaceName:'Studio fixture'});assert.equal(reg.status,201);const cookie=reg.cookie;
+const reg=await call('POST','/auth/register',{acceptedTerms:true,name:'Studio fixture',email,password,workspaceName:'Studio fixture'});assert.equal(reg.status,201);const cookie=reg.cookie;
 const old=await call('POST','/designs',{title:'Preserved fixture diagram',projectId:null,productId:null},cookie);assert.equal(old.status,201);
 const browser=await pw.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(x=>x!=='--disable-web-security'),headless:true});
 try {

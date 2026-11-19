@@ -20,7 +20,8 @@ const stamp = Date.now(),
   password = `Test-${stamp}Abc9`;
 async function register(n, inviteToken) {
   const email = `dashboard-${stamp}-${n}@example.test`;
-  const r = await call('', 'POST', '/auth/register', {
+  const r = await call('', 'POST', '/auth/register', {acceptedTerms: true,
+    
     name: `Dashboard ${n}`,
     email,
     password,

@@ -4,7 +4,7 @@ const base=process.env.EDU_HELP_TEST_URL,dbUrl=process.env.EDU_HELP_TEST_DB;if(!
 const db=new pg.Client({connectionString:dbUrl});await db.connect();const stamp=Date.now();
 async function call(method,path,body,cookie){const r=await fetch(base+'/api'+path,{method,headers:{origin:'http://localhost:5173',...(body!==undefined?{'content-type':'application/json'}:{}),...(cookie?{cookie}:{})},body:body===undefined?undefined:JSON.stringify(body)});let data;try{data=await r.json()}catch{data=null}return {status:r.status,data,cookie:r.headers.get('set-cookie')?.split(';')[0]};}
 function expect(r,n){assert.equal(r.status,n,JSON.stringify(r.data));}
-async function register(name,inviteToken){const r=await call('POST','/auth/register',{name,email:`${name.toLowerCase()}-${stamp}@example.test`,password:'Test-Password-2389!',workspaceName:name+' workspace',inviteToken});expect(r,201);return r;}
+async function register(name,inviteToken){const r=await call('POST','/auth/register',{acceptedTerms:true,name,email:`${name.toLowerCase()}-${stamp}@example.test`,password:'Test-Password-2389!',workspaceName:name+' workspace',inviteToken});expect(r,201);return r;}
 try{
  const admin=await register('Admin'),other=await register('Other');await db.query('update users set is_admin=true where id=$1',[admin.data.user.id]);
  const common={name:'Student Test',email:`student-${stamp}@example.test`,institution:'',role:'',country:'India',educationalLevel:'Undergraduate',teacherCount:null,programmes:'',campuses:null,specialRequirements:'',goals:'Create an engineering project',pricing:{plan:'student',students:1,billing:'annual'}};

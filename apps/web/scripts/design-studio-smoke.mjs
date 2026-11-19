@@ -9,7 +9,7 @@ const browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTAB
 try{
  const context=await browser.newContext({viewport:{width:1365,height:900}});const page=await context.newPage();
  await page.goto(base);const consent=page.getByRole('button',{name:'Essential only'});if(await consent.isVisible())await consent.click();
- const registration=await page.evaluate(async()=>{const r=await fetch('/api/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Design browser',email:`design-ui-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'Design browser'})});return r.status});assert.equal(registration,201);
+ const registration=await page.evaluate(async()=>{const r=await fetch('/api/auth/register',{acceptedTerms:true,method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Design browser',email:`design-ui-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'Design browser'})});return r.status});assert.equal(registration,201);
  await page.goto(`${base}/designs`);await page.getByRole('heading',{name:'Design Studio'}).waitFor();
  await page.getByLabel('Name',{exact:true}).fill('Editable fixture diagram');await page.getByRole('button',{name:'Create diagram'}).click();await page.getByRole('heading',{name:'Editable fixture diagram'}).waitFor();
  await page.getByRole('button',{name:'Add box'}).click();await page.getByLabel('Box label').fill('Sensor');await page.getByRole('button',{name:'Add box'}).click();await page.getByLabel('Box label').fill('Controller');

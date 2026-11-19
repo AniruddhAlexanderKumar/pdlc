@@ -1,11 +1,7 @@
 import { ArrowRight, BookOpenCheck, GitBranch, Share2, Users } from 'lucide-react';
 import { Link } from 'react-router';
-import { educationPreview } from '../../lib/marketing/education';
-
-const formatPrice = (cents: number | null) => cents === null ? 'Custom' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: cents % 100 === 0 ? 0 : 2 }).format(cents / 100);
 
 export function EducationSection() {
-  const { studentCents, cohortCents, commercialCents, savings } = educationPreview();
   return <section id="education" className="scroll-mt-32 overflow-hidden border-b border-[#d7e6ea] bg-[#f4f9fa] px-5 py-20 sm:px-8 lg:scroll-mt-24 lg:px-12 lg:py-24" aria-labelledby="education-heading">
     <div className="mx-auto max-w-[1224px]">
       <div className="grid gap-6 lg:grid-cols-[1fr_0.8fr] lg:items-end lg:gap-20">
@@ -22,14 +18,16 @@ export function EducationSection() {
           </div>
         </div>
         <div className="flex flex-col bg-[#10384e] p-6 text-white sm:p-8">
-          <div className="flex items-center justify-between gap-3 border-b border-white/15 pb-5"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#a9dce5]">Education pricing estimates</p><GitBranch className="h-5 w-5 text-[#8bd3dc]" aria-hidden="true" /></div>
-          <div className="grid gap-6 py-7 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <div><p className="text-sm font-semibold text-[#c4dce4]">Individual student</p><p className="mt-2 text-4xl font-semibold tracking-tight">{formatPrice(studentCents)}<span className="ml-1 text-sm font-medium tracking-normal text-[#bad1da]">/ month</span></p><p className="mt-2 text-xs leading-5 text-[#b6ced7]">One student · monthly billing</p></div>
-            <div><p className="text-sm font-semibold text-[#c4dce4]">School / institutional cohort</p><p className="mt-2 text-4xl font-semibold tracking-tight">{formatPrice(cohortCents)}<span className="ml-1 text-sm font-medium tracking-normal text-[#bad1da]">/ student / month</span></p><p className="mt-2 text-xs leading-5 text-[#b6ced7]">10–100 students · eligibility reviewed</p></div>
-          </div>
-          {savings !== null && <p className="border-t border-white/15 pt-5 text-sm leading-6 text-[#d2e8ec]">The student monthly estimate is {savings}% less than our {formatPrice(commercialCents)} individual commercial monthly estimate.</p>}
-          <p className="mt-4 text-xs leading-5 text-[#b6ced7]">Estimates in USD; taxes excluded. A request does not activate access, create a subscription or take payment. Education-specific roles, teacher dashboards, cohorts and licence management are not available today.</p>
-          <Link to="/request-access?category=education" className="mt-7 inline-flex min-h-12 items-center justify-center gap-3 self-start bg-white px-5 text-sm font-semibold text-[#123f59] transition-colors hover:bg-[#e5f4f6] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">Request education access <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+          <div className="flex items-center justify-between gap-3 border-b border-white/15 pb-5"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#a9dce5]">Building your first product</p><GitBranch className="h-5 w-5 text-[#8bd3dc]" aria-hidden="true" /></div>
+          <ol className="grid gap-5 py-7">
+            {[
+              ['1. Create your account', 'Your personal details, and a password of at least 10 characters.'],
+              ['2. Name what you are building', 'Tell us the product and whether you are starting from scratch or already building.'],
+              ['3. Enter the journey', 'Your product starts in the right stage of the lifecycle, with XP and stage quests from the first step.']
+            ].map(([title, detail]) => <li key={title}><p className="text-sm font-semibold text-[#d7ecf1]">{title}</p><p className="mt-1 text-xs leading-5 text-[#b6ced7]">{detail}</p></li>)}
+          </ol>
+          <p className="mt-2 text-xs leading-5 text-[#b6ced7]">Education-specific roles, teacher dashboards, cohorts and licence management are not available today. Access is open during the launch period; no payment details are requested.</p>
+          <Link to="/signup" className="mt-7 inline-flex min-h-12 items-center justify-center gap-3 self-start bg-white px-5 text-sm font-semibold text-[#123f59] transition-colors hover:bg-[#e5f4f6] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">Get Started <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
         </div>
       </div>
     </div>

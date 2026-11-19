@@ -12,7 +12,7 @@ async function call(method, path, body, cookie) {
  const response = await fetch(`${base}/api${path}`, {method, headers:{origin:base, ...(cookie?{cookie}:{}), ...(body?{'content-type':'application/json'}:{})}, ...(body?{body:JSON.stringify(body)}:{})});
  const data = await response.json().catch(()=>null); return {status:response.status,data,cookie:response.headers.get('set-cookie')?.split(';')[0]};
 }
-const registered = await call('POST','/auth/register',{name:'Project fixture',email,password,workspaceName:'Fixture workspace'}); assert.equal(registered.status,201); const cookie=registered.cookie; assert(cookie);
+const registered = await call('POST','/auth/register',{acceptedTerms:true,name:'Project fixture',email,password,workspaceName:'Fixture workspace'}); assert.equal(registered.status,201); const cookie=registered.cookie; assert(cookie);
 const first=await call('POST','/projects',{name:'Alpha fixture',key:'ALPHA'},cookie); const second=await call('POST','/projects',{name:'Beta fixture',key:'BETA'},cookie); assert.equal(first.status,201);assert.equal(second.status,201);
 const old=await call('POST','/designs',{title:'Existing alpha diagram',projectId:first.data.id,productId:null},cookie);
 const elsewhere=await call('POST','/designs',{title:'Existing beta diagram',projectId:second.data.id,productId:null},cookie);

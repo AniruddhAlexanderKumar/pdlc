@@ -45,7 +45,8 @@ async function call(method, path, body, opts = {}) {
 }
 const expect = (r, s) => assert.equal(r.status, s, JSON.stringify(r.data));
 async function register(name, inviteToken) {
-  const r = await call("POST", "/auth/register", {
+  const r = await call("POST", "/auth/register", {acceptedTerms: true,
+    
     name,
     email: `${name.toLowerCase()}-${stamp}@example.test`,
     password: "Test-Password-2389!",

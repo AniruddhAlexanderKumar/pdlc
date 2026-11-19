@@ -30,6 +30,17 @@
   X-Robots-Tag: noindex, nofollow
   Referrer-Policy: no-referrer
   Cache-Control: no-store
+/forgot-password
+  X-Robots-Tag: noindex, nofollow
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store
+/verify-email
+  X-Robots-Tag: noindex, nofollow
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store
+/pricing*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
 /review
   X-Robots-Tag: noindex, nofollow
   Referrer-Policy: no-referrer

@@ -9,7 +9,7 @@ async function call(method, path, body, cookie) {
 }
 const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 async function register(name, inviteToken) {
-  const r = await call('POST', '/auth/register', { name, email: `${name}-${stamp}@example.test`, password: 'Test-Password-123!', workspaceName: name, ...(inviteToken ? { inviteToken } : {}) });
+  const r = await call('POST', '/auth/register', {acceptedTerms:true, name, email: `${name}-${stamp}@example.test`, password: 'Test-Password-123!', workspaceName: name, ...(inviteToken ? { inviteToken } : {}) });
   assert.equal(r.status, 201, JSON.stringify(r.data));
   return r;
 }

@@ -13,7 +13,7 @@ try {
  const context=await browser.newContext();const page=await context.newPage();
  await page.goto(`${base}/`);
  await page.getByRole('button',{name:'Essential only'}).click();
- const registration=await page.evaluate(async()=>{const r=await fetch('/api/auth/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Voice Browser Test',email:`voice-browser-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'Browser fixture'})});return {status:r.status,body:await r.json()}});
+ const registration=await page.evaluate(async()=>{const r=await fetch('/api/auth/register',{acceptedTerms:true,method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Voice Browser Test',email:`voice-browser-${Date.now()}@example.test`,password:'Test-Password-123!',workspaceName:'Browser fixture'})});return {status:r.status,body:await r.json()}});
  assert.equal(registration.status,201,JSON.stringify(registration.body));
  const draft={product:{name:'Browser Recovery Fixture',category:'General',stage:'Idea',description:'',target_price:null,labour:0,packaging:0,overhead:0},answers:[],materials:[],project:{project_key:'BRW',name:'Browser fixture',description:''},issues:[{type:'Task',status:'Done',priority:'Medium',summary:'Browser linked work',description:'',labels:[]}]};
  await page.route('**/api/voice/process',async route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({provider:'llama-cpp',data:draft})}));

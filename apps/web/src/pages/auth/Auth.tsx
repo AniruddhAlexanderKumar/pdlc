@@ -10,12 +10,24 @@ import {
   EyeOff,
   Lightbulb,
   LineChart,
+  Mail,
   Plus,
   Rocket,
   Sparkles,
   Wand2
 } from 'lucide-react';
-import { CURRENCIES, INITIAL_FOUNDER_EMAIL, currencySymbol, type CurrencyCode, type Me, type Product, type WithXp } from '@sv/shared';
+import {
+  CURRENCIES,
+  INITIAL_FOUNDER_EMAIL,
+  STARTING_POINT_DESCRIPTIONS,
+  STARTING_POINT_LABELS,
+  currencySymbol,
+  type CurrencyCode,
+  type Me,
+  type OnboardingStartingPoint,
+  type Product,
+  type WithXp
+} from '@sv/shared';
 import { ApiError, get, post } from '../../api/client';
 import { useMe, useResetSession } from '../../api/hooks';
 import { Button, Field, Input, Select, Spinner, cx } from '../../components/ui';
@@ -75,6 +87,26 @@ function ErrorText({ error }: { error: unknown }) {
       {error instanceof Error ? error.message : 'Something went wrong'}
     </p>
   );
+}
+
+/** Shape of GET /api/auth/config — the server's honest account-policy report. */
+interface AuthConfig {
+  allowSignup: boolean;
+  policy?: string;
+  openRegistration?: boolean;
+  paymentRequired?: boolean;
+  launchPeriod?: boolean;
+  summary?: string;
+  emailVerification?: { required: boolean; available: boolean };
+  passwordRecovery?: { available: boolean };
+}
+
+function useAuthConfig() {
+  return useQuery({
+    queryKey: ['auth-config'],
+    queryFn: () => get<AuthConfig>('/auth/config'),
+    staleTime: 60_000
+  });
 }
 
 function useSignedIn() {
@@ -188,6 +220,15 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
     currency: 'USD' as CurrencyCode
   });
 
+  // The two onboarding questions. They are asked during sign-up (not after, and
+  // never behind a payment screen) because they decide which world of the PDLC
+  // progression the first product enters.
+  const [onboarding, setOnboarding] = useState<{ building: string; startingPoint: OnboardingStartingPoint }>({
+    building: '',
+    startingPoint: 'scratch'
+  });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
   const [productForm, setProductForm] = useState({
     name: '',
     category: '',
@@ -204,11 +245,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
     setForm((f) => ({ ...f, [k]: e.target.value }));
   };
 
-  const cfg = useQuery({
-    queryKey: ['auth-config'],
-    queryFn: () => get<{ allowSignup: boolean }>('/auth/config'),
-    enabled: !inviteToken
-  });
+  const cfg = useAuthConfig();
 
   const loginMutation = useMutation({
     mutationFn: async () => {
@@ -241,16 +278,22 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
 
   const registerMutation = useMutation({
     mutationFn: () =>
-      post<Me>('/auth/register', {
+      post<Me & { emailDelivery?: 'sent' | 'unavailable' | 'failed' | 'not_required'; onboardedProductId?: string | null }>('/auth/register', {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
+        acceptedTerms: true,
         ...(inviteToken
           ? { inviteToken }
           : {
               workspaceName: form.workspaceName.trim() || undefined,
               workspaceMode: form.workspaceMode,
-              currency: form.currency
+              currency: form.currency,
+              // Onboarding answers travel with the account creation, so the
+              // first product exists the moment the session starts.
+              ...(onboarding.building.trim()
+                ? { onboarding: { building: onboarding.building.trim(), startingPoint: onboarding.startingPoint } }
+                : {})
             })
       })
   });
@@ -294,6 +337,10 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
     if (!validateStep1()) return;
 
     if (inviteToken) {
+      if (!acceptedTerms) {
+        setClientError('Accept the Terms of Service and Privacy Policy to create your account.');
+        return;
+      }
       // If registering with invite token, submit directly (no workspace step needed)
       registerMutation.mutate(undefined, {
         onSuccess: (me) => {
@@ -309,9 +356,22 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
 
   const handleStep2Submit = (e: FormEvent) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      setClientError('Accept the Terms of Service and Privacy Policy to create your account.');
+      return;
+    }
+    setClientError(null);
     registerMutation.mutate(undefined, {
       onSuccess: (me) => {
         setRegisteredMe(me);
+        // With onboarding answers the workspace already contains the first
+        // product, so send the founder straight into the gamified journey
+        // instead of a second setup screen.
+        if (me.onboarding || (me as { onboardedProductId?: string | null }).onboardedProductId) {
+          signedIn(me);
+          navigate('/');
+          return;
+        }
         onStepChange?.(3);
       }
     });
@@ -355,23 +415,24 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
   };
 
   const next = params.get('next');
-  const signupClosed = mode === 'register' && step !== 3 && !inviteToken && cfg.data && !cfg.data.allowSignup;
+  const signupClosed = mode === 'register' && step !== 3 && !inviteToken && Boolean(cfg.data) && cfg.data?.allowSignup === false;
+  const emailVerificationRequired = Boolean(cfg.data?.emailVerification?.required);
 
   if (mode === 'register' && step !== 3 && !inviteToken && cfg.isLoading) return <Spinner label="Checking sign-up availability" />;
-  if (mode === 'register' && step !== 3 && !inviteToken && cfg.isError) return <div><h1 className="text-2xl font-semibold">Unable to check sign-up</h1><p role="alert" className="mt-3 text-sm text-zinc-500">We couldn’t check whether account creation is available.</p><div className="mt-5 flex flex-wrap gap-3"><Button variant="secondary" onClick={() => void cfg.refetch()}>Try again</Button><Link to="/request-access" className="py-2 text-sm font-semibold text-blue-700">Request access</Link><Link to="/login" className="py-2 text-sm font-semibold text-blue-700">Sign in</Link></div></div>;
+  if (mode === 'register' && step !== 3 && !inviteToken && cfg.isError) return <div><h1 className="text-2xl font-semibold">Unable to check sign-up</h1><p role="alert" className="mt-3 text-sm text-zinc-500">We couldn’t check whether account creation is available.</p><div className="mt-5 flex flex-wrap gap-3"><Button variant="secondary" onClick={() => void cfg.refetch()}>Try again</Button><Link to="/login" className="py-2 text-sm font-semibold text-blue-700">Log in</Link></div></div>;
 
   if (signupClosed) {
     return (
       <>
-        <h1 className="text-2xl font-semibold tracking-tight">Sign up is invite-only</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Accounts are invitation-only here</h1>
         <p className="mt-1.5 text-sm text-zinc-500">New workspaces cannot be created directly on this server.</p>
         <div className="mt-8 rounded-lg border border-zinc-200 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-          Sign-up is invite-only on this server. Ask your administrator for an invite link or <Link to="/request-access" className="font-semibold text-blue-700 underline dark:text-blue-400">request access</Link>.
+          This deployment is set to invitation-only. Ask your workspace administrator for an invite link, or <Link to="/request-access" className="font-semibold text-blue-700 underline dark:text-blue-400">contact the team</Link> running it.
         </div>
         <p className="mt-6 text-center text-sm text-zinc-500">
           Already have an account?{' '}
           <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
-            Sign in
+            Log in
           </Link>
         </p>
       </>
@@ -386,7 +447,14 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to landing page
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-        <p className="mt-1.5 text-sm text-zinc-500">Sign in to keep your products moving.</p>
+        <p className="mt-1.5 text-sm text-zinc-500">Log in to keep your products moving.</p>
+
+        {cfg.data?.launchPeriod && (
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
+            <span className="font-semibold">New here?</span> Account creation is open during the launch period — no payment details needed.{' '}
+            <Link className="font-semibold underline" to="/signup">Get Started</Link>
+          </div>
+        )}
 
         <form onSubmit={handleLoginSubmit} className="mt-8 space-y-4">
           <Field label="Work email" htmlFor="login-email">
@@ -426,11 +494,23 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
           <ErrorText error={loginMutation.error} />
 
           <Button type="submit" className="w-full" loading={loginMutation.isPending}>
-            Sign in
+            Log in
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm"><Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to="/request-access">Request Access</Link></p>
+        <div className="mt-6 space-y-3 text-center text-sm">
+          <p>
+            <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to="/forgot-password">
+              Forgot your password?
+            </Link>
+          </p>
+          <p className="text-zinc-500">
+            Don’t have an account?{' '}
+            <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/signup${next ? `?next=${encodeURIComponent(next)}` : ''}`}>
+              Get Started
+            </Link>
+          </p>
+        </div>
       </>
     );
   }
@@ -443,7 +523,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
       {step === 1 && (
         <>
           <h1 className="text-2xl font-semibold tracking-tight">
-            {inviteToken ? 'Join workspace' : 'Create your account'}
+            {inviteToken ? 'Join workspace' : 'Get Started'}
           </h1>
           {params.get('demo') === '1' && !inviteToken && <p className="mt-3 rounded-md border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">To try the demo, create your workspace and choose “Load sample workspace” at the final step.</p>}
           <p className="mt-1.5 text-sm text-zinc-500">
@@ -451,6 +531,11 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
               ? 'Complete your profile details to join the workspace.'
               : 'Step 1 of 3 · Your personal details'}
           </p>
+          {!inviteToken && cfg.data?.launchPeriod && (
+            <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
+              Create your account and start your product development journey. No credit card, no payment details, no waiting list.
+            </p>
+          )}
 
           <form onSubmit={handleStep1Next} className="mt-6 space-y-4">
             <Field label="Your name" htmlFor="register-name">
@@ -609,11 +694,17 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
             </Button>
           </form>
 
+          <p className="mt-4 text-center text-xs leading-5 text-zinc-500">
+            By continuing you agree to our{' '}
+            <Link to="/terms" className="font-medium text-blue-600 underline hover:no-underline dark:text-blue-400">Terms of Service</Link>{' '}and{' '}
+            <Link to="/privacy" className="font-medium text-blue-600 underline hover:no-underline dark:text-blue-400">Privacy Policy</Link>.
+          </p>
+
           {!inviteToken && (
-            <p className="mt-6 text-center text-sm text-zinc-500">
+            <p className="mt-4 text-center text-sm text-zinc-500">
               Already have an account?{' '}
               <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to={`/login${next || params.get('demo') === '1' ? `?next=${encodeURIComponent(next || '/try-demo')}` : ''}`}>
-                Sign in
+                Log in
               </Link>
             </p>
           )}
@@ -623,9 +714,50 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
       {step === 2 && (
         <>
           <h1 className="text-2xl font-semibold tracking-tight">Set up your workspace</h1>
-          <p className="mt-1.5 text-sm text-zinc-500">Step 2 of 3 · Choose how you want to work</p>
+          <p className="mt-1.5 text-sm text-zinc-500">Step 2 of 3 · Tell us what you’re building</p>
 
           <form onSubmit={handleStep2Submit} className="mt-6 space-y-4">
+            <fieldset>
+              <legend className="mb-2 text-sm font-semibold">What are you building?</legend>
+              <Input
+                id="building"
+                value={onboarding.building}
+                onChange={(e) => { setClientError(null); setOnboarding((o) => ({ ...o, building: e.target.value })); }}
+                placeholder="e.g. A modular robot arm for small workshops"
+                maxLength={120}
+              />
+              <p className="mt-1 text-xs text-zinc-500">This becomes your first product and the start of your development journey. You can rename it or add more products later.</p>
+            </fieldset>
+
+            <fieldset>
+              <legend className="mb-2 text-sm font-semibold">Where are you starting from?</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(['scratch', 'existing'] as const).map((value) => (
+                  <label
+                    key={value}
+                    className={cx(
+                      'cursor-pointer rounded-lg border p-3',
+                      onboarding.startingPoint === value
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                        : 'border-zinc-200 dark:border-zinc-700'
+                    )}
+                  >
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      <input
+                        type="radio"
+                        name="startingPoint"
+                        value={value}
+                        checked={onboarding.startingPoint === value}
+                        onChange={() => setOnboarding((o) => ({ ...o, startingPoint: value }))}
+                      />
+                      {STARTING_POINT_LABELS[value]}
+                    </span>
+                    <span className="mt-1 block text-xs text-zinc-500">{STARTING_POINT_DESCRIPTIONS[value]}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
             <fieldset>
               <legend className="mb-2 text-sm font-semibold">Workspace type</legend>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -675,7 +807,29 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
               </p>
             </div>
 
+            <label className="flex items-start gap-2.5 rounded-lg border border-zinc-200 p-3 text-xs leading-5 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={acceptedTerms}
+                onChange={(e) => { setClientError(null); setAcceptedTerms(e.target.checked); }}
+              />
+              <span>
+                I agree to the{' '}
+                <Link to="/terms" target="_blank" className="font-semibold text-blue-700 underline dark:text-blue-400">Terms of Service</Link>{' '}and{' '}
+                <Link to="/privacy" target="_blank" className="font-semibold text-blue-700 underline dark:text-blue-400">Privacy Policy</Link>.
+              </span>
+            </label>
+
+            {clientError && <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">{clientError}</p>}
             <ErrorText error={registerMutation.error} />
+
+            {emailVerificationRequired && (
+              <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
+                <Mail className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
+                We’ll email you a link to confirm your address before your workspace opens. No payment details are required at any point.
+              </p>
+            )}
 
             <div className="flex gap-2 pt-2">
               <Button
@@ -691,7 +845,7 @@ function AuthForm({ mode, inviteToken, step = 1, onStepChange }: AuthFormProps) 
                 className="flex-1"
                 loading={registerMutation.isPending}
               >
-                Create Account & Continue →
+                Create account
               </Button>
             </div>
           </form>
@@ -942,6 +1096,130 @@ export function ResetPage() {
           Set password and sign in
         </Button>
       </form>
+    </Shell>
+  );
+}
+
+export function ForgotPasswordPage() {
+  const cfg = useAuthConfig();
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const request = useMutation({
+    mutationFn: () => post<{ accepted: boolean; message: string }>('/auth/forgot-password', { email: email.trim() })
+  });
+  const available = cfg.data?.passwordRecovery?.available;
+
+  if (sent) {
+    return (
+      <Shell hideAside>
+        <h1 className="text-2xl font-semibold tracking-tight">Check your email</h1>
+        <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+          {request.data?.message ?? 'If an account exists for that address, a reset link is on its way.'} The link expires in two hours and can be used once.
+        </p>
+        <p className="mt-3 text-sm text-zinc-500">Didn’t arrive? Check your spam folder, then try again.</p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => { setSent(false); setEmail(''); }}>Use a different address</Button>
+          <Link to="/login" className="inline-flex min-h-10 items-center rounded-md px-4 text-sm font-semibold text-blue-700 dark:text-blue-400">Back to log in</Link>
+        </div>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell hideAside>
+      <Link to="/login" className="mb-6 inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to log in
+      </Link>
+      <h1 className="text-2xl font-semibold tracking-tight">Forgot your password?</h1>
+      <p className="mt-1.5 text-sm text-zinc-500">Enter the email address on your account and we’ll send a reset link.</p>
+
+      {cfg.data && available === false && (
+        <p role="alert" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+          Email delivery is not configured on this server, so a reset link cannot be sent. Ask your workspace administrator to send one from Settings › Team, or contact the operator of this deployment.
+        </p>
+      )}
+
+      <form
+        className="mt-7 space-y-4"
+        onSubmit={(e) => { e.preventDefault(); request.mutate(undefined, { onSuccess: () => setSent(true) }); }}
+      >
+        <Field label="Email address" htmlFor="forgot-email">
+          <Input
+            id="forgot-email"
+            type="email"
+            autoComplete="username"
+            spellCheck={false}
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@company.com"
+          />
+        </Field>
+        <ErrorText error={request.error} />
+        <Button type="submit" className="w-full" loading={request.isPending}>Send reset link</Button>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-zinc-500">
+        Remembered it? <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to="/login">Log in</Link>
+        {' · '}
+        <Link className="font-medium text-blue-600 hover:underline dark:text-blue-400" to="/signup">Get Started</Link>
+      </p>
+    </Shell>
+  );
+}
+
+export function VerifyEmailPage() {
+  const [token] = useState(() => typeof window === 'undefined' ? '' : window.location.hash.slice(1));
+  const signedIn = useSignedIn();
+  const navigate = useNavigate();
+  const [state, setState] = useState<'checking' | 'verified' | 'failed'>('checking');
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!token) { setState('failed'); setMessage('This link is missing its verification token.'); return; }
+    let active = true;
+    post<{ verified: boolean; signedIn?: boolean } & Partial<Me>>('/auth/verify-email', { token })
+      .then((result) => {
+        if (!active) return;
+        setState('verified');
+        // The API issues a session when verification completes sign-in; adopt it.
+        if ('user' in result && result.user) signedIn(result as Me);
+        // Keep the token out of the address bar and history.
+        window.history.replaceState(window.history.state, '', '/verify-email');
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setState('failed');
+        setMessage(error instanceof Error ? error.message : 'This verification link is invalid or has expired.');
+      });
+    return () => { active = false; };
+  }, [token, signedIn]);
+
+  return (
+    <Shell hideAside>
+      {state === 'checking' && <Spinner label="Confirming your email address" />}
+      {state === 'verified' && (
+        <>
+          <CheckCircle2 className="h-10 w-10 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">Email confirmed</h1>
+          <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">Your address is verified. Your workspace is ready.</p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button onClick={() => navigate('/')}>Go to my workspace</Button>
+            <Link to="/login" className="inline-flex min-h-10 items-center rounded-md px-4 text-sm font-semibold text-blue-700 dark:text-blue-400">Log in</Link>
+          </div>
+        </>
+      )}
+      {state === 'failed' && (
+        <>
+          <h1 className="text-2xl font-semibold tracking-tight">Verification link not valid</h1>
+          <p role="alert" className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">{message}</p>
+          <p className="mt-2 text-sm text-zinc-500">Verification links can be used once and expire after 24 hours. Sign in and request a new one from your account.</p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link to="/login" className="inline-flex min-h-10 items-center rounded-md bg-blue-700 px-4 text-sm font-semibold text-white">Log in</Link>
+            <Link to="/signup" className="inline-flex min-h-10 items-center rounded-md border border-zinc-200 px-4 text-sm font-semibold dark:border-zinc-700">Get Started</Link>
+          </div>
+        </>
+      )}
     </Shell>
   );
 }

@@ -8,7 +8,7 @@ const {default:chromium}=await import(process.env.STUDIO_CHROMIUM_MODULE);
 const base=process.env.STUDIO_TEST_URL;
 const email=`autosave-${randomBytes(10).toString('hex')}@example.test`,password=`Synthetic-${randomBytes(24).toString('base64url')}`;
 async function call(method,path,body,cookie){const r=await fetch(`${base}/api${path}`,{method,headers:{origin:base,...(body?{'content-type':'application/json'}:{}),...(cookie?{cookie}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
-const reg=await call('POST','/auth/register',{name:'Autosave fixture',email,password,workspaceName:'Autosave fixture'});assert.equal(reg.status,201);const cookie=reg.cookie;assert(cookie);
+const reg=await call('POST','/auth/register',{acceptedTerms:true,name:'Autosave fixture',email,password,workspaceName:'Autosave fixture'});assert.equal(reg.status,201);const cookie=reg.cookie;assert(cookie);
 const created=await call('POST','/designs',{title:'Autosave fixture',projectId:null,productId:null},cookie);assert.equal(created.status,201);const id=created.data.document.id;
 const browser=await pw.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(x=>x!=='--disable-web-security'),headless:true});
 try{

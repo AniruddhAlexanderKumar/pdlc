@@ -7,11 +7,15 @@ Updated after the approved initial Projects/Issues slice; source presence does n
 
 | Path | Page/guard | Notes |
 |---|---|---|
-| `/` | Public landing when signed out; workspace dashboard when signed in | Root behavior is selected by `RequireAuth` |
+| `/` | Public landing when signed out; workspace dashboard when signed in | Root behavior is selected by `RequireAuth`. The landing page leads with **Get Started** and a secondary **Log In**, and carries no pricing surface. |
 | `/demo` | Public demo | Standalone expandable-card demo |
-| `/request-access` | Public request form | Available without session |
-| `/login` | Guest-only | Redirects authenticated users |
-| `/signup`, `/register` | Guest-only registration | Both render registration mode |
+| `/request-access` | Public contact form | Available without session; collects no pricing selection while pricing is withdrawn |
+| `/login` | Guest-only | Redirects authenticated users; links to Get Started and Forgot password |
+| `/signup`, `/register` | Guest-only registration | Account details → onboarding questions + Terms acceptance → first product |
+| `/forgot-password` | Public | Self-service password reset request |
+| `/verify-email` | Public | Redeems the emailed verification token (fragment) |
+| `/terms`, `/privacy` | Public | Legal pages accepted during registration |
+| `/pricing`, `/pricing/*` | Redirect | Temporarily withdrawn from public navigation; redirects to `/` (server also returns `308`) |
 | `/reset#token` (legacy `/reset/:token`) | Password reset | Token-based |
 | `/join/:token` | Invite join | Public token flow |
 | `/admin` | Admin-only | System dashboard |
@@ -41,8 +45,12 @@ Updated after the approved initial Projects/Issues slice; source presence does n
 | Method and path | Access | Purpose |
 |---|---|---|
 | `GET /api/health` | Public | Liveness/readiness database probe |
-| `GET /api/auth/config` | Public | Whether self-registration is allowed |
-| `POST /api/auth/register` | Public, rate-limited | Create account/workspace or join by invite, then establish session |
+| `GET /api/auth/config` | Public | Access policy: whether self-registration is open, whether payment is required (never), whether email verification is enforced/available, whether password recovery is available |
+| `POST /api/auth/register` | Public, rate-limited | Create account/workspace (open registration by default) or join by invite; requires `acceptedTerms`, optionally runs onboarding and creates the first product, then establishes a session (or returns `202` when email verification is enforced) |
+| `POST /api/auth/forgot-password` | Public, rate-limited | Request a self-service reset link; always `202` with the same body |
+| `POST /api/auth/verify-email/resend` | Authenticated | Re-issue the verification email for the signed-in account |
+| `POST /api/auth/verify-email` | Public, rate-limited | Redeem a single-use verification token; signs the user in when no session exists |
+| `POST /api/auth/onboarding` | Authenticated | Complete the two-question onboarding for accounts that skipped it; idempotent |
 | `POST /api/auth/login` | Public, rate-limited | Authenticate, establish session, record login analytics |
 | `POST /api/auth/logout` | Public/session-aware | Revoke session and clear cookie |
 | `GET /api/auth/me` | Public/session-aware | Current user and workspace context |

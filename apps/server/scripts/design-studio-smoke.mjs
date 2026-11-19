@@ -7,7 +7,7 @@ const origin='http://localhost:5173';
 async function call(cookie,method,path,body){const r=await fetch(`${base}/api${path}`,{method,headers:{origin,...(cookie?{cookie}:{}),...(body===undefined?{}:{'content-type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(10000)});return {status:r.status,data:r.status===204?null:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
 const expect=(r,n)=>assert.equal(r.status,n,JSON.stringify(r.data));
 const stamp=Date.now();
-async function register(label,inviteToken){const r=await call('','POST','/auth/register',{name:label,email:`design-${label}-${stamp}@example.test`,password:'Test-Password-123!',workspaceName:label,inviteToken});expect(r,201);return r.cookie;}
+async function register(label,inviteToken){const r=await call('','POST','/auth/register',{acceptedTerms:true,name:label,email:`design-${label}-${stamp}@example.test`,password:'Test-Password-123!',workspaceName:label,inviteToken});expect(r,201);return r.cookie;}
 const owner=await register('owner'),other=await register('other');
 let r=await call(owner,'POST','/workspace/invites',{role:'member'});expect(r,201);const member=await register('member',new URL(r.data.url).pathname.split('/').pop());
 r=await call(owner,'POST','/projects',{key:'DESIGN',name:'Design project'});expect(r,201);const project=r.data.id;

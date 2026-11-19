@@ -5,7 +5,7 @@ if(!base||!dbUrl||!['localhost','127.0.0.1'].includes(new URL(base).hostname)||!
 const db=new pg.Client({connectionString:dbUrl});await db.connect();const stamp=Date.now();
 async function call(method,path,body,cookie){const r=await fetch(base+'/api'+path,{method,headers:{origin:'http://localhost:5173',...(cookie?{cookie}:{}),...(body!==undefined?{'content-type':'application/json'}:{})},body:body===undefined?undefined:JSON.stringify(body)});return{status:r.status,data:await r.json().catch(()=>null),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
 const expect=(r,n)=>assert.equal(r.status,n,JSON.stringify(r.data));
-async function register(name,inviteToken){const r=await call('POST','/auth/register',{name,email:`assistant-${name}-${stamp}@example.test`,password:'Test-Password-123!',workspaceName:name+' workspace',inviteToken});expect(r,201);return r;}
+async function register(name,inviteToken){const r=await call('POST','/auth/register',{acceptedTerms:true,name,email:`assistant-${name}-${stamp}@example.test`,password:'Test-Password-123!',workspaceName:name+' workspace',inviteToken});expect(r,201);return r;}
 try{
  const owner=await register('owner'),other=await register('other');const inv=await call('POST','/workspace/invites',{role:'member'},owner.cookie);expect(inv,201);const member=await register('member',new URL(inv.data.url).pathname.split('/').pop());
  const project=await call('POST','/projects',{key:'SOLAR',name:'Solar subsystem'},owner.cookie);expect(project,201);const foreign=await call('POST','/projects',{key:'FOREIGN',name:'Foreign project'},other.cookie);expect(foreign,201);const issue=await call('POST',`/projects/${project.data.id}/issues`,{summary:'Inspect solar panel',priority:'High'},owner.cookie);expect(issue,201);
