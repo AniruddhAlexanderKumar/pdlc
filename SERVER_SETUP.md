@@ -27,7 +27,7 @@ There are two ways to install it. Pick one:
 
 Decide two values now. You will need them below:
 
-- **`APP_URL`**: the exact public address, for example `https://velocity.yourcompany.com` (no trailing slash). Login only works when the browser's address matches this exactly.
+- **`APP_URL`**: the public address, for example `https://velocity.yourcompany.com` (no trailing slash). It is the canonical origin for invite/reset links and the strictest CSRF check. Browsers that reach the app on another address this deployment is served on (a proxy, an alternate hostname, a preview URL) are accepted too, because the check also compares the browser's `Origin` with the host the request was delivered for.
 - **Database password**: a long random string. You can generate one with `openssl rand -base64 32`.
 
 ---
@@ -303,7 +303,7 @@ The app refuses to start, and lists the problem, if a required variable is missi
 ## H. Monitoring and troubleshooting
 
 - **Health check:** `GET /api/health` returns `200 {"status":"ok"}`, or `503` when the database is unreachable. Point your uptime monitor at `https://velocity.yourcompany.com/api/health`.
-- **"Cross-origin request blocked" or login does nothing:** `APP_URL` does not exactly match the address in the browser (check `https` vs `http`, `www`, the port, and no trailing slash).
+- **"Cross-origin request blocked" or login does nothing:** the browser's `Origin` matched neither `APP_URL` nor the `Host` the request reached the app on. This is expected for a genuine cross-site request. If your own users see it, check that the proxy forwards the original `Host` header (`proxy_set_header Host $host;` in nginx, `reverse_proxy` in Caddy does this by default) and that you are not opening the app through a host that differs from the one it serves, e.g. `http` where the app is served over `https`.
 - **Logged out immediately over HTTPS:** the proxy is not passing HTTPS through correctly, or `APP_URL` starts with `http://`. Use `https://` in `APP_URL`.
 - **"Invalid environment configuration" at start:** the log names the missing or bad variable.
 - **Database connection errors:** check `DATABASE_URL`, that PostgreSQL is running, and that it accepts connections from the app's host (`pg_hba.conf`).

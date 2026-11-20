@@ -178,7 +178,7 @@ npm run migrate
 
 | Variable              | Default                 | Notes                                                                       |
 | --------------------- | ----------------------- | --------------------------------------------------------------------------- |
-| `APP_URL`             | `http://localhost:5173` | Public URL. Used for invite/reset links and the CSRF origin check. `https://` turns on secure cookies and HSTS. |
+| `APP_URL`             | `http://localhost:5173` | Public URL. Used for invite/reset links and the strict CSRF origin check. Requests the browser marks same-origin are also accepted on the host they were delivered for, so a proxy, alternate hostname or dev server does not need its own setting. `https://` turns on secure cookies and HSTS. |
 | `DATABASE_URL`        | required                | Add `?sslmode=require` for TLS to a remote database.                        |
 | `ALLOW_SIGNUP`        | `true`                  | `false` = invite-only (recommended in production).                          |
 | `TRUST_PROXY`         | `0`                     | Set to `1` behind nginx, Caddy or a load balancer so rate limits see real IPs. |
@@ -201,7 +201,7 @@ npm run migrate
 - Passwords are hashed with scrypt (N=2¹⁵, per-hash salt; parameters are stored with each hash so they can be raised later). The policy is at least 10 characters, mixing letters with numbers or symbols.
 - Sessions use a random 256-bit token in an `httpOnly`, `SameSite=Lax` cookie (`__Host-` prefixed and `Secure` on https). Only the token's SHA-256 is stored, and sessions can be revoked server-side. Changing or resetting a password revokes other sessions.
 - Login and sign-up are rate-limited. An account locks for 15 minutes after 8 failed attempts, and unknown emails take the same time as known ones.
-- CSRF: every state-changing request must come from `APP_URL`'s origin, bodies must be JSON, and cookies are SameSite.
+- CSRF: every state-changing request must carry an `Origin` from `APP_URL`, or be reported by the browser as same-origin on the host it was delivered for; bodies must be JSON, and cookies are SameSite.
 - Every query is scoped to the caller's workspace, and roles are enforced server-side: **owner** (everything, including ownership), **admin** (settings, invites, members, reset links), **member** (product work).
 - Helmet sets security headers: a strict CSP (`script-src 'self'`), `frame-ancestors 'none'`, nosniff, and HSTS on https.
 - Invite and reset links are single-use, expire, and are stored hashed.

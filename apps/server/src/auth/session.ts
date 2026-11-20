@@ -138,17 +138,84 @@ export function auth(req: Request): AuthContext {
 }
 
 /**
- * CSRF defence for cookie-authenticated, state-changing requests: the browser's
- * Origin (or Referer) must match APP_URL. Combined with SameSite=Lax cookies and
- * JSON-only bodies this blocks cross-site form posts.
+ * CSRF defence for cookie-authenticated, state-changing requests.
+ *
+ * A request is accepted when it is same-origin as the deployment from the
+ * browser's point of view, established two ways:
+ *
+ *  1. The browser's `Origin` (or `Referer`) equals `APP_URL`. This is the
+ *     canonical public address.
+ *  2. The browser reports the request as same-origin (`Sec-Fetch-Site:
+ *     same-origin`) and the `Origin` host is the host the request was
+ *     delivered for. Both `Host` and `Sec-Fetch-Site` are set by the browser
+ *     and cannot be overridden by a page on another site, so a cross-site
+ *     request can match neither: its `Origin` is the attacker's site, and
+ *     `Sec-Fetch-Site` says `cross-site` or `same-site`.
+ *
+ * Rule 2 exists because `APP_URL` is a single address while a deployment is
+ * routinely reachable on several — a reverse proxy, an alternate hostname,
+ * the Vite dev server, a container preview URL — and locking login to one
+ * exact string is what turns a working deployment into "Cross-origin request
+ * blocked" the moment the address in the browser differs by a port, a
+ * subdomain, or a preview host. Comparing against the address the request
+ * was actually served for is the same model Django's `CSRF_TRUSTED_ORIGINS`
+ * and Rails' `check_origin` use.
+ *
+ * Combined with SameSite=Lax cookies and JSON-only bodies this blocks
+ * cross-site form posts. Anything that matches neither rule is rejected, and
+ * a state-changing request that identifies itself as a browser (it sends
+ * `Sec-Fetch-Site`) but carries no usable `Origin` is rejected too.
  */
 export function verifyOrigin(req: Request, _res: Response, next: NextFunction) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  const origin = req.get('origin') ?? (req.get('referer') ? safeOrigin(req.get('referer')!) : null);
-  if (origin && origin === config.appOrigin) return next();
-  // Non-browser clients (curl, scripts) send neither header; they also cannot hold a victim's cookie.
+
+  const fromOrigin = req.get('origin');
+  const fromReferer = fromOrigin ? null : (req.get('referer') ?? null);
+  const origin = fromOrigin ?? (fromReferer ? safeOrigin(fromReferer) : null);
+
+  if (origin) {
+    if (origin === config.appOrigin) return next();
+    const secFetchSite = req.get('sec-fetch-site')?.toLowerCase();
+    if (secFetchSite === 'same-origin' && sameHost(origin, deliveredHost(req))) return next();
+  }
+
+  // Non-browser clients (curl, scripts) send neither Origin nor Sec-Fetch-Site;
+  // they also cannot hold a victim's cookie, so they are not a CSRF vector.
   if (!origin && !req.get('sec-fetch-site')) return next();
+
   next(forbidden('Cross-origin request blocked'));
+}
+
+/** The `Host` the request was delivered for. */
+function deliveredHost(req: Request): string | null {
+  return req.get('host')?.toLowerCase() ?? null;
+}
+
+/**
+ * Whether an origin URL points at exactly this host and port. An explicit
+ * port must match; when the origin omits it, the browser's default (443 for
+ * https, 80 for http) is what it actually used, so `https://a.example` and a
+ * delivered `a.example:443` are the same thing. http and https are different
+ * origins even on the same host, so the scheme must agree too.
+ */
+function sameHost(origin: string, host: string | null): boolean {
+  if (!host) return false;
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  const [hostname, port] = splitHost(host);
+  const defaultPort = url.protocol === 'https:' ? '443' : url.protocol === 'http:' ? '80' : '';
+  return url.hostname.toLowerCase() === hostname && (url.port || defaultPort) === (port || defaultPort);
+}
+
+/** Splits `host[:port]`, keeping IPv6 literals like `[::1]:5173` intact. */
+function splitHost(value: string): [hostname: string, port: string] {
+  const match = /^(\[[^\]]+\]|[^:]+)(?::(\d+))?$/.exec(value.trim());
+  if (!match) return [value.trim().toLowerCase(), ''];
+  return [match[1].replace(/^\[|\]$/g, '').toLowerCase(), match[2] ?? ''];
 }
 
 function safeOrigin(value: string): string | null {

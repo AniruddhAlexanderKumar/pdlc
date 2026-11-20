@@ -79,7 +79,7 @@ Artifacts are generally workspace-scoped. Project keys are unique per workspace;
 ## Authentication, authorization, and validation
 
 - Session tokens are generated as random tokens; only hashes are stored. Cookies are HTTP-only, `SameSite=Lax`, path `/`, and secure when `APP_URL` is HTTPS. Sessions expire and slide forward at most hourly.
-- API middleware loads sessions and checks request origin for state-changing requests. API routes use `requireAuth`, workspace roles, or `requireAdmin` as appropriate. System administrator status comes from persisted `users.is_admin`; public registration and email identity do not grant it.
+- API middleware loads sessions and checks request origin for state-changing requests: the `Origin` must equal `APP_URL`, or the browser must report the request as same-origin and the `Origin` host must equal the delivered `Host` (scheme and port included). That keeps the check meaningful for deployments served on more than one address. API routes use `requireAuth`, workspace roles, or `requireAdmin` as appropriate. System administrator status comes from persisted `users.is_admin`; public registration and email identity do not grant it.
 - Workspace route queries generally scope by `workspaceId`; admin routes intentionally operate globally and are mounted behind admin authorization.
 - Public registration/login are rate-limited. Passwords are hashed with Argon2id (see `apps/server/src/auth/crypto.ts`); routes validate inputs using Zod.
 - Error responses distinguish known HTTP/input errors and malformed/oversized bodies, map unique constraints to conflict, and log unexpected failures.
