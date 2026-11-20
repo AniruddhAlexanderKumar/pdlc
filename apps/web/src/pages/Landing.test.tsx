@@ -29,6 +29,37 @@ test('landing describes implemented capabilities and clearly limits their scope'
   assert.match(page, /Agents and persistent product memory<\/h3><span[^>]*>Planned/);
 });
 
+test('landing shows the eight-world journey with the first world selected', () => {
+  const page = renderToStaticMarkup(<MemoryRouter><LandingPage /></MemoryRouter>);
+  assert.match(page, /id="journey"/);
+  assert.match(page, /Eight worlds, from first idea to real improvement/);
+  for (const world of ['Idea', 'Research', 'Planning', 'Design', 'Prototype', 'Testing', 'Launch', 'Improvement']) {
+    assert.ok(page.includes(`>${world}<`), `missing world: ${world}`);
+  }
+  assert.match(page, /By the end of this world/);
+  assert.match(page, /Score points are for motivation, never a substitute for engineering judgement/);
+});
+
+test('landing explains how to start, with a demo route for the hesitant', () => {
+  const page = renderToStaticMarkup(<MemoryRouter><LandingPage /></MemoryRouter>);
+  assert.match(page, /id="get-started"/);
+  assert.match(page, /Set up in a few minutes, not a few meetings/);
+  assert.match(page, /No card, no waiting list/);
+  assert.match(page, /Open a sample workspace and try the journey first/);
+  assert.match(page, /href="#journey"/);
+});
+
+test('landing FAQ stays searchable and keeps every original answer', () => {
+  const page = renderToStaticMarkup(<MemoryRouter><LandingPage /></MemoryRouter>);
+  assert.match(page, /id="faq"/);
+  assert.match(page, /Search questions, e\.g\./);
+  assert.match(page, /Filter questions by topic/);
+  for (const category of ['Account', 'Journey', 'Platform', 'Education', 'Security', 'Access &amp; cost']) {
+    assert.ok(page.includes(`>${category}<`), `missing FAQ category: ${category}`);
+  }
+  assert.match(page, /A few things to know/);
+});
+
 test('landing leads with Get Started and never links to pricing', () => {
   const page = renderToStaticMarkup(<MemoryRouter><LandingPage /></MemoryRouter>);
   // Primary call to action, secondary action, and the footer pair.

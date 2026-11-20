@@ -34,7 +34,7 @@ In development, Vite proxies `/api` to `http://localhost:4000`. In production, t
 
 ## Layers and responsibilities
 
-- **Pages and components (`apps/web/src`):** Route-level screens, reusable UI, local state, and React Query data presentation. The web client sends JSON requests and includes same-origin credentials.
+- **Pages and components (`apps/web/src`):** Route-level screens, reusable UI, local state, and React Query data presentation. The web client sends JSON requests and includes same-origin credentials. The public front door (`pages/Landing.tsx`) is composed from `components/marketing/*`; its journey section renders the eight worlds from `WORLDS` in `packages/shared/src/curriculum.ts` rather than a hand-written copy, so marketing cannot advertise a path the product does not teach. The FAQ is client-side search and filtering over static copy — it sends nothing to the API.
 - **API client/hooks (`apps/web/src/api`):** `client.ts` maps network and HTTP errors to `ApiError`; `hooks.ts` contains query/mutation integration for application data.
 - **Routes (`apps/server/src/routes`):** Validate request bodies and parameters, check access, invoke database/service operations, and map results to API types. A repository/service boundary is used for common product/material read models, but some route modules (notably admin/auth) issue Kysely queries directly.
 - **Services (`apps/server/src/services`):** Shared read-model loading, sample data, analytics, insight rules, and XP/health calculations. `routes/util.ts` provides mutation orchestration and XP ledger support.

@@ -49,6 +49,14 @@ a product. The account, its workspace, its workspace profile and its first produ
 created in one transaction, and the founder lands directly in the gamified PDLC
 journey. No payment details are requested and no checkout exists.
 
+The landing page walks a visitor through, in order: the connect-the-work promise,
+**the eight-world journey** (rendered from the real curriculum in
+`packages/shared/src/curriculum.ts`, one world per lifecycle stage with its units,
+lessons and checkpoint), Design Studio, education, the platform capability list,
+connected work, the traceability walkthrough, security, a getting-started section,
+and a searchable FAQ. A persistent *Get Started* bar is pinned to the bottom of
+narrow viewports so the primary action stays reachable through the long page.
+
 The policy is configurable with `ACCESS_POLICY` (`beta-open` by default, `registered`,
 or `invite-only`); legacy `ALLOW_SIGNUP=false` still means `invite-only`. Email
 verification is issued whenever `RESET_SMTP_*` is configured and enforced only when
