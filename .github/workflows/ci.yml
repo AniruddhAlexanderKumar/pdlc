@@ -25,6 +25,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Verify no exposed credentials in blueprints or deployment configs
+        run: |
+          if git grep -En '(postgres|postgresql)://[^:]+:[^@]+@(?!localhost|127\.0\.0\.1|postgres|db:)' render.yaml deploy/ 2>/dev/null; then
+            echo "::error::Detected hardcoded database credentials in blueprint or deployment configuration!"
+            exit 1
+          fi
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

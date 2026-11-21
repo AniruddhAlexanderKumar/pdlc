@@ -39,6 +39,7 @@ The former hardcoded `admin@gmail.com` / `admin` login path has been removed. Ex
 - Add API integration tests for unauthorized/forbidden admin routes, system-admin promotion/retention, and project/issue cross-workspace access.
 - Use a disposable PostgreSQL database to verify migration `005_system_admins` and existing-user preservation before production rollout.
 - Rotate credentials if the former fixed admin password was ever used outside a disposable development instance.
+- Blueprint & manifest credential hygiene: secrets like `DATABASE_URL` must never be hardcoded into blueprint files like `render.yaml` (`sync: false` must be specified). CI enforces verification to prevent committing database URIs with credentials. Leaked credentials must be immediately rotated at the provider and updated via environment variables.
 
 ## Workspace password-reset email
 

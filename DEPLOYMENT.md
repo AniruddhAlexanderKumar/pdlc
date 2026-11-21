@@ -30,7 +30,9 @@ complete, authoritative store of record.
   HTTPS to the internet). This application does not terminate TLS itself.
 - Ability to set environment variables and store one secret
   (`DATABASE_URL`, or the `POSTGRES_PASSWORD` that composes into it) outside
-  version control.
+  version control. When using platform blueprint manifests (e.g. `render.yaml`),
+  always configure secrets with `sync: false` so their values are supplied
+  securely via the hosting dashboard rather than tracked in version control.
 
 ## Environment variables
 
