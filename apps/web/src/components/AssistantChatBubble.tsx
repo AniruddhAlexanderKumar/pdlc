@@ -14,6 +14,15 @@ type Source = { type: 'project' | 'issue' | 'help'; title: string; url: string }
 type Message = { id: string; role: 'user' | 'assistant'; content: string; sources: Source[]; created_at: string };
 type Conversation = { id: string; title: string; project_id: string | null; project_name: string | null; project_key: string | null };
 type ConversationData = { conversation: Conversation; messages: Message[] };
+type Usage = {
+  enabled: boolean;
+  providers?: string[];
+  remainingTokens: number;
+  unit: string;
+  isAdmin?: boolean;
+  dailyMessagesUsed?: number;
+  dailyMessageLimit?: number | null;
+};
 
 export function AssistantChatBubble() {
   const me = useSession();
@@ -31,6 +40,13 @@ export function AssistantChatBubble() {
   // Don't show on the full /assistant page or in temporary demo workspace
   const isAssistantPage = location.pathname === '/assistant';
   const isDemo = !!me.demo;
+
+  // Assistant usage and configured providers
+  const usage = useQuery({
+    queryKey: ['assistant-usage', me.workspace.id],
+    queryFn: () => get<Usage>('/assistant/usage'),
+    enabled: !isDemo
+  });
 
   // Conversations list
   const conversations = useQuery({
@@ -134,6 +150,11 @@ export function AssistantChatBubble() {
     'How do I manage projects?'
   ];
 
+  const isAiLive = !!usage.data?.enabled;
+  const modelLabel = isAiLive
+    ? (usage.data?.providers?.[0] ? `${usage.data.providers[0]}` : 'Active')
+    : 'Help & Search';
+
   return (
     <>
       {/* Floating Chat Bubble Button */}
@@ -147,17 +168,23 @@ export function AssistantChatBubble() {
               : 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 hover:shadow-2xl hover:scale-105'
           )}
           aria-label={isOpen ? 'Close AI Assistant' : 'Open AI Assistant'}
-          title="AI Assistant (Baidu ERNIE)"
+          title="AI Assistant (Lightning 3.5)"
         >
           {isOpen ? (
             <X className="h-6 w-6 transition-transform duration-200 group-hover:rotate-90" />
           ) : (
             <>
               <Sparkles className="h-6 w-6 animate-pulse" />
-              {/* Online Green Indicator Dot */}
+              {/* Online Indicator Dot */}
               <span className="absolute right-0 top-0 flex h-3.5 w-3.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500 dark:border-zinc-900" />
+                {isAiLive ? (
+                  <>
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500 dark:border-zinc-900" />
+                  </>
+                ) : (
+                  <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-white bg-blue-500 dark:border-zinc-900" />
+                )}
               </span>
             </>
           )}
@@ -180,13 +207,20 @@ export function AssistantChatBubble() {
               <div>
                 <div className="flex items-center gap-1.5">
                   <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">AI Assistant</h2>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Live
-                  </span>
+                  {isAiLive ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Live
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                      Help Centre
+                    </span>
+                  )}
                 </div>
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  {me.workspace.name} · ERNIE 5.5
+                  {me.workspace.name} · Lightning 3.5
                 </p>
               </div>
             </div>

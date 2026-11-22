@@ -145,10 +145,25 @@ export function auth(req: Request): AuthContext {
 export function verifyOrigin(req: Request, _res: Response, next: NextFunction) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   const origin = req.get('origin') ?? (req.get('referer') ? safeOrigin(req.get('referer')!) : null);
-  if (origin && origin === config.appOrigin) return next();
+  if (origin) {
+    if (origin === config.appOrigin) return next();
+    const originHost = safeHost(origin);
+    const reqHost = (req.get('x-forwarded-host') || req.get('host') || '').split(':')[0];
+    if (originHost && (originHost === reqHost || originHost === 'pdlc.dalvigroup.co.in' || originHost === 'pdlc-platform.onrender.com')) {
+      return next();
+    }
+  }
   // Non-browser clients (curl, scripts) send neither header; they also cannot hold a victim's cookie.
   if (!origin && !req.get('sec-fetch-site')) return next();
   next(forbidden('Cross-origin request blocked'));
+}
+
+function safeHost(value: string): string | null {
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return null;
+  }
 }
 
 function safeOrigin(value: string): string | null {
