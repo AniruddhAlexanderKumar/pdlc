@@ -81,7 +81,7 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
  const previous=await sql<{content:string}>`SELECT content FROM assistant_messages WHERE conversation_id=${c.id}::uuid AND role='user' ORDER BY created_at DESC LIMIT 4`.execute(db);
  await sql`INSERT INTO assistant_messages(conversation_id,role,content) VALUES(${c.id}::uuid,'user',${b.content})`.execute(db);
  await sql`UPDATE assistant_conversations SET title=CASE WHEN title='New conversation' THEN ${b.content.slice(0,80)} ELSE title END,updated_at=now() WHERE id=${c.id}::uuid`.execute(db);
- let reply='',sources:Source[]=[];const text=b.content.trim();
+ let reply='',sources:Source[]=[],isAiGenerated=false;const text=b.content.trim();
   // All messages route to AI assistant with internal MCP tools for querying, updating, and creating records
    const words = [...new Set((text.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []).filter(w => !['how','the','and','can','you','does','for','what','with','from','this','that','help'].includes(w)))];
    const docs = await db.selectFrom('help_articles').select(['slug','title','summary','body','keywords','category']).where('status','=','published').where('audience','in',a.role==='member'&&!a.isAdmin?['everyone']:['everyone','workspace_admin']).limit(200).execute();
@@ -126,6 +126,7 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
          content: `Workspace context: ${context}\nPrevious user questions in this conversation: ${JSON.stringify(previous.rows.reverse().map(r => r.content))}\nCurrent question: ${text}`
        }
      ]);
+     isAiGenerated = true;
    } catch (error) {
      if (error instanceof HttpError && error.status === 429) {
        reply = error.message;
@@ -154,6 +155,9 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
        ];
      }
    }
+ if (!isAiGenerated) {
+   reply += '\n\n---\n*Automated response*';
+ }
  await sql`INSERT INTO assistant_messages(conversation_id,role,content,sources) VALUES(${c.id}::uuid,'assistant',${reply},${JSON.stringify(sources)}::jsonb)`.execute(db);
  res.status(201).json({ok:true});
 }));

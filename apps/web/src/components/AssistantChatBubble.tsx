@@ -168,7 +168,7 @@ export function AssistantChatBubble() {
               : 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 hover:shadow-2xl hover:scale-105'
           )}
           aria-label={isOpen ? 'Close AI Assistant' : 'Open AI Assistant'}
-          title="AI Assistant (Baidu ERNIE)"
+          title="AI Assistant (Lightning 3.5)"
         >
           {isOpen ? (
             <X className="h-6 w-6 transition-transform duration-200 group-hover:rotate-90" />
@@ -220,7 +220,7 @@ export function AssistantChatBubble() {
                   )}
                 </div>
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  {me.workspace.name} · ERNIE 5.5
+                  {me.workspace.name} · Lightning 3.5
                 </p>
               </div>
             </div>
