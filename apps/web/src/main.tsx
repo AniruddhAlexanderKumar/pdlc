@@ -15,8 +15,8 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AuthPage, ForgotPasswordPage, JoinPage, ResetPage, VerifyEmailPage } from './pages/auth/Auth';
 const AssistantPage = lazy(() => import('./pages/Assistant').then(m => ({ default: m.AssistantPage })));
 import { AssistantAdminPage } from './pages/admin/AssistantAdmin';
-import { HomeJourneyPage } from './pages/HomeJourney';
 import { DashboardPage } from './pages/Dashboard';
+import { JourneyPage } from './pages/Journey';
 import { LandingPage } from './pages/Landing';
 import { MaterialsPage } from './pages/Materials';
 import { ProductPage } from './pages/product/ProductPage';
@@ -133,7 +133,7 @@ function GuestOnly() {
   if (isLoading) return <Spinner />;
   if (data) {
     const next = new URLSearchParams(location.search).get('next');
-    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : data.user.isAdmin ? '/admin' : '/projects'} replace />;
+    return <Navigate to={next && next.startsWith('/') && !next.startsWith('//') ? next : '/'} replace />;
   }
   return <Outlet />;
 }
@@ -215,8 +215,8 @@ const router = createBrowserRouter([
           {
             element: <Layout />,
             children: [
-              // The journey is the product's home screen.
-              { path: '/', element: <HomeJourneyPage /> },
+              // Journey is the product's home screen: the single place project work happens.
+              { path: '/', element: <JourneyPage /> },
               { path: '/dashboard', element: <DashboardPage /> },
               { path: '/products', element: <ProductsPage /> },
               { path: '/projects', element: <ProjectsPage /> },

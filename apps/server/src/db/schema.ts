@@ -164,8 +164,63 @@ export interface IssuesTable {
   labels: Generated<string[]>;
   reporter_id: string | null;
   assignee_id: string | null;
+  /** Journey stage this task belongs to; NULL for tasks outside a journey. */
+  stage_id: string | null;
   created_at: CreatedAt;
   updated_at: Timestamp;
+}
+
+export interface ProjectJourneysTable {
+  id: Generated<string>;
+  project_id: string;
+  name: Generated<string>;
+  template: Generated<'hardware' | 'software' | 'research' | 'general'>;
+  created_by: string | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
+export interface JourneyStagesTable {
+  id: Generated<string>;
+  journey_id: string;
+  project_id: string;
+  name: string;
+  description: Generated<string>;
+  position: number;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
+export interface JourneyActivitiesTable {
+  id: Generated<string>;
+  stage_id: string;
+  project_id: string;
+  kind: 'requirement' | 'milestone' | 'deliverable' | 'document' | 'approval' | 'decision' | 'risk';
+  title: string;
+  description: Generated<string>;
+  status: Generated<'not_started' | 'in_progress' | 'blocked' | 'in_review' | 'completed'>;
+  priority: Generated<IssuePriority>;
+  assignee_id: string | null;
+  due_at: Timestamp | null;
+  position: Generated<number>;
+  blocked_reason: Generated<string>;
+  review_state: Generated<'none' | 'pending' | 'approved' | 'changes_requested'>;
+  reviewed_by: string | null;
+  reviewed_at: Timestamp | null;
+  review_note: Generated<string>;
+  completed_at: Timestamp | null;
+  created_by: string | null;
+  created_at: CreatedAt;
+  updated_at: Timestamp;
+}
+
+export interface JourneyDependenciesTable {
+  id: Generated<string>;
+  project_id: string;
+  activity_id: string;
+  depends_on_id: string;
+  created_by: string | null;
+  created_at: CreatedAt;
 }
 
 export interface MembershipsTable {
@@ -580,6 +635,10 @@ export interface Database {
   voice_import_work_items: VoiceImportWorkItemsTable;
   projects: ProjectsTable;
   issues: IssuesTable;
+  project_journeys: ProjectJourneysTable;
+  journey_stages: JourneyStagesTable;
+  journey_activities: JourneyActivitiesTable;
+  journey_dependencies: JourneyDependenciesTable;
   issue_relationships: IssueRelationshipsTable;
   issue_relationship_events: IssueRelationshipEventsTable;
   memberships: MembershipsTable;

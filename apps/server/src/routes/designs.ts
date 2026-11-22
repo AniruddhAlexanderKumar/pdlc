@@ -9,12 +9,12 @@ import { diagramSourceSchema } from '../services/design-validation.js';
 import { param } from './util.js';
 
 export const designsRouter = Router();
-type Row = { id:string; title:string; owner_id:string|null; owner_name:string|null; project_id:string|null; product_id:string|null; head_revision:number; created_at:Date; updated_at:Date };
+type Row = { id:string; title:string; owner_id:string|null; owner_name:string|null; project_id:string|null; product_id:string|null; journey_activity_id:string|null; head_revision:number; created_at:Date; updated_at:Date };
 function toDocument(row:Row, a:AuthContext):DesignDocument {
-  return { id:row.id, title:row.title, kind:'diagram', ownerId:row.owner_id, ownerName:row.owner_name, projectId:row.project_id, productId:row.product_id, headRevision:row.head_revision, createdAt:row.created_at.toISOString(), updatedAt:row.updated_at.toISOString(), canEdit:row.owner_id===a.userId || a.role==='owner' || a.role==='admin' };
+  return { id:row.id, title:row.title, kind:'diagram', ownerId:row.owner_id, ownerName:row.owner_name, projectId:row.project_id, productId:row.product_id, journeyActivityId:row.journey_activity_id, headRevision:row.head_revision, createdAt:row.created_at.toISOString(), updatedAt:row.updated_at.toISOString(), canEdit:row.owner_id===a.userId || a.role==='owner' || a.role==='admin' };
 }
 async function getDocument(executor:Db, a:AuthContext, id:string, lock=false) {
-  const result=await sql<Row>`SELECT d.id,d.title,d.owner_id,u.name AS owner_name,d.project_id,d.product_id,d.head_revision,d.created_at,d.updated_at
+  const result=await sql<Row>`SELECT d.id,d.title,d.owner_id,u.name AS owner_name,d.project_id,d.product_id,d.journey_activity_id,d.head_revision,d.created_at,d.updated_at
     FROM design_documents d LEFT JOIN users u ON u.id=d.owner_id WHERE d.id=${id}::uuid AND d.workspace_id=${a.workspaceId}::uuid ${lock ? sql`FOR UPDATE OF d` : sql``}`.execute(executor);
   if (!result.rows[0]) throw notFound('Design');
   return result.rows[0];
@@ -25,7 +25,7 @@ async function detail(executor:Db, a:AuthContext, row:Row):Promise<DesignDetail>
   return {document:toDocument(row,a),source:revision.rows[0].source};
 }
 function assertEdit(row:Row,a:AuthContext) { if (!toDocument(row,a).canEdit) throw forbidden('Only the creator or a workspace owner/admin can edit this design'); }
-const createInput=z.object({title:shortText(120).min(1),projectId:uuid.nullable(),productId:uuid.nullable()}).strict();
+const createInput=z.object({title:shortText(120).min(1),projectId:uuid.nullable(),productId:uuid.nullable(),journeyActivityId:uuid.nullable().optional()}).strict();
 const saveInput=z.object({expectedRevision:z.number().int().positive(),summary:shortText(200).default(''),source:diagramSourceSchema}).strict();
 
 designsRouter.get('/', route(async(req,res)=>{
@@ -35,7 +35,7 @@ designsRouter.get('/', route(async(req,res)=>{
   if(!project) throw notFound('Project');
  }
  const projectFilter=projectId ? sql`AND d.project_id=${projectId}::uuid` : sql``;
- const rows=await sql<Row>`SELECT d.id,d.title,d.owner_id,u.name AS owner_name,d.project_id,d.product_id,d.head_revision,d.created_at,d.updated_at
+ const rows=await sql<Row>`SELECT d.id,d.title,d.owner_id,u.name AS owner_name,d.project_id,d.product_id,d.journey_activity_id,d.head_revision,d.created_at,d.updated_at
  FROM design_documents d LEFT JOIN users u ON u.id=d.owner_id WHERE d.workspace_id=${a.workspaceId}::uuid ${projectFilter} ORDER BY d.updated_at DESC LIMIT 200`.execute(db);
  res.set('Cache-Control','no-store').json(rows.rows.map(r=>toDocument(r,a)));
 }));
@@ -44,7 +44,15 @@ designsRouter.post('/',route(async(req,res)=>{
  const result=await db.transaction().execute(async trx=>{
   if(b.projectId){const r=await sql<{exists:SqlBool}>`SELECT EXISTS(SELECT 1 FROM projects WHERE id=${b.projectId}::uuid AND workspace_id=${a.workspaceId}::uuid) AS exists`.execute(trx);if(!r.rows[0].exists)throw badRequest('Project must belong to this workspace');}
   if(b.productId){const r=await sql<{exists:SqlBool}>`SELECT EXISTS(SELECT 1 FROM products WHERE id=${b.productId}::uuid AND workspace_id=${a.workspaceId}::uuid) AS exists`.execute(trx);if(!r.rows[0].exists)throw badRequest('Product must belong to this workspace');}
-  const inserted=await sql<{id:string}>`INSERT INTO design_documents(workspace_id,owner_id,project_id,product_id,title,kind) VALUES(${a.workspaceId}::uuid,${a.userId}::uuid,${b.projectId}::uuid,${b.productId}::uuid,${b.title},'diagram') RETURNING id`.execute(trx);
+  // A journey-linked design must belong to a journey in this workspace; the link also pins the project.
+  let projectId=b.projectId;
+  if(b.journeyActivityId){
+   const r=await sql<{project_id:string}>`SELECT a.project_id FROM journey_activities a JOIN projects p ON p.id=a.project_id WHERE a.id=${b.journeyActivityId}::uuid AND p.workspace_id=${a.workspaceId}::uuid`.execute(trx);
+   if(!r.rows[0])throw badRequest('Journey activity must belong to this workspace');
+   if(projectId&&projectId!==r.rows[0].project_id)throw badRequest('Journey activity belongs to a different project');
+   projectId=r.rows[0].project_id;
+  }
+  const inserted=await sql<{id:string}>`INSERT INTO design_documents(workspace_id,owner_id,project_id,product_id,journey_activity_id,title,kind) VALUES(${a.workspaceId}::uuid,${a.userId}::uuid,${projectId}::uuid,${b.productId}::uuid,${b.journeyActivityId}::uuid,${b.title},'diagram') RETURNING id`.execute(trx);
   const id=inserted.rows[0].id;
   await sql`INSERT INTO design_revisions(document_id,revision,source,author_id,summary) VALUES(${id}::uuid,1,${JSON.stringify({schemaVersion:1,nodes:[],edges:[]})}::jsonb,${a.userId}::uuid,'Created')`.execute(trx);
   return detail(trx,a,await getDocument(trx,a,id));

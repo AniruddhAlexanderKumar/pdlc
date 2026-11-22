@@ -4,7 +4,10 @@ export type DiagramEdge = { id: string; from: string; to: string; label: string 
 export type DiagramSource = { schemaVersion: 1; nodes: DiagramNode[]; edges: DiagramEdge[] };
 export type DesignDocument = {
   id: string; title: string; kind: 'diagram'; ownerId: string | null; ownerName: string | null;
-  projectId: string | null; productId: string | null; headRevision: number;
+  projectId: string | null; productId: string | null;
+  /** Journey activity this design was attached to from the Journey or the Assistant. */
+  journeyActivityId?: string | null;
+  headRevision: number;
   createdAt: string; updatedAt: string; canEdit: boolean;
 };
 export type DesignDetail = { document: DesignDocument; source: DiagramSource };

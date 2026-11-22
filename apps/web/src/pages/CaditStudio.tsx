@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useBlocker } from "react-router";
 import { useSession } from "../api/hooks";
 import { Button, Spinner } from "../components/ui";
+import { ProjectContextBar } from "../components/journey/ProjectContextBar";
 import {
   CADIT_INIT,
   CADIT_ORIGIN,
@@ -165,6 +166,7 @@ function CaditStudio() {
         </p>
       </header>
       <main className="space-y-4 px-5 py-5 md:px-8">
+        <ProjectContextBar note="CADit work is external; file exports under this project from its Journey." />
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           CADit is a third-party service. Designs are not saved to Solution
           Velocity or associated with a project. Save work in CADit if

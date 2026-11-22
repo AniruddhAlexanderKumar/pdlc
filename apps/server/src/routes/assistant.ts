@@ -7,6 +7,7 @@ import { auth, requireAdmin } from '../auth/session.js';
 import { db } from '../db/index.js';
 import { badRequest, conflict, forbidden, HttpError, notFound, parse, route, shortText, uuid } from '../lib/http.js';
 import { assistantProviderNames, generateAssistantReply } from '../services/assistant-ai.js';
+import { journeyContextForProject } from '../services/journey-first.js';
 import { param } from './util.js';
 
 export const assistantRouter = Router();
@@ -89,8 +90,12 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
 
    const workspaceProjects = await db.selectFrom('projects').select(['id','project_key','name','description']).where('workspace_id','=',a.workspaceId).orderBy('updated_at','desc').limit(20).execute();
    let currentProjectIssues: {id:string;summary:string;status:string;priority:string;issue_number:number}[] = [];
+   let activeJourney: unknown = null;
    if (c.project_id) {
      currentProjectIssues = await db.selectFrom('issues').select(['id','summary','status','priority','issue_number']).where('project_id','=',c.project_id).orderBy('updated_at','desc').limit(20).execute();
+     // The selected project's Journey is the assistant's primary context: stages,
+     // progress, next action, blockers, approvals and upcoming milestones.
+     activeJourney = await journeyContextForProject(a.workspaceId, c.project_id);
    }
 
    const context = JSON.stringify({
@@ -99,14 +104,15 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
      activeConversationProject: c.project_id ? {
        key: c.project_key,
        name: c.project_name,
+       journey: activeJourney,
        recentIssues: currentProjectIssues.map(i => ({ key: `${c.project_key}-${i.issue_number}`, summary: i.summary, status: i.status, priority: i.priority }))
      } : null,
      guides: guides.map(d => ({ title: d.title, body: d.body.slice(0, 1000) }))
    });
 
    sources = [
-     ...(c.project_id ? [{ type: 'project' as const, title: `${c.project_key} · ${c.project_name}`, url: `/projects/${c.project_id}/issues` }] : []),
-     ...workspaceProjects.slice(0, 3).map(p => ({ type: 'project' as const, recordId: p.id, title: `${p.project_key} · ${p.name}`, url: `/projects/${p.id}/issues` })),
+    ...(c.project_id ? [{ type: 'project' as const, title: `${c.project_key} · ${c.project_name}`, url: `/?project=${c.project_id}` }] : []),
+    ...workspaceProjects.slice(0, 3).map(p => ({ type: 'project' as const, recordId: p.id, title: `${p.project_key} · ${p.name}`, url: `/?project=${p.id}` })),
      ...currentProjectIssues.slice(0, 5).map(i => ({ type: 'issue' as const, recordId: i.id, title: `${c.project_key}-${i.issue_number} · ${i.summary}`, url: `/projects/${c.project_id}/issues?issueId=${i.id}` })),
      ...guides.map(d => ({ type: 'help' as const, title: d.title, slug: d.slug, url: `/help/${d.slug}` }))
    ];
@@ -115,7 +121,7 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
      reply = await generateAssistantReply(a, c.id, [
        {
          role: 'system',
-         content: `You are Solution Velocity's engineering assistant. You have full access to workspace projects, issues, products, and Help Centre guides via your internal tools (MCP) and supplied context. You can directly query information, create projects and tasks, and update existing issues (status, priority, summary, description) using your MCP tools. When asked to create or update anything, use your tools immediately and confirm the outcome clearly with the task or project key. Help users explore their projects, understand task progress, plan development, and navigate their workspace. Cite project keys (e.g. FLOW, PROJ) and task numbers when discussing issues. Be direct, helpful, and concise.`
+         content: `You are Solution Velocity's engineering assistant for a journey-first product development platform. Every project has a Journey: ordered stages holding activities (requirements, milestones, deliverables, documents, approvals, decisions, risks) plus tasks attached to stages. The supplied context includes the selected project's Journey — current stage, progress, next action, blockers, pending approvals and upcoming milestones — and that project's tasks. Treat that Journey as the source of truth for what the team should do next. Use your MCP tools to read journeys (get_project_journey), add or update journey activities (create_journey_activity, update_journey_activity), query and create projects and tasks, and search the Help Centre. When asked to create or update anything, act with your tools and confirm the outcome clearly with the project key, stage name and task or activity title. Keep answers grounded in the selected project's context and never mix in another project's data. Be direct, helpful, and concise.`
        },
        {
          role: 'user',

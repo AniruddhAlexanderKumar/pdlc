@@ -4,6 +4,8 @@ import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import type { DesignDetail, DesignDocument, DesignRevision, DiagramSource } from '@sv/shared';
 import { get, post, put } from '../api/client';
 import { useSession } from '../api/hooks';
+import { ProjectContextBar } from '../components/journey/ProjectContextBar';
+import { useProjectParam } from '../lib/useProjectParam';
 import { Button, Card, Input, PageHeader, Select, Spinner } from '../components/ui';
 import { exportDiagram, exportDraft } from '../design-studio/export';
 import { diagramDraftProblem } from '../design-studio/autosave';
@@ -11,10 +13,12 @@ import { diagramDraftProblem } from '../design-studio/autosave';
 /** Legacy data remains available without presenting it as the new studio. */
 export function DesignStudioPage() {
  const me=useSession(); const [search,setSearch]=useState('');
- const designs=useQuery({queryKey:['designs',me.workspace.id],queryFn:()=>get<DesignDocument[]>('/designs'),enabled:!me.demo});
+ const [selectedProjectId]=useProjectParam(me.workspace.id);
+ const designs=useQuery({queryKey:['designs',me.workspace.id,selectedProjectId??'all'],queryFn:()=>get<DesignDocument[]>(`/designs${selectedProjectId?`?projectId=${encodeURIComponent(selectedProjectId)}`:''}`),enabled:!me.demo});
  const filtered=designs.data?.filter(d=>d.title.toLowerCase().includes(search.trim().toLowerCase()));
  if(me.demo)return <div className="p-6">Previous diagrams are not available in the temporary demo.</div>;
  return <><PageHeader title="Previous conceptual diagrams" subtitle="Access diagrams already stored in this workspace."/><div className="space-y-5 p-4 md:p-6">
+  <ProjectContextBar note="Diagrams are filtered to the selected project." />
   <Link to="/designs" className="text-sm font-medium text-blue-700 underline dark:text-blue-300">← Design Studio</Link>
   <p className="text-sm text-zinc-600 dark:text-zinc-400">These existing box-and-connector diagrams are preserved separately from the sketch workspace. They are not CAD or verified engineering schematics. Workspace members can read; the creator and workspace owners/admins can edit. The list shows the 200 most recently updated diagrams.</p>
   <label className="block max-w-md text-sm">Search diagrams<Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name" /></label>

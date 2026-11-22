@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sql } from 'kysely';
+import { sql, type SqlBool } from 'kysely';
 import { z } from 'zod';
 import type { CadDetail, CadDocument, Sketch } from '@sv/cad-core';
 import { auth, type AuthContext } from '../auth/session.js';
@@ -10,15 +10,15 @@ import { param } from './util.js';
 
 // Experimental and disabled by default. Never trusts IDs without workspace and role checks.
 export const cadDocumentsRouter=Router();
-type Row={id:string; workspace_id:string; owner_id:string|null; name:string; head_revision:number; created_at:Date;updated_at:Date;archived_at:Date|null};
+type Row={id:string; workspace_id:string; owner_id:string|null; name:string; project_id:string|null; journey_activity_id:string|null; head_revision:number; created_at:Date;updated_at:Date;archived_at:Date|null};
 const revision=z.number().int().positive().max(2147483646);
-const createInput=z.object({name:shortText(120).min(1),plane:z.literal('XY')}).strict();
+const createInput=z.object({name:shortText(120).min(1),plane:z.literal('XY'),projectId:uuid.optional(),journeyActivityId:uuid.optional()}).strict();
 const saveInput=z.object({expectedRevision:revision,name:shortText(120).min(1),source:cadSourceSchema}).strict();
 const archiveInput=z.object({expectedRevision:revision}).strict();
-function document(row:Row,a:AuthContext):CadDocument {return {id:row.id,workspaceId:row.workspace_id,ownerId:row.owner_id,name:row.name,headRevision:row.head_revision,createdAt:row.created_at.toISOString(),updatedAt:row.updated_at.toISOString(),archivedAt:row.archived_at?.toISOString()??null,canEdit:row.owner_id===a.userId||a.role==='owner'||a.role==='admin'};}
+function document(row:Row,a:AuthContext):CadDocument {return {id:row.id,workspaceId:row.workspace_id,ownerId:row.owner_id,name:row.name,projectId:row.project_id,journeyActivityId:row.journey_activity_id,headRevision:row.head_revision,createdAt:row.created_at.toISOString(),updatedAt:row.updated_at.toISOString(),archivedAt:row.archived_at?.toISOString()??null,canEdit:row.owner_id===a.userId||a.role==='owner'||a.role==='admin'};}
 function assertEdit(row:Row,a:AuthContext){if(!document(row,a).canEdit)throw forbidden('Only the creator or workspace owner/admin can edit this sketch');}
 async function getRow(executor:Db,a:AuthContext,id:string,lock=false):Promise<Row> {
- const r=await sql<Row>`SELECT id,workspace_id,owner_id,name,head_revision,created_at,updated_at,archived_at FROM cad_documents WHERE id=${id}::uuid AND workspace_id=${a.workspaceId}::uuid AND archived_at IS NULL ${lock?sql`FOR UPDATE`:sql``}`.execute(executor);
+ const r=await sql<Row>`SELECT id,workspace_id,owner_id,name,project_id,journey_activity_id,head_revision,created_at,updated_at,archived_at FROM cad_documents WHERE id=${id}::uuid AND workspace_id=${a.workspaceId}::uuid AND archived_at IS NULL ${lock?sql`FOR UPDATE`:sql``}`.execute(executor);
  if(!r.rows[0])throw notFound('Sketch');return r.rows[0];
 }
 async function detail(executor:Db,a:AuthContext,row:Row):Promise<CadDetail>{
@@ -31,17 +31,28 @@ async function detail(executor:Db,a:AuthContext,row:Row):Promise<CadDetail>{
  return {document:document(row,a),source};
 }
 cadDocumentsRouter.get('/',route(async(req,res)=>{
- const a=auth(req);const r=await sql<Row>`SELECT id,workspace_id,owner_id,name,head_revision,created_at,updated_at,archived_at FROM cad_documents WHERE workspace_id=${a.workspaceId}::uuid AND archived_at IS NULL ORDER BY updated_at DESC LIMIT 200`.execute(db);
+ const a=auth(req);const {projectId}=parse(z.object({projectId:uuid.optional()}),req.query);
+ if(projectId){const p=await sql<{exists:SqlBool}>`SELECT EXISTS(SELECT 1 FROM projects WHERE id=${projectId}::uuid AND workspace_id=${a.workspaceId}::uuid) AS exists`.execute(db);if(!p.rows[0].exists)throw notFound('Project');}
+ const projectFilter=projectId?sql`AND project_id=${projectId}::uuid`:sql``;
+ const r=await sql<Row>`SELECT id,workspace_id,owner_id,name,project_id,journey_activity_id,head_revision,created_at,updated_at,archived_at FROM cad_documents WHERE workspace_id=${a.workspaceId}::uuid AND archived_at IS NULL ${projectFilter} ORDER BY updated_at DESC LIMIT 200`.execute(db);
  res.set('Cache-Control','no-store').json(r.rows.map(x=>document(x,a)));
 }));
 cadDocumentsRouter.get('/archived',route(async(req,res)=>{
- const a=auth(req);const r=await sql<Row>`SELECT id,workspace_id,owner_id,name,head_revision,created_at,updated_at,archived_at FROM cad_documents WHERE workspace_id=${a.workspaceId}::uuid AND archived_at IS NOT NULL ORDER BY updated_at DESC LIMIT 200`.execute(db);
+ const a=auth(req);const r=await sql<Row>`SELECT id,workspace_id,owner_id,name,project_id,journey_activity_id,head_revision,created_at,updated_at,archived_at FROM cad_documents WHERE workspace_id=${a.workspaceId}::uuid AND archived_at IS NOT NULL ORDER BY updated_at DESC LIMIT 200`.execute(db);
  res.set('Cache-Control','no-store').json(r.rows.map(x=>document(x,a)));
 }));
 cadDocumentsRouter.post('/',route(async(req,res)=>{
  const a=auth(req),b=parse(createInput,req.body);
  const out=await db.transaction().execute(async trx=>{
-  const r=await sql<{id:string}>`INSERT INTO cad_documents(workspace_id,owner_id,name) VALUES(${a.workspaceId}::uuid,${a.userId}::uuid,${b.name}) RETURNING id`.execute(trx);const id=r.rows[0].id;
+  let projectId=b.projectId??null;
+  if(projectId){const p=await sql<{exists:SqlBool}>`SELECT EXISTS(SELECT 1 FROM projects WHERE id=${projectId}::uuid AND workspace_id=${a.workspaceId}::uuid) AS exists`.execute(trx);if(!p.rows[0].exists)throw badRequest('Project must belong to this workspace');}
+  if(b.journeyActivityId){
+   const r=await sql<{project_id:string}>`SELECT a.project_id FROM journey_activities a JOIN projects p ON p.id=a.project_id WHERE a.id=${b.journeyActivityId}::uuid AND p.workspace_id=${a.workspaceId}::uuid`.execute(trx);
+   if(!r.rows[0])throw badRequest('Journey activity must belong to this workspace');
+   if(projectId&&projectId!==r.rows[0].project_id)throw badRequest('Journey activity belongs to a different project');
+   projectId=r.rows[0].project_id;
+  }
+  const r=await sql<{id:string}>`INSERT INTO cad_documents(workspace_id,owner_id,name,project_id,journey_activity_id) VALUES(${a.workspaceId}::uuid,${a.userId}::uuid,${b.name},${projectId}::uuid,${b.journeyActivityId}::uuid) RETURNING id`.execute(trx);const id=r.rows[0].id;
   const source:Sketch={schemaVersion:1,id,plane:'XY',units:'m',revision:1,entities:[],constraints:[]};
   await sql`INSERT INTO cad_document_revisions(document_id,revision,source,author_id) VALUES(${id}::uuid,1,${JSON.stringify(source)}::jsonb,${a.userId}::uuid)`.execute(trx);
   return detail(trx,a,await getRow(trx,a,id));
@@ -72,7 +83,7 @@ cadDocumentsRouter.post('/:id/archive',route(async(req,res)=>{
 cadDocumentsRouter.post('/:id/unarchive',route(async(req,res)=>{
  const a=auth(req),id=parse(uuid,param(req,'id')),b=parse(archiveInput,req.body);
  const out=await db.transaction().execute(async trx=>{
-  const found=await sql<Row>`SELECT id,workspace_id,owner_id,name,head_revision,created_at,updated_at,archived_at FROM cad_documents WHERE id=${id}::uuid AND workspace_id=${a.workspaceId}::uuid AND archived_at IS NOT NULL FOR UPDATE`.execute(trx);
+  const found=await sql<Row>`SELECT id,workspace_id,owner_id,name,project_id,journey_activity_id,head_revision,created_at,updated_at,archived_at FROM cad_documents WHERE id=${id}::uuid AND workspace_id=${a.workspaceId}::uuid AND archived_at IS NOT NULL FOR UPDATE`.execute(trx);
   const row=found.rows[0];if(!row)throw notFound('Sketch');assertEdit(row,a);if(row.head_revision!==b.expectedRevision)throw conflict('Sketch revision changed; reload before restoring.');
   await sql`UPDATE cad_documents SET archived_at=NULL,updated_at=now() WHERE id=${id}::uuid`.execute(trx);return detail(trx,a,await getRow(trx,a,id));
  });res.json(out);
