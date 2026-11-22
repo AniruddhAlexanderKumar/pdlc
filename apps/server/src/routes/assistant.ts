@@ -85,7 +85,11 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
   // All messages route to AI assistant with internal MCP tools for querying, updating, and creating records
    const words = [...new Set((text.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []).filter(w => !['how','the','and','can','you','does','for','what','with','from','this','that','help'].includes(w)))];
    const docs = await db.selectFrom('help_articles').select(['slug','title','summary','body','keywords','category']).where('status','=','published').where('audience','in',a.role==='member'&&!a.isAdmin?['everyone']:['everyone','workspace_admin']).limit(200).execute();
-   const guides = docs.map(d => ({d, score: words.reduce((n, w) => n + (`${d.title} ${d.summary} ${d.body} ${d.keywords.join(' ')} ${d.category}`.toLowerCase().includes(w) ? 1 : 0), 0)})).filter(x => x.score > 0).sort((x, y) => y.score - x.score).slice(0, 3).map(x => x.d);
+   const guides = docs.map(d => ({d, score: words.reduce((n, w) => n + (`${d.title} ${d.summary} ${d.body} ${(Array.isArray(d.keywords) ? d.keywords.join(' ') : '')} ${d.category}`.toLowerCase().includes(w) ? 1 : 0), 0)})).filter(x => x.score > 0).sort((x, y) => y.score - x.score).slice(0, 3).map(x => x.d);
+   if (!guides.length && /\b(help|guide|platform|velocity|start|manage|project)\b/i.test(text)) {
+     const fallbackDocs = docs.filter(d => /project|getting-started|overview|workflow/i.test(d.slug || d.title)).slice(0, 2);
+     guides.push(...fallbackDocs);
+   }
 
    const workspaceProjects = await db.selectFrom('projects').select(['id','project_key','name','description']).where('workspace_id','=',a.workspaceId).orderBy('updated_at','desc').limit(20).execute();
    let currentProjectIssues: {id:string;summary:string;status:string;priority:string;issue_number:number}[] = [];
@@ -123,9 +127,32 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
        }
      ]);
    } catch (error) {
-     if (!(error instanceof HttpError)) throw error;
-     reply = error.message;
-     sources = [];
+     if (error instanceof HttpError && error.status === 429) {
+       reply = error.message;
+       sources = [];
+     } else if (guides.length > 0) {
+       reply = `### Help Centre Guidance\n\n` +
+         guides.map(d => `#### [${d.title}](/help/${d.slug})\n${d.summary ? `*${d.summary}*\n\n` : ''}${d.body}`).join('\n\n---\n\n');
+       sources = guides.map(d => ({ type: 'help' as const, title: d.title, slug: d.slug, url: `/help/${d.slug}` }));
+     } else if (/\b(projects?|workspaces?)\b/i.test(text) && workspaceProjects.length > 0) {
+       reply = `### Workspace Projects\n\nHere are the projects in this workspace:\n\n` +
+         workspaceProjects.map(p => `• **${p.project_key} · ${p.name}**${p.description ? ` — ${p.description}` : ''}`).join('\n') +
+         `\n\nSelect a project or open its issues to manage tasks.`;
+       sources = workspaceProjects.slice(0, 3).map(p => ({ type: 'project' as const, recordId: p.id, title: `${p.project_key} · ${p.name}`, url: `/projects/${p.id}/issues` }));
+     } else if (c.project_id && (currentProjectIssues.length > 0 || /\b(issues?|tasks?|status|progress|summary)\b/i.test(text))) {
+       reply = `### Task Status for ${c.project_key} · ${c.project_name}\n\n` +
+         (currentProjectIssues.length ? currentProjectIssues.map(i => `• **${c.project_key}-${i.issue_number}**: ${i.summary} (${i.status}, ${i.priority})`).join('\n') : 'No open tasks found.') +
+         `\n\n*Snapshot of recorded project issues.*`;
+       sources = currentProjectIssues.slice(0, 5).map(i => ({ type: 'issue' as const, recordId: i.id, title: `${c.project_key}-${i.issue_number} · ${i.summary}`, url: `/projects/${c.project_id}/issues?issueId=${i.id}` }));
+     } else {
+       reply = `I can help you navigate workspace projects, view tasks, and explore Help Centre guidance.\n\n` +
+         (workspaceProjects.length ? `• **Workspace Projects**: ${workspaceProjects.map(p => `${p.project_key} (${p.name})`).join(', ')}\n` : '') +
+         `• Browse the complete knowledge base in the [Help Centre](/help).`;
+       sources = [
+         ...workspaceProjects.slice(0, 2).map(p => ({ type: 'project' as const, recordId: p.id, title: `${p.project_key} · ${p.name}`, url: `/projects/${p.id}/issues` })),
+         { type: 'help' as const, title: 'Help Centre', url: '/help' }
+       ];
+     }
    }
  await sql`INSERT INTO assistant_messages(conversation_id,role,content,sources) VALUES(${c.id}::uuid,'assistant',${reply},${JSON.stringify(sources)}::jsonb)`.execute(db);
  res.status(201).json({ok:true});

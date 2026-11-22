@@ -20,7 +20,7 @@ async function reserve(workspaceId:string,userId:string,conversationId:string,pr
   const isFree = provider.model.includes(':free');
   let balance=await sql<{remaining_tokens:number}>`SELECT remaining_tokens FROM assistant_allowances WHERE workspace_id=${workspaceId}::uuid FOR UPDATE`.execute(trx);
   if (!balance.rows[0]) {
-    await sql`INSERT INTO assistant_allowances(workspace_id,remaining_tokens) VALUES(${workspaceId}::uuid, ${isFree ? 10000000 : 0}) ON CONFLICT (workspace_id) DO NOTHING`.execute(trx);
+    await sql`INSERT INTO assistant_allowances(workspace_id,remaining_tokens) VALUES(${workspaceId}::uuid, 10000000) ON CONFLICT (workspace_id) DO NOTHING`.execute(trx);
     balance=await sql<{remaining_tokens:number}>`SELECT remaining_tokens FROM assistant_allowances WHERE workspace_id=${workspaceId}::uuid FOR UPDATE`.execute(trx);
   }
   if(!isFree && (!balance.rows[0] || Number(balance.rows[0].remaining_tokens)<amount)) {
