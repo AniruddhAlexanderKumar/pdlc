@@ -1,5 +1,26 @@
 import { sql } from 'kysely';
+import { JOURNEY_ACTIVITY_KINDS, JOURNEY_ACTIVITY_STATUSES } from '@sv/shared';
 import { db } from '../db/index.js';
+import { buildJourneyView } from './journey-first.js';
+
+/** Resolve a project by key or UUID inside the actor's workspace. */
+async function resolveProject(workspaceId: string, raw: unknown) {
+  const key = String(raw || '').trim();
+  if (!key) return { error: 'project_key is required' };
+  const project = await db
+    .selectFrom('projects')
+    .select(['id', 'project_key', 'name'])
+    .where('workspace_id', '=', workspaceId)
+    .where((eb) =>
+      eb.or([
+        eb('project_key', '=', key.toUpperCase()),
+        eb('id', '=', key.length === 36 ? key : '00000000-0000-0000-0000-000000000000')
+      ])
+    )
+    .executeTakeFirst();
+  if (!project) return { error: `Project '${key}' was not found in this workspace.` };
+  return project;
+}
 
 export interface McpToolDefinition {
   type: 'function';
@@ -213,6 +234,58 @@ export const ASSISTANT_MCP_TOOLS: McpToolDefinition[] = [
       parameters: {
         type: 'object',
         properties: {}
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_project_journey',
+      description: 'Get the development Journey for a project: stages with progress states, next action, blockers, pending approvals, upcoming milestones and every activity with its id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          project_key: {
+            type: 'string',
+            description: 'The project key (e.g. \"BUILD\") or project UUID'
+          }
+        },
+        required: ['project_key']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_journey_activity',
+      description: 'Add an activity (requirement, milestone, deliverable, document, approval, decision or risk) to a stage of a project\'s Journey. Returns the new activity id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          project_key: { type: 'string', description: 'The project key (e.g. \"BUILD\")' },
+          stage_name: { type: 'string', description: 'Exact name of an existing stage in the project\'s Journey, e.g. \"Requirements & Feasibility\"' },
+          kind: { type: 'string', enum: ['requirement', 'milestone', 'deliverable', 'document', 'approval', 'decision', 'risk'], description: 'What kind of work this activity represents' },
+          title: { type: 'string', description: 'Short title, up to 200 characters' },
+          description: { type: 'string', description: 'Optional detail, up to 4000 characters' }
+        },
+        required: ['project_key', 'stage_name', 'kind', 'title']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_journey_activity',
+      description: 'Update an activity on a project\'s Journey: change status (not_started, in_progress, blocked, in_review, completed), priority, or blocked reason. Use get_project_journey first to find activity ids.',
+      parameters: {
+        type: 'object',
+        properties: {
+          activity_id: { type: 'string', description: 'The activity UUID from get_project_journey' },
+          status: { type: 'string', enum: ['not_started', 'in_progress', 'blocked', 'in_review', 'completed'], description: 'New status' },
+          priority: { type: 'string', enum: ['Low', 'Medium', 'High', 'Critical'], description: 'New priority' },
+          blocked_reason: { type: 'string', description: 'Required when status is \"blocked\"' }
+        },
+        required: ['activity_id']
       }
     }
   },
@@ -665,6 +738,109 @@ export async function executeInternalMcpTool(
             category: m.category
           }))
         };
+      }
+
+      case 'get_project_journey': {
+        const project = await resolveProject(actor.workspaceId, args.project_key);
+        if ('error' in project) return project;
+        const view = await buildJourneyView(actor.workspaceId, project.id);
+        return {
+          project: { key: project.project_key, name: project.name },
+          journey: view.journey,
+          percent: view.summary.percent,
+          next_action: view.summary.nextAction,
+          blockers: view.summary.blockers,
+          pending_approvals: view.summary.pendingApprovals,
+          upcoming_milestones: view.summary.upcomingMilestones,
+          stages: view.stages.map((stage) => ({
+            id: stage.id,
+            name: stage.name,
+            state: stage.state,
+            percent: stage.percent,
+            activities: stage.activities.map((a) => ({
+              id: a.id,
+              kind: a.kind,
+              title: a.title,
+              status: a.status,
+              priority: a.priority,
+              review_state: a.reviewState,
+              due_at: a.dueAt,
+              assignee: a.assigneeName,
+              waiting_on: a.waitingOn.map((w) => w.title)
+            })),
+            tasks: stage.issues.map((i) => ({ key: i.key, summary: i.summary, status: i.status, priority: i.priority }))
+          }))
+        };
+      }
+
+      case 'create_journey_activity': {
+        const project = await resolveProject(actor.workspaceId, args.project_key);
+        if ('error' in project) return project;
+        const kind = String(args.kind || '');
+        if (!JOURNEY_ACTIVITY_KINDS.includes(kind as any)) return { error: `Unknown activity kind '${kind}'.` };
+        const title = String(args.title || '').trim().slice(0, 200);
+        if (!title) return { error: 'title is required' };
+        const stageName = String(args.stage_name || '').trim().toLowerCase();
+        const stages = await db.selectFrom('journey_stages').select(['id', 'name']).where('project_id', '=', project.id).execute();
+        const stage = stages.find((s) => s.name.toLowerCase() === stageName);
+        if (!stage) return { error: `Stage '${args.stage_name}' not found. Available stages: ${stages.map((s) => s.name).join(', ')}` };
+        const positionRow = await db
+          .selectFrom('journey_activities')
+          .select(sql<number>`coalesce(max(position), -1) + 1`.as('next'))
+          .where('stage_id', '=', stage.id)
+          .executeTakeFirst();
+        const inserted = await db
+          .insertInto('journey_activities')
+          .values({
+            stage_id: stage.id,
+            project_id: project.id,
+            kind: kind as any,
+            title,
+            description: String(args.description || '').slice(0, 4000),
+            position: Number(positionRow?.next ?? 0),
+            created_by: actor.userId
+          })
+          .returning(['id', 'title'])
+          .executeTakeFirstOrThrow();
+        return {
+          success: true,
+          activity_id: inserted.id,
+          title: inserted.title,
+          stage: stage.name,
+          url: `/?project=${project.id}`
+        };
+      }
+
+      case 'update_journey_activity': {
+        const activityId = String(args.activity_id || '').trim();
+        if (!/^[0-9a-f-]{36}$/i.test(activityId)) return { error: 'activity_id must be a UUID from get_project_journey' };
+        const activity = await db
+          .selectFrom('journey_activities as a')
+          .innerJoin('projects as p', 'p.id', 'a.project_id')
+          .select(['a.id', 'a.status', 'a.project_id', 'p.project_key'])
+          .where('a.id', '=', activityId)
+          .where('p.workspace_id', '=', actor.workspaceId)
+          .executeTakeFirst();
+        if (!activity) return { error: 'Activity not found in this workspace.' };
+        const updates: Record<string, unknown> = { updated_at: new Date() };
+        const status = args.status ? String(args.status) : '';
+        if (status) {
+          if (!JOURNEY_ACTIVITY_STATUSES.includes(status as any)) return { error: `Unknown status '${status}'.` };
+          if (status === 'blocked' && !String(args.blocked_reason || '').trim()) {
+            return { error: 'blocked_reason is required when setting status to blocked' };
+          }
+          updates.status = status;
+          updates.blocked_reason = status === 'blocked' ? String(args.blocked_reason).slice(0, 500) : '';
+          if (status === 'completed') updates.completed_at = new Date();
+          if (activity.status === 'completed' && status !== 'completed') updates.completed_at = null;
+        }
+        if (args.priority) {
+          const priority = String(args.priority);
+          if (!['Low', 'Medium', 'High', 'Critical'].includes(priority)) return { error: `Unknown priority '${priority}'.` };
+          updates.priority = priority;
+        }
+        await db.updateTable('journey_activities').set(updates).where('id', '=', activityId).execute();
+        return { success: true, activity_id: activityId, status: updates.status || activity.status, url: `/?project=${activity.project_id}` };
       }
 
       default:

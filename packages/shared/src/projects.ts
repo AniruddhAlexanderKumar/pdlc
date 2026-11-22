@@ -29,6 +29,8 @@ export interface Issue {
   labels: string[];
   reporterId: string | null;
   assigneeId: string | null;
+  /** Journey stage this task belongs to, when filed inside a project's Journey. */
+  stageId?: string | null;
   linkedTask?: { id: string; productId: string; productName: string };
   createdAt: string;
   updatedAt: string;

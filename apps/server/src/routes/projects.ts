@@ -12,6 +12,7 @@ import { db, type Db } from '../db/index.js';
 import { badRequest, notFound, parse, route, shortText, uuid } from '../lib/http.js';
 import { param } from './util.js';
 import { projectInput, issueInput } from '../lib/record-validation.js';
+import { ensureProjectJourney } from '../services/journey-first.js';
 
 export const projectsRouter = Router();
 
@@ -61,6 +62,7 @@ async function toIssue(dbOrTrx: Db, projectId: string, issueId: string): Promise
       'i.labels',
       'i.reporter_id',
       'i.assignee_id',
+      'i.stage_id',
       'i.created_at',
       'i.updated_at'
     ])
@@ -81,6 +83,7 @@ async function toIssue(dbOrTrx: Db, projectId: string, issueId: string): Promise
     labels: row.labels,
     reporterId: row.reporter_id,
     assigneeId: row.assignee_id,
+    stageId: row.stage_id,
     ...(link ? { linkedTask: link } : {}),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString()
@@ -96,6 +99,18 @@ async function assertWorkspaceAssignee(dbOrTrx: Db, workspaceId: string, assigne
     .where('user_id', '=', assigneeId)
     .executeTakeFirst();
   if (!membership) throw badRequest('Assignee must be a member of this workspace');
+}
+
+/** A task's journey stage must live in the same project, or the task would escape its journey. */
+async function assertStageOfProject(dbOrTrx: Db, projectId: string, stageId: string | null | undefined) {
+  if (!stageId) return;
+  const stage = await dbOrTrx
+    .selectFrom('journey_stages')
+    .select('id')
+    .where('id', '=', stageId)
+    .where('project_id', '=', projectId)
+    .executeTakeFirst();
+  if (!stage) throw badRequest('Stage must belong to this project');
 }
 
 projectsRouter.get(
@@ -138,18 +153,23 @@ projectsRouter.post(
   route(async (req, res) => {
     const body = parse(projectInput, req.body);
     const actor = auth(req);
-    const row = await db
-      .insertInto('projects')
-      .values({
-        workspace_id: actor.workspaceId,
-        project_key: body.key,
-        name: body.name,
-        description: body.description,
-        created_by: actor.userId,
-        updated_at: new Date()
-      })
-      .returning(['id', 'project_key', 'name', 'description', 'created_at', 'updated_at'])
-      .executeTakeFirstOrThrow();
+    // The project and its journey are created together: every project has a journey.
+    const row = await db.transaction().execute(async (trx) => {
+      const project = await trx
+        .insertInto('projects')
+        .values({
+          workspace_id: actor.workspaceId,
+          project_key: body.key,
+          name: body.name,
+          description: body.description,
+          created_by: actor.userId,
+          updated_at: new Date()
+        })
+        .returning(['id', 'project_key', 'name', 'description', 'created_at', 'updated_at'])
+        .executeTakeFirstOrThrow();
+      await ensureProjectJourney(trx, project, body.template, actor.userId);
+      return project;
+    });
 
     res.status(201).json({
       id: row.id,
@@ -188,6 +208,7 @@ projectsRouter.get(
         'i.labels',
         'i.reporter_id',
         'i.assignee_id',
+        'i.stage_id',
         'i.created_at',
         'i.updated_at'
       ])
@@ -229,6 +250,7 @@ projectsRouter.get(
       labels: row.labels,
       reporterId: row.reporter_id,
       assigneeId: row.assignee_id,
+      stageId: row.stage_id,
       ...(links.has(row.id) ? { linkedTask: links.get(row.id)! } : {}),
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString()
@@ -254,6 +276,7 @@ projectsRouter.post(
         .executeTakeFirst();
       if (!project) throw notFound('Project');
       await assertWorkspaceAssignee(trx, actor.workspaceId, body.assigneeId);
+      await assertStageOfProject(trx, projectId, body.stageId);
       const issue = await trx
         .insertInto('issues')
         .values({
@@ -266,6 +289,7 @@ projectsRouter.post(
           labels: body.labels,
           reporter_id: actor.userId,
           assignee_id: body.assigneeId ?? null,
+          stage_id: body.stageId ?? null,
           updated_at: new Date()
         })
         .returning('id')
@@ -292,6 +316,7 @@ projectsRouter.patch(
     const project = await findProject(db, actor.workspaceId, projectId);
     if (!project) throw notFound('Project');
     await assertWorkspaceAssignee(db, actor.workspaceId, body.assigneeId);
+    await assertStageOfProject(db, projectId, body.stageId);
 
     const updates = {
       ...(body.type !== undefined ? { type: body.type } : {}),
@@ -300,7 +325,8 @@ projectsRouter.patch(
       ...(body.summary !== undefined ? { summary: body.summary } : {}),
       ...(body.description !== undefined ? { description: body.description } : {}),
       ...(body.labels !== undefined ? { labels: body.labels } : {}),
-      ...(body.assigneeId !== undefined ? { assignee_id: body.assigneeId } : {})
+      ...(body.assigneeId !== undefined ? { assignee_id: body.assigneeId } : {}),
+      ...(body.stageId !== undefined ? { stage_id: body.stageId } : {})
     };
     const updated = await db
       .updateTable('issues')

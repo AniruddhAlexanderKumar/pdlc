@@ -6,9 +6,11 @@ import type { CadDetail } from '@sv/cad-core';
 import { ApiError, post } from '../api/client';
 import { useSession } from '../api/hooks';
 import { Button, Input, Spinner } from '../components/ui';
+import { ProjectContextBar } from '../components/journey/ProjectContextBar';
+import { useProjectParam } from '../lib/useProjectParam';
 import { useCadDocuments } from './CadDocuments';
 
-/** Workspace-level entry; CAD documents are not yet linked to projects or products. */
+/** Workspace-level entry; sketches file under the selected project when created. */
 export function StudioHomePage() {
   const me = useSession();
   return <StudioHome key={`${me.user.id}:${me.workspace.id}`} />;
@@ -16,7 +18,8 @@ export function StudioHomePage() {
 
 function StudioHome() {
   const me = useSession();
-  const documents = useCadDocuments();
+  const [selectedProjectId] = useProjectParam(me.workspace.id);
+  const documents = useCadDocuments(selectedProjectId);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [name, setName] = useState('');
@@ -24,7 +27,7 @@ function StudioHome() {
   const [createdId, setCreatedId] = useState('');
   const createdIdRef = useRef('');
   const create = useMutation({
-    mutationFn: () => post<CadDetail>('/cad-documents', { name: name.trim(), plane: 'XY' }),
+    mutationFn: () => post<CadDetail>('/cad-documents', { name: name.trim(), plane: 'XY', ...(selectedProjectId ? { projectId: selectedProjectId } : {}) }),
     onSuccess: result => {
       setName('');
       void qc.invalidateQueries({ queryKey: ['cad-documents', me.workspace.id] });
@@ -59,6 +62,7 @@ function StudioHome() {
     <header className="border-b border-zinc-200 bg-white px-5 py-5 dark:border-zinc-800 dark:bg-zinc-900 md:px-8">
       <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Product development / Design</p>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-2xl font-semibold tracking-tight">Design Studio</h1><p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">A focused starting point for your design work.</p></div><span className="text-xs text-zinc-500">Workspace: {me.workspace.name}</span></div>
+      <div className="mt-4"><ProjectContextBar note="Sketches are filed under the selected project and its Journey." /></div>
     </header>
     <div className="mx-auto grid max-w-[1500px] gap-6 px-5 py-6 md:px-8 lg:grid-cols-[210px_minmax(0,1fr)]">
       <nav aria-label="Studio navigation" className="space-y-1 text-sm">
@@ -78,7 +82,7 @@ function StudioHome() {
             {filtered?.length ? <ul className="divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">{filtered.map(item => <li key={item.id}><Link to={`/designs/cad/${item.id}`} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm hover:text-blue-700 dark:hover:text-blue-300"><span className="min-w-0 font-medium">{item.name}</span><span className="text-xs text-zinc-500">XY sketch · revision {item.headRevision} · updated {new Date(item.updatedAt).toLocaleDateString()}</span></Link></li>)}</ul> : <p className="rounded-md border border-dashed border-zinc-300 p-5 text-sm text-zinc-500 dark:border-zinc-700">{search ? 'No loaded sketches match this search.' : 'No sketches yet. Name a sketch above to start.'}</p>}
           </div>}
         </section>
-        <section aria-labelledby="context-heading" className="border-t border-zinc-200 pt-5 dark:border-zinc-800"><div className="flex items-center gap-2"><Layers3 className="h-4 w-4 text-zinc-500" aria-hidden="true"/><h2 id="context-heading" className="text-sm font-semibold">Product lifecycle context</h2></div><p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">Projects and product records are available alongside design work. Experimental sketches are workspace-wide and cannot yet be linked to a project or product; these links do not create an association or change access.</p><div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium"><Link to="/projects" className="text-blue-700 hover:underline dark:text-blue-300">Open projects →</Link><Link to="/products" className="text-blue-700 hover:underline dark:text-blue-300">Open product records →</Link></div></section>
+        <section aria-labelledby="context-heading" className="border-t border-zinc-200 pt-5 dark:border-zinc-800"><div className="flex items-center gap-2"><Layers3 className="h-4 w-4 text-zinc-500" aria-hidden="true"/><h2 id="context-heading" className="text-sm font-semibold">Product lifecycle context</h2></div><p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">Designs belong to the project selected above. New sketches are stored with that project, and a project's Journey can link diagrams and sketches to individual activities. Product records remain workspace-wide.</p><div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium"><Link to="/projects" className="text-blue-700 hover:underline dark:text-blue-300">Open projects →</Link><Link to="/products" className="text-blue-700 hover:underline dark:text-blue-300">Open product records →</Link></div></section>
       </main>
     </div>
   </div>;

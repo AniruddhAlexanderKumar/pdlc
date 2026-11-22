@@ -22,6 +22,7 @@ import { dashboardRouter } from './routes/dashboard.js';
 import { productsRouter } from './routes/products.js';
 import { collaborationRouter, notificationsRouter } from './routes/collaboration.js';
 import { journeyRouter } from './routes/journey.js';
+import { journeysRouter } from './routes/journeys.js';
 import { projectsRouter } from './routes/projects.js';
 import { teamworkGraphRouter } from './routes/teamwork-graph.js';
 import { graphIntelligenceRouter } from './routes/graph-intelligence.js';
@@ -130,7 +131,7 @@ export function createApp() {
     const path = req.path;
     const safeAuth = (req.method === 'GET' && path === '/auth/me') || (req.method === 'POST' && (path === '/auth/logout' || path === '/auth/demo'));
     const safeWorkspace = (req.method === 'GET' && ['/workspace/data', '/workspace/members'].includes(path)) || (req.method === 'POST' && path === '/workspace/sample-data');
-    const safeFeature = /^\/(products|materials|suppliers|projects|dashboard|game)(\/|$)/.test(path) || (/^\/teamwork-graph(\/|$)/.test(path) && !/^\/teamwork-graph\/ask\/?$/i.test(path));
+    const safeFeature = /^\/(products|materials|suppliers|projects|journeys|dashboard|game)(\/|$)/.test(path) || (/^\/teamwork-graph(\/|$)/.test(path) && !/^\/teamwork-graph\/ask\/?$/i.test(path));
     const safeHelp = req.method === 'GET' && /^\/help\/articles(?:\/|$)/.test(path);
     const safeReviewer = /^\/reviewer(?:\/|$)/.test(path) && ['GET', 'POST'].includes(req.method);
     const safeAnalytics = path === '/analytics/track' && req.method === 'POST';
@@ -158,6 +159,7 @@ export function createApp() {
   api.use('/products', requireAuth, journeyRouter);
   api.use('/notifications', requireAuth, notificationsRouter);
   api.use('/projects', requireAuth, projectsRouter);
+  api.use('/journeys', requireAuth, journeysRouter);
   api.use('/teamwork-graph', requireAuth, graphIntelligenceRouter, teamworkGraphRouter);
   api.use('/voice', requireAuth, voiceRouter);
   api.use('/designs', requireAuth, designsRouter);

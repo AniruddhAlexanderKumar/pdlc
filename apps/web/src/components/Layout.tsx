@@ -2,9 +2,9 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { BarChart3, BookOpen, PenTool, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Route, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
-import { DEFAULT_APP_LAYOUT, NAV_FOCUS_PATHS, type Me } from '@sv/shared';
+import { DEFAULT_APP_LAYOUT, type Me } from '@sv/shared';
 import { post } from '../api/client';
-import { useAppLayout, useGame, useResetSession, useSession, useWorkspaceData, useWorkspaceProfile } from '../api/hooks';
+import { useAppLayout, useGame, useResetSession, useSession } from '../api/hooks';
 import { openCookiePreferences } from '../lib/cookieConsent';
 import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
@@ -12,6 +12,7 @@ import { AssistantChatBubble } from './AssistantChatBubble';
 import { LevelUpWatcher } from './Celebrate';
 import { NotificationBell } from './NotificationBell';
 import { NewProductModal } from './NewProductModal';
+import { NewProjectModal } from './journey/NewProjectModal';
 import { QuickActions } from './QuickActions';
 import { VoiceDictationModal } from './VoiceDictationModal';
 import { useToast } from './Toast';
@@ -23,18 +24,28 @@ export const useNewProduct = () => useContext(NewProductCtx);
 const VoiceDictationCtx = createContext<() => void>(() => {});
 export const useVoiceDictation = () => useContext(VoiceDictationCtx);
 
+/**
+ * Exactly three primary destinations. Everything else (dashboard, projects,
+ * products, materials, suppliers, teamwork graph, achievements, help) stays
+ * reachable through the workspace menu and contextual links — it is not a
+ * primary module.
+ */
 const NAV = [
   { to: '/', label: 'Journey', icon: Route, end: true },
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { to: '/assistant', label: 'AI Assistant', icon: Sparkles },
+  { to: '/designs', label: 'Design Studio', icon: PenTool }
+];
+
+/** Secondary destinations, grouped in the account/workspace menu. */
+const SECONDARY_NAV = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/designs', label: 'Design Studio', icon: PenTool },
-  { to: '/help', label: 'Help', icon: BookOpen },
   { to: '/products', label: 'Products', icon: Package },
   { to: '/teamwork-graph', label: 'Teamwork Graph', icon: Network },
   { to: '/materials', label: 'Materials', icon: Layers },
   { to: '/suppliers', label: 'Suppliers', icon: Truck },
-  { to: '/achievements', label: 'Achievements', icon: Trophy }
+  { to: '/achievements', label: 'Achievements', icon: Trophy },
+  { to: '/help', label: 'Help Centre', icon: BookOpen }
 ];
 
 function PlayerCard() {
@@ -151,6 +162,20 @@ function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boo
             >
               <Settings className="h-4 w-4 text-zinc-400" /> Settings & team
             </button>
+            <div className="my-1.5 border-t border-zinc-100 dark:border-zinc-800" />
+            <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-400">Explore</p>
+            {SECONDARY_NAV.map((item) => (
+              <button
+                key={item.to}
+                onClick={() => {
+                  setOpen(false);
+                  navigate(item.to);
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
+                <item.icon className="h-4 w-4 text-zinc-400" /> {item.label}
+              </button>
+            ))}
             <button
               onClick={() => {
                 setOpen(false);
@@ -205,7 +230,7 @@ function DesktopTopNavigation({ style, onNew, onVoice, navigation }: { style: 't
         )}
         <Logo />
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onNew}>{'New product'}</Button>
+          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onNew}>{'New project'}</Button>
           {!me.demo && <IconButton label="Voice capture" onClick={onVoice}><Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" /></IconButton>}
           <NotificationBell />
           <WorkspaceMenu compact placement="below" />
@@ -227,22 +252,14 @@ function DemoNotice({ expiresAt }: { expiresAt: string }) {
 export function Layout() {
   const me = useSession();
   const [newOpen, setNewOpen] = useState(false);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
-  const { data } = useWorkspaceData();
   const { data: appLayout } = useAppLayout();
-  const { data: workspaceProfile } = useWorkspaceProfile();
-  const priorities = (workspaceProfile?.profile?.navigation ?? []).map(id => NAV_FOCUS_PATHS[id]);
-  const availableNav = me.demo ? NAV.filter(n => n.to !== '/designs') : NAV;
-  const navigation = priorities.length ? [availableNav[0], ...priorities.flatMap(path => availableNav.filter(n => n.to === path)), ...availableNav.slice(1).filter(n => !priorities.includes(n.to))] : availableNav;
+  const navigation = me.demo ? NAV.filter(n => n.to !== '/designs') : NAV;
   const layout = appLayout ?? DEFAULT_APP_LAYOUT;
   const compact = layout.navigation === 'compact';
   const topNavigation = layout.navigation === 'tabs' || layout.navigation === 'menu';
   const { theme, toggle } = useTheme();
-  const counts: Record<string, number | undefined> = {
-    '/products': data?.products.length,
-    '/materials': data?.materials.length,
-    '/suppliers': data?.suppliers.length
-  };
 
   return (
     <NewProductCtx.Provider value={() => setNewOpen(true)}>
@@ -254,8 +271,8 @@ export function Layout() {
               {compact ? <span className="flex h-9 w-14 items-center justify-center rounded-md bg-white px-1"><img src="/solution-velocity-logo.png" alt="Solution Velocity" className="h-7 w-full object-contain" /></span> : <Logo />}
             </div>
             <div className={cx('space-y-2 pb-5 pt-5', compact ? 'px-3' : 'px-4')}>
-              <Button className="w-full" aria-label="New product" title={compact ? 'New product' : undefined} icon={<Plus className="h-4 w-4" />} onClick={() => setNewOpen(true)}>
-                {!compact && 'New product'}
+              <Button className="w-full" aria-label="New project" title={compact ? 'New project' : undefined} icon={<Plus className="h-4 w-4" />} onClick={() => setNewProjectOpen(true)}>
+                {!compact && 'New project'}
               </Button>
               {!me.demo && <Button
                 variant="secondary"
@@ -280,7 +297,7 @@ export function Layout() {
                 <span className={compact ? 'sr-only' : undefined}>{'Admin Console'}</span>
               </NavLink>
             )}
-            {navigation.filter(n => compact || priorities.includes(n.to) || !['/materials','/suppliers','/achievements'].includes(n.to)).map((n) => (
+            {navigation.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
@@ -297,17 +314,13 @@ export function Layout() {
                 }
               >
                 {({ isActive }) => (
-                  <>
-                    <span className="flex items-center gap-2.5">
-                      <n.icon className={cx('h-4 w-4', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400')} />
-                      <span className={compact ? 'sr-only' : undefined}>{n.label}</span>
-                    </span>
-                    {!compact && counts[n.to] !== undefined && <span className="text-[11px] tabular-nums text-zinc-400">{counts[n.to]}</span>}
-                  </>
+                  <span className="flex items-center gap-2.5">
+                    <n.icon className={cx('h-4 w-4', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400')} />
+                    <span className={compact ? 'sr-only' : undefined}>{n.label}</span>
+                  </span>
                 )}
               </NavLink>
             ))}
-            {!compact && <details className="mt-1"><summary className="cursor-pointer rounded-md px-3 py-2 text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">More tools</summary><div className="ml-3 border-l border-zinc-200 pl-2 dark:border-zinc-700">{navigation.filter(n=>!priorities.includes(n.to) && ['/materials','/suppliers','/achievements'].includes(n.to)).map(n=><NavLink key={n.to} to={n.to} className={({isActive})=>cx('flex items-center gap-2 rounded-md px-3 py-2 text-sm',isActive?'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300':'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" />{n.label}</NavLink>)}</div></details>}
             <NavLink
               to="/settings"
               title={compact ? 'Settings' : undefined}
@@ -325,7 +338,7 @@ export function Layout() {
             <WorkspaceMenu compact={compact} />
           </div>
         </aside>}
-        {topNavigation && <DesktopTopNavigation style={layout.navigation as 'tabs' | 'menu'} onNew={() => setNewOpen(true)} onVoice={() => setVoiceOpen(true)} navigation={navigation} />}
+        {topNavigation && <DesktopTopNavigation style={layout.navigation as 'tabs' | 'menu'} onNew={() => setNewProjectOpen(true)} onVoice={() => setVoiceOpen(true)} navigation={navigation} />}
 
         {/* Mobile top bar */}
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden dark:border-zinc-800 dark:bg-zinc-900">
@@ -341,7 +354,7 @@ export function Layout() {
             <NavLink to="/settings" className="rounded-lg p-1.5 text-zinc-500" aria-label="Settings">
               <Settings className="h-4 w-4" />
             </NavLink>
-            <Button size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setNewOpen(true)}>
+            <Button size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setNewProjectOpen(true)}>
               New
             </Button>
           </div>
@@ -375,6 +388,7 @@ export function Layout() {
       <QuickActions onNew={() => setNewOpen(true)} />
       <AssistantChatBubble />
       {newOpen && <NewProductModal onClose={() => setNewOpen(false)} />}
+      {newProjectOpen && <NewProjectModal onClose={() => setNewProjectOpen(false)} />}
       {voiceOpen && <VoiceDictationModal onClose={() => setVoiceOpen(false)} />}
       <LevelUpWatcher />
     </VoiceDictationCtx.Provider>

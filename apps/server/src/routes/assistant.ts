@@ -7,6 +7,7 @@ import { auth, requireAdmin } from '../auth/session.js';
 import { db } from '../db/index.js';
 import { badRequest, conflict, forbidden, HttpError, notFound, parse, route, shortText, uuid } from '../lib/http.js';
 import { assistantProviderNames, generateAssistantReply } from '../services/assistant-ai.js';
+import { journeyContextForProject } from '../services/journey-first.js';
 import { param } from './util.js';
 
 export const assistantRouter = Router();
@@ -93,8 +94,12 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
 
    const workspaceProjects = await db.selectFrom('projects').select(['id','project_key','name','description']).where('workspace_id','=',a.workspaceId).orderBy('updated_at','desc').limit(20).execute();
    let currentProjectIssues: {id:string;summary:string;status:string;priority:string;issue_number:number}[] = [];
+   let activeJourney: unknown = null;
    if (c.project_id) {
      currentProjectIssues = await db.selectFrom('issues').select(['id','summary','status','priority','issue_number']).where('project_id','=',c.project_id).orderBy('updated_at','desc').limit(20).execute();
+     // The selected project's Journey is the assistant's primary context: stages,
+     // progress, next action, blockers, approvals and upcoming milestones.
+     activeJourney = await journeyContextForProject(a.workspaceId, c.project_id);
    }
 
    const context = JSON.stringify({
@@ -103,14 +108,15 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
      activeConversationProject: c.project_id ? {
        key: c.project_key,
        name: c.project_name,
+       journey: activeJourney,
        recentIssues: currentProjectIssues.map(i => ({ key: `${c.project_key}-${i.issue_number}`, summary: i.summary, status: i.status, priority: i.priority }))
      } : null,
      guides: guides.map(d => ({ title: d.title, body: d.body.slice(0, 1000) }))
    });
 
    sources = [
-     ...(c.project_id ? [{ type: 'project' as const, title: `${c.project_key} · ${c.project_name}`, url: `/projects/${c.project_id}/issues` }] : []),
-     ...workspaceProjects.slice(0, 3).map(p => ({ type: 'project' as const, recordId: p.id, title: `${p.project_key} · ${p.name}`, url: `/projects/${p.id}/issues` })),
+    ...(c.project_id ? [{ type: 'project' as const, title: `${c.project_key} · ${c.project_name}`, url: `/?project=${c.project_id}` }] : []),
+    ...workspaceProjects.slice(0, 3).map(p => ({ type: 'project' as const, recordId: p.id, title: `${p.project_key} · ${p.name}`, url: `/?project=${p.id}` })),
      ...currentProjectIssues.slice(0, 5).map(i => ({ type: 'issue' as const, recordId: i.id, title: `${c.project_key}-${i.issue_number} · ${i.summary}`, url: `/projects/${c.project_id}/issues?issueId=${i.id}` })),
      ...guides.map(d => ({ type: 'help' as const, title: d.title, slug: d.slug, url: `/help/${d.slug}` }))
    ];
@@ -119,13 +125,13 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
      reply = await generateAssistantReply(a, c.id, [
        {
          role: 'system',
-         content: `You are Solution Velocity's AI Engineering Assistant. You provide friendly, professional, and action-oriented support for engineering projects, tasks, products, and product development lifecycles (PDLC).
+         content: `You are Solution Velocity's AI Engineering Assistant for a journey-first product development platform. Every project has a Journey: ordered stages holding activities (requirements, milestones, deliverables, documents, approvals, decisions, risks) plus tasks attached to stages. The supplied context includes the selected project's Journey — current stage, progress, next action, blockers, pending approvals and upcoming milestones — and that project's tasks. Treat that Journey as the source of truth for what the team should do next.
 
 Core Operating Principles:
-• Take Action: Proactively use your MCP tools to create projects and tasks, update issue status or priority, query project data, and search Help Centre guides whenever requested. Always confirm actions clearly citing the exact key (e.g. PROJ-101, FLOW).
+• Take Action: Proactively use your MCP tools to read journeys (get_project_journey), add or update journey activities (create_journey_activity, update_journey_activity), create projects and tasks, update issue status or priority, query project data, and search Help Centre guides whenever requested. Always confirm actions clearly citing the exact key (e.g. PROJ-101, FLOW) plus the stage and task or activity title.
 • Informative & Courteous: Explain findings and updates nicely, clearly, and concisely in structured markdown. Keep answers helpful, constructive, and direct.
-• Stay On Topic: Keep responses strictly focused on workspace engineering, projects, tasks, issue management, and platform guides. If asked about off-topic or unrelated subjects, politely decline and guide the user back to their project work.
-• Grounded: Never invent non-existent task IDs, imaginary metrics, or unverified facts.`
+• Stay On Topic: Keep responses strictly focused on the workspace's journey, engineering, projects, tasks, issue management, and platform guides. If asked about off-topic or unrelated subjects, politely decline and guide the user back to their project work.
+• Grounded & Isolated: Ground every answer in the selected project's context. Never invent non-existent task IDs, imaginary metrics, or unverified facts, and never mix in another project's data.`
        },
        {
          role: 'user',

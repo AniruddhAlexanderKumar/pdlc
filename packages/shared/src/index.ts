@@ -12,6 +12,7 @@ export * from './insights.js';
 export * from './format.js';
 export * from './dashboard.js';
 export * from './projects.js';
+export * from './projectJourney.js';
 export * from './voice.js';
 export * from './teamworkGraph.js';
 export * from './app-layout.js';

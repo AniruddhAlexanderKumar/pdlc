@@ -5,21 +5,29 @@ import type { CadDetail, CadDocument } from '@sv/cad-core';
 import { ApiError, get, post } from '../api/client';
 import { useSession } from '../api/hooks';
 import { Button, Card, Input, PageHeader, Spinner } from '../components/ui';
+import { ProjectContextBar } from '../components/journey/ProjectContextBar';
+import { useProjectParam } from '../lib/useProjectParam';
 import { SketchEditor } from '../cad/SketchEditor';
 
 /** The server's default-off API is the feature gate; this never grants permissions. */
-export function useCadDocuments() {
+export function useCadDocuments(projectId?: string | null) {
   const me = useSession();
-  return useQuery({queryKey:['cad-documents',me.workspace.id],queryFn:()=>get<CadDocument[]>('/cad-documents'),enabled:!me.demo,retry:false});
+  return useQuery({
+    queryKey: ['cad-documents', me.workspace.id, projectId ?? 'all'],
+    queryFn: () => get<CadDocument[]>(`/cad-documents${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+    enabled: !me.demo,
+    retry: false
+  });
 }
 
 export function CadDocumentsPage() {
   const me=useSession(),navigate=useNavigate(),qc=useQueryClient();
   const [name,setName]=useState(''),[search,setSearch]=useState(''),[view,setView]=useState<'workspace'|'mine'|'archived'>('workspace');
-  const documents=useCadDocuments();
+  const [selectedProjectId]=useProjectParam(me.workspace.id);
+  const documents=useCadDocuments(view==='archived'?null:selectedProjectId);
   const archived=useQuery({queryKey:['cad-archived',me.workspace.id],queryFn:()=>get<CadDocument[]>('/cad-documents/archived'),enabled:!me.demo&&!!documents.data&&view==='archived',retry:false});
   const refresh=()=>{void qc.invalidateQueries({queryKey:['cad-documents',me.workspace.id]});void qc.invalidateQueries({queryKey:['cad-archived',me.workspace.id]});};
-  const create=useMutation({mutationFn:()=>post<CadDetail>('/cad-documents',{name:name.trim(),plane:'XY'}),onSuccess:d=>{refresh();navigate(`/designs/cad/${d.document.id}`)}});
+  const create=useMutation({mutationFn:()=>post<CadDetail>('/cad-documents',{name:name.trim(),plane:'XY',...(selectedProjectId?{projectId:selectedProjectId}:{})}),onSuccess:d=>{refresh();navigate(`/designs/cad/${d.document.id}`)}});
   const archive=useMutation({mutationFn:({doc,restore}:{doc:CadDocument;restore:boolean})=>post<unknown>(`/cad-documents/${doc.id}/${restore?'unarchive':'archive'}`,{expectedRevision:doc.headRevision}),onSuccess:refresh});
   if(me.demo)return <div className="p-6">Experimental CAD documents are unavailable in the temporary demo.</div>;
   if(documents.isLoading)return <Spinner label="Checking CAD availability"/>;
@@ -27,6 +35,7 @@ export function CadDocumentsPage() {
   const active=view==='archived'?archived.data:documents.data;
   const filtered=active?.filter(d=>(view!=='mine'||d.ownerId===me.user.id)&&d.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   return <><PageHeader title="Experimental CAD documents" subtitle="Manage stored XY sketches in this workspace."/><div className="space-y-5 p-4 md:p-6">
+    <ProjectContextBar note="New sketches are filed under the selected project." />
     <Link to="/designs" className="text-sm text-blue-700 underline dark:text-blue-300">Back to Design Studio</Link>
     <p className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">Development only: experimental XY sketch editing and autosave are available within solver limits. Feature history and 3D modelling are not available. Do not use it for production or engineering decisions.</p>
     <Card className="p-5"><h2 className="font-semibold">Create an empty XY sketch</h2><form className="mt-3 flex max-w-xl flex-wrap items-end gap-3" onSubmit={(e:FormEvent)=>{e.preventDefault();if(name.trim()&&!create.isPending)create.mutate();}}><label className="min-w-48 flex-1 text-sm">Sketch name<Input required maxLength={120} value={name} onChange={e=>setName(e.target.value)} /></label><Button type="submit" loading={create.isPending} disabled={!name.trim()}>Create sketch</Button></form>{create.isError&&<p role="alert" className="mt-2 text-sm text-rose-700">{create.error.message} If the response was interrupted, refresh the list before retrying; the server may have created the sketch.</p>}</Card>

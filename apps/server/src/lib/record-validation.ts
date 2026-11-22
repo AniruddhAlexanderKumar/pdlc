@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, STAGE_IDS, TASK_STATUSES } from '@sv/shared';
+import { ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, JOURNEY_TEMPLATES, STAGE_IDS, TASK_STATUSES } from '@sv/shared';
 import { money, shortText, url, uuid } from './http.js';
 
 // Shared by manual entry and voice import. Keep mapping-specific restrictions
@@ -27,7 +27,9 @@ export const projectKey = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9]{
 export const projectInput = z.object({
   key: projectKey,
   name: shortText(120).min(1),
-  description: shortText(2000).default('')
+  description: shortText(2000).default(''),
+  /** Journey lifecycle seeded for the new project; the UI recommends one per project type. */
+  template: z.enum(JOURNEY_TEMPLATES).default('general')
 });
 export const issueInput = z.object({
   type: z.enum(ISSUE_TYPES).default('Task'),
@@ -35,6 +37,8 @@ export const issueInput = z.object({
   summary: shortText(200).min(1),
   description: shortText(5000).default(''),
   labels: z.array(shortText(32).min(1)).max(20).default([]).refine((labels) => new Set(labels).size === labels.length, 'Labels must be unique'),
-  assigneeId: uuid.nullable().optional()
+  assigneeId: uuid.nullable().optional(),
+  /** Journey stage this task belongs to; keeps tasks inside the project's Journey. */
+  stageId: uuid.nullable().optional()
 });
 export const issueStatus = z.enum(ISSUE_STATUSES);

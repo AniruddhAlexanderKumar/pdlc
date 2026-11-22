@@ -7,7 +7,7 @@ Updated after the approved initial Projects/Issues slice; source presence does n
 
 | Path | Page/guard | Notes |
 |---|---|---|
-| `/` | Public landing when signed out; workspace dashboard when signed in | Root behavior is selected by `RequireAuth`. The landing page leads with **Get Started** and a secondary **Log In**, and carries no pricing surface. |
+| `/` | Public landing when signed out; **Journey** when signed in | Root behavior is selected by `RequireAuth`. Signed-in users land on the Journey workspace (project selector + per-project development path). The landing page leads with **Get Started** and a secondary **Log In**, and carries no pricing surface. |
 | `/demo` | Public demo | Standalone expandable-card demo |
 | `/request-access` | Public contact form | Available without session; collects no pricing selection while pricing is withdrawn |
 | `/login` | Guest-only | Redirects authenticated users; links to Get Started and Forgot password |
@@ -135,8 +135,20 @@ Updated after the approved initial Projects/Issues slice; source presence does n
 | `GET /api/projects/:projectId/issues` | Authenticated | Search/filter by status and paginate a workspace project's issues |
 | `POST /api/projects/:projectId/issues` | Authenticated | Create Task/Bug/Story with priority, labels, reporter and optional workspace-member assignee |
 | `PATCH /api/projects/:projectId/issues/:issueId` | Authenticated | Update issue fields, assignee, or fixed status |
+| `GET /api/journeys/projects/:projectId` | Authenticated (workspace) | Full journey view for a project: summary (percent, stage/issue/activity counts, blockers, pending approvals, next action, upcoming milestones) plus stages with units, issues, activities, dependencies and linked artifacts. Lazily seeds the project's journey from its template on first access. |
+| `GET /api/journeys/projects/:projectId/members` | Authenticated (workspace) | Workspace members available as activity assignees |
+| `POST /api/journeys/projects/:projectId/stages` | Authenticated (workspace) | Append a custom stage |
+| `PATCH /api/journeys/stages/:stageId` | Authenticated (workspace) | Update stage name/description/order |
+| `POST /api/journeys/projects/:projectId/activities` | Authenticated (workspace) | Create an activity in a stage (kind, title, assignee, due, review/milestone flags) |
+| `PATCH /api/journeys/activities/:activityId` | Authenticated (workspace) | Update status/blocker/due/review/assignee/progress fields |
+| `DELETE /api/journeys/activities/:activityId` | Authenticated (workspace) | Delete a journey activity |
+| `POST /api/journeys/activities/:activityId/review` | Authenticated (workspace) | Request/approve/request-changes on review activities; approve completes the activity |
+| `POST /api/journeys/activities/:activityId/dependencies` | Authenticated (workspace) | Add a prerequisite (cycles rejected) |
+| `DELETE /api/journeys/activities/:activityId/dependencies/:dependsOnId` | Authenticated (workspace) | Remove a prerequisite |
+| `POST /api/journeys/activities/:activityId/link` | Authenticated (workspace) | Link a journey artifact (task/diagram/sketch/document) to the activity |
+| `DELETE /api/journeys/activities/:activityId/link/:artifactType/:artifactId` | Authenticated (workspace) | Unlink an artifact |
 
-Project/issue routes are separate from `/api/products` and its product task API. Projects are workspace scoped; members can create/update issues, while project creation is owner/admin-only. No project-level permissions are implemented yet. Unknown API paths return JSON 404. See `apps/server/src/routes` for request schema details and precise response types.
+Journey routes (`/api/journeys`) are workspace-scoped through the project: every handler resolves the project's workspace membership first and returns 404 for foreign workspaces. Project/issue routes are separate from `/api/products` and its product task API. Projects are workspace scoped; members can create/update issues, while project creation is owner/admin-only. No project-level permissions are implemented yet. Unknown API paths return JSON 404. See `apps/server/src/routes` for request schema details and precise response types.
 
 ## Unverified runtime concerns
 
