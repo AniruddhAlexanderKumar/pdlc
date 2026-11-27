@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router';
-import { ArrowRight, Check, Compass, Lock, Plus } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router';
+import { ArrowRight, Check, Compass, Lock, Plus, Sparkles } from 'lucide-react';
 import type { Project } from '@sv/shared';
 import { get } from '../api/client';
 import { useSession } from '../api/hooks';
@@ -84,11 +84,11 @@ export function JourneyPage() {
           icon={<Compass className="h-6 w-6" />}
           title="Start your first Journey"
           body="Create a project to plan what to build, save your designs, and work toward your first release."
-          action={
+          action={me.workspace.role !== 'member' ? (
             <Button icon={<Plus className="h-4 w-4" />} onClick={() => setCreating(true)}>
               Create a project
             </Button>
-          }
+          ) : undefined}
         />
         {creating && <NewProjectModal onClose={() => setCreating(false)} />}
       </div>
@@ -99,29 +99,14 @@ export function JourneyPage() {
 
   return (
     <>
-      <JourneyHeader
-        project={project}
-
-        onSelect={selectProject}
-        onCreate={() => setCreating(true)}
-      />
+      <JourneyHeader project={project} onSelect={selectProject} />
       <JourneyBody key={project.id} projectId={project.id} projectKey={project.key} />
-      {creating && <NewProjectModal onClose={() => setCreating(false)} />}
     </>
   );
 }
 
-function JourneyHeader({
-  project,
-  onSelect,
-  onCreate
-}: {
-  project: Project;
-  onSelect: (id: string) => void;
-  onCreate: () => void;
-}) {
+function JourneyHeader({ project, onSelect }: { project: Project; onSelect: (id: string) => void }) {
   const me = useSession();
-  const canCreate = me.workspace.role === 'owner' || me.workspace.role === 'admin';
   return (
     <header className="border-b border-slate-200 bg-white px-5 pb-4 pt-5 dark:border-zinc-800 dark:bg-zinc-900 md:px-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -135,11 +120,9 @@ function JourneyHeader({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ProjectSelector selectedId={project.id} onSelect={onSelect} />
-          {canCreate && (
-            <Button variant="secondary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={onCreate}>
-              New project
-            </Button>
-          )}
+          {!me.demo && <Link to={`/assistant?project=${project.id}`} className="inline-flex min-h-10 items-center gap-1.5 px-1 text-sm font-semibold text-blue-700 hover:underline dark:text-blue-300">
+            <Sparkles aria-hidden="true" className="h-4 w-4" /> Ask AI
+          </Link>}
         </div>
       </div>
     </header>

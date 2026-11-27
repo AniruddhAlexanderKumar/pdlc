@@ -45,7 +45,19 @@ try {
     return result.json();
   };
   const nav = page.getByRole('navigation', { name: 'Main', exact: true });
-  assert.deepEqual(await nav.getByRole('link').allTextContents(), ['Journey','Design Studio']);
+  assert.deepEqual(await nav.getByRole('link').allTextContents(), ['Journey','Design Studio','AI Assistant']);
+  await page.getByRole('link', { name: 'Ask AI', exact: true }).click();
+  await page.getByRole('heading', { name: 'AI Assistant', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Summarise this journey', exact: true }).click();
+  await page.getByRole('heading', { name: 'Journey progress · 0%', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Show conversations', exact: true }).click();
+  await page.getByRole('button', { name: 'Summarise this journey', exact: true }).waitFor();
+  await page.setViewportSize({ width: 1280, height: 850 });
+  assert.equal(await nav.getByRole('link', { name: 'AI Assistant' }).getAttribute('aria-current'), 'page');
+  assert.equal(await nav.getByRole('link', { name: 'Journey' }).isVisible(), true);
+  await nav.getByRole('link', { name: 'Journey' }).click();
+  await page.getByRole('heading', { name: 'Describe your idea', exact: true }).waitFor();
+  await page.setViewportSize({ width: 390, height: 850 });
   let layout = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
   assert(layout[0] <= layout[1], String(layout));
 

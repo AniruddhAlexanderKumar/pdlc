@@ -1,13 +1,14 @@
 # Journey-first Product Model
 
-The authenticated workspace opens on **Journey**. The primary navigation has two destinations.
+The authenticated workspace opens on **Journey**. The primary navigation uses a horizontal switcher with three destinations.
 
 | Destination | Route | Role |
 |---|---|---|
 | Journey | `/` | Shows the current project, its next step, completion progress and earlier work. Step tools save notes, requirements, files, parts, tests, reviews, changes and releases. |
 | Design Studio | `/designs` | Lists the selected project's designs, creates editable 3D models and diagrams, and links the work to Journey steps. CADit STL exports and existing files can be saved as versions on that step. |
+| AI Assistant | `/assistant` | Ask project questions, open past conversations, and review suggested changes. |
 
-Both destinations share a project switcher. Historical stage settings, tasks and records are under **Project history and step details**. Direct links to older tools continue to resolve; account settings and workspace tools remain available from the workspace menu.
+Journey and Design Studio share a project switcher. The assistant uses the selected project for new conversations. Historical stage settings, tasks and records are under **Project history and step details**. Direct links to older tools continue to resolve; account settings and workspace tools remain available from the workspace menu.
 
 ## 2. The per-project Journey
 

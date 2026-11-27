@@ -94,7 +94,7 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
 
    const workspaceProjects = await db.selectFrom('projects').select(['id','project_key','name','description']).where('workspace_id','=',a.workspaceId).orderBy('updated_at','desc').limit(20).execute();
    let currentProjectIssues: {id:string;summary:string;status:string;priority:string;issue_number:number}[] = [];
-   let activeJourney: unknown = null;
+   let activeJourney: Awaited<ReturnType<typeof journeyContextForProject>> = null;
    if (c.project_id) {
      currentProjectIssues = await db.selectFrom('issues').select(['id','summary','status','priority','issue_number']).where('project_id','=',c.project_id).orderBy('updated_at','desc').limit(20).execute();
      // The selected project's Journey is the assistant's primary context: stages,
@@ -121,7 +121,17 @@ assistantRouter.post('/conversations/:id/messages',limiter,route(async(req,res)=
      ...guides.map(d => ({ type: 'help' as const, title: d.title, slug: d.slug, url: `/help/${d.slug}` }))
    ];
 
-   try {
+   const quickJourneyQuestion = /^(summari[sz]e (this )?journey|what should i work on next\??|show blockers and pending approvals)$/i.test(text);
+   if (activeJourney && c.project_id && quickJourneyQuestion) {
+     const next = activeJourney.nextAction;
+     reply = [
+       `### Journey progress · ${activeJourney.percent}%`,
+       next ? `**Next step:** ${next.title} (${next.stage})` : 'No next step is currently available.',
+       `**Blockers:** ${activeJourney.blockers.join(', ') || 'None recorded'}`,
+       `**Pending approvals:** ${activeJourney.pendingApprovals.join(', ') || 'None waiting'}`
+     ].join('\n\n');
+     sources = [{ type: 'project', recordId: c.project_id, title: c.project_name ?? 'Open Journey', url: `/?project=${c.project_id}` }];
+   } else try {
      reply = await generateAssistantReply(a, c.id, [
        {
          role: 'system',
