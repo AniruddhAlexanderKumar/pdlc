@@ -192,7 +192,7 @@ try {
     page.waitForEvent("dialog").then((dialog) => dialog.accept()),
     page.getByRole("link", { name: "Experimental sketches" }).click(),
   ]);
-  await page.waitForURL("http://localhost:5173/designs/sketches");
+  await page.waitForURL(`http://localhost:5173/designs/sketches?project=${projectId}&step=${stepId}`);
   assert.deepEqual(errors, []);
   console.log(
     "PASS synthetic iframe rendering, origin/source checks, init, STL request/download/project save, invalid export, navigation guard and responsive layout",
