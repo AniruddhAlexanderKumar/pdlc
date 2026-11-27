@@ -119,7 +119,7 @@ export function StageDetail({
   );
   const diagrams = useQuery({
     queryKey: ['designs', projectId, 'journey-link'],
-    queryFn: () => get<{ id: string; title: string }[]>(`/designs?projectId=${encodeURIComponent(projectId)}`),
+    queryFn: () => get<{ id: string; title: string; kind: 'diagram' | 'model' }[]>(`/designs?projectId=${encodeURIComponent(projectId)}`),
   });
   const sketches = useQuery({
     queryKey: ['cad-documents', 'journey-link', projectId],
@@ -127,7 +127,7 @@ export function StageDetail({
     retry: false
   });
   const artifacts = [
-    ...(diagrams.data ?? []).map((d) => ({ id: d.id, title: d.title, type: 'diagram' as const })),
+    ...(diagrams.data ?? []).map((d) => ({ id: d.id, title: d.title, type: d.kind })),
     ...(sketches.data ?? [])
       .filter((s) => s.projectId === projectId)
       .map((s) => ({ id: s.id, title: s.name, type: 'sketch' as const }))

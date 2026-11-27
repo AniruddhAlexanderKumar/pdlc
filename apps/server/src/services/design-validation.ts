@@ -12,3 +12,12 @@ export const diagramSourceSchema = z.object({ schemaVersion: z.literal(1), nodes
     if (!ids.has(e.from) || !ids.has(e.to) || e.from === e.to) ctx.addIssue({ code:'custom', message:'Each connector must join two existing, distinct nodes' });
   }
 });
+
+const dimension = z.number().min(0.1).max(2000);
+export const modelSourceSchema = z.object({
+  schemaVersion: z.literal(1),
+  profile: z.enum(['rectangle', 'circle', 'triangle']),
+  width: dimension,
+  depth: dimension,
+  height: dimension
+}).strict();

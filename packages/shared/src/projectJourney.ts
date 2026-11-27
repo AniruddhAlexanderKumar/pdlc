@@ -295,7 +295,7 @@ export interface JourneyWaitingOn {
 }
 
 export interface JourneyArtifact {
-  type: 'diagram' | 'sketch';
+  type: 'diagram' | 'sketch' | 'model';
   id: string;
   title: string;
   url: string;
@@ -318,6 +318,7 @@ export interface JourneyActivity {
   reviewedByName: string | null;
   reviewNote: string;
   completedAt: string | null;
+  skipped?: boolean;
   createdAt: string;
   updatedAt: string;
   /** Incomplete activities this one depends on — none means it is ready to start. */

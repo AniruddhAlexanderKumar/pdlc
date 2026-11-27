@@ -98,3 +98,9 @@ Artifacts are generally workspace-scoped. Project keys are unique per workspace;
 ## Jira expansion constraint
 
 Preserve the current PDLC product lifecycle, product tasks, signup/session behavior, and workspace authorization. The Jira concepts do not map one-to-one: current workspaces are tenant boundaries, products are PDLC artifacts, and tasks are product checklists. The approved additive domain is workspace → project → issue; it coexists with current PDLC products and product tasks. The first slice is implemented via migration `006_projects_issues`, `/api/projects`, and the Projects/Issues pages. It is an initial capability, not Jira parity: workflow transitions are fixed statuses, and project configuration, hierarchy, boards, comments, history, and project-level permissions remain roadmap items.
+
+## Project Journey work and releases
+
+The Express Journey records service extends the project path with project-owned step records and versioned file content (migration `038_journey_records`). Existing names, progress, review state and diagram/sketch history retain their original rows. Designs can be referenced by several steps while each design keeps one revision history. A release stores a read-consistent snapshot of design revision contents, immutable file version IDs, parts and test results. The API compares a hash of the reviewed snapshot before inserting the release.
+
+Design Studio also stores built-in 3D models in the existing design documents and revisions. Migration `039_native_designs` extends the allowed record types while retaining the previous data. A model revision stores a shape and dimensions in millimetres. The browser and release download use the same STL generator. Models share the existing workspace permissions, version history, Journey links and release snapshots with diagrams.

@@ -1,10 +1,8 @@
 # CADit Design Studio integration
 
-The existing authenticated `/designs` navigation opens the external CADit editor, using the [official embedding example](https://github.com/cookiecad/cadit-embed-example). The existing experimental sketches and conceptual diagrams remain available at `/designs/sketches` and `/designs/diagrams`. The temporary demo does not expose the editor. No CAD engine, partner authentication, database changes or project-file storage are added here.
+The authenticated `/designs` route opens the built-in Design Studio and the selected project's design records. Choose **Open external CADit editor** to start the optional embed. A user can create a diagram, open a saved design, link an existing design to a Journey step, or attach a file. The existing sketch and diagram routes remain available.
 
-The iframe receives an `init` message only after `ready`; incoming messages must match both the exact CADit origin and the current iframe window. STL export can be initiated either inside CADit or with the host request button. A received nonempty Blob is offered as a browser download, not stored on the server. The status confirms receipt, not that the operating system saved a file. Files are not validated as engineering-ready STL models. The page warns before leaving once the editor is ready, but cannot detect the editor's actual unsaved state.
-
-The iframe is a third-party service: CADit receives the browser request, including network metadata, and any information a user enters into CADit is governed by CADit's practices. Solution Velocity does not send its session, project details, or partner token in this integration. A CADit account or other permissions may be required for CADit features; this integration does not authenticate the user to CADit. Work is not linked to any Solution Velocity project or persisted by Solution Velocity. Export an STL and use CADit's own saving options where available before leaving.
+The iframe receives `init` after an exact-origin and exact-window `ready` message. Users can download a received STL or save it as a file version under the selected step. CADit retains control of editable 3D source and its saving options. Solution Velocity stores the exported bytes and does not send account or project details to CADit. If the editor fails to respond, diagrams and project file uploads remain available.
 
 ## Deployment and external requirements
 
@@ -14,7 +12,11 @@ CADit's README states that **all hosting origins must be registered in CADit's a
 
 Run `npm run typecheck`, `npm test`, `npm run build`, and the synthetic browser smoke in `apps/web/scripts/cadit-browser-smoke.mjs`. The smoke intercepts the CADit URL with a controlled fixture and tests real cross-origin `postMessage`, origin/source rejection, init, export/download, bad payload handling, timeout, navigation warning and responsive layout. It does **not** establish real CADit connectivity or prove domain registration. Test real connectivity only after CADit approves the hosting origin; do not include production credentials in testing.
 
-## Live investigation and release gate (2026-11-07)
+## Latest local checks
+
+The synthetic browser fixture exercised the handshake, rejected unexpected messages, downloaded an STL and sent the exported bytes to the selected step's file endpoint. A separate live Chromium run received HTTP 200 for the CADit iframe. CADit's JavaScript reported a `SecurityError` while reading `localStorage`, and Solution Velocity reached its ready timeout. Live editing and export, and hosting-origin approval, still need verification from the intended deployment.
+
+## Earlier live investigation and release gate (2026-11-07)
 
 - The sandbox can resolve `app.cadit.app` and opens TCP port 443, but its TLS handshake ends with `SSL_ERROR_SYSCALL` before receiving an HTTP response. A browser in the same environment reported `net::ERR_CONNECTION_CLOSED`. The sandbox also cannot complete TLS to the Solution Velocity domain, while GitHub succeeds; outbound access is restricted here. This establishes a network-path limitation in this environment, not a CADit domain rejection, an iframe-policy rejection, or a CADit outage.
 - An independent page-fetch service rendered the public CADit URL and its “Send to Solution Velocity” label. This confirms the URL can be reached from that service, not that this application's iframe, handshake, 3D editor or export works. The same service rendered CADit's official GitHub Pages demo iframe, but reported “Error creating WebGL context” and the demo status remained “Waiting for CADit to load”; this is not a successful live integration test. The official example inspected was commit `7587990317caee7b7f30f55a9c08e47e45b9afbd`.

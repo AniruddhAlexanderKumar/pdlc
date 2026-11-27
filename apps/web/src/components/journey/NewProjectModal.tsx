@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { FolderKanban, Sparkles } from 'lucide-react';
 import { JOURNEY_TEMPLATES, journeyTemplate, type JourneyTemplateId, type Project } from '@sv/shared';
 import { get, post } from '../../api/client';
+import { stageTitles } from './stepLabels';
 import { setSelectedProjectId } from '../../lib/projectContext';
 import { useSession } from '../../api/hooks';
 import { Button, Field, Input, Modal, Select, Textarea } from '../ui';
@@ -64,7 +65,7 @@ export function NewProjectModal({ onClose }: { onClose: () => void }) {
             Cancel
           </Button>
           <Button onClick={submit} loading={create.isPending} disabled={!name.trim() || !key} icon={<Sparkles className="h-4 w-4" />}>
-            Create project & Journey
+            Create project
           </Button>
         </>
       }
@@ -125,7 +126,7 @@ export function NewProjectModal({ onClose }: { onClose: () => void }) {
             placeholder="What is this project working toward?"
           />
         </Field>
-        <Field label="Project type" htmlFor="new-project-type" hint="We recommend a lifecycle template for this type. You can customise the Journey afterwards.">
+        <Field label="Project type" htmlFor="new-project-type" hint="This picks a starting path for your project.">
           <Select id="new-project-type" value={template} onChange={(event) => setTemplate(event.target.value as JourneyTemplateId)}>
             {JOURNEY_TEMPLATES.map((id) => (
               <option key={id} value={id}>
@@ -138,16 +139,16 @@ export function NewProjectModal({ onClose }: { onClose: () => void }) {
         <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900/60 dark:bg-blue-950/40">
           <p className="flex items-center gap-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
             <FolderKanban className="h-4 w-4" aria-hidden="true" />
-            Recommended Journey · {preview.label}
+            Your starting path
           </p>
           <p className="mt-1 text-xs text-blue-800 dark:text-blue-300">{preview.description}</p>
           <ol className="mt-3 flex flex-wrap gap-1.5">
             {preview.stages.map((stage, index) => (
               <li
-                key={stage.name}
+                key={stageTitles[stage.name] ?? stage.name}
                 className="rounded-full border border-blue-200 bg-white px-2.5 py-1 text-xs font-medium text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
               >
-                {index + 1}. {stage.name}
+                {index + 1}. {stageTitles[stage.name] ?? stage.name}
               </li>
             ))}
           </ol>

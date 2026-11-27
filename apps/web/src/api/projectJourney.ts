@@ -119,7 +119,7 @@ export function useRemoveDependency(projectId: string | null) {
 export function useLinkArtifact(projectId: string | null) {
   const refresh = useInvalidateJourney(projectId);
   return useMutation({
-    mutationFn: ({ activityId, artifactType, artifactId }: { activityId: string; artifactType: 'diagram' | 'sketch'; artifactId: string }) =>
+    mutationFn: ({ activityId, artifactType, artifactId }: { activityId: string; artifactType: 'diagram' | 'sketch' | 'model'; artifactId: string }) =>
       post(`/journeys/activities/${activityId}/link`, { artifactType, artifactId }),
     onSuccess: refresh
   });
