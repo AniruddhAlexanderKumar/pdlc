@@ -180,13 +180,20 @@ journeysRouter.patch(
     const activity = await db
       .selectFrom('journey_activities as a')
       .innerJoin('projects as p', 'p.id', 'a.project_id')
-      .select(['a.id', 'a.status', 'p.workspace_id'])
+      .select(['a.id', 'a.status', 'a.kind', 'a.review_state', 'p.workspace_id'])
       .where('a.id', '=', activityId)
       .executeTakeFirst();
     if (!activity || activity.workspace_id !== actor.workspaceId) throw notFound('Activity');
     if (body.assigneeId !== undefined) await assertWorkspaceAssignee(actor.workspaceId, body.assigneeId);
     if (body.blockedReason !== undefined && body.status === 'blocked' && !body.blockedReason.trim()) {
       throw badRequest('A blocked activity needs a reason so the team knows what to fix');
+    }
+
+    if (body.status === 'completed' && activity.status !== 'completed') {
+      if (activity.kind === 'approval' && activity.review_state !== 'approved') {
+        throw badRequest('Ask for approval and record the decision to finish this step');
+      }
+      await requireCompletedDependencies(activityId);
     }
 
     const now = new Date();
@@ -204,7 +211,7 @@ journeysRouter.patch(
         ...(body.blockedReason !== undefined ? { blocked_reason: body.blockedReason } : {}),
         ...(body.status !== undefined && body.status !== 'blocked' ? { blocked_reason: '' } : {}),
         ...(completed ? { completed_at: now } : {}),
-        ...(reopened ? { completed_at: null } : {}),
+        ...(reopened ? { completed_at: null, skipped_at: null } : {}),
         updated_at: now
       })
       .where('id', '=', activityId)
@@ -253,6 +260,10 @@ journeysRouter.post(
       .where('a.id', '=', activityId)
       .executeTakeFirst();
     if (!activity || activity.workspace_id !== actor.workspaceId) throw notFound('Activity');
+    if (body.action !== 'changes') await requireCompletedDependencies(activityId);
+    if (body.action === 'approve' && activity.review_state !== 'pending') {
+      throw badRequest('Ask for approval before recording a decision');
+    }
     if (body.action === 'request' && activity.review_state === 'approved') {
       throw badRequest('This activity is already approved');
     }
@@ -261,7 +272,7 @@ journeysRouter.post(
     if (body.action === 'request') {
       await db
         .updateTable('journey_activities')
-        .set({ review_state: 'pending', review_note: '', reviewed_by: null, reviewed_at: null, updated_at: now })
+        .set({ review_state: 'pending', review_note: body.note, reviewed_by: null, reviewed_at: null, updated_at: now })
         .where('id', '=', activityId)
         .execute();
     } else if (body.action === 'approve') {
@@ -287,7 +298,7 @@ journeysRouter.post(
           reviewed_by: actor.userId,
           reviewed_at: now,
           review_note: body.note,
-          ...(activity.status === 'completed' ? { status: 'in_progress', completed_at: null } : {}),
+          ...(activity.status === 'completed' ? { status: 'in_progress', completed_at: null, skipped_at: null } : {}),
           updated_at: now
         })
         .where('id', '=', activityId)
@@ -360,7 +371,7 @@ journeysRouter.post(
   route(async (req, res) => {
     const actor = auth(req);
     const activityId = parse(uuid, param(req, 'activityId'));
-    const body = parse(z.object({ artifactType: z.enum(['diagram', 'sketch']), artifactId: uuid }), req.body);
+    const body = parse(z.object({ artifactType: z.enum(['diagram', 'sketch', 'model']), artifactId: uuid }), req.body);
     const activity = await db
       .selectFrom('journey_activities as a')
       .innerJoin('projects as p', 'p.id', 'a.project_id')
@@ -368,13 +379,15 @@ journeysRouter.post(
       .where('a.id', '=', activityId)
       .executeTakeFirst();
     if (!activity || activity.workspace_id !== actor.workspaceId) throw notFound('Activity');
-    const table = body.artifactType === 'diagram' ? 'design_documents' : 'cad_documents';
+    const table = body.artifactType === 'sketch' ? 'cad_documents' : 'design_documents';
     const updated = await sql`
       UPDATE ${sql.table(table)}
       SET journey_activity_id = ${activityId}::uuid, project_id = ${activity.project_id}::uuid, updated_at = now()
       WHERE id = ${body.artifactId}::uuid AND workspace_id = ${actor.workspaceId}::uuid
+        AND (project_id IS NULL OR project_id = ${activity.project_id}::uuid)
+        AND (owner_id = ${actor.userId}::uuid OR ${actor.role === "owner" || actor.role === "admin"})
       RETURNING id`.execute(db);
-    if (!updated.rows.length) throw notFound(body.artifactType === 'diagram' ? 'Diagram' : 'Sketch');
+    if (!updated.rows.length) throw notFound('Design');
     res.status(201).json({ ok: true });
   })
 );
@@ -385,7 +398,7 @@ journeysRouter.post(
   route(async (req, res) => {
     const actor = auth(req);
     const activityId = parse(uuid, param(req, 'activityId'));
-    const body = parse(z.object({ artifactType: z.enum(['diagram', 'sketch']), artifactId: uuid }), req.body);
+    const body = parse(z.object({ artifactType: z.enum(['diagram', 'sketch', 'model']), artifactId: uuid }), req.body);
     const activity = await db
       .selectFrom('journey_activities as a')
       .innerJoin('projects as p', 'p.id', 'a.project_id')
@@ -393,12 +406,44 @@ journeysRouter.post(
       .where('a.id', '=', activityId)
       .executeTakeFirst();
     if (!activity || activity.workspace_id !== actor.workspaceId) throw notFound('Activity');
-    const table = body.artifactType === 'diagram' ? 'design_documents' : 'cad_documents';
+    const table = body.artifactType === 'sketch' ? 'cad_documents' : 'design_documents';
     await sql`
       UPDATE ${sql.table(table)}
       SET journey_activity_id = NULL, updated_at = now()
       WHERE id = ${body.artifactId}::uuid AND workspace_id = ${actor.workspaceId}::uuid
-        AND journey_activity_id = ${activityId}::uuid`.execute(db);
+        AND journey_activity_id = ${activityId}::uuid
+        AND (owner_id = ${actor.userId}::uuid OR ${actor.role === "owner" || actor.role === "admin"})`.execute(db);
     res.status(204).end();
   })
 );
+
+async function requireCompletedDependencies(activityId: string) {
+  const dependency = await db.selectFrom('journey_dependencies as d')
+    .innerJoin('journey_activities as a', 'a.id', 'd.depends_on_id')
+    .where('d.activity_id', '=', activityId)
+    .where('a.status', '!=', 'completed')
+    .select('a.title').executeTakeFirst();
+  if (dependency) throw badRequest(`Finish "${dependency.title}" first`);
+}
+
+journeysRouter.post('/activities/:activityId/skip', route(async (req, res) => {
+  const actor = auth(req);
+  const id = parse(uuid, param(req, 'activityId'));
+  const activity = await db.selectFrom('journey_activities as a')
+    .innerJoin('projects as p', 'p.id', 'a.project_id')
+    .where('a.id', '=', id).where('p.workspace_id', '=', actor.workspaceId)
+    .select('a.id').executeTakeFirst();
+  if (!activity) throw notFound('Optional step');
+  await requireCompletedDependencies(id);
+  const skipped = await sql`
+    UPDATE journey_activities a
+    SET status='completed', skipped_at=now(), completed_at=now(), updated_at=now()
+    FROM projects p
+    WHERE a.id=${id}::uuid AND p.id=a.project_id AND p.workspace_id=${actor.workspaceId}::uuid
+      AND a.kind='risk' AND a.title IN ('Log technical feasibility risks','Log integration and security risks')
+      AND a.status NOT IN ('blocked','completed','in_review')
+    RETURNING a.id
+  `.execute(db);
+  if (!skipped.rows.length) throw notFound('Optional step');
+  res.status(204).end();
+}));

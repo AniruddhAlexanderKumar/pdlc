@@ -16,7 +16,7 @@ try{
   const req=route.request(),path=new URL(req.url()).pathname;let status=200,body={};
   if(path==='/api/auth/me')body=me;
   else if(path==='/api/workspace/data')body={products:[],materials:[],suppliers:[]};
-  else if(path==='/api/designs')body=[{id:'legacy',title:'Preserved fixture diagram',headRevision:1,ownerName:'Fixture',updatedAt:new Date().toISOString()}];
+  else if(path==='/api/designs')body=[{id:'legacy',kind:'diagram',title:'Preserved fixture diagram',headRevision:1,ownerName:'Fixture',updatedAt:new Date().toISOString()}];
   else if(path==='/api/cad-documents'&&!enabled){status=404;body={error:'Not found'};}
   else if(path==='/api/cad-documents'&&req.method()==='GET')body=sketches;
   else if(path==='/api/cad-documents'&&req.method()==='POST'){

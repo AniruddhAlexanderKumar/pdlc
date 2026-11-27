@@ -1,22 +1,20 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, BookOpen, PenTool, ChevronsUpDown, Cookie, Flame, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Route, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
+import { BarChart3, BookOpen, PenTool, ChevronsUpDown, Cookie, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Route, Settings, Shield, Sun, Trophy, Truck } from 'lucide-react';
 import { DEFAULT_APP_LAYOUT, type Me } from '@sv/shared';
 import { post } from '../api/client';
-import { useAppLayout, useGame, useResetSession, useSession } from '../api/hooks';
+import { useAppLayout, useResetSession, useSession } from '../api/hooks';
 import { openCookiePreferences } from '../lib/cookieConsent';
 import { useTheme } from '../lib/theme';
 import { Logo } from '../pages/auth/Auth';
-import { AssistantChatBubble } from './AssistantChatBubble';
-import { LevelUpWatcher } from './Celebrate';
 import { NotificationBell } from './NotificationBell';
 import { NewProductModal } from './NewProductModal';
 import { NewProjectModal } from './journey/NewProjectModal';
 import { QuickActions } from './QuickActions';
 import { VoiceDictationModal } from './VoiceDictationModal';
 import { useToast } from './Toast';
-import { Button, cx, IconButton, ProgressBar } from './ui';
+import { Button, cx, IconButton } from './ui';
 
 const NewProductCtx = createContext<() => void>(() => {});
 export const useNewProduct = () => useContext(NewProductCtx);
@@ -24,15 +22,8 @@ export const useNewProduct = () => useContext(NewProductCtx);
 const VoiceDictationCtx = createContext<() => void>(() => {});
 export const useVoiceDictation = () => useContext(VoiceDictationCtx);
 
-/**
- * Exactly three primary destinations. Everything else (dashboard, projects,
- * products, materials, suppliers, teamwork graph, achievements, help) stays
- * reachable through the workspace menu and contextual links — it is not a
- * primary module.
- */
 const NAV = [
   { to: '/', label: 'Journey', icon: Route, end: true },
-  { to: '/assistant', label: 'AI Assistant', icon: Sparkles },
   { to: '/designs', label: 'Design Studio', icon: PenTool }
 ];
 
@@ -47,34 +38,6 @@ const SECONDARY_NAV = [
   { to: '/achievements', label: 'Achievements', icon: Trophy },
   { to: '/help', label: 'Help Centre', icon: BookOpen }
 ];
-
-function PlayerCard() {
-  const { data } = useGame();
-  if (!data) return <div className="h-[74px] animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800/60" />;
-  return (
-    <NavLink
-      to="/achievements"
-      className="block rounded-xl border border-zinc-200 bg-gradient-to-br from-blue-500/5 to-transparent p-3 transition-colors hover:border-blue-300 dark:border-zinc-800 dark:hover:border-blue-500/40"
-    >
-      <div className="flex items-center justify-between text-xs">
-        <span className="font-semibold">
-          Lv {data.level} · <span className="text-blue-600 dark:text-blue-400">{data.levelTitle}</span>
-        </span>
-        <span
-          className={cx('flex items-center gap-0.5 font-semibold tabular-nums', data.streakDays > 0 ? 'text-orange-500' : 'text-zinc-400')}
-          title={`${data.streakDays}-day streak`}
-        >
-          <Flame className="h-3.5 w-3.5" />
-          {data.streakDays}
-        </span>
-      </div>
-      <ProgressBar className="mt-2" value={(data.xpIntoLevel / data.xpForNextLevel) * 100} />
-      <p className="mt-1.5 text-[11px] text-zinc-500 tabular-nums">
-        {data.xpIntoLevel} / {data.xpForNextLevel} XP to level {data.level + 1}
-      </p>
-    </NavLink>
-  );
-}
 
 function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boolean; placement?: 'above' | 'below' }) {
   const me = useSession();
@@ -207,11 +170,7 @@ function DesktopTopNavigation({ style, onNew, onVoice, navigation }: { style: 't
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => { setOpen(false); }, [style]);
-  const links = [
-    ...navigation,
-    ...(me.user.isAdmin ? [{ to: '/admin', label: 'Admin Console', icon: Shield }] : []),
-    { to: '/settings', label: 'Settings', icon: Settings },
-  ];
+  const links = navigation;
   return (
     <header className="relative z-40 hidden shrink-0 border-b border-slate-200 bg-white md:block dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex h-16 items-center gap-3 px-5">
@@ -287,16 +246,6 @@ export function Layout() {
             </div>
           <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Main">
             {!compact && <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p>}
-            {me.user.isAdmin && (
-              <NavLink
-                to="/admin"
-                title={compact ? 'Admin Console' : undefined}
-                className={cx('flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 dark:text-amber-400 dark:bg-amber-500/10 border border-amber-500/20 mb-1', compact && 'justify-center')}
-              >
-                <Shield className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                <span className={compact ? 'sr-only' : undefined}>{'Admin Console'}</span>
-              </NavLink>
-            )}
             {navigation.map((n) => (
               <NavLink
                 key={n.to}
@@ -321,20 +270,8 @@ export function Layout() {
                 )}
               </NavLink>
             ))}
-            <NavLink
-              to="/settings"
-              title={compact ? 'Settings' : undefined}
-              className={({ isActive }) => cx(
-                'flex items-center gap-2.5 rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors',
-                compact && 'justify-center',
-                isActive ? 'bg-blue-50 text-[#16598d] dark:bg-blue-500/15 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100/70 dark:text-zinc-400 dark:hover:bg-zinc-800/50'
-              )}
-            >
-              <Settings className="h-4 w-4" /> <span className={compact ? 'sr-only' : undefined}>{'Settings'}</span>
-            </NavLink>
           </nav>
           <div className={cx('mt-auto space-y-2 border-t border-zinc-200/80 dark:border-zinc-800/80', compact ? 'p-2' : 'p-4')}>
-            {!compact && <PlayerCard />}
             <WorkspaceMenu compact={compact} />
           </div>
         </aside>}
@@ -386,11 +323,9 @@ export function Layout() {
         </nav>
       </div>
       <QuickActions onNew={() => setNewOpen(true)} />
-      <AssistantChatBubble />
       {newOpen && <NewProductModal onClose={() => setNewOpen(false)} />}
       {newProjectOpen && <NewProjectModal onClose={() => setNewProjectOpen(false)} />}
       {voiceOpen && <VoiceDictationModal onClose={() => setVoiceOpen(false)} />}
-      <LevelUpWatcher />
     </VoiceDictationCtx.Provider>
   </NewProductCtx.Provider>
   );

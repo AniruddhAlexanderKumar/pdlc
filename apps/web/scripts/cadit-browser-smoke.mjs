@@ -1,11 +1,13 @@
 // Browser-only synthetic CADit fixture; never talks to CADit or production.
-// CADIT_TEST_URL=http://localhost:5173 CADIT_PLAYWRIGHT_MODULE=/path/to/playwright-core/index.mjs CADIT_CHROMIUM_MODULE=/path/to/@sparticuz/chromium/build/index.js node apps/web/scripts/cadit-browser-smoke.mjs
+// CADIT_TEST_URL=http://localhost:5173 CHROMIUM_PATH=/usr/bin/chromium node apps/web/scripts/cadit-browser-smoke.mjs
 import assert from "node:assert/strict";
 import { readFile, unlink } from "node:fs/promises";
 if (process.env.CADIT_TEST_URL !== "http://localhost:5173")
   throw Error("Requires local Vite on localhost:5173");
-const { chromium: pw } = await import(process.env.CADIT_PLAYWRIGHT_MODULE);
-const { default: chromium } = await import(process.env.CADIT_CHROMIUM_MODULE);
+const { chromium: pw } = await import(process.env.CADIT_PLAYWRIGHT_MODULE ?? 'playwright-core');
+const chromium = process.env.CADIT_CHROMIUM_MODULE
+  ? (await import(process.env.CADIT_CHROMIUM_MODULE)).default
+  : { executablePath: async () => process.env.CHROMIUM_PATH, args: ['--no-sandbox'] };
 const browser = await pw.launch({
   executablePath: await chromium.executablePath(),
   args: chromium.args.filter((x) => x !== "--disable-web-security"),
@@ -35,8 +37,21 @@ try {
     workspace,
     workspaces: [workspace],
   };
+  const projectId = '11111111-1111-4111-8111-111111111111';
+  const stepId = '22222222-2222-4222-8222-222222222222';
+  const records = `/api/journeys/projects/${projectId}/records`;
+  let savedFile = null;
   await page.route(/^http:\/\/localhost:5173\/api\//, async (route) => {
     const path = new URL(route.request().url()).pathname;
+    if (path === '/api/projects') return route.fulfill({ json: [{ id: projectId, name: 'Fixture product', key: 'FIX' }] });
+    if (path === `/api/journeys/projects/${projectId}`) return route.fulfill({
+      json: { stages: [{ activities: [{ id: stepId, kind: 'deliverable', title: 'Concept sketches and architecture', artifacts: [] }] }] }
+    });
+    if (path === records) return route.fulfill({ json: { designs: [], records: [] } });
+    if (path === `${records}/files/${stepId}` && route.request().method() === 'POST') {
+      savedFile = { name: new URL(route.request().url()).searchParams.get('filename'), bytes: route.request().postDataBuffer().toString() };
+      return route.fulfill({ status: 201, json: { ok: true } });
+    }
     if (path === "/api/auth/me") return route.fulfill({ json: me });
     if (path === "/api/workspace/data")
       return route.fulfill({
@@ -56,7 +71,7 @@ try {
   </script></body></html>`,
     }),
   );
-  await page.goto("http://localhost:5173/designs");
+  await page.goto("http://localhost:5173/designs?editor=cadit");
   const consent = page.getByRole("button", { name: "Essential only" });
   if (await consent.isVisible()) await consent.click();
   await page.getByRole("heading", { name: "Design Studio" }).waitFor();
@@ -143,6 +158,9 @@ try {
   await download.saveAs(tmp);
   assert.equal(await readFile(tmp, "utf8"), "synthetic stl data");
   await unlink(tmp);
+  await page.getByRole('button', { name: 'Save a version to Journey' }).click();
+  await page.getByText('Version saved to Journey.', { exact: true }).waitFor();
+  assert.deepEqual(savedFile, { name: 'fixture.stl', bytes: 'synthetic stl data' });
   await cadit.evaluate(() =>
     parent.postMessage(
       {
@@ -174,10 +192,10 @@ try {
     page.waitForEvent("dialog").then((dialog) => dialog.accept()),
     page.getByRole("link", { name: "Experimental sketches" }).click(),
   ]);
-  await page.waitForURL("http://localhost:5173/designs/sketches");
+  await page.waitForURL(`http://localhost:5173/designs/sketches?project=${projectId}&step=${stepId}`);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS synthetic iframe rendering, origin/source checks, init, STL request/download, invalid export, navigation guard and responsive layout",
+    "PASS synthetic iframe rendering, origin/source checks, init, STL request/download/project save, invalid export, navigation guard and responsive layout",
   );
 } finally {
   await browser.close();

@@ -23,6 +23,7 @@ import { productsRouter } from './routes/products.js';
 import { collaborationRouter, notificationsRouter } from './routes/collaboration.js';
 import { journeyRouter } from './routes/journey.js';
 import { journeysRouter } from './routes/journeys.js';
+import { journeyRecordsRouter } from './routes/journey-records.js';
 import { projectsRouter } from './routes/projects.js';
 import { teamworkGraphRouter } from './routes/teamwork-graph.js';
 import { graphIntelligenceRouter } from './routes/graph-intelligence.js';
@@ -159,7 +160,7 @@ export function createApp() {
   api.use('/products', requireAuth, journeyRouter);
   api.use('/notifications', requireAuth, notificationsRouter);
   api.use('/projects', requireAuth, projectsRouter);
-  api.use('/journeys', requireAuth, journeysRouter);
+  api.use('/journeys', requireAuth, journeysRouter, journeyRecordsRouter);
   api.use('/teamwork-graph', requireAuth, graphIntelligenceRouter, teamworkGraphRouter);
   api.use('/voice', requireAuth, voiceRouter);
   api.use('/designs', requireAuth, designsRouter);

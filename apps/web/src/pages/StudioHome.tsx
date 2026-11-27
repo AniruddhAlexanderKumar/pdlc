@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Boxes, FileClock, FolderKanban, Layers3, PencilRuler } from 'lucide-react';
-import { Link, useBlocker, useNavigate } from 'react-router';
+import { Link, useBlocker, useNavigate, useSearchParams } from 'react-router';
 import type { CadDetail } from '@sv/cad-core';
 import { ApiError, post } from '../api/client';
 import { useSession } from '../api/hooks';
@@ -18,6 +18,8 @@ export function StudioHomePage() {
 
 function StudioHome() {
   const me = useSession();
+  const [params] = useSearchParams();
+  const step = params.get('step');
   const [selectedProjectId] = useProjectParam(me.workspace.id);
   const documents = useCadDocuments(selectedProjectId);
   const navigate = useNavigate();
@@ -27,7 +29,7 @@ function StudioHome() {
   const [createdId, setCreatedId] = useState('');
   const createdIdRef = useRef('');
   const create = useMutation({
-    mutationFn: () => post<CadDetail>('/cad-documents', { name: name.trim(), plane: 'XY', ...(selectedProjectId ? { projectId: selectedProjectId } : {}) }),
+    mutationFn: () => post<CadDetail>('/cad-documents', { name: name.trim(), plane: 'XY', ...(selectedProjectId ? { projectId: selectedProjectId, ...(step ? { journeyActivityId: step } : {}) } : {}) }),
     onSuccess: result => {
       setName('');
       void qc.invalidateQueries({ queryKey: ['cad-documents', me.workspace.id] });

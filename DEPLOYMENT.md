@@ -356,3 +356,9 @@ records, back those up separately, wherever they actually live.
   Radix UI's inline positioning styles both need it. Every other directive
   is as strict as the application allows, and `frame-ancestors 'none'` plus
   `X-Frame-Options: DENY` both apply regardless.
+
+## Journey record storage
+
+Run the standard database migration before starting this version. Migration `038_journey_records` adds project step records and file versions to PostgreSQL. Include the new tables in database backups. If routing uploads through a reverse proxy, configure the proxy to accept the application's 10 MB file limit on Journey file routes.
+
+Apply migration `039_native_designs` to enable built-in 3D designs. It expands the allowed record types on the existing tables. Built-in 3D models and exports use the application and database alone. CADit remains available as an optional editor.

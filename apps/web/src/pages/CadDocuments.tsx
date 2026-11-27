@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { CadDetail, CadDocument } from '@sv/cad-core';
 import { ApiError, get, post } from '../api/client';
 import { useSession } from '../api/hooks';
 import { Button, Card, Input, PageHeader, Spinner } from '../components/ui';
-import { ProjectContextBar } from '../components/journey/ProjectContextBar';
+import { DesignProjectBar, ProjectContextBar } from '../components/journey/ProjectContextBar';
 import { useProjectParam } from '../lib/useProjectParam';
 import { SketchEditor } from '../cad/SketchEditor';
 
@@ -48,10 +48,11 @@ export function CadDocumentsPage() {
 
 export function CadDocumentPage() {
   const me=useSession(),{id=''}=useParams();
+  const [params]=useSearchParams();
   const detail=useQuery({queryKey:['cad-detail',me.workspace.id,id],queryFn:()=>get<CadDetail>(`/cad-documents/${encodeURIComponent(id)}`),enabled:!me.demo&&!!id,retry:false,gcTime:0,refetchOnWindowFocus:false});
   if(me.demo)return <div className="p-6">Experimental CAD documents are unavailable in the temporary demo.</div>;
   if(detail.isLoading)return <Spinner label="Loading sketch"/>;
   if(detail.isError||!detail.data)return <div className="space-y-3 p-6"><Link to="/designs/cad" className="text-sm text-blue-700 underline dark:text-blue-300">CAD documents</Link><p role="alert">{detail.error?.message??'Could not load sketch.'}</p><Button variant="secondary" onClick={()=>void detail.refetch()}>Try again</Button></div>;
   const {document}=detail.data;
-  return <SketchEditor key={`${me.workspace.id}:${me.user.id}:${document.id}`} initial={detail.data} workspaceId={me.workspace.id} userId={me.user.id}/>;
+  return <><DesignProjectBar projectId={document.projectId ?? null} stepId={params.get('step') ?? document.journeyActivityId} /><SketchEditor key={`${me.workspace.id}:${me.user.id}:${document.id}`} initial={detail.data} workspaceId={me.workspace.id} userId={me.user.id}/></>;
 }

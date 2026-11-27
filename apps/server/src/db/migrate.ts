@@ -38,6 +38,8 @@ import * as m034 from './migrations/034_activity_collaboration.js';
 import * as m035 from './migrations/035_open_registration.js';
 import * as m036 from './migrations/036_gamified_journey.js';
 import * as m037 from './migrations/037_journey_first.js';
+import * as m038 from './migrations/038_journey_records.js';
+import * as m039 from './migrations/039_native_designs.js';
 
 /**
  * Migrations are imported statically so they are bundled into the production build.
@@ -81,7 +83,9 @@ const migrations: Record<string, Migration> = {
   '034_activity_collaboration': m034,
   '035_open_registration': m035,
   '036_gamified_journey': m036,
-  '037_journey_first': m037
+  '037_journey_first': m037,
+  '038_journey_records': m038,
+  '039_native_designs': m039
 };
 
 const provider: MigrationProvider = { getMigrations: async () => migrations };

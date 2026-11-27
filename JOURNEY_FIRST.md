@@ -1,29 +1,13 @@
 # Journey-first Product Model
 
-**Status:** implemented (migration `037_journey_first`, routes `/api/journeys`, Journey page at `/`).
-This document describes the actual code: what the three primary destinations are, how a project's
-Journey is modelled and computed, which APIs exist, and how existing data is preserved.
-
----
-
-## 1. Three primary destinations
-
-Solution Velocity now has exactly three primary destinations in the main navigation
-(`apps/web/src/components/Layout.tsx` → `NAV`):
+The authenticated workspace opens on **Journey**. The primary navigation has two destinations.
 
 | Destination | Route | Role |
 |---|---|---|
-| **Journey** | `/` (default landing page) | Per-project development path: stages, activities, tasks, approvals, deliverables, blockers, milestones — with the project selector and **New project** at the top. |
-| **AI Assistant** | `/assistant` | Conversation workspace. Deep-linkable per project (`/assistant?project=<id>&prompt=…`), shows a journey chip (template · % · next action), journey-aware starter prompts, and journey MCP tools for proposing/doing work. |
-| **Design Studio** | `/designs` | Studio home, diagrams and experimental sketches. Every page carries a project context bar; lists can be filtered with `?projectId=`; new designs/sketches are created under the selected project. |
+| Journey | `/` | Shows the current project, its next step, completion progress and earlier work. Step tools save notes, requirements, files, parts, tests, reviews, changes and releases. |
+| Design Studio | `/designs` | Lists the selected project's designs, creates editable 3D models and diagrams, and links the work to Journey steps. CADit STL exports and existing files can be saved as versions on that step. |
 
-Everything else (Dashboard, Projects list, Products, Teamwork Graph, Materials, Suppliers,
-Achievements, Help, Settings, Admin…) still exists and is fully routable — it lives in the
-workspace menu's **Explore** section (`SECONDARY_NAV`) instead of the primary nav. Nothing was
-deleted: no routes, tables, columns, endpoints or data were removed by this change.
-
-Post-login navigation and the authenticated `/` route go to the Journey page
-(`apps/web/src/main.tsx`, `RequireAuth` redirect after login).
+Both destinations share a project switcher. Historical stage settings, tasks and records are under **Project history and step details**. Direct links to older tools continue to resolve; account settings and workspace tools remain available from the workspace menu.
 
 ## 2. The per-project Journey
 
@@ -171,3 +155,14 @@ context. All three stay in sync through `sv-selected-project`.
 | Existing data/functionality preserved | nullable columns only, no drops, secondary nav keeps every old destination |
 | Safe migrations | registered in `migrate.ts`, `requireCurrentMigrations` fails closed, verified up/down-free apply |
 | Responsive desktop + mobile | mobile bottom nav with the same 3 destinations; overflow-checked in smoke |
+
+
+## Step records and releases
+
+Migration `038_journey_records` adds step records, append-only file versions and a nullable skip timestamp. It leaves the existing Journey rows and designs in place. The UI labels seeded steps in plain language without renaming the stored records. The project path presents one unfinished stage at a time and completed steps stay openable. The skip endpoint is restricted to the optional hardware and software risk steps.
+
+`/api/journeys/projects/:projectId/records` provides the step records and available designs. A stage can reference a design already linked to another stage through its step without copying the design. Files are read by version ID. The release preview shows the current design and file versions with the parts and tests. Saving checks that the preview still matches and captures the design source, exact file version IDs and copies of the parts and tests. The saved release can be downloaded as JSON and its files opened from Journey.
+
+Run the browser workflow against a disposable local stack with `CHROMIUM_PATH=/usr/bin/chromium node apps/web/scripts/journey-ui-smoke.mjs`. The browser exercises a mobile viewport, file fallback, project isolation and release history.
+
+Create a 3D model in Design Studio by choosing a box, cylinder or triangular prism and entering dimensions in millimetres. The model remains editable in the project. Each saved version can be restored or downloaded as STL. A saved release links to the STL for the captured model version. The built-in editor stays available when the optional CADit editor cannot connect.

@@ -19,11 +19,15 @@ export function useProjectParam(workspaceId: string): [string | null, (projectId
 
   const selected = param ?? contextId;
   const select = (projectId: string) => {
-    setSelectedProjectId(workspaceId, projectId);
     setParams(
       (next) => {
-        next.set('project', projectId);
-        return next;
+        const updated = new URLSearchParams(next);
+        if (updated.get('project') !== projectId) {
+          updated.delete('step');
+          if (updated.has('project')) updated.delete('editor');
+        }
+        updated.set('project', projectId);
+        return updated;
       },
       { replace: true }
     );

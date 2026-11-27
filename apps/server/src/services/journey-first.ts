@@ -136,6 +136,7 @@ interface ActivityRow {
   reviewed_by: string | null;
   review_note: string;
   completed_at: Date | null;
+  skipped_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -143,15 +144,15 @@ interface ActivityRow {
 async function loadArtifacts(activityIds: string[]): Promise<Map<string, JourneyArtifact[]>> {
   const map = new Map<string, JourneyArtifact[]>();
   if (!activityIds.length) return map;
-  const diagrams = await sql<{ id: string; title: string; journey_activity_id: string }>`
-    SELECT id, title, journey_activity_id FROM design_documents
+  const diagrams = await sql<{ id: string; title: string; kind: 'diagram' | 'model'; journey_activity_id: string }>`
+    SELECT id, title, kind, journey_activity_id FROM design_documents
     WHERE journey_activity_id = ANY(${activityIds}::uuid[])`.execute(db);
   const sketches = await sql<{ id: string; name: string; journey_activity_id: string }>`
     SELECT id, name, journey_activity_id FROM cad_documents
     WHERE journey_activity_id = ANY(${activityIds}::uuid[])`.execute(db);
   for (const row of diagrams.rows) {
     const list = map.get(row.journey_activity_id) ?? [];
-    list.push({ type: 'diagram', id: row.id, title: row.title, url: `/designs/${row.id}` });
+    list.push({ type: row.kind, id: row.id, title: row.title, url: `/designs/${row.id}` });
     map.set(row.journey_activity_id, list);
   }
   for (const row of sketches.rows) {
@@ -201,6 +202,7 @@ export async function buildJourneyView(workspaceId: string, projectId: string): 
         'reviewed_by',
         'review_note',
         'completed_at',
+        'skipped_at',
         'created_at',
         'updated_at'
       ])
@@ -248,6 +250,7 @@ export async function buildJourneyView(workspaceId: string, projectId: string): 
       reviewState: row.review_state,
       reviewedByName: row.reviewed_by ? names.get(row.reviewed_by) ?? null : null,
       reviewNote: row.review_note,
+      skipped: Boolean(row.skipped_at),
       completedAt: row.completed_at ? row.completed_at.toISOString() : null,
       createdAt: row.created_at.toISOString(),
       updatedAt: row.updated_at.toISOString(),

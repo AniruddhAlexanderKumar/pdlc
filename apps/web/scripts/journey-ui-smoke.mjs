@@ -1,128 +1,262 @@
-// Journey-first UI smoke: three primary destinations, journey path, stage
-// activities, project switching and project creation — against a disposable
-// local stack (API on :4000, Vite on :5173).
-//   node scripts/journey-ui-smoke.mjs
+// Run against a disposable local stack with Chromium installed.
+// CHROMIUM_PATH=/usr/bin/chromium node apps/web/scripts/journey-ui-smoke.mjs
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
+import { chromium } from 'playwright-core';
 
-const base = process.env.JOURNEY_UI_URL ?? 'http://localhost:5173';
-const { chromium: pw } = await import('playwright-core');
-const { default: chromium } = await import('@sparticuz/chromium');
-
-const password = `Synthetic-${randomBytes(18).toString('base64url')}`;
-const email = `journey-${randomBytes(8).toString('hex')}@example.test`;
-
-async function call(method, path, body, cookie) {
-  const response = await fetch(`${base}/api${path}`, {
-    method,
-    headers: {
-      origin: base,
-      ...(cookie ? { cookie } : {}),
-      ...(body ? { 'content-type': 'application/json' } : {})
-    },
-    ...(body ? { body: JSON.stringify(body) } : {})
-  });
-  const data = await response.json().catch(() => null);
-  return { status: response.status, data, cookie: response.headers.get('set-cookie')?.split(';')[0] };
-}
-
-const registered = await call('POST', '/auth/register', {
-  acceptedTerms: true,
-  name: 'Journey fixture',
-  email,
-  password,
-  workspaceName: 'Journey fixture workspace'
-});
-assert.equal(registered.status, 201);
-const cookie = registered.cookie;
-assert(cookie);
-
-const hardware = await call('POST', '/projects', { name: 'Field purifier', key: 'PURIF', template: 'hardware', description: 'Hardware field unit' }, cookie);
-const software = await call('POST', '/projects', { name: 'Control app', key: 'CTRL', template: 'software', description: 'Companion app' }, cookie);
-assert.equal(hardware.status, 201);
-assert.equal(software.status, 201);
-
-const browser = await pw.launch({
-  executablePath: await chromium.executablePath(),
-  args: chromium.args.filter((x) => x !== '--disable-web-security'),
+const base = 'http://localhost:5173';
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM_PATH || process.env.BROWSER_EXECUTABLE,
+  args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   headless: true
 });
 
 try {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const page = await browser.newPage({ viewport: { width: 390, height: 850 } });
+  page.setDefaultTimeout(12000);
   const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('pageerror', error => errors.push(error.message));
+  // The live editor has its own independent check. This workflow exercises file fallback.
+  await page.route('https://app.cadit.app/**', route => route.abort());
+  const registration = await page.request.post(base + '/api/auth/register', {
+    headers: { origin: base },
+    data: {
+      name: 'Lifecycle student',
+      email: `journey-${randomBytes(8).toString('hex')}@example.test`,
+      password: `Synthetic-${randomBytes(18).toString('base64url')}`,
+      acceptedTerms: true,
+      workspaceName: 'Lifecycle smoke'
+    }
+  });
+  assert.equal(registration.status(), 201);
+  await page.goto(base);
+  const consent = page.getByRole('button', { name: 'Essential only' });
+  if (await consent.isVisible()) await consent.click();
+  await page.getByRole('button', { name: 'Create a project', exact: true }).click();
+  await page.getByLabel('Project name').fill('Desk light');
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  await page.getByRole('heading', { name: 'Describe your idea' }).waitFor();
+  const projectId = new URL(page.url()).searchParams.get('project');
+  assert(projectId);
+  const projectPath = `/journeys/projects/${projectId}`;
+  const api = async (path, method = 'GET', data) => {
+    const result = await page.request.fetch(base + '/api' + path, { method, data, headers: { origin: base } });
+    assert(result.ok(), `${method} ${path} ${result.status()} ${await result.text()}`);
+    return result.json();
+  };
+  const nav = page.getByRole('navigation', { name: 'Main', exact: true });
+  assert.deepEqual(await nav.getByRole('link').allTextContents(), ['Journey','Design Studio']);
+  let layout = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
+  assert(layout[0] <= layout[1], String(layout));
 
-  // ── Sign in lands on Journey ────────────────────────────────────────────────
-  await page.goto(`${base}/login`);
-  await page.getByLabel('Work email').fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Log in' }).click();
-  await page.waitForURL(`${base}/`);
-  await page.getByRole('heading', { name: /Field purifier|Control app/ }).waitFor({ timeout: 15000 });
+  const view = await api(projectPath);
+  const steps = view.stages.flatMap(stage => stage.activities);
+  const getStep = title => steps.find(step => step.title === title);
+  const open = async title => {
+    const activity = getStep(title);
+    const row = page.locator(`[id="${activity.id}"]`);
+    const toggle = row.locator(':scope > button');
+    if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+    return row;
+  };
+  const done = async row => {
+    await row.getByRole('button', { name: 'Mark step done' }).click();
+    await row.locator(':scope > button').getByText('Done', { exact: true }).waitFor();
+  };
+  const notes = async (title, text) => {
+    const row = await open(title);
+    await row.getByLabel('Step notes').fill(text);
+    await row.getByRole('button', { name: 'Save notes' }).click();
+    await done(row);
+  };
+  const checklist = async (title, text) => {
+    const row = await open(title);
+    await row.getByLabel('Requirement', { exact: true }).fill(text);
+    await row.getByRole('button', { name: 'Add requirement' }).click();
+    await row.getByLabel(`Status for ${text}`).selectOption('Done');
+    await done(row);
+  };
+  const approval = async title => {
+    const row = await open(title);
+    await row.getByRole('button', { name: 'Ask for approval', exact: true }).click();
+    await row.getByText('Waiting for approval.', { exact: true }).waitFor();
+    await row.getByLabel('Review notes').fill('Reviewed the evidence.');
+    await row.getByRole('button', { name: 'Approve', exact: true }).click();
+    await row.getByText('Approved.', { exact: true }).waitFor();
+  };
 
-  // Pin the hardware project so the lifecycle assertions below are deterministic.
-  await page.getByRole('button', { name: 'Select project' }).first().click();
-  await page.getByRole('option', { name: /Field purifier/ }).click();
-  await page.waitForURL(`${base}/?project=${hardware.data.id}`);
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await notes('Capture the problem and target user', 'A lamp for a student desk.');
+  const scope = await open('Confirm project scope');
+  await scope.getByLabel('What changed?').fill('Use a replaceable bulb');
+  await scope.getByLabel('Why did it change?').fill('Easier to repair.');
+  await scope.getByRole('button', { name: 'Record change' }).filter({ visible: true }).click();
+  await done(scope);
+  await notes('Problem statement and use cases', 'Read at night.');
+  await checklist('Draft functional requirements', 'Lights a book evenly');
+  const optional = await open('Log technical feasibility risks');
+  await optional.getByRole('button', { name: 'Skip optional step' }).click();
+  await optional.getByText('Skipped', { exact: true }).waitFor();
+  await approval('Requirements baseline review');
 
-  // ── Exactly three primary destinations in the main navigation ───────────────
-  const mainNav = page.locator('nav[aria-label="Main"]').first();
-  await mainNav.getByRole('link', { name: 'Journey' }).waitFor();
-  await mainNav.getByRole('link', { name: 'AI Assistant' }).waitFor();
-  await mainNav.getByRole('link', { name: 'Design Studio' }).waitFor();
-  for (const removed of ['Dashboard', 'Teamwork Graph', 'Achievements', 'Materials', 'Suppliers']) {
-    assert.equal(await mainNav.getByRole('link', { name: removed, exact: true }).count(), 0, `${removed} must not be a primary nav entry`);
-  }
+  const design = await open('Concept sketches and architecture');
+  await design.getByRole('link', { name: 'Open Design Studio' }).click();
+  const studio = page.getByRole('region', { name: 'Project designs' });
+  await studio.getByLabel('Design name').fill('Lamp assembly');
+  await studio.getByRole('button', { name: 'Create diagram' }).click();
+  await page.getByRole('heading', { name: 'Lamp assembly' }).waitFor();
+  await page.getByRole('button', { name: 'Add box' }).click();
+  await page.getByRole('button', { name: 'Save a version' }).click();
+  await page.getByText(/revision 2/i).first().waitFor();
+  await page.getByRole('link', { name: 'Back to Journey', exact: true }).click();
+  await design.getByRole('link', { name: 'Lamp assembly' }).waitFor();
+  await design.getByLabel('Attach an existing file').setInputFiles({
+    name: 'lamp.stl', mimeType: 'application/octet-stream', buffer: Buffer.from('first design bytes')
+  });
+  await design.getByRole('link', { name: 'lamp.stl', exact: true }).waitFor();
+  await done(design);
+  const choice = await open('Select the preferred concept');
+  await choice.getByLabel('What changed?').fill('Choose the modular version');
+  await choice.getByLabel('Why did it change?').fill('Easier to assemble.');
+  await choice.getByRole('button', { name: 'Record change' }).click();
+  await done(choice);
+  await approval('Concept design review');
 
-  // ── The journey path renders with the recommended lifecycle ─────────────────
-  await page.getByRole('heading', { name: 'Development path' }).waitFor();
-  await page.getByText('Discover & Define').first().waitFor();
-  await page.getByText('Prototype & Test').first().waitFor();
-  await page.getByText('Journey progress').waitFor();
-  await page.getByText('Next action').waitFor();
+  const detailedDesign = await open('Detailed CAD and drawings');
+  await detailedDesign.getByLabel('Link a design').selectOption((await api(projectPath + '/records')).designs[0].id);
+  await detailedDesign.getByRole('link', { name: 'Lamp assembly' }).waitFor();
+  await detailedDesign.getByRole('link', { name: 'Open Design Studio' }).click();
+  await studio.getByLabel('Design name').fill('Lamp enclosure');
+  await studio.getByRole('button', { name: 'Create 3D model', exact: true }).click();
+  await page.getByRole('heading', { name: 'Lamp enclosure', exact: true }).waitFor();
+  await page.getByRole('heading', { name: '3D preview' }).waitFor();
+  await page.getByLabel('Shape', { exact: true }).selectOption('circle');
+  await page.getByLabel('Diameter (mm)').fill('55');
+  await page.getByLabel('Height (mm)').fill('24');
+  await page.getByRole('button', { name: 'Save a version', exact: true }).click();
+  await page.getByText('Version 2 · Saved', { exact: true }).waitFor();
+  await page.getByText(/256 facets/).waitFor();
+  const nativeModel = (await api(projectPath + '/records')).designs.find(item => item.kind === 'model');
+  const stlUrl = `/api/designs/${nativeModel.id}/revisions/2/stl`;
+  const v2 = await page.request.get(base + stlUrl);
+  assert.equal(v2.status(), 200);
+  assert.equal((await v2.body()).readUInt32LE(80), 256);
+  await page.getByRole('link', { name: 'Back to Journey', exact: true }).click();
+  await detailedDesign.getByRole('link', { name: 'Lamp enclosure' }).waitFor();
+  await done(detailedDesign);
+  const parts = await open('Bill of materials');
+  await parts.getByLabel('Part or material name').fill('Housing');
+  await parts.getByLabel('Quantity', { exact: true }).fill('2');
+  await parts.getByRole('button', { name: 'Add part' }).click();
+  await done(parts);
+  await checklist('Specify materials and tolerances', 'Heat-resistant housing');
+  await notes('Prototype build plan', 'Assemble the enclosure.');
+  const test = await open('Test plan and results');
+  await test.getByLabel('What did you test?').fill('Switch');
+  await test.getByLabel('What happened?').fill('The light turned on.');
+  await test.getByLabel('What needs fixing? (optional)').fill('Move the switch closer.');
+  await test.getByRole('button', { name: 'Record test' }).click();
+  await test.getByRole('checkbox', { name: /Move the switch/ }).click();
+  await test.getByText('Fixed · Move the switch closer.', { exact: true }).waitFor();
+  await done(test);
+  await notes('First working prototype', 'First prototype worked.');
+  await approval('Final design sign-off');
 
-  // ── The current stage opens with its activities in place ────────────────────
-  const activeStage = page.locator('button[aria-label^="Current stage"]');
-  assert.equal(await activeStage.count(), 1, 'exactly one active stage');
-  const detail = page.getByRole('region', { name: /Activities in/ }).first();
-  if (!(await detail.isVisible().catch(() => false))) await activeStage.click();
-  await detail.waitFor();
-  await detail.getByText('New activity').waitFor();
-  assert(await detail.getByText('Capture the problem and target user').first().isVisible(), 'seeded activity visible in stage');
-  await page.screenshot({ path: '.data/screenshots/journey-desktop.png', fullPage: false });
+  const release = await open('Production release');
+  await release.getByRole('button', { name: 'Review release' }).click();
+  await release.getByText('Lamp assembly · Design version 2').waitFor();
+  await release.getByText(/Lamp enclosure · Design version 2/).waitFor();
+  await release.getByLabel('Release name').fill('Desk light v1');
+  await release.getByRole('button', { name: 'Save this release', exact: true }).click();
+  await release.getByText('Desk light v1', { exact: true }).waitFor();
+  await done(release);
+  await notes('Launch checklist and handover notes', 'Include the illustrated assembly instructions.');
+  await page.getByRole('heading', { name: 'Journey complete', exact: true }).waitFor();
+  const initial = await api(projectPath + '/records');
+  const saved = initial.records.find(item => item.kind === 'release');
+  const fileRecord = initial.records.find(item => item.kind === 'file');
+  const oldVersion = fileRecord.versions[0].id;
+  assert.deepEqual(saved.data.records.map(item => item.kind), ['file','part','test']);
+  assert.equal(saved.data.records.find(item => item.kind === 'test').data.fixed, true);
 
-  // ── Switch projects from the Journey header ─────────────────────────────────
-  await page.getByRole('button', { name: 'Select project' }).first().click();
-  await page.getByRole('option', { name: /Control app/ }).click();
-  await page.waitForURL(`${base}/?project=${software.data.id}`);
-  await page.getByRole('heading', { name: /Control app/ }).waitFor();
-  await page.getByText('Operate & Improve', { exact: true }).first().waitFor(); // software lifecycle stage
+  await open('Concept sketches and architecture');
+  await design.getByText('File versions (1)').click();
+  await design.getByLabel('Save a new file version').setInputFiles({
+    name: 'lamp-updated.stl', mimeType: 'application/octet-stream', buffer: Buffer.from('new design bytes')
+  });
+  await design.getByText('File versions (2)').waitFor();
+  await design.getByRole('link', { name: 'Lamp assembly' }).click();
+  await page.getByRole('heading', { name: 'Lamp assembly' }).waitFor();
+  await page.getByRole('button', { name: 'Add box' }).click();
+  await page.getByRole('button', { name: 'Save a version' }).click();
+  await page.getByText(/revision 3/i).first().waitFor();
+  await page.getByRole('link', { name: 'Back to Journey', exact: true }).click();
+  await open('Bill of materials');
+  await parts.getByRole('button', { name: 'Edit part' }).click();
+  await parts.getByLabel('Quantity', { exact: true }).fill('3');
+  await parts.getByRole('button', { name: 'Save part' }).click();
+  await parts.getByText('Quantity 3').waitFor();
+  const updated = await api(projectPath + '/records');
+  assert.equal(updated.designs[0].revision, 3);
+  assert.deepEqual(updated.records.find(item => item.id === saved.id), saved);
+  await open('Detailed CAD and drawings');
+  await detailedDesign.getByRole('link', { name: 'Lamp enclosure' }).click();
+  await page.getByLabel('Height (mm)').fill('30');
+  await page.getByRole('button', { name: 'Save a version', exact: true }).click();
+  await page.getByText('Version 3 · Saved', { exact: true }).waitFor();
+  const latestBody = await (await page.request.get(base + stlUrl.replace('/2/', '/3/'))).body();
+  assert.notDeepEqual(latestBody, await v2.body());
+  await Promise.all([
+    page.waitForEvent('dialog').then(dialog => dialog.accept()),
+    page.getByRole('button', { name: 'Restore version 2', exact: true }).click()
+  ]);
+  await page.getByText('Version 4 · Saved', { exact: true }).waitFor();
+  assert.deepEqual(await (await page.request.get(base + stlUrl.replace('/2/', '/4/'))).body(), await v2.body());
+  await page.getByRole('link', { name: 'Back to Journey', exact: true }).click();
+  const snapshotResponse = await page.request.get(base + '/api' + projectPath + '/records/release/' + saved.id);
+  assert.equal(snapshotResponse.status(), 200);
+  const snapshot = await snapshotResponse.json();
+  assert.equal(snapshot.designs[0].revision, 2);
+  assert.equal(snapshot.designs[0].source.nodes.length, 1);
+  assert.equal(snapshot.designs.find(item => item.kind === 'model').source.width, 55);
+  await open('Production release');
+  await release.getByText('Desk light v1', { exact: true }).click();
+  assert.equal(await release.getByRole('link', { name: 'Download STL', exact: true }).getAttribute('href'), stlUrl);
+  assert.equal(snapshot.records.find(item => item.kind === 'part').data.quantity, 2);
+  assert.equal(await (await page.request.get(base + '/api' + projectPath + '/records/files/' + oldVersion)).text(), 'first design bytes');
 
-  // ── Create a new project directly from Journey ──────────────────────────────
-  await page.getByRole('button', { name: 'New project' }).first().click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Project name').fill('Bench tester');
-  await dialog.getByLabel('Project type').selectOption('research');
-  await dialog.getByText('Recommended Journey').waitFor();
-  await dialog.getByRole('button', { name: /Create project/ }).click();
-  await page.getByRole('heading', { name: /Bench tester/ }).waitFor({ timeout: 15000 });
-  await page.getByText('Proposal', { exact: true }).first().waitFor(); // research lifecycle
-
-  // ── Mobile: three-item bottom nav, no horizontal overflow ───────────────────
-  await page.setViewportSize({ width: 390, height: 850 });
+  const second = await api('/projects', 'POST', { name: 'Second project', key: 'SECOND', template: 'software' });
   await page.reload();
-  await page.getByRole('heading', { name: /Bench tester|Field purifier|Control app/ }).waitFor({ timeout: 15000 });
-  const bottomNav = page.locator('nav[aria-label="Main"]').last();
-  await bottomNav.getByRole('link', { name: 'Journey' }).waitFor();
-  await bottomNav.getByRole('link', { name: 'AI Assistant' }).waitFor();
-  await bottomNav.getByRole('link', { name: 'Design Studio' }).waitFor();
-  const size = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
-  assert(size.scroll <= size.width, `horizontal overflow: ${size.scroll} > ${size.width}`);
-  await page.screenshot({ path: '.data/screenshots/journey-mobile.png', fullPage: false });
-
+  await page.getByRole('button', { name: 'Select project' }).click();
+  await page.getByRole('option', { name: /Second project/ }).click();
+  await page.getByRole('heading', { name: /Second project/ }).waitFor();
+  assert.equal(await page.getByRole('progressbar', { name: 'Journey progress' }).getAttribute('value'), '0');
+  await page.getByRole('heading', { name: 'Learn and improve', exact: true }).waitFor();
+  const foreignVersion = await page.request.get(base + `/api/journeys/projects/${second.id}/records/files/${oldVersion}`);
+  assert.equal(foreignVersion.status(), 404);
+  const foreignDesign = await page.request.post(base + `/api/journeys/projects/${second.id}/records`, {
+    headers: { origin: base },
+    data: {
+      activityId: (await api(`/journeys/projects/${second.id}`)).stages[0].activities[0].id,
+      kind: 'diagram',
+      designId: initial.designs[0].id
+    }
+  });
+  assert.equal(foreignDesign.status(), 404);
+  await nav.getByRole('link', { name: 'Design Studio' }).click();
+  await page.getByRole('heading', { name: 'Project designs' }).waitFor();
+  assert.equal(await page.getByRole('link', { name: 'Lamp assembly' }).count(), 0);
+  assert.deepEqual((await api(`/journeys/projects/${second.id}/records`)).records, []);
+  await page.getByRole('button', { name: 'Select project' }).click();
+  await page.getByRole('option', { name: /Desk light/ }).click();
+  await page.getByRole('link', { name: 'Lamp assembly' }).waitFor();
+  await page.getByRole('link', { name: 'Back to Journey step' }).click();
+  await page.getByRole('heading', { name: /Desk light/ }).waitFor();
+  assert(Number(await page.getByRole('progressbar', { name: 'Journey progress' }).getAttribute('value')) > 0);
+  layout = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
+  assert(layout[0] <= layout[1], String(layout));
   assert.deepEqual(errors, []);
-  console.log('PASS journey landing, three primary destinations, stage detail, project switch/create, mobile layout');
+  console.log('PASS project creation, path, optional step, approvals, native 3D model, STL, diagram versions, file attachment/history, parts, tests/fixes, immutable release, mobile and project switching');
 } finally {
   await browser.close();
 }

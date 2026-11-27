@@ -209,6 +209,7 @@ export interface JourneyActivitiesTable {
   reviewed_at: Timestamp | null;
   review_note: Generated<string>;
   completed_at: Timestamp | null;
+  skipped_at: Generated<Timestamp | null>;
   created_by: string | null;
   created_at: CreatedAt;
   updated_at: Timestamp;

@@ -113,6 +113,7 @@ jobs:
           node apps/web/scripts/studio-home-integration-smoke.mjs
           node apps/web/scripts/studio-home-browser-smoke.mjs
           node apps/web/scripts/cadit-browser-smoke.mjs
+          node apps/web/scripts/journey-ui-smoke.mjs
           # The product designer is a separate HTML entry with its own frame policy.
           node --import tsx --input-type=module -e 'import {createApp} from "./apps/server/src/app.ts"; createApp().listen(4173,"127.0.0.1");' > "$RUNNER_TEMP/sv-designer.log" 2>&1 & designer=$!
           node -e 'require("http").createServer((q,r)=>{r.writeHead(200,{"Content-Type":"text/html"});r.end("<iframe src=\"http://localhost:4173/product-designer.html\" style=\"width:100%;height:900px\"></iframe>")}).listen(4174,"127.0.0.1")' > "$RUNNER_TEMP/sv-embed.log" 2>&1 & embed=$!

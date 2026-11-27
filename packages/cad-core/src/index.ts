@@ -4,3 +4,4 @@ export * from './sketch.js';
 export * from './solver.js';
 export * from './document.js';
 export * from './editor.js';
+export * from './model-stl.js';
