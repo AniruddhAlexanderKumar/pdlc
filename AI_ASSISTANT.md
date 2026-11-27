@@ -37,3 +37,5 @@ Deploy migrations `020_assistant`, `021_assistant_status` and `022_assistant_pri
 ## Other AI features
 
 The product insight, graph interpretation and voice routes use their own separately configured legacy model paths; they do not use assistant providers or the assistant token allowance. The unused raw `/api/ai` endpoints are restricted to system administrators. Voice processing no longer substitutes invented products, costs, materials or tasks when its model is unavailable: it returns an error. Model-generated voice drafts may still be inaccurate and must be reviewed; unknown required numeric fields may appear as zero. Voice import creates a project, so only owners/admins may import. The transcript is sent to the separately configured voice provider.
+
+The workspace header opens AI Assistant on desktop and mobile. **Ask AI** in Journey starts a new chat with that project selected. The suggested Journey summary, next-step and blockers questions use saved project data directly and can answer without an AI provider.

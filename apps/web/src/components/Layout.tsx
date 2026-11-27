@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router';
-import { BarChart3, BookOpen, PenTool, ChevronsUpDown, Cookie, FolderKanban, LayoutGrid, Layers, LogOut, Menu, Mic, Moon, Network, Package, Plus, Route, Settings, Shield, Sun, Trophy, Truck } from 'lucide-react';
+import { BookOpen, PenTool, Cookie, FolderKanban, LayoutGrid, Layers, LogOut, Mic, Moon, Network, Package, Plus, Route, Settings, Shield, Sparkles, Sun, Trophy, Truck } from 'lucide-react';
 import { DEFAULT_APP_LAYOUT, type Me } from '@sv/shared';
 import { post } from '../api/client';
 import { useAppLayout, useResetSession, useSession } from '../api/hooks';
@@ -24,7 +24,8 @@ export const useVoiceDictation = () => useContext(VoiceDictationCtx);
 
 const NAV = [
   { to: '/', label: 'Journey', icon: Route, end: true },
-  { to: '/designs', label: 'Design Studio', icon: PenTool }
+  { to: '/designs', label: 'Design Studio', icon: PenTool },
+  { to: '/assistant', label: 'AI Assistant', icon: Sparkles }
 ];
 
 /** Secondary destinations, grouped in the account/workspace menu. */
@@ -39,7 +40,7 @@ const SECONDARY_NAV = [
   { to: '/help', label: 'Help Centre', icon: BookOpen }
 ];
 
-function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boolean; placement?: 'above' | 'below' }) {
+function WorkspaceMenu() {
   const me = useSession();
   const resetSession = useResetSession();
   const toast = useToast();
@@ -62,13 +63,18 @@ function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boo
   });
 
   return (
-    <div className="relative">
+    <div className="relative" onKeyDown={event => {
+      if (event.key === 'Escape' && open) {
+        setOpen(false);
+        event.currentTarget.querySelector('button')?.focus();
+      }
+    }}>
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label="Account and workspace menu"
-        title={compact ? `${me.user.name} · ${me.workspace.name}` : undefined}
-        className={cx('flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60', compact && 'justify-center', open && 'relative z-40')}
+        title={`${me.user.name} · ${me.workspace.name}`}
+        className={cx('flex w-full items-center justify-center rounded-lg p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/60', open && 'relative z-40')}
       >
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600/10 text-xs font-semibold text-blue-700 dark:text-blue-300">
           {me.user.name
@@ -78,16 +84,11 @@ function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boo
             .join('')
             .toUpperCase()}
         </div>
-        <div className={cx('min-w-0 flex-1', compact && 'sr-only')}>
-          <p className="truncate text-xs font-medium">{me.user.name}</p>
-          <p className="truncate text-[11px] text-zinc-500">{me.workspace.name}</p>
-        </div>
-        {!compact && <ChevronsUpDown className="h-4 w-4 text-zinc-400" />}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className={cx('animate-rise absolute z-40 w-64 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900', placement === 'below' ? 'right-0 top-full mt-2' : 'bottom-full left-0 mb-2')}>
+          <div className="animate-rise absolute right-0 top-full z-40 mt-2 max-h-[calc(100dvh-5rem)] w-64 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
             <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-400">Workspaces</p>
             {me.workspaces.map((w) => (
               <button
@@ -165,39 +166,35 @@ function WorkspaceMenu({ compact = false, placement = 'above' }: { compact?: boo
   );
 }
 
-function DesktopTopNavigation({ style, onNew, onVoice, navigation }: { style: 'tabs' | 'menu'; onNew: () => void; onVoice: () => void; navigation: typeof NAV }) {
+function WorkspaceHeader({ onNew, onVoice }: { onNew: () => void; onVoice: () => void }) {
   const me = useSession();
-  const [open, setOpen] = useState(false);
-  const menuButton = useRef<HTMLButtonElement>(null);
-  useEffect(() => { setOpen(false); }, [style]);
-  const links = navigation;
+  const navigation = me.demo ? NAV.slice(0, 1) : NAV;
   return (
-    <header className="relative z-40 hidden shrink-0 border-b border-slate-200 bg-white md:block dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex h-16 items-center gap-3 px-5">
-        {style === 'menu' && (
-          <div className="relative" onKeyDown={(event) => { if (event.key === 'Escape' && open) { setOpen(false); menuButton.current?.focus(); } }}>
-            <button ref={menuButton} type="button" aria-label="Open navigation menu" aria-expanded={open} aria-controls="desktop-navigation-menu" onClick={() => setOpen((v) => !v)} className={cx('relative rounded-md p-2 hover:bg-slate-100 dark:hover:bg-zinc-800', open && 'z-40')}>
-              <Menu className="h-5 w-5" />
-            </button>
-            {open && <>
-              <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-              <nav id="desktop-navigation-menu" aria-label="Main" className="absolute left-0 top-full z-40 mt-2 max-h-[calc(100vh-5rem)] w-60 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
-                {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setOpen(false)} className={({ isActive }) => cx('flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium', isActive ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800')}><n.icon className="h-4 w-4" />{n.label}</NavLink>)}
-              </nav>
-            </>}
-          </div>
-        )}
-        <Logo />
-        <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onNew}>{'New project'}</Button>
-          {!me.demo && <IconButton label="Voice capture" onClick={onVoice}><Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" /></IconButton>}
+    <header className="relative z-40 shrink-0 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="mx-auto grid max-w-[1600px] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 px-3 sm:px-5 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <div className="flex min-h-14 items-center lg:min-h-16"><Logo className="gap-1 sm:gap-3" /></div>
+        <nav aria-label="Main" className="col-span-2 row-start-2 mb-2 flex w-full gap-1 rounded-xl bg-zinc-100 p-1 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:mb-0 lg:w-auto dark:bg-zinc-800/70">
+          {navigation.map(({ to, label, icon: Icon, end }) => (
+            <NavLink key={to} to={to} end={end} className={({ isActive }) => cx(
+              'flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-1.5 text-center text-xs font-semibold leading-tight outline-offset-2 focus-visible:outline-2 focus-visible:outline-blue-500 sm:px-4 sm:text-sm lg:flex-none',
+              isActive ? 'bg-white text-[#16598d] shadow-sm dark:bg-zinc-700 dark:text-blue-200' : 'text-zinc-600 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-700/70'
+            )}>
+              <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="col-start-2 row-start-1 flex items-center justify-end gap-0.5 sm:gap-2 lg:col-start-3">
+          {me.workspace.role !== 'member' && (
+            <Button size="sm" aria-label="New project" icon={<Plus className="h-4 w-4" />} onClick={onNew}>
+              <span className="hidden sm:inline">New project</span>
+            </Button>
+          )}
+          {!me.demo && <IconButton label="Voice capture" onClick={onVoice}><Mic className="h-4 w-4" /></IconButton>}
           <NotificationBell />
-          <WorkspaceMenu compact placement="below" />
+          <WorkspaceMenu />
         </div>
       </div>
-      {style === 'tabs' && <nav aria-label="Main" className="flex overflow-x-auto px-4">
-        {links.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium', isActive ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-zinc-600 hover:text-blue-700 dark:text-zinc-400')}><n.icon className="h-4 w-4" />{n.label}</NavLink>)}
-      </nav>}
     </header>
   );
 }
@@ -214,119 +211,23 @@ export function Layout() {
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const { data: appLayout } = useAppLayout();
-  const navigation = me.demo ? NAV.filter(n => n.to !== '/designs') : NAV;
   const layout = appLayout ?? DEFAULT_APP_LAYOUT;
-  const compact = layout.navigation === 'compact';
-  const topNavigation = layout.navigation === 'tabs' || layout.navigation === 'menu';
-  const { theme, toggle } = useTheme();
 
   return (
     <NewProductCtx.Provider value={() => setNewOpen(true)}>
       <VoiceDictationCtx.Provider value={() => setVoiceOpen(true)}>
-        <div className={cx('flex h-full flex-col', !topNavigation && 'md:flex-row')}>
-          {/* Desktop sidebar */}
-          {!topNavigation && <aside className={cx('hidden shrink-0 flex-col border-r border-slate-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-900', compact ? 'w-20' : 'w-64')}>
-            <div className={cx('flex h-[72px] items-center border-b border-slate-100 dark:border-zinc-800', compact ? 'justify-center px-2' : 'px-5')}>
-              {compact ? <span className="flex h-9 w-14 items-center justify-center rounded-md bg-white px-1"><img src="/solution-velocity-logo.png" alt="Solution Velocity" className="h-7 w-full object-contain" /></span> : <Logo />}
-            </div>
-            <div className={cx('space-y-2 pb-5 pt-5', compact ? 'px-3' : 'px-4')}>
-              <Button className="w-full" aria-label="New project" title={compact ? 'New project' : undefined} icon={<Plus className="h-4 w-4" />} onClick={() => setNewProjectOpen(true)}>
-                {!compact && 'New project'}
-              </Button>
-              {!me.demo && <Button
-                variant="secondary"
-                aria-label="Voice capture"
-                title={compact ? 'Voice capture' : undefined}
-                className="w-full border-blue-200 bg-blue-50/60 text-blue-700 hover:bg-blue-100/70 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
-                icon={<Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
-                onClick={() => setVoiceOpen(true)}
-              >
-                {!compact && 'Voice capture'}
-              </Button>}
-            </div>
-          <nav className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-3" aria-label="Main">
-            {!compact && <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p>}
-            {navigation.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.end}
-                title={compact ? n.label : undefined}
-                className={({ isActive }) =>
-                  cx(
-                    'flex items-center justify-between rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors',
-                    compact && 'justify-center',
-                    isActive
-                      ? 'bg-blue-50 text-[#16598d] dark:bg-blue-500/15 dark:text-blue-300'
-                      : 'text-zinc-600 hover:bg-zinc-100/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200'
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <span className="flex items-center gap-2.5">
-                    <n.icon className={cx('h-4 w-4', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400')} />
-                    <span className={compact ? 'sr-only' : undefined}>{n.label}</span>
-                  </span>
-                )}
-              </NavLink>
-            ))}
-          </nav>
-          <div className={cx('mt-auto space-y-2 border-t border-zinc-200/80 dark:border-zinc-800/80', compact ? 'p-2' : 'p-4')}>
-            <WorkspaceMenu compact={compact} />
-          </div>
-        </aside>}
-        {topNavigation && <DesktopTopNavigation style={layout.navigation as 'tabs' | 'menu'} onNew={() => setNewProjectOpen(true)} onVoice={() => setVoiceOpen(true)} navigation={navigation} />}
-
-        {/* Mobile top bar */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden dark:border-zinc-800 dark:bg-zinc-900">
-          <Logo />
-          <div className="flex items-center gap-1">
-            <IconButton label="Toggle theme" onClick={toggle}>
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </IconButton>
-            {!me.demo && <IconButton label="Voice capture" onClick={() => setVoiceOpen(true)}>
-              <Mic className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </IconButton>}
-            <NotificationBell />
-            <NavLink to="/settings" className="rounded-lg p-1.5 text-zinc-500" aria-label="Settings">
-              <Settings className="h-4 w-4" />
-            </NavLink>
-            <Button size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setNewProjectOpen(true)}>
-              New
-            </Button>
-          </div>
-        </header>
-
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#f6f8fa] pb-20 md:pb-0 dark:bg-zinc-950">
-          {me.demo && <DemoNotice expiresAt={me.demo.expiresAt} />}
-          <div className={cx('h-full min-h-full', layout.contentWidth === 'constrained' && 'mx-auto w-full max-w-7xl')}><Outlet /></div>
-        </main>
-
-        {/* Mobile bottom nav */}
-        <nav
-          className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden dark:border-zinc-800 dark:bg-zinc-900/95"
-          aria-label="Main"
-        >
-          {navigation.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.end}
-              className={({ isActive }) =>
-                cx('flex min-w-[76px] flex-1 shrink-0 flex-col items-center gap-1 px-1 py-2 text-center text-[10px] font-medium', isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500')
-              }
-            >
-              <n.icon className="h-5 w-5" />
-              {n.label}
-            </NavLink>
-          ))}
-        </nav>
-      </div>
-      <QuickActions onNew={() => setNewOpen(true)} />
-      {newOpen && <NewProductModal onClose={() => setNewOpen(false)} />}
-      {newProjectOpen && <NewProjectModal onClose={() => setNewProjectOpen(false)} />}
-      {voiceOpen && <VoiceDictationModal onClose={() => setVoiceOpen(false)} />}
-    </VoiceDictationCtx.Provider>
-  </NewProductCtx.Provider>
+        <div className="flex h-full min-w-0 flex-col">
+          <WorkspaceHeader onNew={() => setNewProjectOpen(true)} onVoice={() => setVoiceOpen(true)} />
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#f6f8fa] dark:bg-zinc-950">
+            {me.demo && <DemoNotice expiresAt={me.demo.expiresAt} />}
+            <div className={cx('h-full min-h-full', layout.contentWidth === 'constrained' && 'mx-auto w-full max-w-7xl')}><Outlet /></div>
+          </main>
+        </div>
+        <QuickActions onNew={() => setNewOpen(true)} />
+        {newOpen && <NewProductModal onClose={() => setNewOpen(false)} />}
+        {newProjectOpen && <NewProjectModal onClose={() => setNewProjectOpen(false)} />}
+        {voiceOpen && <VoiceDictationModal onClose={() => setVoiceOpen(false)} />}
+      </VoiceDictationCtx.Provider>
+    </NewProductCtx.Provider>
   );
 }
